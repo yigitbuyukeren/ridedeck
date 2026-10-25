@@ -14,7 +14,7 @@ class AudioSessionManagerTest {
     fun aNewSessionRevokesTheOldOwnerAndOnlyOneOwnerRemains() {
         val manager = AudioSessionManager()
         var revoked = 0
-        val wake = manager.acquire(AudioSessionManager.Owner.VOSK_WAKE) { revoked++ }
+        val wake = manager.acquire(AudioSessionManager.Owner.ANDROID_WAKE) { revoked++ }
         val command = manager.acquire(AudioSessionManager.Owner.ANDROID_STT) { }
 
         assertEquals(1, revoked)
@@ -27,10 +27,10 @@ class AudioSessionManagerTest {
     fun aLateReleaseCannotClearTheNewSession() {
         val manager = AudioSessionManager()
         val old = manager.acquire(AudioSessionManager.Owner.ANDROID_STT) { }
-        val newest = manager.acquire(AudioSessionManager.Owner.VOSK_STT) { }
+        val newest = manager.acquire(AudioSessionManager.Owner.ANDROID_WAKE) { }
 
         assertFalse(manager.release(old))
-        assertEquals(AudioSessionManager.Owner.VOSK_STT, manager.currentOwner())
+        assertEquals(AudioSessionManager.Owner.ANDROID_WAKE, manager.currentOwner())
         assertTrue(manager.release(newest))
         assertEquals(null, manager.currentOwner())
         assertEquals(null, manager.owner.value)
@@ -40,8 +40,8 @@ class AudioSessionManagerTest {
     fun revocationCallbackMayReenterManager() {
         val manager = AudioSessionManager()
         var revoked = false
-        manager.acquire(AudioSessionManager.Owner.ANDROID_WAKE) { revoked = manager.currentOwner() == AudioSessionManager.Owner.VOSK_WAKE }
-        manager.acquire(AudioSessionManager.Owner.VOSK_WAKE) { }
+        manager.acquire(AudioSessionManager.Owner.ANDROID_STT) { revoked = manager.currentOwner() == AudioSessionManager.Owner.ANDROID_WAKE }
+        manager.acquire(AudioSessionManager.Owner.ANDROID_WAKE) { }
         assertTrue(revoked)
     }
 

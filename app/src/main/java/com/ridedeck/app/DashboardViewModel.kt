@@ -46,10 +46,7 @@ import com.ridedeck.app.data.VoiceResponseMode
 import com.ridedeck.app.data.VoiceResponseFormatter
 import com.ridedeck.app.data.RideRoutine
 import com.ridedeck.app.data.RideRoutines
-import com.ridedeck.app.data.SelectableVoiceInput
-import com.ridedeck.app.data.VoskModelState
-import com.ridedeck.app.data.VoskModelStore
-import com.ridedeck.app.data.VoskWakeWord
+import com.ridedeck.app.data.VoiceInput
 import com.ridedeck.app.data.VoiceScreen
 import com.ridedeck.app.data.SavedPlaces
 import kotlinx.coroutines.flow.map
@@ -218,13 +215,8 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         return phone.contacts.value.map { it.name } + places.value.map { it.place.name } + appNames
     }
 
-    private val voskModels = VoskModelStore(app)
-    val voskModelState = voskModels.state
-    val voskDownloadProgress = voskModels.progress
-    val voskModelError = voskModels.error
-    val voiceEngine = MutableStateFlow(Prefs.voiceEngine(app))
     val wakeMisses = MutableStateFlow(Prefs.wakeMisses(app))
-    private val voiceInput = SelectableVoiceInput(app, voskModels) { voiceNames() }
+    private val voiceInput = VoiceInput(app) { voiceNames() }
 
     val voiceResponseMode = MutableStateFlow(runCatching { VoiceResponseMode.valueOf(Prefs.voiceResponseMode(app)) }.getOrDefault(VoiceResponseMode.NORMAL))
     val voiceSpeechRate = MutableStateFlow(Prefs.voiceSpeechRate(app))
@@ -268,40 +260,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { delay(6000); refreshOfflineVoice() }
     }
 
-    fun downloadVoskModel() {
-        if (voskModels.state.value == VoskModelState.DOWNLOADING) return
-        viewModelScope.launch {
-            runCatching { voskModels.download() }
-            applyVoiceExtras()
-        }
-    }
-
-    fun deleteVoskModel() {
-        wakeTriggered = false
-        voiceAssistant.cancel()
-        if (Prefs.voiceEngine(getApplication()) == SelectableVoiceInput.ENGINE_VOSK) {
-            Prefs.setVoiceEngine(getApplication(), SelectableVoiceInput.ENGINE_SYSTEM)
-            voiceEngine.value = SelectableVoiceInput.ENGINE_SYSTEM
-        }
-        voskWake.stop()
-        voskModels.delete()
-        applyVoiceExtras()
-    }
-
-    fun setVoiceEngine(engine: String) {
-        if (engine == SelectableVoiceInput.ENGINE_VOSK && !voskModels.isReady()) return
-        if (engine !in setOf(SelectableVoiceInput.ENGINE_SYSTEM, SelectableVoiceInput.ENGINE_VOSK)) return
-        Prefs.setVoiceEngine(getApplication(), engine)
-        voiceEngine.value = engine
-        applyVoiceExtras()
-    }
-
-    private val wake = WakeWord(app, { requestVoice(fromWakeWord = true) }) {
-        wakeEligible(SelectableVoiceInput.ENGINE_SYSTEM)
-    }
-    private val voskWake = VoskWakeWord(app, voskModels, { requestVoice(fromWakeWord = true) }) {
-        wakeEligible(SelectableVoiceInput.ENGINE_VOSK)
-    }
+    private val wake = WakeWord(app, { requestVoice(fromWakeWord = true) }) { wakeEligible() }
     val voiceWakeOn = MutableStateFlow(Prefs.voiceWake(app))
     val voiceButtonOn = MutableStateFlow(Prefs.voiceButton(app))
     private val voiceButton = VoiceButtonTrigger(app, onDoublePress = { requestVoice() }, onSinglePress = { media.togglePlay() })
@@ -321,28 +280,21 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     /** The wake phrase and the headset key only listen while the dashboard is on screen, the phone is not in a call and has charge. */
     private fun applyVoiceExtras() {
         val calm = onScreen && call.state.value.phase == CallPhase.IDLE
-        val shouldWake = wakeEligible(voiceEngine.value)
+        val shouldWake = wakeEligible()
         if (!calm) AudioSessionManager.process.stateMachine.transition(VoiceRuntimeState.SUSPENDED)
         else if (AudioSessionManager.process.stateMachine.state.value == VoiceRuntimeState.SUSPENDED) {
             AudioSessionManager.process.stateMachine.transition(VoiceRuntimeState.IDLE)
         }
-        if (voiceEngine.value == SelectableVoiceInput.ENGINE_VOSK) {
-            wake.stop()
-            if (shouldWake && voskModels.isReady()) voskWake.start() else voskWake.stop()
-        } else {
-            voskWake.stop()
-            if (shouldWake) { wake.resume(); wake.start() } else wake.stop()
-        }
+        if (shouldWake) { wake.resume(); wake.start() } else wake.stop()
         if (onScreen && voiceButtonOn.value) voiceButton.start() else voiceButton.stop()
     }
 
     /** Re-check every live constraint when a delayed wake retry fires, not only when settings change. */
-    private fun wakeEligible(engine: String): Boolean {
+    private fun wakeEligible(): Boolean {
         val ctx = getApplication<Application>()
         val charged = battery.state.value.let { it.charging || it.percent >= WAKE_MIN_BATTERY }
-        return engine == voiceEngine.value && onScreen && call.state.value.phase == CallPhase.IDLE &&
-            voiceWakeOn.value && charged && ctx.hasPermission(Manifest.permission.RECORD_AUDIO) &&
-            (engine != SelectableVoiceInput.ENGINE_VOSK || voskModels.isReady())
+        return onScreen && call.state.value.phase == CallPhase.IDLE &&
+            voiceWakeOn.value && charged && ctx.hasPermission(Manifest.permission.RECORD_AUDIO)
     }
 
     val voiceHistory = MutableStateFlow(VoiceHistory.fromPreference(Prefs.voiceHistory(app), Prefs.voiceHistoryOn(app)))
@@ -547,7 +499,6 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                     applyVoiceExtras()
                 } else {
                     wake.pause()
-                    voskWake.stop()
                 }
             }
         }
@@ -801,7 +752,6 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         voiceAssistant.cancel()
         voiceInput.cancel()
         wake.stop()
-        voskWake.stop()
         voiceButton.stop()
         AudioSessionManager.process.stateMachine.transition(VoiceRuntimeState.SUSPENDED)
         crashSensor.stop()
@@ -810,7 +760,6 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     override fun onCleared() {
         voiceAssistant.cancel()
-        voskWake.shutdown()
         announcer.shutdown()
         theme.stop()
         nav.shutdown()

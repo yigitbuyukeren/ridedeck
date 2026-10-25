@@ -169,10 +169,6 @@ fun SettingsScreen(
     ttsVoiceNames: List<String> = emptyList(),
     selectedTtsVoice: String? = null,
     onTtsVoice: (String?) -> Unit = {},
-    voiceEngine: String = com.ridedeck.app.data.SelectableVoiceInput.ENGINE_SYSTEM,
-    voskReady: Boolean = false,
-    onVoiceEngine: (String) -> Unit = {},
-    onVoskUnavailable: () -> Unit = {},
     canEditRoutines: Boolean = true,
 ) {
     val palette = LocalMotoPalette.current
@@ -234,7 +230,6 @@ fun SettingsScreen(
                             item { Text(stringResource(R.string.voice_privacy_note), Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MotoColors.Card).padding(14.dp), color = LocalMotoPalette.current.muted) }
                             item {
                                 Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(14.dp)) {
-                                    VoiceEngineSelector(voiceEngine, voskReady, onVoiceEngine, onVoskUnavailable)
                                     ChoiceRow(stringResource(R.string.voice_response_mode_title), stringResource(R.string.voice_response_mode_desc), listOf(stringResource(R.string.voice_response_minimal) to (responseMode == VoiceResponseMode.MINIMAL), stringResource(R.string.voice_response_normal) to (responseMode == VoiceResponseMode.NORMAL), stringResource(R.string.voice_response_detailed) to (responseMode == VoiceResponseMode.DETAILED))) { onResponseMode(VoiceResponseMode.entries[it]) }
                                     Text(stringResource(R.string.voice_speech_rate, (speechRate * 100).toInt()), color = LocalMotoPalette.current.text)
                                     Slider(speechRate, onSpeechRate, valueRange = 0.75f..1.25f)
@@ -406,28 +401,5 @@ fun ChoiceRow(title: String, description: String, choices: List<Pair<String, Boo
                 }
             }
         }
-    }
-}
-
-@Composable
-fun VoiceEngineSelector(
-    engine: String,
-    voskReady: Boolean,
-    onSelect: (String) -> Unit,
-    onVoskUnavailable: () -> Unit,
-) {
-    val system = com.ridedeck.app.data.SelectableVoiceInput.ENGINE_SYSTEM
-    val vosk = com.ridedeck.app.data.SelectableVoiceInput.ENGINE_VOSK
-    ChoiceRow(
-        stringResource(R.string.voice_engine_title),
-        stringResource(if (voskReady) R.string.voice_engine_desc else R.string.voice_engine_vosk_unavailable),
-        listOf(
-            stringResource(R.string.voice_engine_system_title) to (engine == system),
-            stringResource(R.string.voice_engine_vosk_title) to (engine == vosk),
-        ),
-    ) { selected ->
-        if (selected == 0) onSelect(system)
-        else if (voskReady) onSelect(vosk)
-        else onVoskUnavailable()
     }
 }

@@ -50,7 +50,7 @@ class VoiceStateMachine {
 
 /** Process-wide arbitration for mutually exclusive microphone and speech-output sessions. */
 class AudioSessionManager {
-    enum class Owner { ANDROID_STT, VOSK_STT, FOLLOW_UP_STT, ANDROID_WAKE, VOSK_WAKE, TTS }
+    enum class Owner { ANDROID_STT, FOLLOW_UP_STT, ANDROID_WAKE, TTS }
 
     class Token internal constructor(val id: Long, val owner: Owner)
 
@@ -91,8 +91,8 @@ class AudioSessionManager {
     fun currentOwner(): Owner? = synchronized(lock) { active?.token?.owner }
 
     private fun stateFor(owner: Owner) = when (owner) {
-        Owner.ANDROID_WAKE, Owner.VOSK_WAKE -> VoiceRuntimeState.WAKE_LISTENING
-        Owner.ANDROID_STT, Owner.VOSK_STT -> VoiceRuntimeState.COMMAND_LISTENING
+        Owner.ANDROID_WAKE -> VoiceRuntimeState.WAKE_LISTENING
+        Owner.ANDROID_STT -> VoiceRuntimeState.COMMAND_LISTENING
         Owner.FOLLOW_UP_STT -> VoiceRuntimeState.FOLLOW_UP
         Owner.TTS -> VoiceRuntimeState.SPEAKING
     }

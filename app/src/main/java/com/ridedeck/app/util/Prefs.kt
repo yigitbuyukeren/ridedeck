@@ -142,11 +142,14 @@ object Prefs {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_VOICE_WAKE, on).apply()
     }
 
-    fun voiceEngine(context: Context): String =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_VOICE_ENGINE, "system") ?: "system"
-
-    fun setVoiceEngine(context: Context, engine: String) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { putString(KEY_VOICE_ENGINE, engine) }
+    /** Converts the retired Vosk choice to Android STT while preserving every other preference. */
+    fun migrateLegacyVoskEngine(context: Context) {
+        val preferences = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val previous = preferences.getString(KEY_VOICE_ENGINE, null)
+        val migrated = LegacyVoskDataMigration.androidEngine(previous)
+        if (migrated != previous) {
+            preferences.edit().putString(KEY_VOICE_ENGINE, migrated).commit()
+        }
     }
 
     fun voiceRoutines(context: Context): String? =

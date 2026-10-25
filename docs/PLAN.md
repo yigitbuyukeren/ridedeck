@@ -2,7 +2,7 @@
 
 Bekleyen maddeler. Uygulama, kullanıcı "planı yap" diyene kadar başlamaz; yapılanlar buradan silinir (kayıt için `docs/STATUS.md` ve git geçmişi). Kaynak: [EKSIKLER.md](EKSIKLER.md).
 
-Telefonda ve kaskla denenmesi gerekenler (kod hazır, doğrulama kullanıcıda; ayrıntı `docs/STATUS.md`): sesle komut tanıma kalitesi, Android/Vosk motor kıyaslaması, Vosk uyandırma sözcüğü ve yanlış uyanma sayacı, kask mikrofonu, kaskın sesli komut düğmesi ve çift basış tetikleyicisi, "Hey RideDeck", `playFromSearch` ile ada göre çalma, bildirimden mesaja cevap, başka rota ve yolda durak. 2026-10-24 turundan: yeni ses akışları ([SES-OLCUM.md](SES-OLCUM.md) rutini), SMS gönderimi, hatırlatıcı bildirimi, önerici asistan, hız süzgeci (araç göstergesiyle karşılaştırma), uzun basışla Ayarlar.
+Telefonda ve kaskla denenmesi gerekenler (kod hazır, doğrulama kullanıcıda; ayrıntı `docs/STATUS.md`): Android STT tanıma kalitesi, Android'in "Hey RideDeck" uyandırma doğruluğu/yanlış uyanma sayacı, kask mikrofonu, kaskın sesli komut düğmesi ve çift basış tetikleyicisi, `playFromSearch` ile ada göre çalma, bildirimden mesaja cevap, başka rota ve yolda durak. 2026-10-24 turundan: yeni ses akışları ([SES-OLCUM.md](SES-OLCUM.md) rutini), SMS gönderimi, hatırlatıcı bildirimi, önerici asistan, hız süzgeci (araç göstergesiyle karşılaştırma), uzun basışla Ayarlar.
 
 Testler ve lint 2026-10-24 sonunda çalıştırıldı: 276 test ve lint temiz (R8 derlemesi ve emülatör hâlâ yapılmadı).
 
@@ -51,7 +51,7 @@ Aşama 3, yalnızca ölçüm gerekçelendirirse:
 
 ## Sesli asistan: kalan (2026-10-24)
 > Kapsam güncellemesi (2026-10-25): Kullanıcının Voice 2.0 isteği LLM kullanımını açıkça yasaklıyor. Aşağıdaki “Aşama 3 - cihaz içi dil modeli” taslağı bu görev için geçersizdir; model, çalışma zamanı veya LLM özellikleri eklenmeyecek. Deterministik Türkçe NLP, eylem güvenliği, oturum yönetimi ve cihaz doğrulaması kapsam dahilindedir.
-**Aşama 0-2 kodu tamamlandı** (Aşama 2 uygulama ve kapsam için [STATUS.md](STATUS.md)). Vosk isteğe bağlı/deneysel; Android tanıyıcısı varsayılan. A059'da kıyaslama ve pil/ısı ölçümü yapılmadığından doğruluk ve cihaz performansı **UNVERIFIED**; bu ölçüm artık entegrasyon ön koşulu değil, kalan saha doğrulamasıdır.
+**Aşama 0-2 kodu tamamlandı** (Aşama 2 uygulama ve kapsam için [STATUS.md](STATUS.md)). Ses tanıma ve "Hey RideDeck" Android'in konuşma tanıyıcısını kullanır; cihazdaki Türkçe paket ve saha doğrulaması TODO'da. Aşama 3 dil modeli kesinlikle kapsam dışı; AI/LLM entegrasyonu istenmiyor.
 
 ### Aşama 3 - cihaz içi dil modeli (yalnızca yedek ve ancak kapıyı geçerse)
 

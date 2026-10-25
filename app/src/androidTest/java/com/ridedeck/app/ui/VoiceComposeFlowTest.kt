@@ -2,14 +2,10 @@ package com.ridedeck.app.ui
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.swipeUp
 import androidx.compose.runtime.mutableStateListOf
 import androidx.test.platform.app.InstrumentationRegistry
 import com.ridedeck.app.R
@@ -19,7 +15,6 @@ import com.ridedeck.app.data.VoicePhase
 import com.ridedeck.app.data.VoiceRuntimeState
 import com.ridedeck.app.data.VoicePresentationState
 import com.ridedeck.app.data.VoiceUi
-import com.ridedeck.app.data.SelectableVoiceInput
 import org.junit.Rule
 import org.junit.Test
 import org.junit.Assert.assertEquals
@@ -125,47 +120,6 @@ class VoiceComposeFlowTest {
         assertText(context.getString(R.string.voice_stop_speaking), 1)
         compose.onNodeWithText(context.getString(R.string.voice_stop_speaking)).performClick()
         compose.runOnIdle { org.junit.Assert.assertTrue(stopped) }
-    }
-
-    @Test fun speechEngineChoiceReportsMissingVoskModelAndKeepsSystemSelectionLive() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        var selected = ""
-        var unavailable = 0
-        compose.setContent {
-            MotoTheme {
-                VoiceEngineSelector(
-                    engine = SelectableVoiceInput.ENGINE_SYSTEM,
-                    voskReady = false,
-                    onSelect = { selected = it },
-                    onVoskUnavailable = { unavailable++ },
-                )
-            }
-        }
-
-        compose.onNodeWithText(context.getString(R.string.voice_engine_vosk_title)).performClick()
-        compose.runOnIdle { assertEquals(1, unavailable); assertEquals("", selected) }
-        compose.onNodeWithText(context.getString(R.string.voice_engine_system_title)).performClick()
-        compose.runOnIdle { assertEquals(SelectableVoiceInput.ENGINE_SYSTEM, selected) }
-    }
-
-    @Test fun modelDownloadProgressIsStatusTextRatherThanADeadButton() {
-        compose.setContent {
-            MotoTheme {
-                SettingsScreen(
-                    items = listOf(
-                        SettingItem(
-                            title = "Vosk model", description = "Downloading", granted = false, action = "İndiriliyor",
-                            required = true, progress = 0.4f, actionEnabled = false, onClick = {},
-                        ),
-                    ),
-                    toggles = emptyList(), onOpenTrips = {}, themeMode = com.ridedeck.app.data.ThemeMode.AUTO,
-                    onThemeMode = {}, onClose = {},
-                )
-            }
-        }
-
-        compose.onNodeWithTag("settings-list", useUnmergedTree = true).performTouchInput { swipeUp() }
-        compose.onNodeWithText("İndiriliyor", useUnmergedTree = true).assertHasNoClickAction()
     }
 
     private fun assertText(text: String, count: Int) {

@@ -110,10 +110,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
     var voiceContinuous by remember { mutableStateOf(Prefs.voiceContinuous(context)) }
     val voiceButton by vm.voiceButtonOn.collectAsStateWithLifecycle()
     val offlineVoice by vm.offlineVoice.collectAsStateWithLifecycle()
-    val voskModelState by vm.voskModelState.collectAsStateWithLifecycle()
-    val voskDownloadProgress by vm.voskDownloadProgress.collectAsStateWithLifecycle()
-    val voskModelError by vm.voskModelError.collectAsStateWithLifecycle()
-    val voiceEngine by vm.voiceEngine.collectAsStateWithLifecycle()
     val wakeMisses by vm.wakeMisses.collectAsStateWithLifecycle()
     var voiceHelmetMic by remember { mutableStateOf(Prefs.voiceHelmetMic(context)) }
     var pendingSearchFallback by remember { mutableStateOf(false) }
@@ -195,7 +191,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
     LaunchedEffect(showPhone, resume, callState.phase) { if (showPhone && callState.phase == CallPhase.IDLE) vm.phone.refresh() }
 
     // Re-evaluated whenever the activity resumes (e.g. coming back from a system settings page).
-    val settingItems = remember(resume, offlineVoice, voskModelState) {
+    val settingItems = remember(resume, offlineVoice) {
         listOf(
             SettingItem(
                 context.getString(R.string.perm_location),
@@ -241,40 +237,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), null)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 )
-            },
-        ) + listOf(
-            SettingItem(
-                context.getString(R.string.voice_vosk_title),
-                context.getString(when (voskModelState) {
-                    com.ridedeck.app.data.VoskModelState.MISSING -> R.string.voice_vosk_missing
-                    com.ridedeck.app.data.VoskModelState.DOWNLOADING -> R.string.voice_vosk_downloading
-                    com.ridedeck.app.data.VoskModelState.READY -> R.string.voice_vosk_ready
-                    com.ridedeck.app.data.VoskModelState.ERROR -> R.string.voice_vosk_error
-                }) + if (voskModelState == com.ridedeck.app.data.VoskModelState.ERROR && !voskModelError.isNullOrBlank())
-                    "\n${context.getString(R.string.voice_vosk_error_detail, voskModelError)}" else "",
-                false,
-                context.getString(when (voskModelState) {
-                    com.ridedeck.app.data.VoskModelState.READY -> R.string.action_delete
-                    com.ridedeck.app.data.VoskModelState.DOWNLOADING -> R.string.voice_vosk_downloading_action
-                    else -> R.string.action_download
-                }),
-                progress = if (voskModelState == com.ridedeck.app.data.VoskModelState.DOWNLOADING)
-                    voskDownloadProgress.fraction ?: -1f else null,
-                progressLabel = if (voskModelState == com.ridedeck.app.data.VoskModelState.DOWNLOADING) {
-                    val mb = 1024f * 1024f
-                    if (voskDownloadProgress.total > 0) context.getString(
-                        R.string.voice_vosk_progress,
-                        voskDownloadProgress.downloaded / mb,
-                        voskDownloadProgress.total / mb,
-                    ) else context.getString(R.string.voice_vosk_progress_unknown, voskDownloadProgress.downloaded / mb)
-                } else null,
-                actionEnabled = voskModelState != com.ridedeck.app.data.VoskModelState.DOWNLOADING,
-            ) {
-                when (voskModelState) {
-                    com.ridedeck.app.data.VoskModelState.READY -> vm.deleteVoskModel()
-                    com.ridedeck.app.data.VoskModelState.DOWNLOADING -> Unit
-                    else -> vm.downloadVoskModel()
-                }
             },
         ) + (if (offlineVoice == OfflineVoice.UNKNOWN) emptyList() else listOf(
             SettingItem(
@@ -529,9 +491,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
 
         // Settings and trips cover the whole screen, cutout strip included; they pad their own content.
             AnimatedVisibility(visible = showSettings, enter = overlayEnter, exit = overlayExit) {
-                val wakeAvailable = if (voiceEngine == com.ridedeck.app.data.SelectableVoiceInput.ENGINE_VOSK) {
-                    voskModelState == com.ridedeck.app.data.VoskModelState.READY
-                } else WakeWord.available(context)
+                val wakeAvailable = WakeWord.available(context)
                 val toggles = listOf(
                     ToggleItem(stringResource(R.string.msg_auto_title), stringResource(R.string.msg_auto_desc), autoRead, vm::setReadMessagesAloud),
                     ) + messageApps.map { row ->
@@ -560,11 +520,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     ToggleItem(stringResource(R.string.voice_button_title), stringResource(R.string.voice_button_desc), voiceButton, vm::setVoiceButton),
                     ToggleItem(
                         stringResource(R.string.voice_wake_title),
-                        if (voiceEngine == com.ridedeck.app.data.SelectableVoiceInput.ENGINE_VOSK) {
-                            context.getString(if (voskModelState == com.ridedeck.app.data.VoskModelState.READY) R.string.voice_wake_vosk_desc else R.string.voice_wake_vosk_unavailable, wakeMisses)
-                        } else {
-                            context.getString(if (wakeAvailable) R.string.voice_wake_desc else R.string.voice_wake_unavailable, wakeMisses)
-                        },
+                        context.getString(if (wakeAvailable) R.string.voice_wake_desc else R.string.voice_wake_unavailable, wakeMisses),
                         voiceWake,
                     ) { enabled ->
                         if (enabled && !wakeAvailable) Toast.makeText(context, R.string.voice_wake_enable_unavailable, Toast.LENGTH_SHORT).show()
@@ -601,10 +557,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     ttsVoiceNames = ttsVoiceNames,
                     selectedTtsVoice = selectedTtsVoice,
                     onTtsVoice = vm::setTurkishTtsVoice,
-                    voiceEngine = voiceEngine,
-                    voskReady = voskModelState == com.ridedeck.app.data.VoskModelState.READY,
-                    onVoiceEngine = vm::setVoiceEngine,
-                    onVoskUnavailable = { Toast.makeText(context, R.string.voice_engine_vosk_download_first, Toast.LENGTH_SHORT).show() },
                     canEditRoutines = com.ridedeck.app.data.RideRoutines.canEditAtSpeed(gps.speedKmh, gps.hasFix),
                     safetyCard = {
                         SosSettingsCard(
