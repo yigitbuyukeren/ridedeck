@@ -32,6 +32,10 @@ data class LocationState(
     /** How old the fix already was when it reached us, and how long since the previous one (for the hidden GPS debug line). */
     val fixAgeMs: Int? = null,
     val fixIntervalMs: Int? = null,
+    /** GPS provider availability from LocationManager callbacks; null means the source has not reported it. */
+    val gpsProviderEnabled: Boolean? = null,
+    /** Fine-location permission state as last checked by the app; null means not checked yet. */
+    val locationPermissionGranted: Boolean? = null,
 )
 
 class LocationRepository(private val context: Context) {
@@ -71,12 +75,18 @@ class LocationRepository(private val context: Context) {
                 elapsedRealtimeMs = measuredAt,
                 fixAgeMs = if (measuredAt > 0) (nowReal - measuredAt).toInt().coerceAtLeast(0) else null,
                 fixIntervalMs = if (previous.elapsedRealtimeMs > 0 && measuredAt > 0) (measuredAt - previous.elapsedRealtimeMs).toInt() else null,
+                gpsProviderEnabled = previous.gpsProviderEnabled,
+                locationPermissionGranted = previous.locationPermissionGranted,
             )
         }
 
-        override fun onProviderEnabled(provider: String) {}
+        override fun onProviderEnabled(provider: String) {
+            if (provider == LocationManager.GPS_PROVIDER) _state.value = _state.value.copy(gpsProviderEnabled = true)
+        }
 
-        override fun onProviderDisabled(provider: String) {}
+        override fun onProviderDisabled(provider: String) {
+            if (provider == LocationManager.GPS_PROVIDER) _state.value = _state.value.copy(gpsProviderEnabled = false)
+        }
 
         @Deprecated("Deprecated in Java")
         override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
@@ -84,12 +94,22 @@ class LocationRepository(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     fun start() {
-        if (active || !context.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) return
+        val providerEnabled = runCatching { manager.isProviderEnabled(LocationManager.GPS_PROVIDER) }.getOrNull()
+        val permissionGranted = context.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+        _state.value = _state.value.copy(gpsProviderEnabled = providerEnabled, locationPermissionGranted = permissionGranted)
+        if (!permissionGranted) {
+            if (active) runCatching { manager.removeUpdates(listener) }
+            active = false
+            return
+        }
+        if (active || providerEnabled == false) return
         try {
             manager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener, Looper.getMainLooper())
             active = true
         } catch (_: SecurityException) {
+            _state.value = _state.value.copy(locationPermissionGranted = false)
         } catch (_: IllegalArgumentException) {
+            _state.value = _state.value.copy(gpsProviderEnabled = false)
         }
     }
 

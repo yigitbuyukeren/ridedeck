@@ -48,7 +48,7 @@ class SpeedLimitRepository(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.w("RideDeck", "speed limit lookup failed", e)
+            Log.w("RideDeck", "speed limit lookup failed (${e.javaClass.simpleName})")
             Result.failure(e)
         }
     }

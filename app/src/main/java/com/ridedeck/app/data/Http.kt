@@ -84,6 +84,6 @@ internal inline fun <T> safely(tag: String, block: () -> T): Result<T> =
     } catch (e: kotlinx.coroutines.CancellationException) {
         throw e
     } catch (e: Exception) {
-        Log.w("RideDeck", "$tag failed", e)
+        Log.w("RideDeck", "$tag failed (${e.javaClass.simpleName})")
         Result.failure(e)
     }

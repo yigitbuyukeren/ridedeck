@@ -9,7 +9,7 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-data class BatteryState(val percent: Int = 0, val tempC: Float = 0f, val charging: Boolean = false)
+data class BatteryState(val percent: Int = 0, val tempC: Float = 0f, val charging: Boolean = false, val hasReading: Boolean = false)
 
 class BatteryRepository(private val context: Context) {
     private val _state = MutableStateFlow(BatteryState())
@@ -27,7 +27,7 @@ class BatteryRepository(private val context: Context) {
         val temp = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10f
         val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
         val charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
-        if (level >= 0) _state.value = BatteryState(level * 100 / scale, temp, charging)
+        if (level >= 0 && scale > 0) _state.value = BatteryState(level * 100 / scale, temp, charging, hasReading = true)
     }
 
     fun start() {

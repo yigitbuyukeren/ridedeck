@@ -4,6 +4,7 @@ import com.ridedeck.app.data.AppRef
 import com.ridedeck.app.data.CallKind
 import com.ridedeck.app.data.CallPhase
 import com.ridedeck.app.data.Contact
+import com.ridedeck.app.data.DialOutcome
 import com.ridedeck.app.data.InfoQuestion
 import com.ridedeck.app.data.MessageInfo
 import com.ridedeck.app.data.NavQuestion
@@ -14,9 +15,16 @@ import com.ridedeck.app.data.ThemeMode
 import com.ridedeck.app.data.VoiceActions
 import com.ridedeck.app.data.VoiceHeard
 import com.ridedeck.app.data.VoiceAssistant
+import com.ridedeck.app.data.VoiceResponseFormatter
+import com.ridedeck.app.data.VoiceResponseKind
+import com.ridedeck.app.data.VoiceResponseMode
+import com.ridedeck.app.data.VoiceFailure
+import com.ridedeck.app.data.VoicePhase
 import com.ridedeck.app.data.VoiceScreen
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.SupervisorJob
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -29,21 +37,42 @@ class VoiceAssistantTest {
     /** Each call to start() answers with the next scripted list of alternatives. */
     private class ScriptedEar(var script: ArrayDeque<List<String>> = ArrayDeque()) : VoiceAssistant.SpeechListener {
         var listens = 0
+        var holdResults = false
+        private var pendingResult: ((VoiceHeard) -> Unit)? = null
+        private var partialResult: ((String) -> Unit)? = null
         /** The score the recogniser reports for the next result (null: it reports none). */
         var confidence: Float? = null
+        var failure: VoiceFailure? = null
         override fun available() = true
         override fun start(onPartial: (String) -> Unit, onResult: (VoiceHeard) -> Unit) {
             listens++
-            onResult(VoiceHeard(script.removeFirstOrNull() ?: emptyList(), confidence))
+            partialResult = onPartial
+            val result = VoiceHeard(script.removeFirstOrNull() ?: emptyList(), confidence, failure.also { failure = null })
+            if (holdResults) pendingResult = onResult else onResult(result)
         }
+        fun deliver(phrase: String) { (pendingResult.also { pendingResult = null } ?: error("No pending speech result"))(VoiceHeard(listOf(phrase))) }
+        fun emitPartial(phrase: String) { partialResult?.invoke(phrase) }
         override fun cancel() {}
     }
 
     private class FakeMouth : Speaker {
         val said = mutableListOf<String>()
+        var responseMode: VoiceResponseMode? = null
+        override fun formatResponse(text: String, kind: VoiceResponseKind): String =
+            responseMode?.let { VoiceResponseFormatter.format(text, it, kind) } ?: text
         override fun speak(text: String) { said += text }
         override fun stop() {}
         override fun shutdown() {}
+    }
+
+    private class HoldingMouth : Speaker {
+        val said = mutableListOf<String>()
+        private var continuation: (() -> Unit)? = null
+        override fun speak(text: String) { said += text }
+        override fun speakThen(text: String, then: () -> Unit) { said += text; continuation = then }
+        fun finishSpeaking() { continuation.also { continuation = null }?.invoke() }
+        override fun stop() { continuation = null }
+        override fun shutdown() { stop() }
     }
 
     private class FakeActions : VoiceActions {
@@ -55,8 +84,23 @@ class VoiceAssistantTest {
         var replySucceeds = true
         var homeSaved = true
         var routing = true
+        var infoGate: CompletableDeferred<String?>? = null
+        var mediaSessionAvailable = true
+        var mediaPlaying = true
+        var canStartMedia = true
+        var mediaActionSucceeds = true
+        var callActionsSucceed = true
+        var dialOutcome = DialOutcome.REQUESTED
+        var voicePlaces = emptyList<String>()
+        var voiceStops = emptyList<String>()
+        override fun supportsVoiceSearchResults() = true
+        override fun supportsVoiceStopResults() = true
         override fun openScreen(screen: VoiceScreen) { log += "screen:$screen" }
         override suspend fun navigateTo(candidates: List<String>): String? { log += "nav:${candidates.first()}"; return candidates.first().replaceFirstChar { it.uppercase() } }
+        override suspend fun searchPlaces(candidates: List<String>): List<String> { log += "searchPlaces:${candidates.first()}"; return voicePlaces }
+        override suspend fun navigateToSearchResult(index: Int): String? = voicePlaces.getOrNull(index)?.also { log += "route:$it" }
+        override suspend fun searchFuelStopsForVoice(): List<String> { log += "searchFuelStops"; return voiceStops }
+        override suspend fun selectFuelStopResult(index: Int): String? = voiceStops.getOrNull(index)?.also { log += "fuelRoute:$it" }
         override fun goSaved(kind: PlaceKind): String? = if (homeSaved) "Ev" else null.also { log += "no:$kind" }
         override fun stopNavigation(): Boolean { log += "stop"; return routing }
         override fun findStops() { log += "stops" }
@@ -70,23 +114,27 @@ class VoiceAssistantTest {
         override fun canReadContacts() = true
         override fun contacts() = contacts
         override fun recents() = recents
-        override fun dial(number: String, name: String?) { log += "dial:$number" }
+        override fun dial(number: String, name: String?): DialOutcome { log += "dial:$number"; return dialOutcome }
         override fun callPhase() = phase
-        override fun answerCall() { log += "answer" }
-        override fun rejectCall() { log += "reject" }
-        override fun muteCall() { log += "mute" }
-        override fun setSpeaker(on: Boolean) { log += "speaker:$on" }
+        override fun answerCall(): Boolean { log += "answer"; return callActionsSucceed }
+        override fun rejectCall(): Boolean { log += "reject"; return callActionsSucceed }
+        override fun muteCall(): Boolean { log += "mute"; return callActionsSucceed }
+        override fun setSpeaker(on: Boolean): Boolean { log += "speaker:$on"; return callActionsSucceed }
         override fun lastMessage() = message
         override fun reply(text: String): Boolean { log += "reply:$text"; return replySucceeds }
-        override fun mediaPlay() { log += "play" }
-        override fun mediaPause() { log += "pause" }
-        override fun mediaNext() { log += "next" }
-        override fun mediaPrevious() { log += "prev" }
+        override fun mediaPlay(): Boolean { log += "play"; return mediaActionSucceeds }
+        override fun mediaHasSession() = mediaSessionAvailable
+        override fun mediaIsPlaying() = mediaPlaying
+        override fun canStartMedia() = canStartMedia
+        override fun mediaPause(): Boolean { log += "pause"; return mediaActionSucceeds }
+        override fun mediaNext(): Boolean { log += "next"; return mediaActionSucceeds }
+        override fun mediaPrevious(): Boolean { log += "prev"; return mediaActionSucceeds }
         override fun volumeUp() { log += "vol+" }
         override fun volumeDown() { log += "vol-" }
         override fun volumeSet(percent: Int) { log += "vol=$percent" }
+        override fun volumeSteps(steps: Int) { log += "volSteps:$steps" }
         override fun playSearch(query: String): Boolean { log += "search:$query"; return true }
-        override suspend fun info(question: InfoQuestion): String? { log += "info:$question"; return "info:$question" }
+        override suspend fun info(question: InfoQuestion): String? { log += "info:$question"; return infoGate?.await() ?: "info:$question" }
         override fun apps() = listOf(AppRef("WhatsApp", "wa"), AppRef("Gmail", "gm"), AppRef("Chrome", "ch"))
         override fun launchApp(pkg: String): Boolean { log += "launch:$pkg"; return true }
         override fun setTheme(mode: ThemeMode) { log += "theme:$mode" }
@@ -137,6 +185,22 @@ class VoiceAssistantTest {
         assertTrue("next" in actions.log)
     }
 
+    @Test fun unsupportedMediaActionIsReportedAsFailure() {
+        actions.mediaActionSucceeds = false
+        say(listOf("sonraki şarkı"))
+        assertEquals("s${R.string.voice_media_action_failed}", mouth.said.last())
+    }
+
+    @Test fun minimalResponsesKeepInformationAndNavigationFacts() {
+        mouth.responseMode = VoiceResponseMode.MINIMAL
+        say(listOf("pil ne kadar kaldı"))
+        assertEquals(listOf("info:BATTERY"), mouth.said)
+
+        mouth.said.clear()
+        say(listOf("ne kadar kaldı"))
+        assertEquals(listOf("info:REMAINING_TIME"), mouth.said)
+    }
+
     @Test
     fun aLaterAlternativeIsUsedWhenTheFirstIsNoise() {
         say(listOf("müziği ac mı", "müziği aç"))
@@ -150,9 +214,186 @@ class VoiceAssistantTest {
     }
 
     @Test
+    fun processingShowsFinalRecognizedCommandUntilAsyncActionReturns() {
+        actions.infoGate = CompletableDeferred()
+        say(listOf("hava nasıl"))
+        assertEquals(VoicePhase.PROCESSING, assistant.ui.value.phase)
+        assertEquals("hava nasıl", assistant.ui.value.recognizedText)
+        actions.infoGate?.complete("Şu an 18 derece.")
+        assertEquals("Şu an 18 derece.", mouth.said.last())
+    }
+
+    @Test
+    fun recognitionFailureShowsAnActionableMessage() {
+        ear.failure = VoiceFailure.NETWORK
+        say(emptyList())
+        assertEquals(listOf("s${R.string.voice_error_network}"), mouth.said)
+        assertTrue(actions.log.isEmpty())
+    }
+
+    @Test
     fun callingOnePersonCountsDownThenDials() {
         say(listOf("Ayşe'yi ara"))
         assertEquals(listOf("dial:333"), actions.log)
+    }
+
+    @Test
+    fun callConfirmationDoesNotExposeContactOrNumberInUiOrTranscriptHistory() {
+        val pauseGate = CompletableDeferred<Unit>()
+        val privateScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val transcripts = mutableListOf<String>()
+        ear.script = ArrayDeque(listOf(listOf("Ayşe'yi ara")))
+        val privateAssistant = VoiceAssistant(
+            text = { id -> "s$id" }, scope = privateScope, listener = ear, speaker = mouth, actions = actions,
+            pause = { pauseGate.await() }, history = { heard, _ -> transcripts += heard },
+        )
+
+        privateAssistant.listen()
+
+        assertEquals(VoicePhase.CONFIRM, privateAssistant.ui.value.phase)
+        assertEquals("s${R.string.voice_call_confirmation_private}", privateAssistant.ui.value.title)
+        assertFalse(privateAssistant.ui.value.title.contains("Ayşe"))
+        assertFalse(privateAssistant.ui.value.recognizedText.contains("Ayşe"))
+        assertEquals(listOf("s${R.string.voice_history_sensitive_redacted}"), transcripts)
+        assertTrue(mouth.said.single().contains("Ayşe")) // The spoken confirmation still identifies the intended person.
+        assertTrue(actions.log.none { it.startsWith("dial:") }) // Countdown remains cancellable; no call is made here.
+
+        privateAssistant.cancel()
+        pauseGate.cancel()
+        privateScope.coroutineContext[Job]?.cancel()
+    }
+
+    @Test
+    fun dictatedSmsBodyAndRecipientStayOutOfComposeStateUntilVoiceConfirmation() {
+        ear.holdResults = true
+        ear.script.clear()
+        val holdingMouth = HoldingMouth()
+        val privateAssistant = VoiceAssistant(
+            text = { id -> "s$id" }, scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            listener = ear, speaker = holdingMouth, actions = actions,
+        )
+        privateAssistant.listen()
+        ear.deliver("Ayşe'ye mesaj at")
+        assertEquals("s${R.string.voice_sms_dictation_private}", privateAssistant.ui.value.text)
+        assertFalse(privateAssistant.ui.value.text.contains("Ayşe"))
+        holdingMouth.finishSpeaking()
+        ear.deliver("Giriş kodum 824193, lütfen sakla")
+
+        val ui = privateAssistant.ui.value
+        assertEquals(VoicePhase.MESSAGE, ui.phase)
+        assertEquals("s${R.string.voice_sms_confirmation_private}", ui.text)
+        assertFalse(ui.text.contains("Ayşe"))
+        assertFalse(ui.text.contains("824193"))
+        assertFalse(ui.recognizedText.contains("Ayşe"))
+        assertFalse(ui.recognizedText.contains("824193"))
+        assertTrue(actions.log.none { it.startsWith("sms:") })
+
+        privateAssistant.cancel()
+        ear.holdResults = false
+    }
+
+    @Test
+    fun ambiguousContactChoicesHideContactNamesFromComposeState() {
+        ear.holdResults = true
+        ear.script.clear()
+        val holdingMouth = HoldingMouth()
+        val privateAssistant = VoiceAssistant(
+            text = { id -> "s$id" }, scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            listener = ear, speaker = holdingMouth, actions = actions,
+        )
+        privateAssistant.listen()
+        ear.deliver("Ali'yi ara")
+
+        assertEquals(VoicePhase.MESSAGE, privateAssistant.ui.value.phase)
+        assertEquals("s${R.string.voice_contacts_multiple_private}", privateAssistant.ui.value.text)
+        assertEquals(2, privateAssistant.ui.value.choices.size)
+        assertTrue(privateAssistant.ui.value.choices.none { it.contains("Ali") })
+        assertFalse(privateAssistant.ui.value.recognizedText.contains("Ali"))
+        assertTrue(actions.log.none { it.startsWith("dial:") })
+
+        privateAssistant.cancel()
+        ear.holdResults = false
+    }
+
+    @Test
+    fun partialSpeechIsNotExposedInVoiceUiBeforeIntentClassification() {
+        ear.holdResults = true
+        ear.script.clear()
+        val privateAssistant = VoiceAssistant(
+            text = { id -> "s$id" }, scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            listener = ear, speaker = mouth, actions = actions,
+        )
+        privateAssistant.listen()
+        ear.emitPartial("Ayşe'ye mesaj at şifrem 824193")
+
+        assertEquals(VoicePhase.LISTENING, privateAssistant.ui.value.phase)
+        assertEquals("", privateAssistant.ui.value.text)
+        assertEquals("", privateAssistant.ui.value.recognizedText)
+
+        privateAssistant.cancel()
+        ear.holdResults = false
+    }
+
+    @Test
+    fun sensitiveUnknownOnMapIsNotEchoedOrForwardedToSearch() {
+        val transcript = mutableListOf<String>()
+        ear.script = ArrayDeque(listOf(listOf("sms gönder 5551234567 açıklama")))
+        val privateAssistant = VoiceAssistant(
+            text = { id -> "s$id" }, scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            listener = ear, speaker = mouth, actions = actions, history = { heard, _ -> transcript += heard },
+        )
+        privateAssistant.listen(searchFallback = true)
+
+        assertTrue(actions.log.none { it.startsWith("nav:") || it.startsWith("searchPlaces:") })
+        assertTrue(privateAssistant.ui.value.text.contains("s${R.string.voice_sensitive_search_blocked}"))
+        assertFalse(privateAssistant.ui.value.text.contains("5551234567"))
+        assertEquals(listOf("s${R.string.voice_history_sensitive_redacted}"), transcript)
+    }
+
+    @Test
+    fun readMessageIsSpokenButMessageBodyAndSenderStayOutOfComposeState() {
+        actions.message = MessageInfo("Ayşe", "WhatsApp", "Giriş kodum 824193", canReply = true)
+        val pauseGate = CompletableDeferred<Unit>()
+        val privateScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        ear.script = ArrayDeque(listOf(listOf("mesajı oku")))
+        val privateAssistant = VoiceAssistant(
+            text = { id -> "s$id" }, scope = privateScope, listener = ear, speaker = mouth, actions = actions,
+            pause = { pauseGate.await() },
+        )
+
+        privateAssistant.listen()
+
+        assertTrue(mouth.said.any { it.contains("Giriş kodum 824193") })
+        assertEquals("s${R.string.voice_message_read_private}", privateAssistant.ui.value.text)
+        assertFalse(privateAssistant.ui.value.text.contains("Ayşe"))
+        assertFalse(privateAssistant.ui.value.text.contains("824193"))
+        assertFalse(privateAssistant.ui.value.recognizedText.contains("mesajı oku"))
+
+        privateAssistant.cancel()
+        pauseGate.cancel()
+        privateScope.coroutineContext[Job]?.cancel()
+    }
+
+    @Test
+    fun voicePlaceSearchKeepsResultsForOrdinalFollowUp() {
+        actions.voicePlaces = listOf("Benzinlik A", "Benzinlik B")
+        say(listOf("Kadıköy'e git"), listOf("ikincisine git"))
+        assertEquals(listOf("screen:MAP", "searchPlaces:kadıköy", "route:Benzinlik B"), actions.log)
+    }
+
+    @Test
+    fun aCorrectionToTheFirstVoicePlaceIsNotTreatedAsCancellation() {
+        actions.voicePlaces = listOf("Benzinlik A", "Benzinlik B")
+        say(listOf("Kadıköy'e git"), listOf("yok ilkine dön"))
+        assertEquals(listOf("screen:MAP", "searchPlaces:kadıköy", "route:Benzinlik A"), actions.log)
+    }
+
+    @Test
+    fun nearbyFuelSearchCanBeContinuedWithAnOrdinalRouteRequest() {
+        actions.voiceStops = listOf("Opet", "Shell")
+        say(listOf("yakındaki benzinlikleri bul"))
+        say(listOf("ikincisine git"))
+        assertEquals(listOf("screen:MAP", "searchFuelStops", "fuelRoute:Shell"), actions.log)
     }
 
     @Test
@@ -229,6 +470,36 @@ class VoiceAssistantTest {
     }
 
     @Test
+    fun failedCallControlDoesNotAnnounceSuccess() {
+        actions.phase = CallPhase.RINGING
+        actions.callActionsSucceed = false
+        say(listOf("cevapla"))
+        assertEquals("answer", actions.log.last())
+        assertEquals("s${com.ridedeck.app.R.string.voice_call_action_failed}", mouth.said.last())
+
+        say(listOf("aramayı reddet"))
+        assertEquals("reject", actions.log.last())
+        assertEquals("s${com.ridedeck.app.R.string.voice_call_action_failed}", mouth.said.last())
+
+        actions.phase = CallPhase.ACTIVE
+        say(listOf("aramayı sessize al"))
+        assertEquals("mute", actions.log.last())
+        assertEquals("s${com.ridedeck.app.R.string.voice_call_action_failed}", mouth.said.last())
+
+        say(listOf("hoparlör aç"))
+        assertEquals("speaker:true", actions.log.last())
+        assertEquals("s${com.ridedeck.app.R.string.voice_call_action_failed}", mouth.said.last())
+    }
+
+    @Test
+    fun failedDialDoesNotPresentCallAsStarted() {
+        actions.dialOutcome = DialOutcome.FAILED
+        say(listOf("Ayşe'yi ara"), listOf("evet"))
+        assertTrue(actions.log.contains("dial:333"))
+        assertEquals("s${com.ridedeck.app.R.string.voice_call_action_failed}", mouth.said.last())
+    }
+
+    @Test
     fun sosAsksFirst() {
         say(listOf("yardım çağır"), listOf("hayır"))
         assertFalse("sos" in actions.log)
@@ -249,10 +520,10 @@ class VoiceAssistantTest {
     @Test
     fun navigatingAndNearestPlace() {
         say(listOf("Kadıköy'e git"))
-        assertEquals(listOf("screen:MAP", "nav:kadıköy"), actions.log)
+        assertEquals(listOf("screen:MAP", "searchPlaces:kadıköy", "nav:kadıköy"), actions.log)
         actions.log.clear()
         say(listOf("en yakın kafe"))
-        assertEquals(listOf("screen:MAP", "near:kafe:false"), actions.log)
+        assertEquals(listOf("screen:MAP", "searchPlaces:kafe", "near:kafe:false"), actions.log)
     }
 
     @Test
@@ -275,8 +546,36 @@ class VoiceAssistantTest {
     fun musicAndVolume() {
         say(listOf("Tarkan çal"))
         say(listOf("sesi yüzde elli yap"))
+        say(listOf("sesi iki kademe kıs"))
         say(listOf("müziği durdur"))
-        assertEquals(listOf("search:tarkan", "vol=50", "pause"), actions.log)
+        assertEquals(listOf("search:tarkan", "vol=50", "volSteps:-2", "pause"), actions.log)
+    }
+
+    @Test
+    fun relativeVolumeActionsGiveUserFeedback() {
+        say(listOf("sesi aç"))
+        say(listOf("müziğin sesini kıs"))
+        assertEquals(listOf("s${R.string.voice_volume_up}", "s${R.string.voice_volume_down}"), mouth.said)
+    }
+
+    @Test
+    fun unsupportedMediaControlsDoNotReportSuccess() {
+        actions.mediaSessionAvailable = false
+        actions.canStartMedia = false
+        say(listOf("sonraki şarkı"))
+        assertTrue(actions.log.isEmpty())
+        assertEquals("s${R.string.voice_no_media}", mouth.said.last())
+
+        say(listOf("müziği aç"))
+        assertTrue(actions.log.isEmpty())
+        assertEquals("s${R.string.voice_cannot_play}", mouth.said.last())
+    }
+
+    @Test
+    fun steppedVolumeCanBeUndone() {
+        say(listOf("sesi iki kademe kıs"))
+        say(listOf("geri al"))
+        assertEquals(listOf("volSteps:-2", "volSteps:2"), actions.log)
     }
 
     @Test
@@ -337,9 +636,15 @@ class VoiceAssistantTest {
     }
 
     @Test
-    fun twoCommandsRunQuickOnesFirstAndACallLast() {
+    fun twoCommandsRunInSpokenOrderAndCallKeepsItsConfirmationFlow() {
         say(listOf("Ayşe'yi ara ve müziği kıs"))
-        assertEquals(listOf("vol-", "dial:333"), actions.log)
+        assertEquals(listOf("dial:333", "vol-"), actions.log)
+    }
+
+    @Test
+    fun threeCommandsRunInSpokenOrder() {
+        say(listOf("sesi biraz kıs ve ekranı kıs sonra gece modunu aç"))
+        assertEquals(listOf("vol-", "bright:-1", "theme:NIGHT"), actions.log)
     }
 
     @Test
@@ -374,7 +679,7 @@ class VoiceAssistantTest {
     fun aSpokenCorrectionChangesThePlace() {
         say(listOf("Kadıköy'e git"))
         say(listOf("hayır Kadıköy değil Moda"))
-        assertEquals(listOf("screen:MAP", "nav:kadıköy", "screen:MAP", "nav:moda"), actions.log)
+        assertEquals(listOf("screen:MAP", "searchPlaces:kadıköy", "nav:kadıköy", "screen:MAP", "searchPlaces:moda", "nav:moda"), actions.log)
     }
 
     @Test

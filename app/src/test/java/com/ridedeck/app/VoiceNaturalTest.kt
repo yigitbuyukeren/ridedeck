@@ -60,6 +60,7 @@ class VoiceNaturalTest {
     fun remindersAndStops() {
         expect(VoiceCommand.Reminder(20, null), "yirmi dakika sonra hatırlat")
         expect(VoiceCommand.Reminder(30, null), "yarım saat sonra hatırlat")
+        expect(VoiceCommand.Reminder(90, null), "bir buçuk saat sonra hatırlat")
         expect(VoiceCommand.Reminder(60, null), "bir saat sonra hatırlat")
         expect(VoiceCommand.AddStop(emptyList(), PlaceKind.HOME), "bir de eve uğra")
         assertTrue(VoiceParser.parse("Migros'a uğra") is VoiceCommand.AddStop)

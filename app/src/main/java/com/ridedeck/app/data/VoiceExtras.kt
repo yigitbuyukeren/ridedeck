@@ -63,9 +63,15 @@ class WakeWord(private val context: Context, private val onWake: () -> Unit) {
     private var recognizer: SpeechRecognizer? = null
     private var running = false
     private var paused = false
+    private var session: AudioSessionManager.Token? = null
+    private var failures = 0
+    private var lastWakeAt = 0L
 
     companion object {
         private val PHRASES = listOf("hey ridedeck", "hey ride deck", "hey raydek", "hey ray dek")
+        private const val RESTART_MS = 400L
+        private const val MAX_RETRY_MS = 30_000L
+        private const val WAKE_COOLDOWN_MS = 2_000L
 
         /** True when the heard text contains the wake phrase (loosely, since the recogniser spells it any way). */
         fun matches(heard: String): Boolean {
@@ -81,39 +87,72 @@ class WakeWord(private val context: Context, private val onWake: () -> Unit) {
         if (running || !available(context)) return
         running = true
         paused = false
+        lateinit var token: AudioSessionManager.Token
+        token = AudioSessionManager.process.acquire(AudioSessionManager.Owner.ANDROID_WAKE) { suspendSession(token) }
+        session = token
         listenOnce()
     }
 
     fun stop() {
         running = false
+        paused = false
         handler.removeCallbacksAndMessages(null)
-        recognizer?.destroy()
-        recognizer = null
+        destroyRecognizer()
+        session?.let(::releaseSession)
     }
 
     /** The assistant is using the microphone: wait. */
     fun pause() {
         paused = true
         handler.removeCallbacksAndMessages(null)
-        recognizer?.destroy()
-        recognizer = null
+        destroyRecognizer()
+        session?.let(::releaseSession)
     }
 
     fun resume() {
         if (!paused) return
         paused = false
-        if (running) handler.postDelayed(::listenOnce, RESTART_MS)
+        if (!running) return
+        lateinit var token: AudioSessionManager.Token
+        token = AudioSessionManager.process.acquire(AudioSessionManager.Owner.ANDROID_WAKE) { suspendSession(token) }
+        session = token
+        handler.postDelayed(::listenOnce, RESTART_MS)
+    }
+
+    private fun suspendSession(token: AudioSessionManager.Token) {
+        if (session != token) return
+        paused = true
+        handler.removeCallbacksAndMessages(null)
+        destroyRecognizer()
+        releaseSession(token)
+    }
+
+    private fun releaseSession(token: AudioSessionManager.Token) {
+        if (session != token) return
+        session = null
+        AudioSessionManager.process.release(token)
+    }
+
+    private fun destroyRecognizer() {
+        runCatching { recognizer?.cancel() }
+        runCatching { recognizer?.destroy() }
+        recognizer = null
     }
 
     private fun listenOnce() {
-        if (!running || paused || Build.VERSION.SDK_INT < 33) return
-        recognizer?.destroy()
-        val r = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
-        recognizer = r
-        r.setRecognitionListener(object : RecognitionListener {
+        val token = session ?: return
+        if (!running || paused || !AudioSessionManager.process.isCurrent(token) || Build.VERSION.SDK_INT < 33) return
+        destroyRecognizer()
+        try {
+            val r = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+            recognizer = r
+            r.setRecognitionListener(object : RecognitionListener {
             private fun check(bundle: Bundle?): Boolean {
+                if (session != token || !AudioSessionManager.process.isCurrent(token)) return false
                 val heard = bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
-                if (heard.any(::matches)) {
+                if (heard.any(::matches) && System.currentTimeMillis() - lastWakeAt >= WAKE_COOLDOWN_MS) {
+                    lastWakeAt = System.currentTimeMillis()
+                    failures = 0
                     pause()
                     onWake()
                     return true
@@ -122,30 +161,36 @@ class WakeWord(private val context: Context, private val onWake: () -> Unit) {
             }
 
             override fun onPartialResults(partialResults: Bundle?) { check(partialResults) }
-            override fun onResults(results: Bundle?) { if (!check(results)) again() }
-            override fun onError(error: Int) = again()
+            override fun onResults(results: Bundle?) { if (!check(results)) { failures = 0; again(RESTART_MS) } }
+            override fun onError(error: Int) {
+                if (session != token) return
+                if (error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) stop()
+                else again(VoiceRetryBackoff.delay(++failures, RESTART_MS, MAX_RETRY_MS))
+            }
             override fun onReadyForSpeech(params: Bundle?) {}
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {}
             override fun onEvent(eventType: Int, params: Bundle?) {}
-        })
-        r.startListening(
-            Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "tr-TR")
-                .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-                .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
-        )
+            })
+            r.startListening(
+                Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                    .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "tr-TR")
+                    .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                    .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            )
+        } catch (_: RuntimeException) {
+            suspendSession(token)
+        }
     }
 
-    private fun again() {
-        if (!running || paused) return
-        handler.postDelayed(::listenOnce, RESTART_MS)
+    private fun again(delayMs: Long) {
+        if (!running || paused || session?.let(AudioSessionManager.process::isCurrent) != true) return
+        handler.postDelayed(::listenOnce, delayMs)
     }
 
-    private val RESTART_MS = 400L
 }
 
 /**

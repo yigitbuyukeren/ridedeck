@@ -27,7 +27,7 @@ class AndroidVoiceActions(
     private val location: StateFlow<LocationState>,
     private val phone: PhoneRepository,
     private val call: CallRepository,
-    private val dialNumber: (String, String?) -> Unit,
+    private val dialNumber: (String, String?) -> DialOutcome,
     private val media: MediaRepository,
     private val weather: () -> WeatherSnapshot?,
     private val battery: () -> BatteryState,
@@ -45,6 +45,10 @@ class AndroidVoiceActions(
     private val outlook: (suspend (dayOffset: Int, fromHour: Int, toHour: Int) -> WeatherOutlook?)? = null,
     /** Turns the assistant's own suggestions on or off (the settings switch follows). */
     private val proactiveSwitch: ((Boolean) -> Unit)? = null,
+    private val rideContext: () -> RideContext? = { null },
+    private val routines: () -> List<RideRoutine> = { emptyList() },
+    private val saveRoutineSnapshot: (RoutineSnapshot?) -> Unit = {},
+    private val routineSnapshot: () -> RoutineSnapshot? = { null },
 ) : VoiceActions {
     private fun t(id: Int, vararg args: Any): String = context.getString(id, *args)
 
@@ -52,6 +56,19 @@ class AndroidVoiceActions(
 
     override suspend fun navigateTo(candidates: List<String>): String? =
         if (nav.goToFirstMatch(candidates)) nav.ui.value.destination?.name else null
+
+    override fun supportsVoiceSearchResults() = true
+
+    override suspend fun searchPlaces(candidates: List<String>): List<String> =
+        nav.searchVoicePlaces(candidates).map { it.name }
+
+    override suspend fun navigateToSearchResult(index: Int): String? = nav.selectVoiceResult(index)?.name
+
+    override fun supportsVoiceStopResults() = true
+
+    override suspend fun searchFuelStopsForVoice(): List<String> = nav.searchFuelForVoice().map { it.name }
+
+    override suspend fun selectFuelStopResult(index: Int): String? = nav.selectFuelVoiceResult(index)?.name
 
     override fun goSaved(kind: PlaceKind): String? {
         val place = places().firstOrNull { it.kind == kind }?.place ?: return null
@@ -130,10 +147,13 @@ class AndroidVoiceActions(
 
     override fun reply(text: String): Boolean = MessageBridge.latest.value?.sendReply(context, text) == true
 
-    override fun mediaPlay() { if (!media.isPlaying) media.togglePlay() }
-    override fun mediaPause() { if (media.isPlaying) media.pause() }
-    override fun mediaNext() = media.next()
-    override fun mediaPrevious() = media.previous()
+    override fun mediaPlay(): Boolean = media.playForVoice()
+    override fun canStartMedia(): Boolean = media.state.value.hasSession || media.canResumeLast()
+    override fun mediaHasSession(): Boolean = media.state.value.hasSession
+    override fun mediaIsPlaying(): Boolean = media.isPlaying
+    override fun mediaPause(): Boolean = media.pauseForVoice()
+    override fun mediaNext(): Boolean = media.next()
+    override fun mediaPrevious(): Boolean = media.previous()
     override fun volumeUp() = media.volumeUp()
     override fun volumeDown() = media.volumeDown()
     override fun volumeSet(percent: Int) = media.setVolumePercent(percent)
@@ -152,7 +172,9 @@ class AndroidVoiceActions(
         InfoQuestion.WEATHER_EVENING -> LocalTime.now().hour.let { h -> if (h >= 22) null else outlookText(R.string.voice_evening_word, 0, maxOf(17, h), 23) }
         InfoQuestion.TIME -> t(R.string.voice_time_fmt, DateFormat.getTimeInstance(DateFormat.SHORT).format(Date()))
         InfoQuestion.BATTERY -> battery().let { b ->
-            t(R.string.voice_battery_fmt, b.percent) + if (b.charging) ", " + t(R.string.voice_charging) else ""
+            t(R.string.voice_battery_fmt, b.percent) +
+                (if (b.charging) ", " + t(R.string.voice_charging) else "") +
+                (if (b.hasReading && b.tempC > 0f) ", " + t(R.string.voice_battery_temperature_fmt, b.tempC.toInt()) else "")
         }
         InfoQuestion.SPEED -> {
             val fix = location.value
@@ -168,7 +190,42 @@ class AndroidVoiceActions(
         } ?: t(R.string.voice_no_trip)
         InfoQuestion.NOW_PLAYING -> media.state.value.takeIf { it.hasSession && it.title.isNotBlank() }
             ?.let { if (it.artist.isBlank()) it.title else it.title + ", " + it.artist } ?: t(R.string.voice_nothing_playing)
+        InfoQuestion.RIDE_STATUS -> rideContext()?.let(::rideStatus) ?: t(R.string.voice_ride_context_unavailable)
     }
+
+    private fun rideStatus(state: RideContext): String = buildList {
+        add(t(when (state.vehicleProfile) {
+            VehicleProfile.MOTORCYCLE -> R.string.voice_vehicle_motorcycle
+            VehicleProfile.CAR -> R.string.voice_vehicle_car
+            VehicleProfile.BICYCLE -> R.string.voice_vehicle_bicycle
+        }))
+        state.speedKmh?.let { add(t(if (Units.miles) R.string.voice_speed_mph_fmt else R.string.voice_speed_kmh_fmt, Units.speed(it))) }
+            ?: add(t(R.string.voice_gps_unavailable))
+        state.batteryPercent?.let { add(t(R.string.voice_battery_fmt, it) + if (state.charging == true) ", " + t(R.string.voice_charging) else "") }
+        when (state.bluetoothMicAvailable) {
+            true -> add(t(R.string.voice_bluetooth_mic_connected))
+            false -> add(t(R.string.voice_bluetooth_mic_disconnected))
+            null -> Unit
+        }
+        if (state.navigating) {
+            state.remainingMeters?.let { add(t(R.string.voice_remaining_distance_fmt, Units.distance(it))) }
+            state.remainingSeconds?.let { add(t(R.string.voice_remaining_time_fmt, spokenDuration(it))) }
+            state.arrivalAtMs?.let { add(t(R.string.voice_arrival_fmt, DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it)))) }
+        } else add(t(R.string.voice_navigation_inactive))
+        state.mediaTitle?.let { title ->
+            val track = state.mediaArtist?.let { "$title, $it" } ?: title
+            add(t(if (state.mediaPlaying == true) R.string.voice_media_playing else R.string.voice_media_paused, track))
+        }
+        state.weather?.let { w ->
+            val rain = when {
+                w.rainInMin == null -> t(R.string.voice_no_rain)
+                w.rainInMin == 0 -> t(R.string.voice_raining)
+                else -> t(R.string.voice_rain_in_fmt, w.rainInMin)
+            }
+            add(t(R.string.voice_weather_fmt, w.tempC) + ", " + rain)
+        }
+    }.joinToString(" ")
+
 
     private suspend fun outlookText(label: Int, dayOffset: Int, from: Int, to: Int): String? =
         outlook?.invoke(dayOffset, from, to)?.let { o -> t(R.string.voice_outlook_fmt, t(label), o.minC, o.maxC, o.rainPercent) }
@@ -189,6 +246,46 @@ class AndroidVoiceActions(
     }
     override fun setReminder(minutes: Int, what: String?): Boolean = Reminders.schedule(context, minutes, what)
     override fun setProactive(on: Boolean) { proactiveSwitch?.invoke(on) ?: Prefs.setVoiceProactive(context, on) }
+
+    override fun matchRoutine(phrase: String): String? {
+        return RideRoutines.matchPhrase(routines(), VoiceParser.normalize(phrase))
+    }
+
+    override suspend fun runRoutine(name: String): String? {
+        val routine = routines().firstOrNull { RideRoutines.key(it.name) == RideRoutines.key(name) } ?: return null
+        val result = RoutineExecutor.execute(
+            routine = routine,
+            existingSnapshot = routineSnapshot(),
+            captureSnapshot = { RoutineSnapshot(media.volumePercent(), Prefs.rainVoice(context), Prefs.themeMode(context)) },
+            persistSnapshot = saveRoutineSnapshot,
+            applyStep = { step -> when (step) {
+                RoutineStep.NavigateHome -> {
+                    val home = places().firstOrNull { it.kind == PlaceKind.HOME }?.place
+                    if (home == null) false else { nav.selectPlace(home); true }
+                }
+                is RoutineStep.MediaVolume -> { media.setVolumePercent(step.percent); true }
+                is RoutineStep.VoiceWarnings -> { warningVoice(step.enabled); true }
+                is RoutineStep.Theme -> { setThemeMode(step.mode); true }
+            } },
+        )
+        if (!result.succeeded) {
+            val homeMissing = result.failedStep == RoutineStep.NavigateHome
+            return when {
+                result.appliedSteps == 0 && homeMissing -> t(R.string.voice_routine_home_failed_fmt, routine.name)
+                result.appliedSteps == 0 -> t(R.string.voice_routine_failed_fmt, routine.name)
+                homeMissing -> t(R.string.voice_routine_partial_home_fmt, routine.name, result.appliedSteps, result.totalSteps)
+                else -> t(R.string.voice_routine_partial_fmt, routine.name, result.appliedSteps, result.totalSteps)
+            }
+        }
+        return t(R.string.voice_routine_applied_fmt, routine.name)
+    }
+
+    override fun restoreRoutineState(): Boolean {
+        val snapshot = routineSnapshot() ?: return false
+        if (!RoutineExecutor.restore(snapshot, media::setVolumePercent, warningVoice, setThemeMode)) return false
+        saveRoutineSnapshot(null)
+        return true
+    }
 
     private val launchable: List<AppRef> by lazy {
         val pm = context.packageManager

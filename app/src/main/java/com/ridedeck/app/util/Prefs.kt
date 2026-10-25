@@ -6,6 +6,7 @@ import com.ridedeck.app.data.BikeType
 import com.ridedeck.app.data.RouteOptions
 import com.ridedeck.app.data.ThemeMode
 import com.ridedeck.app.data.VehicleProfile
+import com.ridedeck.app.data.ProactiveKind
 
 object Prefs {
     private const val FILE = "ridedeck"
@@ -42,6 +43,7 @@ object Prefs {
     private const val KEY_VOICE_CONTINUOUS = "voice_continuous"
     private const val KEY_VOICE_MISSES = "voice_misses"
     private const val KEY_VOICE_ENGINE = "voice_engine"
+    private const val KEY_VOICE_ROUTINES = "voice_routines"
     private const val KEY_WAKE_MISSES = "wake_misses"
     private const val KEY_SETTINGS_HINT = "settings_hint_count"
     private const val KEY_MESSAGE_APPS_SEEN = "message_apps_seen"
@@ -69,6 +71,13 @@ object Prefs {
 
     fun setVoiceProactive(context: Context, on: Boolean) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_VOICE_PROACTIVE, on).apply()
+    }
+
+    fun voiceProactiveKind(context: Context, kind: ProactiveKind): Boolean =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean("voice_proactive_${kind.name.lowercase()}", true)
+
+    fun setVoiceProactiveKind(context: Context, kind: ProactiveKind, on: Boolean) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { putBoolean("voice_proactive_${kind.name.lowercase()}", on) }
     }
 
     /** After an answer the assistant listens once more, quietly. */
@@ -139,6 +148,29 @@ object Prefs {
     fun setVoiceEngine(context: Context, engine: String) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { putString(KEY_VOICE_ENGINE, engine) }
     }
+
+    fun voiceRoutines(context: Context): String? =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_VOICE_ROUTINES, null)
+
+    fun setVoiceRoutines(context: Context, json: String) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { putString(KEY_VOICE_ROUTINES, json) }
+    }
+
+    fun routineSnapshot(context: Context): String? =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("voice_routine_snapshot", null)
+
+    fun setRoutineSnapshot(context: Context, json: String?) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit {
+            if (json == null) remove("voice_routine_snapshot") else putString("voice_routine_snapshot", json)
+        }
+    }
+
+    fun voiceResponseMode(context: Context): String = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("voice_response_mode", "NORMAL") ?: "NORMAL"
+    fun setVoiceResponseMode(context: Context, mode: String) { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { putString("voice_response_mode", mode) } }
+    fun voiceSpeechRate(context: Context): Float = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getFloat("voice_speech_rate", 1f).coerceIn(0.75f, 1.25f)
+    fun setVoiceSpeechRate(context: Context, rate: Float) { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { putFloat("voice_speech_rate", rate.coerceIn(0.75f, 1.25f)) } }
+    fun voiceTtsName(context: Context): String? = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("voice_tts_name", null)
+    fun setVoiceTtsName(context: Context, name: String?) { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { if (name == null) remove("voice_tts_name") else putString("voice_tts_name", name) } }
 
     fun wakeMisses(context: Context): Int =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getInt(KEY_WAKE_MISSES, 0)

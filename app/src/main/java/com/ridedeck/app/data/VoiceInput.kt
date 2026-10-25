@@ -3,7 +3,6 @@ package com.ridedeck.app.data
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
-import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.ToneGenerator
@@ -24,6 +23,7 @@ import com.ridedeck.app.util.Prefs
  */
 class VoiceInput(private val context: Context, private val biasing: () -> List<String> = { emptyList() }) : VoiceAssistant.SpeechListener {
     private val audio = context.getSystemService(AudioManager::class.java)
+    private val micRouter = BluetoothMicRouter(audio) { Prefs.voiceHelmetMic(context) }
     private val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
         .setAudioAttributes(
             AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
@@ -31,8 +31,8 @@ class VoiceInput(private val context: Context, private val biasing: () -> List<S
         )
         .build()
     private var recognizer: SpeechRecognizer? = null
-    private var helmetMic = false
     private var tones: ToneGenerator? = null
+    private var session: AudioSessionManager.Token? = null
 
     override fun available(): Boolean = SpeechRecognizer.isRecognitionAvailable(context)
 
@@ -44,23 +44,28 @@ class VoiceInput(private val context: Context, private val biasing: () -> List<S
 
     private fun listen(quiet: Boolean, onPartial: (String) -> Unit, onResult: (VoiceHeard) -> Unit) {
         cancel()
+        lateinit var token: AudioSessionManager.Token
+        val owner = if (quiet) AudioSessionManager.Owner.FOLLOW_UP_STT else AudioSessionManager.Owner.ANDROID_STT
+        token = AudioSessionManager.process.acquire(owner) { cancelSession(token) }
+        session = token
         val r = SpeechRecognizer.createSpeechRecognizer(context)
         recognizer = r
         audio.requestAudioFocus(focusRequest)
-        useHelmetMic()
+        micRouter.start()
         if (!quiet) beep(ToneGenerator.TONE_PROP_BEEP)
         r.setRecognitionListener(object : RecognitionListener {
             override fun onPartialResults(partialResults: Bundle?) {
+                if (!AudioSessionManager.process.isCurrent(token)) return
                 partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.let(onPartial)
             }
 
             override fun onResults(results: Bundle?) {
                 val heard = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
                 val score = results?.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)?.firstOrNull()
-                finish(onResult, VoiceHeard(heard, score), quiet)
+                finish(token, onResult, VoiceHeard(heard, score), quiet)
             }
 
-            override fun onError(error: Int) = finish(onResult, VoiceHeard(emptyList()), quiet)
+            override fun onError(error: Int) = finish(token, onResult, VoiceHeard(emptyList(), failure = failure(error)), quiet)
             override fun onReadyForSpeech(params: Bundle?) {}
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(rmsdB: Float) {}
@@ -81,35 +86,45 @@ class VoiceInput(private val context: Context, private val biasing: () -> List<S
             val names = biasing().filter { it.isNotBlank() }.distinct().take(MAX_BIASING)
             if (names.isNotEmpty()) intent.putStringArrayListExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, ArrayList(names))
         }
-        r.startListening(intent)
+        try {
+            r.startListening(intent)
+        } catch (_: RuntimeException) {
+            finish(token, onResult, VoiceHeard(emptyList()), quiet)
+        }
     }
 
-    private fun finish(onResult: (VoiceHeard) -> Unit, results: VoiceHeard, quiet: Boolean = false) {
-        release()
+    private fun finish(token: AudioSessionManager.Token, onResult: (VoiceHeard) -> Unit, results: VoiceHeard, quiet: Boolean = false) {
+        if (!AudioSessionManager.process.isCurrent(token)) return
         if (!quiet) beep(ToneGenerator.TONE_PROP_ACK)
+        release(token)
         onResult(results)
     }
 
     override fun cancel() {
-        recognizer?.cancel()
-        release()
+        session?.let(::cancelSession)
     }
 
-    private fun release() {
-        recognizer?.destroy()
+    private fun cancelSession(token: AudioSessionManager.Token) {
+        if (session != token) return
+        releaseResources()
+        AudioSessionManager.process.release(token)
+    }
+
+    private fun release(token: AudioSessionManager.Token) {
+        if (session != token) return
+        releaseResources()
+        AudioSessionManager.process.release(token)
+    }
+
+    private fun releaseResources() {
+        session = null
+        runCatching { recognizer?.cancel() }
+        runCatching { recognizer?.destroy() }
         recognizer = null
-        if (helmetMic && Build.VERSION.SDK_INT >= 31) audio.clearCommunicationDevice()
-        helmetMic = false
-        audio.abandonAudioFocusRequest(focusRequest)
-    }
-
-    /** With a Bluetooth headset connected, listen through its microphone (Android 12+; otherwise the phone's). */
-    private fun useHelmetMic() {
-        if (Build.VERSION.SDK_INT < 31 || !Prefs.voiceHelmetMic(context)) return
-        val device = audio.availableCommunicationDevices.firstOrNull {
-            it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || (Build.VERSION.SDK_INT >= 31 && it.type == AudioDeviceInfo.TYPE_BLE_HEADSET)
-        } ?: return
-        helmetMic = audio.setCommunicationDevice(device)
+        micRouter.stop()
+        runCatching { audio.abandonAudioFocusRequest(focusRequest) }
+        runCatching { tones?.release() }
+        tones = null
     }
 
     private fun beep(tone: Int) {
@@ -120,6 +135,17 @@ class VoiceInput(private val context: Context, private val biasing: () -> List<S
             vibrator?.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
         } catch (_: RuntimeException) {
         }
+    }
+
+    private fun failure(error: Int): VoiceFailure = when (error) {
+        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> VoiceFailure.PERMISSION
+        SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT, SpeechRecognizer.ERROR_SERVER -> VoiceFailure.NETWORK
+        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> VoiceFailure.BUSY
+        SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> VoiceFailure.LANGUAGE
+        SpeechRecognizer.ERROR_SERVER_DISCONNECTED -> VoiceFailure.SERVICE
+        SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> VoiceFailure.TIMEOUT
+        SpeechRecognizer.ERROR_NO_MATCH -> VoiceFailure.NO_SPEECH
+        else -> VoiceFailure.ENGINE
     }
 
     private companion object {

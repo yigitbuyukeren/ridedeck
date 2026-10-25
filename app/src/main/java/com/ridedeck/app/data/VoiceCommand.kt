@@ -5,7 +5,7 @@ enum class VoiceScreen { HOME, MAP, MUSIC, PHONE, APPS, SETTINGS }
 
 enum class NavQuestion { REMAINING_TIME, REMAINING_DISTANCE, ARRIVAL, NEXT_TURN }
 
-enum class InfoQuestion { WEATHER, WEATHER_TOMORROW, WEATHER_EVENING, TIME, BATTERY, SPEED, SPEED_LIMIT, NOW_PLAYING, TRIP }
+enum class InfoQuestion { WEATHER, WEATHER_TOMORROW, WEATHER_EVENING, TIME, BATTERY, SPEED, SPEED_LIMIT, NOW_PLAYING, TRIP, RIDE_STATUS }
 
 /** What the rider asked for by voice. */
 sealed class VoiceCommand {
@@ -54,6 +54,8 @@ sealed class VoiceCommand {
     data class PlaySearch(val query: String) : VoiceCommand()
     object VolumeUp : VoiceCommand()
     object VolumeDown : VoiceCommand()
+    /** Change the media volume by a small, explicit number of steps. */
+    data class VolumeChange(val steps: Int) : VoiceCommand()
     data class VolumeSet(val percent: Int) : VoiceCommand()
 
     // Information
@@ -68,6 +70,8 @@ sealed class VoiceCommand {
     data class Brightness(val delta: Int) : VoiceCommand()
     /** Spoken weather, speed-limit and similar warnings on or off. */
     data class WarningVoice(val on: Boolean) : VoiceCommand()
+    data class RunRoutine(val name: String) : VoiceCommand()
+    object RestoreRoutineState : VoiceCommand()
 
     /** Write a new text message to a contact (the text is dictated and read back before it is sent). */
     data class SendSms(val name: String) : VoiceCommand()
@@ -77,8 +81,9 @@ sealed class VoiceCommand {
 
     /** An in-app reminder: a notification after [minutes], with [what] as its text when it was said. */
     data class Reminder(val minutes: Int, val what: String?) : VoiceCommand()
+    data class SelectPreviousResult(val index: Int, val kind: VoiceResultKind) : VoiceCommand()
 
-    /** Two commands in one sentence ("müziği kıs ve eve git"); a call, message or SOS in it always runs last. */
+    /** Commands in one sentence ("müziği kıs ve eve git"); a call, message or SOS in it always runs last. */
     data class Chain(val first: VoiceCommand, val second: VoiceCommand) : VoiceCommand()
 
     // The assistant itself
@@ -91,6 +96,8 @@ sealed class VoiceCommand {
     data class Unknown(val heard: String) : VoiceCommand()
 }
 
+enum class VoiceResultKind { PLACE, FUEL_STOP }
+
 /** Calls, messages and SOS: they keep their own confirmation and never run before the rest of a chained sentence. */
 fun VoiceCommand.isCritical(): Boolean = when (this) {
     is VoiceCommand.Call, is VoiceCommand.CallDigits, VoiceCommand.CallLast, VoiceCommand.CallMissed,
@@ -99,10 +106,19 @@ fun VoiceCommand.isCritical(): Boolean = when (this) {
     else -> false
 }
 
+/** Contact names, phone numbers and dictated message bodies must not be persisted as transcript history. */
+fun VoiceCommand.containsSensitiveTranscript(): Boolean = when (this) {
+    is VoiceCommand.Call, is VoiceCommand.CallDigits, is VoiceCommand.SendSms, VoiceCommand.Emergency -> true
+    is VoiceCommand.ReplyMessage -> text != null
+    is VoiceCommand.Chain -> first.containsSensitiveTranscript() || second.containsSensitiveTranscript()
+    else -> false
+}
+
 /** What undoes this command, or null when it cannot be taken back ("geri al"). */
 fun VoiceCommand.inverse(): VoiceCommand? = when (this) {
     VoiceCommand.VolumeUp -> VoiceCommand.VolumeDown
     VoiceCommand.VolumeDown -> VoiceCommand.VolumeUp
+    is VoiceCommand.VolumeChange -> VoiceCommand.VolumeChange(-steps)
     VoiceCommand.MusicPlay -> VoiceCommand.MusicPause
     VoiceCommand.MusicPause -> VoiceCommand.MusicPlay
     is VoiceCommand.AvoidHighways -> VoiceCommand.AvoidHighways(!on)
@@ -137,11 +153,12 @@ object VoiceParser {
     private fun rule(pattern: String, build: (MatchResult) -> VoiceCommand?) = Rule(Regex(pattern), build)
     private fun rule(pattern: String, command: VoiceCommand) = Rule(Regex(pattern)) { command }
 
-    private val FILLER = Regex("^(lütfen |şimdi |hadi |bana |bir |bi |şey |yani |hani |ya |abi |hocam |ee |hey |ıı )+")
+    private val FILLER = Regex("^(lütfen |şimdi |hadi |bana |bir (?!buçuk )|bi |şey |yani |hani |ya |abi |hocam |ee |hey |ıı )+")
     private val TRAILING_FILLER = Regex(" (lütfen|rica ederim|acaba|ya|yani|abi|hocam|dostum|kanka|bi|olur mu|lütfen ya)$")
     /** Words that carry nothing in the middle of a sentence ("eve şey git"); only removed when the sentence fails without that. */
     private val INNER_FILLER = Regex(" (şey|yani|hani|işte|ya|bi) ")
     private val SPACES = Regex(" {2,}")
+    private val VOLUME_STEP_REQUEST = Regex("^(?:sesi|ses seviyesini|müziğin sesini) .+ kademe (?:aç|yükselt|artır|arttır|kıs|azalt|düşür)$")
 
     /** Words for places to look for, with the term to search and how to say it. */
     internal val categories = mapOf(
@@ -161,6 +178,7 @@ object VoiceParser {
         // The assistant itself
         rule("^(?:tekrar et|tekrarla|bir daha söyle|daha söyle|tekrar söyle|ne dedin|ne demiştin|son söylediğini tekrar et|bir daha de|daha de)$", VoiceCommand.Repeat),
         rule("^(?:geri al|onu geri al|yaptığını geri al|son komutu geri al|eski haline getir|eskisi gibi yap)$", VoiceCommand.Undo),
+        rule("^(?:normal moda dön|normal moda geç|önceki ayarlara dön|rutin ayarlarını geri al)$", VoiceCommand.RestoreRoutineState),
         rule("^(?:sus|sus artık|bir daha sorma|daha sorma|artık sorma|öneri yapma|önerileri kapat|önerileri sustur|sus bir daha sorma|önerme)$", VoiceCommand.StopProactive),
         // Reminders: "yirmi dakika sonra hatırlat", "hatırlatıcı kur yarım saat"
         rule("^(.+?) (dakika|dk|saat) (?:sonra |içinde |sonraya )?(?:bana )?(?:hatırlat|hatırlatıcı kur|hatırlatıcı ekle|alarm kur|zamanlayıcı kur|sayaç kur)(?: (.+))?$") { m -> reminder(m.groupValues[1], m.groupValues[2], m.groupValues[3]) },
@@ -172,6 +190,8 @@ object VoiceParser {
         rule("^(yardım çağır|acil yardım|acil durum|kaza yaptım|ambulans çağır|ambulans|sos|yardım lazım|kaza geçirdim)$", VoiceCommand.Emergency),
 
         // Volume before music: "sesi aç" must not be taken for "müziği aç"
+        rule("^(?:sesi|ses seviyesini|müziğin sesini) (.+?) kademe (?:aç|yükselt|artır|arttır)$") { m -> Turkish.parseNumber(m.groupValues[1])?.takeIf { it in 1..5 }?.let { VoiceCommand.VolumeChange(it) } },
+        rule("^(?:sesi|ses seviyesini|müziğin sesini) (.+?) kademe (?:kıs|azalt|düşür)$") { m -> Turkish.parseNumber(m.groupValues[1])?.takeIf { it in 1..5 }?.let { VoiceCommand.VolumeChange(-it) } },
         rule("^(?:sesi|ses seviyesini|müziğin sesini|ses) (?:yüzde )?(.+?)(?: yüzde)? (?:yap|olsun|ayarla)$") { m -> Turkish.parseNumber(m.groupValues[1])?.takeIf { it in 0..100 }?.let { VoiceCommand.VolumeSet(it) } },
         rule("^ses(?:i| seviyesi)? yüzde (.+)$") { m -> Turkish.parseNumber(m.groupValues[1])?.takeIf { it in 0..100 }?.let { VoiceCommand.VolumeSet(it) } },
         rule("^(?:sesi |müziğin sesini |ses seviyesini )(?:biraz |çok )?(?:aç|yükselt|artır|arttır|büyüt)$", VoiceCommand.VolumeUp),
@@ -241,11 +261,12 @@ object VoiceParser {
         },
         rule("^(?:kaç ile gidiyorum|hızım kaç|hızım ne|hız kaç|ne kadar hızlı gidiyorum|kaç yapıyorum|hızımı söyle|şu an kaç ile gidiyorum)$", VoiceCommand.Info(InfoQuestion.SPEED)),
         rule("^(?:yolculuk özeti|yolculuk özetini söyle|bu yolculuk nasıl gitti|bugün kaç km|ne kadar yol yaptım|kaç km yaptım|yolculuk istatistiği|son yolculuk|son yolculuk nasıldı)$", VoiceCommand.Info(InfoQuestion.TRIP)),
+        rule("^(?:durum ne|durumum ne|sürüş durumum|yol durumum|ride durumum|genel durum|şu anki durumum ne|sürüş özeti)$", VoiceCommand.Info(InfoQuestion.RIDE_STATUS)),
         rule("^(?:hız sınırı(?: kaç| ne)?|hız limiti(?: kaç| ne)?|limit kaç|burada hız limiti kaç|buranın hız limiti ne|sınır kaç)$", VoiceCommand.Info(InfoQuestion.SPEED_LIMIT)),
 
         // Settings and screens
-        rule("^(?:gece modu(?:na geç)?|gece moduna geç|karanlık mod|karanlık moda geç|koyu tema|karanlık tema)$", VoiceCommand.SetTheme(ThemeMode.NIGHT)),
-        rule("^(?:gündüz modu(?:na geç)?|aydınlık mod|aydınlık moda geç|açık tema|aydınlık tema)$", VoiceCommand.SetTheme(ThemeMode.DAY)),
+        rule("^(?:gece modu(?:na geç)?|gece moduna geç|gece modunu aç|karanlık mod|karanlık moda geç|koyu tema|karanlık tema)$", VoiceCommand.SetTheme(ThemeMode.NIGHT)),
+        rule("^(?:gündüz modu(?:na geç)?|gündüz moduna geç|gündüz modunu aç|aydınlık mod|aydınlık moda geç|açık tema|aydınlık tema)$", VoiceCommand.SetTheme(ThemeMode.DAY)),
         rule("^(?:otomatik tema|tema otomatik|temayı otomatik yap|otomatik mod)$", VoiceCommand.SetTheme(ThemeMode.AUTO)),
         rule("^(?:ekranı kıs|ekranı karart|parlaklığı azalt|parlaklığı düşür|ekranı biraz kıs)$", VoiceCommand.Brightness(-1)),
         rule("^(?:ekranı aç|ekranı aydınlat|parlaklığı artır|parlaklığı arttır|parlaklığı yükselt|ekranı biraz aç|ekranı parlat)$", VoiceCommand.Brightness(1)),
@@ -284,11 +305,11 @@ object VoiceParser {
         },
 
         // Places to look for, along the road or around
-        rule("^(?:yolda|yol üstünde|rota üzerinde|yolumda|rotamda) (?:bir )?(benzinlik|benzin|yakıt|şarj istasyonu|şarj|tamirci|tamir noktası|su noktası|çeşme|içme suyu|istasyon)\\w*$|^(?:en yakın |yakındaki |yakınımdaki |yakında )(?:bir )?(?:benzinlik|benzin istasyonu|akaryakıt|şarj istasyonu|şarj noktası|tamirci|tamir noktası|bisiklet tamircisi|su noktası|çeşme|içme suyu)\\w*(?: var mı| nerede| göster)?$|^(?:benzinlik|benzinlik bul|benzin lazım|yakıt lazım|benzinliğe git|şarj istasyonu bul|tamirci bul|su bul|tamir noktası bul)$", VoiceCommand.FindStops),
-        rule("^(?:yolda|yol üstünde|rota üzerinde|yolumda|rotamda|en yakın|yakındaki|yakınımdaki|yakında|buraya yakın) (?:bir )?($CATEGORY_WORDS)\\w*(?: var mı| nerede| göster| bul| ara)?$|^($CATEGORY_WORDS)\\w*(?: bul| göster| nerede| var mı| lazım)$") { m ->
+        rule("^(?:yolda|yol üstünde|yol üzerindeki|rota üzerinde|rota üzerindeki|rotadaki|yolumda|rotamda) (?:bir )?(?:benzinlik|benzin|yakıt|şarj istasyon(?:u|unu|ları|larını)?|şarj|tamirci|tamir noktası|su noktası|çeşme|içme suyu|istasyon)\\w*(?: bul| göster| ara| var mı| nerede)?$|^(?:en yakın |yakındaki |yakınımdaki |yakında )(?:bir )?(?:benzinlik|benzin istasyonu|akaryakıt|şarj istasyon(?:u|unu|ları|larını)?|şarj noktası|tamirci|tamir noktası|bisiklet tamircisi|su noktası|çeşme|içme suyu)\\w*(?: bul| göster| ara| var mı| nerede)?$|^(?:benzinlik|benzinlik bul|benzin lazım|yakıt lazım|benzinliğe git|şarj istasyonu bul|tamirci bul|su bul|tamir noktası bul)$", VoiceCommand.FindStops),
+        rule("^(?:yolda|yol üstünde|yol üzerindeki|rota üzerinde|rota üzerindeki|rotadaki|yolumda|rotamda|en yakın|yakındaki|yakınımdaki|yakında|buraya yakın) (?:bir )?($CATEGORY_WORDS)\\w*(?: var mı| nerede| göster| bul| ara)?$|^($CATEGORY_WORDS)\\w*(?: bul| göster| nerede| var mı| lazım)$") { m ->
             val word = (m.groups[1]?.value ?: m.groups[2]?.value).orEmpty()
             val entry = categories.entries.firstOrNull { word.startsWith(it.key) }?.value ?: return@rule null
-            val along = Regex("^(?:yolda|yol üstünde|rota üzerinde|yolumda|rotamda) ").containsMatchIn(m.value)
+            val along = Regex("^(?:yolda|yol üstünde|yol üzerindeki|rota üzerinde|rota üzerindeki|rotadaki|yolumda|rotamda) ").containsMatchIn(m.value)
             VoiceCommand.FindNearest(entry.first, entry.second, along)
         },
     )
@@ -307,8 +328,25 @@ object VoiceParser {
     fun parse(raw: String): VoiceCommand {
         val t = clean(raw)
         if (t.isEmpty()) return VoiceCommand.Unknown(raw)
+        if (hasTooManyChainSeparators(t)) return VoiceCommand.Unknown(raw)
         chain(t)?.let { return it }
+        // Do not let the broad "open app/place" rules reinterpret an unsupported or overlong command chain.
         return single(t) ?: VoiceCommand.Unknown(raw)
+    }
+
+    private fun hasTooManyChainSeparators(text: String): Boolean {
+        val words = text.split(' ')
+        var count = 0
+        var i = 0
+        while (i < words.size) {
+            val separator = SEPARATORS.firstOrNull { sep -> i + sep.size <= words.size && words.subList(i, i + sep.size) == sep }
+            if (separator == null) i++ else {
+                count++
+                if (count >= MAX_CHAIN_COMMANDS) return true
+                i += separator.size
+            }
+        }
+        return false
     }
 
     /** The two catch-all rules ("X aç", "X git") take any words; a clear keyword command elsewhere in the sentence wins over them. */
@@ -321,6 +359,7 @@ object VoiceParser {
         val stripped = tidy(t.replace(INNER_FILLER, " ").replace(SPACES, " ").trim())
         val viaStripped = if (stripped.isNotEmpty() && stripped != t) exact(stripped) else null
         if (viaStripped != null && !isCatchAll(viaStripped)) return viaStripped
+        if (VOLUME_STEP_REQUEST.matches(t)) return null
         return VoiceLoose.best(t) ?: direct ?: viaStripped
     }
 
@@ -342,20 +381,35 @@ object VoiceParser {
         listOf("daha", "sonra"), listOf("bir", "de"), listOf("ayrıca"),
     )
 
-    /** Two commands in one sentence. Both halves must be commands on their own, so a name with "ve" in it stays one place. */
+    /** Up to four commands. Each side must independently resolve, so a name with "ve" stays one place. */
     private fun chain(t: String): VoiceCommand? {
+        return chain(t, depth = 0)
+    }
+
+    private fun chain(t: String, depth: Int): VoiceCommand? {
+        if (depth >= MAX_CHAIN_COMMANDS - 1) return null
         val words = t.split(' ')
         if (words.size < 3) return null
         for (i in 1 until words.size - 1) {
             for (sep in SEPARATORS) {
                 if (i + sep.size >= words.size || words.subList(i, i + sep.size) != sep) continue
-                val left = single(tidy(words.subList(0, i).joinToString(" "))) ?: continue
-                val right = single(tidy(words.subList(i + sep.size, words.size).joinToString(" "))) ?: continue
+                val leftText = tidy(words.subList(0, i).joinToString(" "))
+                val rightText = tidy(words.subList(i + sep.size, words.size).joinToString(" "))
+                val left = chain(leftText, depth + 1) ?: single(leftText) ?: continue
+                val right = chain(rightText, depth + 1) ?: single(rightText) ?: continue
+                if (commandCount(left) + commandCount(right) > MAX_CHAIN_COMMANDS) continue
                 return VoiceCommand.Chain(left, right)
             }
         }
         return null
     }
+
+    private fun commandCount(command: VoiceCommand): Int = when (command) {
+        is VoiceCommand.Chain -> commandCount(command.first) + commandCount(command.second)
+        else -> 1
+    }
+
+    private const val MAX_CHAIN_COMMANDS = 4
 
     private val NOT_A_PLACE = setOf("beni", "buraya", "oraya", "şimdi", "bir", "lütfen")
     private val NOT_A_PERSON = setOf("bir", "yeni", "ona", "ona bir", "bana", "cevap", "kısa")
@@ -377,10 +431,12 @@ object VoiceParser {
     /** "yirmi" + "dakika" -> 20; "yarım" + "saat" -> 30; hours become minutes. Null for anything that is not a sane length of time. */
     private fun reminder(amount: String, unit: String, what: String): VoiceCommand? {
         val half = amount.trim() == "yarım"
-        val n = if (half) 30 else Turkish.parseNumber(amount)
+        val oneAndHalfHours = amount.trim() == "bir buçuk" && unit == "saat"
+        val n = if (half) 30 else if (oneAndHalfHours) 90 else Turkish.parseNumber(amount)
         if (n == null || n <= 0) return null
         val minutes = when {
             half -> if (unit == "saat") 30 else return null
+            oneAndHalfHours -> 90
             unit == "saat" -> n * 60
             else -> n
         }
@@ -420,15 +476,17 @@ object VoiceParser {
     /** What a reply to "send it?" / "which one?" means; ordinals work as "birincisi", "ikinci", "ilki" or the number. */
     fun parseAnswer(raw: String): VoiceAnswer {
         val t = normalize(raw)
+        val ordinalText = t.removePrefix("yok ").removePrefix("hayır ").removePrefix("yanlış ")
+            .removeSuffix(" git").removeSuffix(" dön").trim()
         return when {
             t in YES -> VoiceAnswer.Yes
             t in NO -> VoiceAnswer.No
             t in CANCEL -> VoiceAnswer.Cancel
             t in REPEAT -> VoiceAnswer.Repeat
-            t in setOf("birinci", "birincisi", "ilki", "ilk", "birincisini", "bir", "1", "birinciyi", "ilkini") -> VoiceAnswer.Ordinal(0)
-            t in setOf("ikinci", "ikincisi", "ikincisini", "ikinciyi", "iki", "2", "ikisi") -> VoiceAnswer.Ordinal(1)
-            t in setOf("üçüncü", "üçüncüsü", "üçüncüyü", "üç", "3", "üçüncüsünü") -> VoiceAnswer.Ordinal(2)
-            t in setOf("dördüncü", "dördüncüsü", "dört", "4") -> VoiceAnswer.Ordinal(3)
+            ordinalText in setOf("birinci", "birincisi", "ilki", "ilk", "birincisini", "bir", "1", "birinciyi", "ilkini", "ilkine", "birincisine", "birinciye") -> VoiceAnswer.Ordinal(0)
+            ordinalText in setOf("ikinci", "ikincisi", "ikincisini", "ikinciyi", "iki", "2", "ikisi", "ikincisine", "ikinciye") -> VoiceAnswer.Ordinal(1)
+            ordinalText in setOf("üçüncü", "üçüncüsü", "üçüncüyü", "üç", "3", "üçüncüsünü", "üçüncüsüne", "üçüncüye") -> VoiceAnswer.Ordinal(2)
+            ordinalText in setOf("dördüncü", "dördüncüsü", "dört", "4", "dördüncüsüne", "dördüncüye") -> VoiceAnswer.Ordinal(3)
             else -> VoiceAnswer.Other(raw.trim())
         }
     }

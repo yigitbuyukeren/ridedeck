@@ -4,6 +4,8 @@ import com.ridedeck.app.data.VoiceHistoryEntry
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.background
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -21,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material3.Icon
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -36,6 +40,8 @@ import androidx.compose.ui.unit.sp
 import com.ridedeck.app.R
 import com.ridedeck.app.data.VoicePhase
 import com.ridedeck.app.data.VoiceUi
+import com.ridedeck.app.data.VoiceRuntimeState
+import com.ridedeck.app.data.VoicePresentationState
 
 /** A round microphone button; 64dp so it works with gloves. */
 @Composable
@@ -48,15 +54,18 @@ fun MicButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: androidx
 
 /** The listening card, the call countdown, questions with tappable choices and short results, above everything but SOS. */
 @Composable
-fun VoiceOverlay(ui: VoiceUi, onCancel: () -> Unit, onChoose: (Int) -> Unit, onHelp: () -> Unit, modifier: Modifier = Modifier) {
+fun VoiceOverlay(presentation: VoicePresentationState, onCancel: () -> Unit, onChoose: (Int) -> Unit, onHelp: () -> Unit, modifier: Modifier = Modifier) {
+    val ui = presentation.assistant
+    val runtimeState = presentation.runtime
     if (ui.phase == VoicePhase.IDLE) return
     Box(modifier = modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 32.dp), contentAlignment = Alignment.BottomCenter) {
         Column(
             modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                .background(Color(0xF2182430)).padding(20.dp),
+                .background(Color(0xF2182430)).padding(20.dp).heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            Text(stringResource(voiceStatusLabel(ui, runtimeState)), fontSize = 15.sp, color = MotoColors.Orange, fontWeight = FontWeight.SemiBold)
             when (ui.phase) {
                 VoicePhase.LISTENING -> {
                     Icon(Icons.Rounded.Mic, null, tint = MotoColors.Red, modifier = Modifier.size(44.dp))
@@ -66,19 +75,36 @@ fun VoiceOverlay(ui: VoiceUi, onCancel: () -> Unit, onChoose: (Int) -> Unit, onH
                         maxLines = 3, overflow = TextOverflow.Ellipsis,
                     )
                 }
+                VoicePhase.PROCESSING -> {
+                    CircularProgressIndicator(color = MotoColors.Blue, modifier = Modifier.size(40.dp))
+                    ui.recognizedText.takeIf(String::isNotBlank)?.let {
+                        Text(stringResource(R.string.voice_heard_fmt, it), fontSize = 18.sp, color = Color.White, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                }
                 VoicePhase.CONFIRM -> {
                     Text(ui.title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center)
+                    ui.recognizedText.takeIf(String::isNotBlank)?.let {
+                        Text(stringResource(R.string.voice_heard_fmt, it), fontSize = 16.sp, color = MotoColors.Orange, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
                     Text("${ui.secondsLeft}", fontSize = 40.sp, fontWeight = FontWeight.Bold, color = MotoColors.Orange)
                 }
-                else -> Text(ui.text, fontSize = 20.sp, color = Color.White, textAlign = TextAlign.Center, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                else -> {
+                    ui.recognizedText.takeIf(String::isNotBlank)?.let {
+                        Text(stringResource(R.string.voice_heard_fmt, it), fontSize = 16.sp, color = MotoColors.Orange, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    Text(ui.text, fontSize = 20.sp, color = Color.White, textAlign = TextAlign.Center, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                }
             }
             // "Which one?": the options can be said or tapped.
             ui.choices.forEachIndexed { i, label ->
                 PillButton(label, MotoColors.Blue, { onChoose(i) }, Modifier.fillMaxWidth(), singleLine = true)
             }
-            if (ui.phase == VoicePhase.LISTENING || ui.phase == VoicePhase.CONFIRM) {
+            if (ui.phase == VoicePhase.LISTENING || ui.phase == VoicePhase.CONFIRM || ui.phase == VoicePhase.PROCESSING || ui.phase == VoicePhase.MESSAGE) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                    PillButton(stringResource(R.string.voice_cancel), MotoColors.PanelHigh, onCancel, Modifier.weight(1f), horizontalPadding = 12.dp)
+                    PillButton(
+                        stringResource(if (ui.phase == VoicePhase.MESSAGE) R.string.voice_stop_speaking else R.string.voice_cancel),
+                        MotoColors.PanelHigh, onCancel, Modifier.weight(1f), horizontalPadding = 12.dp,
+                    )
                     if (ui.phase == VoicePhase.LISTENING) {
                         PillButton(stringResource(R.string.voice_help_button), MotoColors.PanelHigh, onHelp, Modifier.weight(1.7f), horizontalPadding = 12.dp, singleLine = true)
                     }
@@ -86,6 +112,30 @@ fun VoiceOverlay(ui: VoiceUi, onCancel: () -> Unit, onChoose: (Int) -> Unit, onH
             }
         }
     }
+}
+
+@Composable
+fun VoiceWakeIndicator(presentation: VoicePresentationState, modifier: Modifier = Modifier) {
+    val runtimeState = presentation.runtime
+    if (runtimeState != VoiceRuntimeState.WAKE_LISTENING) return
+    Row(
+        modifier = modifier.clip(RoundedCornerShape(24.dp)).background(Color(0xE2182430)).padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(Icons.Rounded.Mic, null, tint = MotoColors.Blue, modifier = Modifier.size(20.dp))
+        Text(stringResource(R.string.voice_wake_listening_status), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+private fun voiceStatusLabel(ui: VoiceUi, state: VoiceRuntimeState): Int = when {
+    ui.isError || state == VoiceRuntimeState.ERROR -> R.string.voice_status_error
+    ui.phase == VoicePhase.LISTENING -> R.string.voice_status_listening
+    ui.phase == VoicePhase.PROCESSING || state == VoiceRuntimeState.PROCESSING -> R.string.voice_status_processing
+    ui.phase == VoicePhase.CONFIRM || state == VoiceRuntimeState.CONFIRMING -> R.string.voice_status_confirmation
+    state == VoiceRuntimeState.SPEAKING -> R.string.voice_status_speaking
+    state == VoiceRuntimeState.FOLLOW_UP -> R.string.voice_status_listening
+    else -> R.string.voice_status_result
 }
 
 /** "What can I say?": the commands by group, with examples. */

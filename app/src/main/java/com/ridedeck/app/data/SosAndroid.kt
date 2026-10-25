@@ -32,7 +32,7 @@ class AndroidSmsSender(private val context: Context) : SmsSender {
                 else sms.sendTextMessage(number, null, text, null, null)
                 delivered++
             } catch (e: Exception) {
-                Log.w("RideDeck", "SOS sms failed", e)
+                Log.w("RideDeck", "SMS dispatch failed (${e.javaClass.simpleName})")
             }
         }
         // One contact reached is enough to call the alert sent; all failing is reported.
@@ -58,7 +58,7 @@ class AndroidSosAlarm(private val context: Context) : SosAlarm {
             tone?.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 500)
             vibrator()?.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
         } catch (e: RuntimeException) {
-            Log.w("RideDeck", "SOS alarm failed", e)
+            Log.w("RideDeck", "SOS alarm failed (${e.javaClass.simpleName})")
         }
     }
 

@@ -9,6 +9,7 @@ import com.ridedeck.app.data.GeoPoint
 import com.ridedeck.app.data.LocationState
 import com.ridedeck.app.data.Maneuver
 import com.ridedeck.app.data.NavigationController
+import com.ridedeck.app.data.NavigationTermination
 import com.ridedeck.app.data.Place
 import com.ridedeck.app.data.Route
 import com.ridedeck.app.data.RouteOptions
@@ -18,6 +19,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -49,7 +52,9 @@ private class FakeRouting(private val routes: ArrayDeque<Route>) : Routing {
         optionsSeen += options
         return Result.success(routes.removeFirstOrNull() ?: straightRoute(from))
     }
-    override suspend fun search(query: String, near: GeoPoint?): Result<List<Place>> = Result.success(emptyList())
+    var searchResults: List<Place> = emptyList()
+    val searches = mutableListOf<String>()
+    override suspend fun search(query: String, near: GeoPoint?): Result<List<Place>> { searches += query; return Result.success(searchResults) }
     var address: Place? = null
     override suspend fun reverse(point: GeoPoint): Result<Place?> = Result.success(address)
 }
@@ -116,6 +121,28 @@ class NavigationControllerTest {
         assertNotNull(nav.ui.value.route)
         assertEquals(start to dest.point, routing.requests.single())
         assertFalse(nav.ui.value.navigating)
+    }
+
+    @Test
+    fun voiceSearchRetainsAlternativesAndStaleOrdinalsCannotSelect() = runBlocking {
+        val first = Place("Kafe A", "", GeoPoint(41.01, 29.0))
+        val second = Place("Kafe B", "", GeoPoint(41.02, 29.0))
+        routing.searchResults = listOf(first, second)
+
+        assertEquals(listOf("Kafe A", "Kafe B"), nav.searchVoicePlaces(listOf("kafe")).map { it.name })
+        assertEquals(listOf(first, second), nav.ui.value.results)
+        assertEquals("Kafe B", nav.selectVoiceResult(1)?.name)
+        assertEquals(second, nav.ui.value.destination)
+        assertNull(nav.selectVoiceResult(5))
+    }
+
+    @Test
+    fun voiceFuelSearchRetainsStopsAndRoutesTheRequestedOne() = runBlocking {
+        val stops = nav.searchFuelForVoice()
+        assertEquals("Opet", stops.single().name)
+        assertEquals("Opet", nav.selectFuelVoiceResult(0)?.name)
+        assertEquals("Opet", nav.ui.value.destination?.name)
+        assertNull(nav.selectFuelVoiceResult(1))
     }
 
     @Test
@@ -233,6 +260,7 @@ class NavigationControllerTest {
         val ui = nav.ui.value
         assertTrue(ui.arrived)
         assertFalse(ui.navigating)
+        assertEquals(NavigationTermination.ARRIVED, ui.termination)
         assertEquals("t${R.string.arrived}", speaker.said.last())
     }
 
@@ -243,6 +271,42 @@ class NavigationControllerTest {
         assertNull(nav.ui.value.route)
         assertNull(nav.ui.value.destination)
         assertFalse(nav.ui.value.navigating)
+        assertEquals(NavigationTermination.USER_CANCELLED, nav.ui.value.termination)
+    }
+
+    @Test
+    fun locationTrackingFailureStopsGuidanceWithTypedErrorNotArrivalOrCancellation() {
+        nav.shutdown()
+        nav = NavigationController(
+            text, scope, location, speaker, routing, fuel,
+            locationUpdates = flow { throw IllegalStateException("sensor stream failed") },
+        )
+        nav.selectPlace(dest)
+        nav.startNavigation()
+        assertFalse(nav.ui.value.navigating)
+        assertFalse(nav.ui.value.arrived)
+        assertEquals(NavigationTermination.TRACKING_ERROR, nav.ui.value.termination)
+        assertEquals("t${R.string.voice_navigation_tracking_failed}", nav.ui.value.error)
+    }
+
+    @Test
+    fun gpsProviderDisabledStopsGuidanceWithItsOwnReason() {
+        startGuidance()
+        location.value = location.value.copy(gpsProviderEnabled = false)
+        assertFalse(nav.ui.value.navigating)
+        assertFalse(nav.ui.value.arrived)
+        assertEquals(NavigationTermination.LOCATION_DISABLED, nav.ui.value.termination)
+        assertEquals("t${R.string.voice_navigation_location_disabled}", nav.ui.value.error)
+    }
+
+    @Test
+    fun locationPermissionRevokedStopsGuidanceWithItsOwnReason() {
+        startGuidance()
+        location.value = location.value.copy(locationPermissionGranted = false)
+        assertFalse(nav.ui.value.navigating)
+        assertFalse(nav.ui.value.arrived)
+        assertEquals(NavigationTermination.LOCATION_PERMISSION_REVOKED, nav.ui.value.termination)
+        assertEquals("t${R.string.voice_navigation_permission_revoked}", nav.ui.value.error)
     }
 
     @Test

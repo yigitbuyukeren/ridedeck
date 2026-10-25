@@ -153,8 +153,40 @@ class MediaRepository(private val context: Context) {
     /** "Play X": hands the search to the music app; false when no music app has a session to ask. */
     fun playSearch(query: String): Boolean {
         val c = controller ?: return false
-        c.transportControls.playFromSearch(query, null)
-        return true
+        return dispatch(c, PlaybackState.ACTION_PLAY_FROM_SEARCH) { it.playFromSearch(query, null) }
+    }
+
+    /** Returns true only when the active player advertises the requested operation and accepts the dispatch. */
+    fun playForVoice(): Boolean {
+        val c = controller ?: run {
+            if (!canResumeLast()) return false
+            resumeLast()
+            return true
+        }
+        if (c.playbackState?.state == PlaybackState.STATE_PLAYING) return true
+        return dispatch(c, PlaybackState.ACTION_PLAY) { it.play() }
+    }
+
+    fun pauseForVoice(): Boolean {
+        val c = controller ?: return false
+        if (c.playbackState?.state != PlaybackState.STATE_PLAYING) return true
+        return dispatch(c, PlaybackState.ACTION_PAUSE) { it.pause() }
+    }
+
+    private inline fun dispatch(
+        target: MediaController,
+        action: Long,
+        command: (MediaController.TransportControls) -> Unit,
+    ): Boolean {
+        if (!MediaSessionActionPolicy.supports(target.playbackState?.actions ?: 0L, action)) return false
+        return try {
+            command(target.transportControls)
+            true
+        } catch (_: SecurityException) {
+            false
+        } catch (_: RuntimeException) {
+            false
+        }
     }
 
     /** Music volume as a percentage of the loudest setting. */
@@ -163,8 +195,14 @@ class MediaRepository(private val context: Context) {
         audio.setStreamVolume(AudioManager.STREAM_MUSIC, (percent.coerceIn(0, 100) * max / 100f).toInt(), AudioManager.FLAG_SHOW_UI)
     }
 
-    fun pause() {
-        controller?.transportControls?.pause()
+    fun volumePercent(): Int {
+        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        return (audio.getStreamVolume(AudioManager.STREAM_MUSIC) * 100f / max).toInt().coerceIn(0, 100)
+    }
+
+    fun pause(): Boolean {
+        val c = controller ?: return false
+        return dispatch(c, PlaybackState.ACTION_PAUSE) { it.pause() }
     }
 
     val isPlaying: Boolean get() = controller?.playbackState?.state == PlaybackState.STATE_PLAYING
@@ -179,7 +217,7 @@ class MediaRepository(private val context: Context) {
      * app is launched and asked to play.
      */
     fun resumeLast() {
-        val pkg = Prefs.lastMusicApp(context) ?: musicPackages.firstOrNull { context.isInstalled(it) } ?: return
+        val pkg = MusicResumePolicy.select(Prefs.lastMusicApp(context), musicPackages.toList(), context::isInstalled) ?: return
         sendPlayKey()
         handler.postDelayed({
             if (controller == null) {
@@ -188,6 +226,8 @@ class MediaRepository(private val context: Context) {
             }
         }, WAKE_WAIT_MS)
     }
+
+    fun canResumeLast(): Boolean = MusicResumePolicy.select(Prefs.lastMusicApp(context), musicPackages.toList(), context::isInstalled) != null
 
     private fun sendPlayKey() {
         audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY))
@@ -198,14 +238,18 @@ class MediaRepository(private val context: Context) {
     @Volatile var skipDirection = 1
         private set
 
-    fun next() {
-        skipDirection = 1
-        controller?.transportControls?.skipToNext()
+    fun next(): Boolean {
+        val c = controller ?: return false
+        val sent = dispatch(c, PlaybackState.ACTION_SKIP_TO_NEXT) { it.skipToNext() }
+        if (sent) skipDirection = 1
+        return sent
     }
 
-    fun previous() {
-        skipDirection = -1
-        controller?.transportControls?.skipToPrevious()
+    fun previous(): Boolean {
+        val c = controller ?: return false
+        val sent = dispatch(c, PlaybackState.ACTION_SKIP_TO_PREVIOUS) { it.skipToPrevious() }
+        if (sent) skipDirection = -1
+        return sent
     }
 
     fun volumeUp() = audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)

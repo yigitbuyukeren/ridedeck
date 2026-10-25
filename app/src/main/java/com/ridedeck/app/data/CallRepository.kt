@@ -96,35 +96,52 @@ class CallRepository(private val context: Context, private val scope: CoroutineS
         }
     }
 
-    fun answer() {
-        InCallHub.call?.let { it.answer(VideoProfile.STATE_AUDIO_ONLY); return }
-        if (!context.hasPermission(Manifest.permission.ANSWER_PHONE_CALLS)) return
-        try {
+    fun answer(): Boolean {
+        InCallHub.call?.let { call ->
+            if (call.state != Call.STATE_RINGING) return false
+            return runCatching { call.answer(VideoProfile.STATE_AUDIO_ONLY); true }.getOrDefault(false)
+        }
+        if (!context.hasPermission(Manifest.permission.ANSWER_PHONE_CALLS)) return false
+        return try {
             telecom.acceptRingingCall()
+            true
         } catch (_: SecurityException) {
+            false
+        } catch (_: RuntimeException) {
+            false
         }
     }
 
     @Suppress("DEPRECATION")
-    fun hangUp() {
-        InCallHub.call?.let {
-            if (it.state == Call.STATE_RINGING) it.reject(false, null) else it.disconnect()
-            return
+    fun hangUp(): Boolean {
+        InCallHub.call?.let { call ->
+            return runCatching {
+                if (call.state == Call.STATE_RINGING) call.reject(false, null) else call.disconnect()
+                true
+            }.getOrDefault(false)
         }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P || !context.hasPermission(Manifest.permission.ANSWER_PHONE_CALLS)) return
-        try {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P || !context.hasPermission(Manifest.permission.ANSWER_PHONE_CALLS)) return false
+        return try {
             telecom.endCall()
+            true
         } catch (_: SecurityException) {
+            false
+        } catch (_: RuntimeException) {
+            false
         }
     }
 
-    fun toggleMute() {
-        InCallHub.service?.setMuted(!state.value.muted)
+    fun toggleMute(): Boolean {
+        val service = InCallHub.service ?: return false
+        if (state.value.phase != CallPhase.ACTIVE) return false
+        return runCatching { service.setMuted(!state.value.muted); true }.getOrDefault(false)
     }
 
     /** Sends the call sound to one of the routes the phone offers: earpiece, speaker, headset or Bluetooth. */
-    fun setRoute(route: Int) {
-        InCallHub.service?.setAudioRoute(route)
+    fun setRoute(route: Int): Boolean {
+        val service = InCallHub.service ?: return false
+        if (state.value.phase != CallPhase.ACTIVE || state.value.routes and route == 0) return false
+        return runCatching { service.setAudioRoute(route); true }.getOrDefault(false)
     }
 
     private val audio = context.getSystemService(android.media.AudioManager::class.java)

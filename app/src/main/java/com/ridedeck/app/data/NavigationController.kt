@@ -2,11 +2,15 @@ package com.ridedeck.app.data
 
 import com.ridedeck.app.R
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+enum class NavigationTermination { NONE, USER_CANCELLED, ARRIVED, LOCATION_DISABLED, LOCATION_PERMISSION_REVOKED, TRACKING_ERROR }
 
 data class NavUi(
     val query: String = "",
@@ -25,6 +29,7 @@ data class NavUi(
     val distToNextM: Int = 0,
     val remainingM: Int = 0,
     val remainingS: Int = 0,
+    val termination: NavigationTermination = NavigationTermination.NONE,
 )
 
 data class FuelUi(
@@ -53,6 +58,7 @@ class NavigationController(
     private val fuelFinder: FuelFinder = FuelRepository(),
     initialOptions: RouteOptions = RouteOptions(),
     private val onOptionsChanged: (RouteOptions) -> Unit = {},
+    private val locationUpdates: Flow<LocationState> = location,
 ) {
     private val _options = MutableStateFlow(initialOptions)
     val options: StateFlow<RouteOptions> = _options
@@ -113,6 +119,41 @@ class NavigationController(
         }
         _ui.update { it.copy(error = text(R.string.no_results)) }
         return false
+    }
+
+    /** Search voice candidates and retain the full result set for a spoken ordinal follow-up. */
+    suspend fun searchVoicePlaces(candidates: List<String>): List<Place> {
+        for (candidate in candidates) {
+            _ui.update { it.copy(query = candidate, searching = true, results = emptyList(), error = null) }
+            val places = repo.search(candidate, here()).getOrNull().orEmpty()
+            if (places.isNotEmpty()) {
+                _ui.update { it.copy(searching = false, results = places) }
+                return places
+            }
+        }
+        _ui.update { it.copy(searching = false, results = emptyList(), error = text(R.string.no_results)) }
+        return emptyList()
+    }
+
+    /** Select one of the retained voice search results; stale ordinals safely fail. */
+    suspend fun selectVoiceResult(index: Int): Place? {
+        val place = _ui.value.results.getOrNull(index) ?: return null
+        searchJob?.cancel()
+        closeFuel()
+        val from = here() ?: return null
+        _ui.update { it.copy(destination = place, finalDestination = null, query = place.name, results = emptyList(), loading = true, error = null) }
+        routeJob?.cancel()
+        val result = repo.route(from, place.point, _options.value)
+        return result.fold(
+            onSuccess = { route ->
+                _ui.update { it.copy(route = route, loading = false) }
+                place
+            },
+            onFailure = {
+                _ui.update { it.copy(loading = false, destination = null, error = text(R.string.route_failed)) }
+                null
+            },
+        )
     }
 
     /** A spot picked on the map: routed at once under a generic name, renamed when its address arrives. */
@@ -192,11 +233,26 @@ class NavigationController(
         val remaining = (route.distanceM - route.cumulative[startIndex]).coerceAtLeast(0.0)
         _ui.update {
             it.copy(navigating = true, arrived = false, maneuverIndex = next.coerceAtLeast(0),
-                remainingM = remaining.toInt(), remainingS = (route.durationS * remaining / route.distanceM).toInt())
+                remainingM = remaining.toInt(), remainingS = (route.durationS * remaining / route.distanceM).toInt(),
+                termination = NavigationTermination.NONE)
         }
         if (startIndex == 0) route.maneuvers.firstOrNull()?.let { voice.speak(it.verbal) }
         trackJob?.cancel()
-        trackJob = scope.launch { location.collect(::onFix) }
+        trackJob = scope.launch {
+            try {
+                locationUpdates.collect(::onFix)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (_ui.value.navigating) {
+                    voice.stop()
+                    _ui.update {
+                        it.copy(navigating = false, rerouting = false, error = text(R.string.voice_navigation_tracking_failed),
+                            termination = NavigationTermination.TRACKING_ERROR)
+                    }
+                }
+            }
+        }
     }
 
     fun stopNavigation() {
@@ -205,7 +261,7 @@ class NavigationController(
         routeJob?.cancel()
         fuelJob?.cancel()
         voice.stop()
-        _ui.value = NavUi()
+        _ui.value = NavUi(termination = if (_ui.value.navigating) NavigationTermination.USER_CANCELLED else NavigationTermination.NONE)
         _fuel.value = FuelUi()
     }
 
@@ -237,6 +293,58 @@ class NavigationController(
                 }
                 .onFailure { _fuel.update { it.copy(loading = false, error = text(R.string.fuel_failed)) } }
         }
+    }
+
+    /** Fetches the existing nearby/along-route stop results and leaves them available for the next spoken turn. */
+    suspend fun searchFuelForVoice(): List<Place> {
+        val from = here() ?: run {
+            _fuel.value = FuelUi(visible = true, error = text(R.string.gps_waiting))
+            return emptyList()
+        }
+        val state = _ui.value
+        val route = state.route.takeIf { state.navigating }
+        val sources = _options.value.profile.config.stops
+        _fuel.value = FuelUi(visible = true, loading = true, alongRoute = route != null)
+        val result = if (route != null) {
+            fuelFinder.along(FuelMath.samplePoints(route.shape, route.cumulative, progressIndex), from, sources)
+        } else fuelFinder.near(from, sources)
+        return result.fold(
+            onSuccess = { stations ->
+                _fuel.value = FuelUi(visible = true, stations = stations, error = if (stations.isEmpty()) text(R.string.fuel_none) else null, alongRoute = route != null)
+                stations.map { it.place }
+            },
+            onFailure = {
+                _fuel.value = FuelUi(visible = true, error = text(R.string.fuel_failed), alongRoute = route != null)
+                emptyList()
+            },
+        )
+    }
+
+    /** Routes to a previously shown stop, retaining the original destination when guiding. */
+    suspend fun selectFuelVoiceResult(index: Int): Place? {
+        val place = _fuel.value.stations.getOrNull(index)?.place ?: return null
+        val from = here() ?: return null
+        val before = _ui.value
+        val final = (before.finalDestination ?: before.destination).takeIf { before.navigating }
+        _ui.update { it.copy(destination = place, finalDestination = final, loading = final == null, rerouting = final != null, error = null) }
+        val result = repo.route(from, place.point, _options.value)
+        return result.fold(
+            onSuccess = { route ->
+                if (final != null) {
+                    progressIndex = 0
+                    offRouteFixes = 0
+                    spoken.clear()
+                    _ui.update { it.copy(route = route, loading = false, rerouting = false, maneuverIndex = 1.coerceAtMost(route.maneuvers.lastIndex), remainingM = route.distanceM.toInt(), remainingS = route.durationS.toInt()) }
+                    route.maneuvers.firstOrNull()?.let { voice.speak(it.verbal) }
+                } else _ui.update { it.copy(route = route, loading = false) }
+                _fuel.value = FuelUi()
+                place
+            },
+            onFailure = {
+                _ui.update { it.copy(loading = false, rerouting = false, destination = null, error = text(R.string.route_failed)) }
+                null
+            },
+        )
     }
 
     fun closeFuel() {
@@ -290,6 +398,24 @@ class NavigationController(
     private fun onFix(fix: LocationState) {
         val state = _ui.value
         val route = state.route ?: return
+        if (state.navigating && fix.locationPermissionGranted == false) {
+            voice.stop()
+            _ui.update {
+                it.copy(navigating = false, rerouting = false, error = text(R.string.voice_navigation_permission_revoked),
+                    termination = NavigationTermination.LOCATION_PERMISSION_REVOKED)
+            }
+            trackJob?.cancel()
+            return
+        }
+        if (state.navigating && fix.gpsProviderEnabled == false) {
+            voice.stop()
+            _ui.update {
+                it.copy(navigating = false, rerouting = false, error = text(R.string.voice_navigation_location_disabled),
+                    termination = NavigationTermination.LOCATION_DISABLED)
+            }
+            trackJob?.cancel()
+            return
+        }
         if (!state.navigating || fix.fixAtMs == 0L || route.shape.size < 2) return
         val p = GeoPoint(fix.lat, fix.lon)
 
@@ -324,7 +450,7 @@ class NavigationController(
             voice.speak(text(if (state.finalDestination != null) R.string.stop_arrived else R.string.arrived))
             trackJob?.cancel()
             routeJob?.cancel()
-            _ui.update { it.copy(navigating = false, arrived = true, remainingM = 0, remainingS = 0, distToNextM = 0) }
+            _ui.update { it.copy(navigating = false, arrived = true, remainingM = 0, remainingS = 0, distToNextM = 0, termination = NavigationTermination.ARRIVED) }
             return
         }
 

@@ -19,6 +19,8 @@ class DialogContext(private val now: () -> Long = { System.currentTimeMillis() }
     /** The last sentence the assistant said as a result ("tekrar et" says it again). */
     var lastSpoken: String? = null
         private set
+    private var previousResults = emptyList<String>()
+    private var previousResultKind = VoiceResultKind.PLACE
 
     private fun fresh() = touchedAt != 0L && now() - touchedAt <= TTL_MS
 
@@ -26,6 +28,11 @@ class DialogContext(private val now: () -> Long = { System.currentTimeMillis() }
     fun rememberContact(c: Contact) { contact = c; touchedAt = now() }
     fun rememberApp(label: String) { app = label; touchedAt = now() }
     fun rememberSpoken(text: String) { lastSpoken = text }
+    fun rememberResults(names: List<String>, kind: VoiceResultKind) {
+        previousResults = names.take(4)
+        previousResultKind = kind
+        touchedAt = now()
+    }
 
     /** Commands "geri al" and "hayır X değil Y" can refer back to; "tekrar et", "geri al" and the unknown ones are not. */
     fun rememberCommand(command: VoiceCommand) {
@@ -34,13 +41,19 @@ class DialogContext(private val now: () -> Long = { System.currentTimeMillis() }
         touchedAt = now()
     }
 
-    fun clear() { place = null; contact = null; app = null; lastCommand = null; touchedAt = 0L }
+    fun clear() { place = null; contact = null; app = null; lastCommand = null; previousResults = emptyList(); touchedAt = 0L }
 
     /** A command that only makes sense with the context ("onu ara", "oraya git", a correction), or null. */
     fun resolve(raw: String): VoiceCommand? {
         if (!fresh()) return null
         val t = VoiceParser.clean(raw)
         if (t.isEmpty()) return null
+        if (previousResults.isNotEmpty() && RESULT_SELECTION.matches(t)) {
+            val ordinal = VoiceParser.parseAnswer(t) as? VoiceAnswer.Ordinal
+            if (ordinal != null && ordinal.index in previousResults.indices) {
+                return VoiceCommand.SelectPreviousResult(ordinal.index, previousResultKind)
+            }
+        }
         contact?.let { c -> if (CALL_HIM.matches(t)) return VoiceCommand.Call(c.name) }
         place?.let { p ->
             if (GO_THERE.matches(t)) return VoiceCommand.NavigateTo(VoiceParser.navigateCandidates(p))
@@ -74,6 +87,7 @@ class DialogContext(private val now: () -> Long = { System.currentTimeMillis() }
         private val STOP_THERE = Regex("^(?:bir de |de |ayrıca )?oraya (?:de )?(?:uğra|uğrayalım)$")
         private val NOT_X_BUT_Y = Regex("^(?:hayır |yok |yanlış )?(.+?) (?:değil|olmasın|demedim) (.+)$")
         private val NO_Y = Regex("^(?:hayır|yok|yanlış) (.+)$")
+        private val RESULT_SELECTION = Regex("^(?:(?:yok|hayır|yanlış) )?.+ (?:git|gidelim|götür|yönlendir|rota|dön|geri dön)$")
     }
 }
 

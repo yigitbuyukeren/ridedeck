@@ -7,6 +7,7 @@ import com.ridedeck.app.data.ProactiveInput
 import com.ridedeck.app.data.ProactiveKind
 import com.ridedeck.app.data.ProactivePrompts
 import com.ridedeck.app.data.VoiceCommand
+import com.ridedeck.app.data.VoiceResultKind
 import com.ridedeck.app.data.inverse
 import com.ridedeck.app.data.isCritical
 import org.junit.Assert.assertEquals
@@ -36,6 +37,17 @@ class VoiceDialogTest {
         c.rememberContact(Contact("Ayşe", "333"))
         clock += DialogContext.TTL_MS + 1
         assertNull(c.resolve("onu ara"))
+    }
+
+    @Test
+    fun previousSearchResultsResolveSpokenOrdinalAndCorrectionUntilTimeout() {
+        val c = context()
+        c.rememberResults(listOf("Opet", "Shell"), VoiceResultKind.FUEL_STOP)
+        assertEquals(VoiceCommand.SelectPreviousResult(1, VoiceResultKind.FUEL_STOP), c.resolve("ikincisine git"))
+        assertEquals(VoiceCommand.SelectPreviousResult(0, VoiceResultKind.FUEL_STOP), c.resolve("yok ilkine dön"))
+        assertNull(c.resolve("dördüncüsüne git"))
+        clock += DialogContext.TTL_MS + 1
+        assertNull(c.resolve("ikincisine git"))
     }
 
     @Test
@@ -109,5 +121,38 @@ class VoiceDialogTest {
         var t = 0L
         while (t <= 121 * 60_000L) { q.onSpeed(t, 60); t += 60_000L }
         assertEquals(ProactiveKind.BREAK, q.next(input(t, speed = 60)))
+    }
+
+    @Test
+    fun proactiveBatteryWarningsRequireRealReadingsAndIncludeHighTemperature() {
+        val unknown = ProactivePrompts()
+        assertNull(unknown.next(input(1_000, battery = 5).copy(hasBatteryReading = false, batteryTempC = 55f)))
+        val hot = ProactivePrompts()
+        assertEquals(ProactiveKind.TEMPERATURE, hot.next(input(2_000, battery = 80).copy(batteryTempC = 46f)))
+    }
+
+    @Test
+    fun proactiveCategoriesCanBeDisabledIndividually() {
+        val p = ProactivePrompts()
+        assertNull(p.next(input(3_000, rain = 10).copy(enabledKinds = setOf(ProactiveKind.BATTERY))))
+    }
+
+    @Test
+    fun bluetoothLossRequiresObservedConnectionAndSurvivesBusyPeriod() {
+        val p = ProactivePrompts()
+        assertNull(p.next(input(1_000).copy(bluetoothMicAvailable = false)))
+        assertNull(p.next(input(2_000).copy(bluetoothMicAvailable = true)))
+        assertNull(p.next(input(3_000, busy = true).copy(bluetoothMicAvailable = false)))
+        assertEquals(ProactiveKind.BLUETOOTH, p.next(input(4_000).copy(bluetoothMicAvailable = false)))
+        assertNull(p.next(input(400_000).copy(bluetoothMicAvailable = false)))
+    }
+
+    @Test
+    fun navigationFailurePromptRequiresTypedTrackingErrorAndHonorsBusyState() {
+        val p = ProactivePrompts()
+        assertNull(p.next(input(1_000).copy(navigationTrackingError = false)))
+        assertNull(p.next(input(2_000, busy = true).copy(navigationTrackingError = true)))
+        assertEquals(ProactiveKind.NAVIGATION_ERROR, p.next(input(3_000).copy(navigationTrackingError = true)))
+        assertNull(p.next(input(400_000).copy(navigationTrackingError = true)))
     }
 }

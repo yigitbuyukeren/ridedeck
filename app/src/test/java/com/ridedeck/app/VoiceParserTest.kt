@@ -77,7 +77,7 @@ class VoiceParserTest {
 
     @Test
     fun stopsAndNearbyPlaces() {
-        expect(VoiceCommand.FindStops, "benzinlik", "en yakın benzinlik", "yolda benzinlik", "yakındaki benzinlik", "benzinlik bul", "benzin lazım", "yakıt lazım", "en yakın şarj istasyonu", "yolda şarj istasyonu", "en yakın tamirci", "şarj", "yakınımdaki benzinlik var mı")
+        expect(VoiceCommand.FindStops, "benzinlik", "en yakın benzinlik", "yolda benzinlik", "yakındaki benzinlik", "yakındaki benzinlikleri bul", "benzinlik bul", "benzin lazım", "yakıt lazım", "en yakın şarj istasyonu", "yolda şarj istasyonu", "rota üzerindeki şarj istasyonlarını göster", "en yakın tamirci", "şarj", "yakınımdaki benzinlik var mı")
         expect(VoiceCommand.FindNearest("kafe", "kafe"), "en yakın kafe", "yakında kafe var mı", "kafe bul", "en yakın kahve", "kafe göster")
         expect(VoiceCommand.FindNearest("eczane", "eczane"), "en yakın eczane", "eczane bul", "eczane nerede", "yakında eczane var mı", "eczane lazım")
         expect(VoiceCommand.FindNearest("hastane", "hastane"), "en yakın hastane", "hastane bul", "yakında hastane var mı", "en yakın acil")
@@ -85,6 +85,7 @@ class VoiceParserTest {
         expect(VoiceCommand.FindNearest("otopark", "otopark"), "en yakın otopark", "otopark bul", "otopark nerede")
         expect(VoiceCommand.FindNearest("market", "market"), "en yakın market", "market bul", "yakında market var mı")
         expect(VoiceCommand.FindNearest("restoran", "restoran"), "en yakın restoran", "restoran bul", "restoran lazım")
+        expect(VoiceCommand.FindNearest("kafe", "kafe", along = true), "rota üzerindeki kafeleri bul", "rotadaki kafeler nerede")
     }
 
     @Test
@@ -131,15 +132,36 @@ class VoiceParserTest {
     fun volume() {
         expect(VoiceCommand.VolumeUp, "sesi aç", "sesi yükselt", "sesi artır", "sesi biraz aç", "ses seviyesini artır", "sesi arttır")
         expect(VoiceCommand.VolumeDown, "sesi kıs", "sesi azalt", "sesi düşür", "sesi biraz kıs", "ses seviyesini azalt")
+        expect(VoiceCommand.VolumeChange(2), "sesi iki kademe aç", "sesi 2 kademe yükselt")
+        expect(VoiceCommand.VolumeChange(-3), "sesi üç kademe kıs", "ses seviyesini 3 kademe düşür")
         expect(VoiceCommand.VolumeSet(50), "sesi yüzde elli yap", "sesi elli yap", "ses yüzde elli", "sesi yüzde 50 yap", "ses seviyesini elli yap")
         expect(VoiceCommand.VolumeSet(25), "sesi yüzde yirmi beş yap", "ses yüzde yirmi beş")
         expect(VoiceCommand.VolumeSet(100), "sesi yüzde yüz yap")
+        assertTrue(VoiceParser.parse("sesi altı kademe aç") is VoiceCommand.Unknown)
+    }
+
+    @Test
+    fun threeIndependentCommandsStayInTheirSpokenOrder() {
+        val parsed = VoiceParser.parse("sesi biraz kıs ve ekranı kıs sonra gece modunu aç")
+        assertEquals(
+            VoiceCommand.Chain(
+                VoiceCommand.VolumeDown,
+                VoiceCommand.Chain(VoiceCommand.Brightness(-1), VoiceCommand.SetTheme(ThemeMode.NIGHT)),
+            ),
+            parsed,
+        )
+    }
+
+    @Test
+    fun excessiveCommandChainIsNotMisreadAsAnAppOrPlace() {
+        assertTrue(VoiceParser.parse("sesi kıs ve ekranı kıs ve gece modunu aç ve müziği durdur ve eve git") is VoiceCommand.Unknown)
     }
 
     @Test
     fun information() {
         expect(VoiceCommand.Info(InfoQuestion.WEATHER), "hava nasıl", "hava durumu", "kaç derece", "yağmur var mı", "yağmur yağacak mı", "hava kaç derece", "hava durumunu söyle")
         expect(VoiceCommand.Info(InfoQuestion.TIME), "saat kaç", "saati söyle", "saat ne", "şimdi saat kaç")
+        expect(VoiceCommand.Info(InfoQuestion.RIDE_STATUS), "durum ne", "sürüş durumum", "genel durum")
         expect(VoiceCommand.Info(InfoQuestion.BATTERY), "pil durumu", "pil yüzde kaç", "şarjım ne kadar", "batarya", "pil ne kadar kaldı")
         expect(VoiceCommand.Info(InfoQuestion.SPEED), "kaç ile gidiyorum", "hızım kaç", "hız kaç")
         expect(VoiceCommand.Info(InfoQuestion.SPEED_LIMIT), "hız sınırı kaç", "hız limiti kaç", "limit kaç", "hız sınırı")
@@ -206,6 +228,9 @@ class VoiceParserTest {
         assertEquals(VoiceAnswer.Repeat, VoiceParser.parseAnswer("tekrar"))
         assertEquals(VoiceAnswer.Ordinal(0), VoiceParser.parseAnswer("birincisi"))
         assertEquals(VoiceAnswer.Ordinal(1), VoiceParser.parseAnswer("ikinci"))
+        assertEquals(VoiceAnswer.Ordinal(1), VoiceParser.parseAnswer("ikincisine git"))
+        assertEquals(VoiceAnswer.Ordinal(0), VoiceParser.parseAnswer("ilkine dön"))
+        assertEquals(VoiceAnswer.Ordinal(0), VoiceParser.parseAnswer("yok, ilkine dön"))
         assertEquals(VoiceAnswer.Ordinal(2), VoiceParser.parseAnswer("üçüncü"))
         assertEquals(VoiceAnswer.Other("yoldayım"), VoiceParser.parseAnswer("yoldayım"))
     }

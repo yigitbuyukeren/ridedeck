@@ -50,6 +50,7 @@ Aşama 3, yalnızca ölçüm gerekçelendirirse:
 - Telefonda ölçüm: A059'da çipin gerçek fix hızı ve `speedAccuracy`'nin gelip gelmediği; süzgeçli hızın araç göstergesiyle farkı. Plandaki gecikme tablosu ölçümle güncellenir.
 
 ## Sesli asistan: kalan (2026-10-24)
+> Kapsam güncellemesi (2026-10-25): Kullanıcının Voice 2.0 isteği LLM kullanımını açıkça yasaklıyor. Aşağıdaki “Aşama 3 - cihaz içi dil modeli” taslağı bu görev için geçersizdir; model, çalışma zamanı veya LLM özellikleri eklenmeyecek. Deterministik Türkçe NLP, eylem güvenliği, oturum yönetimi ve cihaz doğrulaması kapsam dahilindedir.
 **Aşama 0-2 kodu tamamlandı** (Aşama 2 uygulama ve kapsam için [STATUS.md](STATUS.md)). Vosk isteğe bağlı/deneysel; Android tanıyıcısı varsayılan. A059'da kıyaslama ve pil/ısı ölçümü yapılmadığından doğruluk ve cihaz performansı **UNVERIFIED**; bu ölçüm artık entegrasyon ön koşulu değil, kalan saha doğrulamasıdır.
 
 ### Aşama 3 - cihaz içi dil modeli (yalnızca yedek ve ancak kapıyı geçerse)

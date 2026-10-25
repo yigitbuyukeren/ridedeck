@@ -14,6 +14,7 @@ import com.ridedeck.app.data.ProactiveKind
 import com.ridedeck.app.data.ProactiveInput
 import com.ridedeck.app.data.InfoQuestion
 import com.ridedeck.app.data.Place
+import com.ridedeck.app.data.DialOutcome
 import com.ridedeck.app.data.VehicleProfile
 import com.ridedeck.app.data.SosContact
 import com.ridedeck.app.data.SosController
@@ -29,6 +30,9 @@ import com.ridedeck.app.data.DashCard
 import com.ridedeck.app.data.DashLayout
 import com.ridedeck.app.data.PinnedApps
 import com.ridedeck.app.data.VoiceAssistant
+import com.ridedeck.app.data.VoicePresentationState
+import com.ridedeck.app.data.AudioSessionManager
+import com.ridedeck.app.data.VoiceRuntimeState
 import com.ridedeck.app.data.AndroidVoiceActions
 import com.ridedeck.app.data.Speaker
 import com.ridedeck.app.data.OfflineVoice
@@ -38,6 +42,10 @@ import com.ridedeck.app.data.VoicePhase
 import com.ridedeck.app.data.WakeWord
 import com.ridedeck.app.data.VoiceHistory
 import com.ridedeck.app.data.VoiceHistoryEntry
+import com.ridedeck.app.data.VoiceResponseMode
+import com.ridedeck.app.data.VoiceResponseFormatter
+import com.ridedeck.app.data.RideRoutine
+import com.ridedeck.app.data.RideRoutines
 import com.ridedeck.app.data.SelectableVoiceInput
 import com.ridedeck.app.data.VoskModelState
 import com.ridedeck.app.data.VoskModelStore
@@ -59,6 +67,7 @@ import com.ridedeck.app.data.LocationRepository
 import com.ridedeck.app.data.LocationState
 import com.ridedeck.app.data.MediaRepository
 import com.ridedeck.app.data.NavigationController
+import com.ridedeck.app.data.NavigationTermination
 import com.ridedeck.app.data.PhoneMath
 import com.ridedeck.app.data.PhoneRepository
 import com.ridedeck.app.data.ThemeController
@@ -73,6 +82,8 @@ import com.ridedeck.app.util.Units
 import com.ridedeck.app.util.simplifyMessage
 import kotlinx.coroutines.flow.Flow
 import com.ridedeck.app.data.NavUi
+import com.ridedeck.app.data.RideContextProvider
+import com.ridedeck.app.data.BluetoothMicRouter
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -107,17 +118,29 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     val messages: StateFlow<IncomingMessage?> = MessageBridge.latest
     val readMessagesAloud = MutableStateFlow(Prefs.readMessagesAloud(app))
-    private val announcer = Voice(app)
+    val voiceTtsNames = MutableStateFlow<List<String>>(emptyList())
+    val selectedTtsVoice = MutableStateFlow(Prefs.voiceTtsName(app))
+    private val announcer = Voice(app) { voiceTtsNames.value = it }
+
+    fun setTurkishTtsVoice(name: String?) {
+        if (announcer.selectTurkishVoice(name)) {
+            Prefs.setVoiceTtsName(getApplication(), name)
+            selectedTtsVoice.value = name
+        }
+    }
 
     val callerName: StateFlow<String?> = CallBridge.callerName
     val phone = PhoneRepository(app, viewModelScope)
 
     /** Dials from RideDeck: the call screen comes up at once, with the name when we have one. */
-    fun dial(number: String, name: String?) {
-        if (PhoneMath.dialable(number).isEmpty()) return
-        CallBridge.callerName.value = name ?: number
-        call.markDialing()
-        phone.dial(number)
+    fun dial(number: String, name: String?): DialOutcome {
+        if (PhoneMath.dialable(number).isEmpty()) return DialOutcome.FAILED
+        val result = phone.dial(number)
+        if (result == DialOutcome.REQUESTED) {
+            CallBridge.callerName.value = name ?: number
+            call.markDialing()
+        }
+        return result
     }
 
     init {
@@ -200,8 +223,30 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val wakeMisses = MutableStateFlow(Prefs.wakeMisses(app))
     private val voiceInput = SelectableVoiceInput(app, voskModels) { voiceNames() }
 
+    val voiceResponseMode = MutableStateFlow(runCatching { VoiceResponseMode.valueOf(Prefs.voiceResponseMode(app)) }.getOrDefault(VoiceResponseMode.NORMAL))
+    val voiceSpeechRate = MutableStateFlow(Prefs.voiceSpeechRate(app))
+
+    fun setVoiceResponseMode(mode: VoiceResponseMode) {
+        voiceResponseMode.value = mode
+        Prefs.setVoiceResponseMode(getApplication(), mode.name)
+    }
+
+    fun setVoiceSpeechRate(rate: Float) {
+        val bounded = rate.coerceIn(0.75f, 1.25f)
+        voiceSpeechRate.value = bounded
+        Prefs.setVoiceSpeechRate(getApplication(), bounded)
+        announcer.setSpeechRate(bounded)
+    }
+
+    fun setVoiceRepliesEnabled(enabled: Boolean) {
+        Prefs.setVoiceReplies(getApplication(), enabled)
+        if (!enabled) announcer.stop()
+    }
+
     /** Spoken answers can be switched off; the text still shows on screen. */
     private val voiceSpeaker = object : Speaker {
+        override fun formatResponse(text: String, kind: com.ridedeck.app.data.VoiceResponseKind): String =
+            VoiceResponseFormatter.format(text, voiceResponseMode.value, kind)
         override fun speak(text: String) { if (Prefs.voiceReplies(getApplication())) announcer.speakQueued(text) }
         override fun speakQueued(text: String) = speak(text)
         override fun speakThen(text: String, then: () -> Unit) {
@@ -272,21 +317,39 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         val calm = onScreen && call.state.value.phase == CallPhase.IDLE
         val charged = battery.state.value.let { it.charging || it.percent >= WAKE_MIN_BATTERY }
         val shouldWake = calm && voiceWakeOn.value && charged && ctx.hasPermission(Manifest.permission.RECORD_AUDIO)
+        if (!calm) AudioSessionManager.process.stateMachine.transition(VoiceRuntimeState.SUSPENDED)
+        else if (AudioSessionManager.process.stateMachine.state.value == VoiceRuntimeState.SUSPENDED) {
+            AudioSessionManager.process.stateMachine.transition(VoiceRuntimeState.IDLE)
+        }
         if (voiceEngine.value == SelectableVoiceInput.ENGINE_VOSK) {
             wake.stop()
             if (shouldWake && voskModels.isReady()) voskWake.start() else voskWake.stop()
         } else {
             voskWake.stop()
-            if (shouldWake) wake.start() else wake.stop()
+            if (shouldWake) { wake.resume(); wake.start() } else wake.stop()
         }
         if (onScreen && voiceButtonOn.value) voiceButton.start() else voiceButton.stop()
     }
 
-    val voiceHistory = MutableStateFlow(VoiceHistory.fromJson(Prefs.voiceHistory(app)))
+    val voiceHistory = MutableStateFlow(VoiceHistory.fromPreference(Prefs.voiceHistory(app), Prefs.voiceHistoryOn(app)))
+
+    init {
+        if (!Prefs.voiceHistoryOn(app)) {
+            Prefs.setVoiceHistory(app, VoiceHistory.toJson(emptyList()))
+            Prefs.setVoiceMisses(app, VoiceHistory.missesToJson(emptyList()))
+        } else {
+            // Migrate older local history in place so sensitive phrases are not left in preferences.
+            val historyJson = VoiceHistory.toJson(voiceHistory.value)
+            if (Prefs.voiceHistory(app) != historyJson) Prefs.setVoiceHistory(app, historyJson)
+            val missesJson = VoiceHistory.missesToJson(VoiceHistory.missesFromJson(Prefs.voiceMisses(app)))
+            if (Prefs.voiceMisses(app) != missesJson) Prefs.setVoiceMisses(app, missesJson)
+        }
+    }
 
     fun clearVoiceHistory() {
         voiceHistory.value = emptyList()
         Prefs.setVoiceHistory(getApplication(), VoiceHistory.toJson(emptyList()))
+        Prefs.setVoiceMisses(getApplication(), VoiceHistory.missesToJson(emptyList()))
     }
 
     private fun recordVoice(heard: String, understood: Boolean) {
@@ -296,10 +359,11 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         }
         if (heard.isBlank()) return
         if (!Prefs.voiceHistoryOn(getApplication())) return
+        val safeHeard = VoiceHistory.safeTranscript(heard)
         if (!understood) {
-            Prefs.setVoiceMisses(getApplication(), VoiceHistory.missesToJson(VoiceHistory.addMiss(VoiceHistory.missesFromJson(Prefs.voiceMisses(getApplication())), heard)))
+            Prefs.setVoiceMisses(getApplication(), VoiceHistory.missesToJson(VoiceHistory.addMiss(VoiceHistory.missesFromJson(Prefs.voiceMisses(getApplication())), safeHeard)))
         }
-        val next = VoiceHistory.add(voiceHistory.value, VoiceHistoryEntry(heard, understood, System.currentTimeMillis()))
+        val next = VoiceHistory.add(voiceHistory.value, VoiceHistoryEntry(safeHeard, understood, System.currentTimeMillis()))
         voiceHistory.value = next
         Prefs.setVoiceHistory(getApplication(), VoiceHistory.toJson(next))
     }
@@ -308,6 +372,29 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     fun missedPhrases(): String = VoiceHistory.missesFromJson(Prefs.voiceMisses(getApplication())).joinToString("\n")
 
     val voiceProactiveOn = MutableStateFlow(Prefs.voiceProactive(app))
+    val voiceProactiveKinds = MutableStateFlow(ProactiveKind.entries.associateWith { Prefs.voiceProactiveKind(app, it) })
+
+    fun setVoiceProactiveKind(kind: ProactiveKind, enabled: Boolean) {
+        Prefs.setVoiceProactiveKind(getApplication(), kind, enabled)
+        voiceProactiveKinds.value = voiceProactiveKinds.value + (kind to enabled)
+    }
+
+    val voiceRoutines = MutableStateFlow(RideRoutines.fromJson(Prefs.voiceRoutines(app)))
+
+    fun saveVoiceRoutine(routine: RideRoutine, replacingName: String? = null): Boolean {
+        if (!RideRoutines.canEditAtSpeed(gps.value.speedKmh, gps.value.hasFix)) return false
+        val updated = RideRoutines.upsert(voiceRoutines.value, routine, replacingName) ?: return false
+        Prefs.setVoiceRoutines(getApplication(), RideRoutines.toJson(updated))
+        voiceRoutines.value = updated
+        return true
+    }
+
+    fun deleteVoiceRoutine(name: String) {
+        if (!RideRoutines.canEditAtSpeed(gps.value.speedKmh, gps.value.hasFix)) return
+        val updated = RideRoutines.delete(voiceRoutines.value, name)
+        Prefs.setVoiceRoutines(getApplication(), RideRoutines.toJson(updated))
+        voiceRoutines.value = updated
+    }
 
     fun setVoiceProactive(on: Boolean) {
         voiceProactiveOn.value = on
@@ -359,10 +446,36 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                 if (fix.fixAtMs == 0L) null else WeatherRepository().outlook(GeoPoint(fix.lat, fix.lon), day, from, to).getOrNull()
             },
             proactiveSwitch = ::setVoiceProactive,
+            rideContext = {
+                RideContextProvider.capture(
+                    nowMs = System.currentTimeMillis(),
+                    nav = nav.ui.value,
+                    location = location.state.value,
+                    battery = battery.state.value,
+                    bluetoothMicAvailable = BluetoothMicRouter.isBluetoothInputAvailable(app),
+                    media = media.state.value,
+                    weather = weather.snapshot.value,
+                    vehicleProfile = nav.options.value.profile,
+                )
+            },
+            routines = { voiceRoutines.value },
+            saveRoutineSnapshot = { snapshot -> Prefs.setRoutineSnapshot(app, snapshot?.let(RideRoutines::snapshotToJson)) },
+            routineSnapshot = { RideRoutines.snapshotFromJson(Prefs.routineSnapshot(app)) },
         ),
         history = { heard, understood -> recordVoice(heard, understood) },
         continuous = { Prefs.voiceContinuous(getApplication()) },
     )
+
+    /** A single Compose snapshot for transcript/dialog content and the state-machine/audio owner. */
+    val voicePresentation: StateFlow<VoicePresentationState> = combine(
+        voiceAssistant.ui,
+        AudioSessionManager.process.stateMachine.state,
+    ) { assistant, runtime -> VoicePresentationState(assistant, runtime) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            VoicePresentationState(voiceAssistant.ui.value, AudioSessionManager.process.stateMachine.state.value),
+        )
 
     // ---- the assistant's own questions (rain, low battery, nearly there, a long ride) --------------
 
@@ -382,13 +495,21 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                 val batt = battery.state.value
                 val busy = call.state.value.phase != CallPhase.IDLE || voiceAssistant.ui.value.phase != VoicePhase.IDLE
                 val kind = proactivePrompts.next(
-                    ProactiveInput(now, speed, weather.snapshot.value?.rainInMin, batt.percent, batt.charging, route.navigating, route.remainingM, busy)
+                    ProactiveInput(
+                        now, speed, weather.snapshot.value?.rainInMin, batt.percent, batt.charging, route.navigating,
+                        route.remainingM, busy, batt.tempC, batt.hasReading, voiceProactiveKinds.value.filterValues { it }.keys,
+                        BluetoothMicRouter.isBluetoothInputAvailable(getApplication()),
+                        navigationTrackingError = route.termination == NavigationTermination.TRACKING_ERROR,
+                    )
                 ) ?: continue
                 val (question, command) = when (kind) {
                     ProactiveKind.RAIN -> getApplication<Application>().getString(R.string.voice_proactive_rain) to VoiceCommand.Info(InfoQuestion.WEATHER)
-                    ProactiveKind.BATTERY -> getApplication<Application>().getString(R.string.voice_proactive_battery, batt.percent) to VoiceCommand.Brightness(-1)
+                    ProactiveKind.BATTERY -> getApplication<Application>().getString(R.string.voice_proactive_battery, batt.percent) to VoiceCommand.Info(InfoQuestion.BATTERY)
+                    ProactiveKind.TEMPERATURE -> getApplication<Application>().getString(R.string.voice_proactive_temperature, batt.tempC.toInt()) to VoiceCommand.Info(InfoQuestion.BATTERY)
                     ProactiveKind.ARRIVAL -> getApplication<Application>().getString(R.string.voice_proactive_arrival) to VoiceCommand.FindNearest("otopark", "otopark")
                     ProactiveKind.BREAK -> getApplication<Application>().getString(R.string.voice_proactive_break) to VoiceCommand.FindNearest("kafe", "kafe")
+                    ProactiveKind.BLUETOOTH -> getApplication<Application>().getString(R.string.voice_proactive_bluetooth) to VoiceCommand.Info(InfoQuestion.RIDE_STATUS)
+                    ProactiveKind.NAVIGATION_ERROR -> getApplication<Application>().getString(R.string.voice_proactive_navigation_error) to VoiceCommand.Info(InfoQuestion.RIDE_STATUS)
                 }
                 voiceAssistant.proactive(question, command)
             }
@@ -406,7 +527,20 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     init {
         // The microphone is the assistant's while it listens or asks; the wake phrase waits.
         viewModelScope.launch {
-            voiceAssistant.ui.collect { if (it.phase == VoicePhase.IDLE) wake.resume() else wake.pause() }
+            voiceAssistant.ui.collect {
+                if (it.phase == VoicePhase.IDLE) {
+                    wake.resume()
+                    applyVoiceExtras()
+                } else {
+                    wake.pause()
+                    voskWake.stop()
+                }
+            }
+        }
+        viewModelScope.launch {
+            AudioSessionManager.process.owner.collect { owner ->
+                if (owner == null && voiceAssistant.ui.value.phase == VoicePhase.IDLE) applyVoiceExtras()
+            }
         }
     }
 
@@ -605,13 +739,18 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
             var resumeAfter = false
             var previous = CallPhase.IDLE
             call.state.collect { c ->
-                if (previous == CallPhase.IDLE && c.phase != CallPhase.IDLE) resumeAfter = media.isPlaying
+                if (previous == CallPhase.IDLE && c.phase != CallPhase.IDLE) {
+                    resumeAfter = media.isPlaying
+                    voiceAssistant.cancel()
+                    announcer.stop()
+                }
                 if (previous != CallPhase.IDLE && c.phase == CallPhase.IDLE && resumeAfter) {
                     resumeAfter = false
                     delay(RESUME_AFTER_CALL_MS)
                     if (!media.isPlaying) media.play()
                 }
                 previous = c.phase
+                applyVoiceExtras()
             }
         }
     }
@@ -645,9 +784,12 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     fun onPause() {
         onScreen = false
+        voiceAssistant.cancel()
+        voiceInput.cancel()
         wake.stop()
         voskWake.stop()
         voiceButton.stop()
+        AudioSessionManager.process.stateMachine.transition(VoiceRuntimeState.SUSPENDED)
         crashSensor.stop()
         theme.stop()
     }

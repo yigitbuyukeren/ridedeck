@@ -3,6 +3,7 @@ package com.ridedeck.app.data
 import android.Manifest
 import android.content.ContentResolver
 import android.content.Context
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -18,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 enum class CallKind { INCOMING, OUTGOING, MISSED }
+enum class DialOutcome { REQUESTED, DIALER_OPENED, FAILED }
 
 /** One line of the recents list; [count] is how many back-to-back calls with the same number it stands for. */
 data class RecentCall(
@@ -148,19 +150,27 @@ class PhoneRepository(private val context: Context, private val scope: Coroutine
         return out
     }
 
-    /** Places the call directly when allowed; otherwise opens the system dialer with the number filled in. */
-    fun dial(raw: String) {
+    /** Places the call when allowed; otherwise reports that only the system dialer was opened. */
+    fun dial(raw: String): DialOutcome {
         val number = PhoneMath.dialable(raw)
-        if (number.isEmpty()) return
+        if (number.isEmpty()) return DialOutcome.FAILED
         val uri = Uri.fromParts("tel", number, null)
         if (context.hasPermission(Manifest.permission.CALL_PHONE)) {
             try {
                 context.getSystemService(TelecomManager::class.java).placeCall(uri, Bundle())
-                return
+                return DialOutcome.REQUESTED
             } catch (_: SecurityException) {
+            } catch (_: RuntimeException) {
             }
         }
-        context.startActivity(Intent(Intent.ACTION_DIAL, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        return try {
+            context.startActivity(Intent(Intent.ACTION_DIAL, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            DialOutcome.DIALER_OPENED
+        } catch (_: ActivityNotFoundException) {
+            DialOutcome.FAILED
+        } catch (_: RuntimeException) {
+            DialOutcome.FAILED
+        }
     }
 
     private companion object {

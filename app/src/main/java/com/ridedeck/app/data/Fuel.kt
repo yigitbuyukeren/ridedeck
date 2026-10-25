@@ -170,7 +170,7 @@ class FuelRepository : FuelFinder {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.w("RideDeck", "nominatim fuel failed", e)
+                Log.w("RideDeck", "nominatim fuel failed (${e.javaClass.simpleName})")
                 emptyList()
             }
             // Nominatim may know only some of the kinds (it found drinking water but no repair station): the
@@ -184,7 +184,7 @@ class FuelRepository : FuelFinder {
                 throw e
             } catch (e: Exception) {
                 if (viaNominatim.isEmpty()) throw e
-                Log.w("RideDeck", "overpass for the missing kinds failed", e)
+                Log.w("RideDeck", "overpass for missing fuel kinds failed (${e.javaClass.simpleName})")
                 emptyList()
             }
             FuelMath.combine(viaNominatim, extra)
@@ -234,7 +234,7 @@ private suspend fun firstAnswerOf(query: String, mirrors: List<String>): String 
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.w("RideDeck", "overpass mirror failed: $url ${e.message}")
+                Log.w("RideDeck", "overpass mirror failed (${e.javaClass.simpleName})")
                 Result.failure(e)
             }
             results.send(outcome)

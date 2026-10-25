@@ -34,6 +34,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -51,9 +52,12 @@ import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
 import com.ridedeck.app.R
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import com.ridedeck.app.data.BikeType
 import com.ridedeck.app.data.ThemeMode
 import com.ridedeck.app.data.VehicleProfile
+import com.ridedeck.app.data.RideRoutine
+import com.ridedeck.app.data.VoiceResponseMode
 import com.ridedeck.app.util.hasPermission
 
 data class SettingItem(
@@ -65,6 +69,7 @@ data class SettingItem(
     val required: Boolean = false,
     val progress: Float? = null,
     val progressLabel: String? = null,
+    val actionEnabled: Boolean = true,
     val onClick: () -> Unit,
 )
 
@@ -153,6 +158,22 @@ fun SettingsScreen(
     bikeType: BikeType = BikeType.CITY,
     onBikeType: (BikeType) -> Unit = {},
     safetyCard: @Composable () -> Unit = {},
+    routines: List<RideRoutine> = emptyList(),
+    onSaveRoutine: (RideRoutine, String?) -> Boolean = { _, _ -> false },
+    onDeleteRoutine: (String) -> Unit = {},
+    onRunRoutine: (String) -> Unit = {},
+    responseMode: VoiceResponseMode = VoiceResponseMode.NORMAL,
+    onResponseMode: (VoiceResponseMode) -> Unit = {},
+    speechRate: Float = 1f,
+    onSpeechRate: (Float) -> Unit = {},
+    ttsVoiceNames: List<String> = emptyList(),
+    selectedTtsVoice: String? = null,
+    onTtsVoice: (String?) -> Unit = {},
+    voiceEngine: String = com.ridedeck.app.data.SelectableVoiceInput.ENGINE_SYSTEM,
+    voskReady: Boolean = false,
+    onVoiceEngine: (String) -> Unit = {},
+    onVoskUnavailable: () -> Unit = {},
+    canEditRoutines: Boolean = true,
 ) {
     val palette = LocalMotoPalette.current
     // Start on the setup page while a permission is missing, otherwise on the everyday options.
@@ -194,7 +215,7 @@ fun SettingsScreen(
             val list: @Composable (Modifier) -> Unit = { modifier ->
                 val listState = rememberLazyListState()
                 Box(modifier) {
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize().testTag("settings-list"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     when (tab) {
                         SettingsTab.SETUP -> {
                             item {
@@ -210,6 +231,18 @@ fun SettingsScreen(
                             items(items) { item -> SettingRow(item) }
                         }
                         SettingsTab.RIDE -> {
+                            item { Text(stringResource(R.string.voice_privacy_note), Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MotoColors.Card).padding(14.dp), color = LocalMotoPalette.current.muted) }
+                            item {
+                                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(14.dp)) {
+                                    VoiceEngineSelector(voiceEngine, voskReady, onVoiceEngine, onVoskUnavailable)
+                                    ChoiceRow(stringResource(R.string.voice_response_mode_title), stringResource(R.string.voice_response_mode_desc), listOf(stringResource(R.string.voice_response_minimal) to (responseMode == VoiceResponseMode.MINIMAL), stringResource(R.string.voice_response_normal) to (responseMode == VoiceResponseMode.NORMAL), stringResource(R.string.voice_response_detailed) to (responseMode == VoiceResponseMode.DETAILED))) { onResponseMode(VoiceResponseMode.entries[it]) }
+                                    Text(stringResource(R.string.voice_speech_rate, (speechRate * 100).toInt()), color = LocalMotoPalette.current.text)
+                                    Slider(speechRate, onSpeechRate, valueRange = 0.75f..1.25f)
+                                    if (ttsVoiceNames.isEmpty()) Text(stringResource(R.string.voice_tts_missing), color = LocalMotoPalette.current.muted)
+                                    else ChoiceRow(stringResource(R.string.voice_tts_title), stringResource(R.string.voice_tts_desc), listOf(stringResource(R.string.voice_tts_default) to (selectedTtsVoice == null)) + ttsVoiceNames.map { it to (it == selectedTtsVoice) }) { index -> onTtsVoice(ttsVoiceNames.getOrNull(index - 1)) }
+                                }
+                            }
+                            item { RoutineManager(routines, onSaveRoutine, onDeleteRoutine, onRunRoutine, canEditRoutines) }
                             if (vehicle == VehicleProfile.BICYCLE) {
                                 item {
                                     ChoiceRow(
@@ -308,8 +341,10 @@ private fun SettingRow(item: SettingItem) {
         }
         if (item.granted) {
             Icon(Icons.Rounded.CheckCircle, null, tint = MotoColors.Green, modifier = Modifier.size(36.dp))
-        } else {
+        } else if (item.actionEnabled) {
             PillButton(item.action, MotoColors.Blue, item.onClick)
+        } else {
+            Text(item.action, color = LocalMotoPalette.current.muted, fontSize = 14.sp)
         }
     }
 }
@@ -371,5 +406,28 @@ fun ChoiceRow(title: String, description: String, choices: List<Pair<String, Boo
                 }
             }
         }
+    }
+}
+
+@Composable
+fun VoiceEngineSelector(
+    engine: String,
+    voskReady: Boolean,
+    onSelect: (String) -> Unit,
+    onVoskUnavailable: () -> Unit,
+) {
+    val system = com.ridedeck.app.data.SelectableVoiceInput.ENGINE_SYSTEM
+    val vosk = com.ridedeck.app.data.SelectableVoiceInput.ENGINE_VOSK
+    ChoiceRow(
+        stringResource(R.string.voice_engine_title),
+        stringResource(if (voskReady) R.string.voice_engine_desc else R.string.voice_engine_vosk_unavailable),
+        listOf(
+            stringResource(R.string.voice_engine_system_title) to (engine == system),
+            stringResource(R.string.voice_engine_vosk_title) to (engine == vosk),
+        ),
+    ) { selected ->
+        if (selected == 0) onSelect(system)
+        else if (voskReady) onSelect(vosk)
+        else onVoskUnavailable()
     }
 }

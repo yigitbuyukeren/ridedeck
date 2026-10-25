@@ -92,7 +92,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
         if (n in 0 until 5) { settingsHint = true; Prefs.setSettingsHintCount(context, n + 1) }
     }
     val dashSlots by vm.dashSlots.collectAsStateWithLifecycle()
-    val voiceUi by vm.voiceAssistant.ui.collectAsStateWithLifecycle()
+    val voicePresentation by vm.voicePresentation.collectAsStateWithLifecycle()
     val voiceScreen by vm.voiceScreen.collectAsStateWithLifecycle()
     val showVoiceHelp by vm.voiceHelp.collectAsStateWithLifecycle()
     val voiceRequests by vm.voiceRequests.collectAsStateWithLifecycle()
@@ -101,6 +101,12 @@ fun DashboardScreen(vm: DashboardViewModel) {
     val voiceHistory by vm.voiceHistory.collectAsStateWithLifecycle()
     val voiceWake by vm.voiceWakeOn.collectAsStateWithLifecycle()
     val voiceProactive by vm.voiceProactiveOn.collectAsStateWithLifecycle()
+    val voiceProactiveKinds by vm.voiceProactiveKinds.collectAsStateWithLifecycle()
+    val voiceRoutines by vm.voiceRoutines.collectAsStateWithLifecycle()
+    val voiceResponseMode by vm.voiceResponseMode.collectAsStateWithLifecycle()
+    val voiceSpeechRate by vm.voiceSpeechRate.collectAsStateWithLifecycle()
+    val ttsVoiceNames by vm.voiceTtsNames.collectAsStateWithLifecycle()
+    val selectedTtsVoice by vm.selectedTtsVoice.collectAsStateWithLifecycle()
     var voiceContinuous by remember { mutableStateOf(Prefs.voiceContinuous(context)) }
     val voiceButton by vm.voiceButtonOn.collectAsStateWithLifecycle()
     val offlineVoice by vm.offlineVoice.collectAsStateWithLifecycle()
@@ -262,6 +268,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                         voskDownloadProgress.total / mb,
                     ) else context.getString(R.string.voice_vosk_progress_unknown, voskDownloadProgress.downloaded / mb)
                 } else null,
+                actionEnabled = voskModelState != com.ridedeck.app.data.VoskModelState.DOWNLOADING,
             ) {
                 when (voskModelState) {
                     com.ridedeck.app.data.VoskModelState.READY -> vm.deleteVoskModel()
@@ -522,6 +529,9 @@ fun DashboardScreen(vm: DashboardViewModel) {
 
         // Settings and trips cover the whole screen, cutout strip included; they pad their own content.
             AnimatedVisibility(visible = showSettings, enter = overlayEnter, exit = overlayExit) {
+                val wakeAvailable = if (voiceEngine == com.ridedeck.app.data.SelectableVoiceInput.ENGINE_VOSK) {
+                    voskModelState == com.ridedeck.app.data.VoskModelState.READY
+                } else WakeWord.available(context)
                 val toggles = listOf(
                     ToggleItem(stringResource(R.string.msg_auto_title), stringResource(R.string.msg_auto_desc), autoRead, vm::setReadMessagesAloud),
                     ) + messageApps.map { row ->
@@ -531,26 +541,35 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     ToggleItem(stringResource(R.string.rain_voice_title), stringResource(R.string.rain_voice_desc), rainVoice, vm::setRainVoice),
                     ToggleItem(stringResource(R.string.thermal_title), stringResource(R.string.thermal_desc), thermalOn, vm::setThermalEnabled),
                     ToggleItem(stringResource(R.string.speed_limit_title), stringResource(R.string.speed_limit_desc), speedLimitOn, vm::setSpeedLimitEnabled),
-                    ToggleItem(stringResource(R.string.voice_replies_title), stringResource(R.string.voice_replies_desc), voiceReplies) { voiceReplies = it; Prefs.setVoiceReplies(context, it) },
+                    ToggleItem(stringResource(R.string.voice_replies_title), stringResource(R.string.voice_replies_desc), voiceReplies) { voiceReplies = it; vm.setVoiceRepliesEnabled(it) },
                     ToggleItem(stringResource(R.string.voice_history_title), stringResource(R.string.voice_history_desc), voiceHistoryOn) { voiceHistoryOn = it; Prefs.setVoiceHistoryOn(context, it); if (!it) vm.clearVoiceHistory() },
                     ToggleItem(stringResource(R.string.voice_continuous_title), stringResource(R.string.voice_continuous_desc), voiceContinuous) { voiceContinuous = it; Prefs.setVoiceContinuous(context, it) },
-                    ToggleItem(stringResource(R.string.voice_engine_system_title), stringResource(R.string.voice_engine_system_desc), voiceEngine == com.ridedeck.app.data.SelectableVoiceInput.ENGINE_SYSTEM) {
-                        if (it) vm.setVoiceEngine(com.ridedeck.app.data.SelectableVoiceInput.ENGINE_SYSTEM)
-                    },
-                    ToggleItem(stringResource(R.string.voice_engine_vosk_title), stringResource(R.string.voice_engine_vosk_desc), voiceEngine == com.ridedeck.app.data.SelectableVoiceInput.ENGINE_VOSK) {
-                        if (it && voskModelState == com.ridedeck.app.data.VoskModelState.READY) vm.setVoiceEngine(com.ridedeck.app.data.SelectableVoiceInput.ENGINE_VOSK)
-                    },
                     ToggleItem(stringResource(R.string.voice_proactive_title), stringResource(R.string.voice_proactive_desc), voiceProactive, vm::setVoiceProactive),
+                ) + com.ridedeck.app.data.ProactiveKind.entries.map { kind ->
+                        val label = when (kind) {
+                            com.ridedeck.app.data.ProactiveKind.RAIN -> R.string.voice_proactive_rain_category
+                            com.ridedeck.app.data.ProactiveKind.BATTERY -> R.string.voice_proactive_battery_category
+                            com.ridedeck.app.data.ProactiveKind.TEMPERATURE -> R.string.voice_proactive_temperature_category
+                            com.ridedeck.app.data.ProactiveKind.ARRIVAL -> R.string.voice_proactive_arrival_category
+                            com.ridedeck.app.data.ProactiveKind.BREAK -> R.string.voice_proactive_break_category
+                            com.ridedeck.app.data.ProactiveKind.BLUETOOTH -> R.string.voice_proactive_bluetooth_category
+                            com.ridedeck.app.data.ProactiveKind.NAVIGATION_ERROR -> R.string.voice_proactive_navigation_error_category
+                        }
+                        ToggleItem(stringResource(label), stringResource(R.string.voice_proactive_desc), voiceProactiveKinds[kind] ?: true) { vm.setVoiceProactiveKind(kind, it) }
+                } + listOf(
                     ToggleItem(stringResource(R.string.voice_button_title), stringResource(R.string.voice_button_desc), voiceButton, vm::setVoiceButton),
                     ToggleItem(
                         stringResource(R.string.voice_wake_title),
                         if (voiceEngine == com.ridedeck.app.data.SelectableVoiceInput.ENGINE_VOSK) {
                             context.getString(if (voskModelState == com.ridedeck.app.data.VoskModelState.READY) R.string.voice_wake_vosk_desc else R.string.voice_wake_vosk_unavailable, wakeMisses)
                         } else {
-                            context.getString(if (WakeWord.available(context)) R.string.voice_wake_desc else R.string.voice_wake_unavailable, wakeMisses)
+                            context.getString(if (wakeAvailable) R.string.voice_wake_desc else R.string.voice_wake_unavailable, wakeMisses)
                         },
-                        voiceWake, vm::setVoiceWake,
-                    ),
+                        voiceWake,
+                    ) { enabled ->
+                        if (enabled && !wakeAvailable) Toast.makeText(context, R.string.voice_wake_enable_unavailable, Toast.LENGTH_SHORT).show()
+                        else vm.setVoiceWake(enabled)
+                    },
                     ToggleItem(stringResource(R.string.voice_helmet_title), stringResource(R.string.voice_helmet_desc), voiceHelmetMic) { voiceHelmetMic = it; Prefs.setVoiceHelmetMic(context, it) },
                     ToggleItem(stringResource(R.string.units_title), stringResource(R.string.units_desc), Units.miles) { Units.set(context, it) },
                     ToggleItem(stringResource(R.string.record_trips_title), stringResource(R.string.record_trips_desc), recordTrips, vm::setRecordTrips),
@@ -571,6 +590,22 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     onDashSlot = vm::setDashSlot,
                     bikeType = routeOptions.bikeType,
                     onBikeType = { vm.nav.setOptions(routeOptions.copy(bikeType = it)) },
+                    routines = voiceRoutines,
+                    onSaveRoutine = vm::saveVoiceRoutine,
+                    onDeleteRoutine = vm::deleteVoiceRoutine,
+                    onRunRoutine = vm.voiceAssistant::runRoutine,
+                    responseMode = voiceResponseMode,
+                    onResponseMode = vm::setVoiceResponseMode,
+                    speechRate = voiceSpeechRate,
+                    onSpeechRate = vm::setVoiceSpeechRate,
+                    ttsVoiceNames = ttsVoiceNames,
+                    selectedTtsVoice = selectedTtsVoice,
+                    onTtsVoice = vm::setTurkishTtsVoice,
+                    voiceEngine = voiceEngine,
+                    voskReady = voskModelState == com.ridedeck.app.data.VoskModelState.READY,
+                    onVoiceEngine = vm::setVoiceEngine,
+                    onVoskUnavailable = { Toast.makeText(context, R.string.voice_engine_vosk_download_first, Toast.LENGTH_SHORT).show() },
+                    canEditRoutines = com.ridedeck.app.data.RideRoutines.canEditAtSpeed(gps.speedKmh, gps.hasFix),
                     safetyCard = {
                         SosSettingsCard(
                             contacts = sosContacts,
@@ -618,7 +653,8 @@ fun DashboardScreen(vm: DashboardViewModel) {
             VoiceHelpScreen(history = voiceHistory, onClear = vm::clearVoiceHistory, onClose = { vm.voiceHelp.value = false })
         }
 
-        VoiceOverlay(voiceUi, onCancel = { vm.clearPendingWake(); vm.voiceAssistant.cancel() }, onChoose = vm.voiceAssistant::choose, onHelp = { vm.clearPendingWake(); vm.voiceAssistant.cancel(); vm.voiceHelp.value = true })
+        VoiceOverlay(voicePresentation, onCancel = { vm.clearPendingWake(); vm.voiceAssistant.cancel() }, onChoose = vm.voiceAssistant::choose, onHelp = { vm.clearPendingWake(); vm.voiceAssistant.cancel(); vm.voiceHelp.value = true })
+        VoiceWakeIndicator(voicePresentation, Modifier.align(Alignment.TopCenter).padding(top = 12.dp))
 
         // Last, so nothing can cover an SOS countdown.
         SosScreen(sosUi, sosContacts.map { it.name }, onCancel = vm.sos::cancel, onDismiss = vm.sos::dismiss)

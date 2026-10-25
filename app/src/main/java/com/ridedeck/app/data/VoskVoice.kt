@@ -4,7 +4,6 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
-import android.media.AudioDeviceInfo
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -83,7 +82,7 @@ class VoskModelStore(context: Context) {
             archive.delete()
             _state.value = VoskModelState.READY
         } catch (e: Exception) {
-            Log.e("RideDeck", "Vosk model $phase failed", e)
+            Log.e("RideDeck", "Vosk model $phase failed (${e.javaClass.simpleName})")
             _error.value = e.message?.takeIf(String::isNotBlank) ?: e.javaClass.simpleName
             archive.delete()
             installing.deleteRecursively()
@@ -95,7 +94,7 @@ class VoskModelStore(context: Context) {
     @Synchronized fun openModel(): Model? {
         if (!isReady()) return null
         return cached ?: try { Model(root.absolutePath).also { cached = it } }
-        catch (e: Exception) { Log.e("RideDeck", "Vosk model open failed", e); throw e }
+        catch (e: Exception) { Log.e("RideDeck", "Vosk model open failed (${e.javaClass.simpleName})"); throw e }
     }
 
     @Synchronized fun delete() {
@@ -127,17 +126,18 @@ class VoskVoiceInput(
     private val main = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
     private val audio = context.getSystemService(AudioManager::class.java)
+    private val micRouter = BluetoothMicRouter(audio) { Prefs.voiceHelmetMic(context) }
     private val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
         .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()).build()
     @Volatile private var service: SpeechService? = null
     @Volatile private var cancelled = false
-    private var helmetMic = false
     private var quiet = false
     private var onPartial: (String) -> Unit = {}
     private var onResult: (VoiceHeard) -> Unit = {}
     private var latest = ""
     private var timeout: Runnable? = null
+    @Volatile private var session: AudioSessionManager.Token? = null
 
     override fun available(): Boolean = models.isReady()
     override fun start(onPartial: (String) -> Unit, onResult: (VoiceHeard) -> Unit) = begin(false, false, onPartial, onResult)
@@ -146,92 +146,104 @@ class VoskVoiceInput(
 
     private fun begin(quiet: Boolean, dictation: Boolean, partial: (String) -> Unit, result: (VoiceHeard) -> Unit) {
         cancel()
+        lateinit var token: AudioSessionManager.Token
+        val owner = if (quiet) AudioSessionManager.Owner.FOLLOW_UP_STT else AudioSessionManager.Owner.VOSK_STT
+        token = AudioSessionManager.process.acquire(owner) { cancelSession(token) }
+        session = token
         this.quiet = quiet
         onPartial = partial
         onResult = result
         latest = ""
         cancelled = false
         audio.requestAudioFocus(focus)
-        useHelmetMic()
+        micRouter.start()
         worker.execute {
             try {
-                if (cancelled) return@execute
+                if (cancelled || !AudioSessionManager.process.isCurrent(token)) return@execute
                 val model = models.openModel() ?: error("Vosk model is not installed")
-                if (cancelled) return@execute
+                if (cancelled || !AudioSessionManager.process.isCurrent(token)) return@execute
                 val recognizer = if (dictation) Recognizer(model, 16_000f) else Recognizer(model, 16_000f, commandGrammar())
                 recognizer.setMaxAlternatives(5)
                 val speech = SpeechService(recognizer, 16_000f)
                 service = speech
-                if (cancelled) { stopService(); return@execute }
+                if (cancelled || !AudioSessionManager.process.isCurrent(token)) {
+                    if (service === speech) service = null
+                    runCatching { speech.stop() }
+                    runCatching { speech.shutdown() }
+                    return@execute
+                }
                 if (!quiet) main.post { VoiceInputTone.play(context, false) }
                 speech.startListening(object : RecognitionListener {
                     override fun onPartialResult(hypothesis: String?) {
+                        if (!AudioSessionManager.process.isCurrent(token)) return
                         parse(hypothesis).firstOrNull()?.takeIf { it.isNotBlank() }?.let { text ->
                             latest = text
-                            main.post { if (!cancelled) onPartial(text) }
+                            main.post { if (!cancelled && AudioSessionManager.process.isCurrent(token)) onPartial(text) }
                         }
                     }
                     override fun onResult(hypothesis: String?) {
+                        if (!AudioSessionManager.process.isCurrent(token)) return
                         val heard = parse(hypothesis)
                         heard.firstOrNull()?.takeIf { it.isNotBlank() }?.let { text ->
                             latest = text
-                            main.post { if (!cancelled) onPartial(text) }
-                            armFinish()
+                            main.post { if (!cancelled && AudioSessionManager.process.isCurrent(token)) onPartial(text) }
+                            armFinish(token)
                         }
                     }
-                    override fun onFinalResult(hypothesis: String?) { finish(parse(hypothesis)) }
-                    override fun onError(exception: Exception?) { finish(latest.takeIf(String::isNotBlank)?.let(::listOf).orEmpty()) }
-                    override fun onTimeout() { finish(latest.takeIf(String::isNotBlank)?.let(::listOf).orEmpty()) }
+                    override fun onFinalResult(hypothesis: String?) { finish(token, parse(hypothesis)) }
+                    override fun onError(exception: Exception?) { finish(token, latest.takeIf(String::isNotBlank)?.let(::listOf).orEmpty(), VoiceFailure.ENGINE) }
+                    override fun onTimeout() { finish(token, latest.takeIf(String::isNotBlank)?.let(::listOf).orEmpty(), VoiceFailure.TIMEOUT) }
                 })
-                armNoSpeechTimeout()
+                armNoSpeechTimeout(token)
             } catch (e: Exception) {
-                Log.e("RideDeck", "Vosk recognition failed", e)
-                finish(emptyList())
+                Log.e("RideDeck", "Vosk recognition failed (${e.javaClass.simpleName})")
+                finish(token, emptyList(), VoiceFailure.ENGINE)
             }
         }
     }
 
-    private fun armFinish() = main.post {
+    private fun armFinish(token: AudioSessionManager.Token) = main.post {
+        if (!AudioSessionManager.process.isCurrent(token)) return@post
         timeout?.let(main::removeCallbacks)
-        timeout = Runnable { finish(latest.takeIf(String::isNotBlank)?.let(::listOf).orEmpty()) }
+        timeout = Runnable { finish(token, latest.takeIf(String::isNotBlank)?.let(::listOf).orEmpty()) }
             .also { main.postDelayed(it, END_SILENCE_MS) }
     }
 
-    private fun armNoSpeechTimeout() = main.post {
+    private fun armNoSpeechTimeout(token: AudioSessionManager.Token) = main.post {
+        if (!AudioSessionManager.process.isCurrent(token)) return@post
         timeout?.let(main::removeCallbacks)
-        timeout = Runnable { finish(emptyList()) }.also { main.postDelayed(it, MAX_LISTEN_MS) }
+        timeout = Runnable { finish(token, emptyList()) }.also { main.postDelayed(it, MAX_LISTEN_MS) }
     }
 
-    private fun finish(alternatives: List<String>) = main.post {
-        if (cancelled) return@post
+    private fun finish(token: AudioSessionManager.Token, alternatives: List<String>, failure: VoiceFailure? = null) = main.post {
+        if (cancelled || !AudioSessionManager.process.isCurrent(token)) return@post
         cancelled = true
         timeout?.let(main::removeCallbacks); timeout = null
-        stopService()
+        stopService(token)
         if (!quiet) VoiceInputTone.play(context, true)
-        onResult(VoiceHeard(alternatives.distinct().take(5)))
+        onResult(VoiceHeard(alternatives.distinct().take(5), failure = failure))
     }
 
     override fun cancel() {
-        cancelled = true
-        timeout?.let(main::removeCallbacks); timeout = null
-        stopService()
+        session?.let(::cancelSession)
     }
 
-    private fun stopService() {
+    private fun cancelSession(token: AudioSessionManager.Token) {
+        if (session != token) return
+        cancelled = true
+        timeout?.let(main::removeCallbacks); timeout = null
+        stopService(token)
+    }
+
+    private fun stopService(token: AudioSessionManager.Token) {
+        if (session != token) return
+        session = null
         val running = service
         service = null
         if (running != null) { runCatching { running.stop() }; runCatching { running.shutdown() } }
-        if (helmetMic && Build.VERSION.SDK_INT >= 31) audio.clearCommunicationDevice()
-        helmetMic = false
-        audio.abandonAudioFocusRequest(focus)
-    }
-
-    private fun useHelmetMic() {
-        if (Build.VERSION.SDK_INT < 31 || !Prefs.voiceHelmetMic(context)) return
-        val device = audio.availableCommunicationDevices.firstOrNull {
-            it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || it.type == AudioDeviceInfo.TYPE_BLE_HEADSET
-        } ?: return
-        helmetMic = audio.setCommunicationDevice(device)
+        micRouter.stop()
+        runCatching { audio.abandonAudioFocusRequest(focus) }
+        AudioSessionManager.process.release(token)
     }
 
     private fun parse(raw: String?): List<String> {
@@ -298,51 +310,76 @@ class VoskWakeWord(private val context: Context, private val models: VoskModelSt
     private val main = Handler(Looper.getMainLooper())
     @Volatile private var active = false
     @Volatile private var service: SpeechService? = null
+    @Volatile private var session: AudioSessionManager.Token? = null
+    @Volatile private var failures = 0
+    @Volatile private var lastWakeAt = 0L
 
     fun start() {
         if (active || !models.isReady()) return
         active = true
+        lateinit var token: AudioSessionManager.Token
+        token = AudioSessionManager.process.acquire(AudioSessionManager.Owner.VOSK_WAKE) { suspendSession(token) }
+        session = token
         worker.execute {
             try {
-                if (!active) return@execute
-                val model = models.openModel() ?: return@execute
-                if (!active) return@execute
+                if (!active || !AudioSessionManager.process.isCurrent(token)) return@execute
+                val model = models.openModel() ?: error("Vosk model is not installed")
+                if (!active || !AudioSessionManager.process.isCurrent(token)) return@execute
                 val grammar = "[\"hey ridedeck\", \"hey ride deck\", \"hey raydek\", \"hey ray dek\", \"[unk]\"]"
                 val recognizer = Recognizer(model, 16_000f, grammar)
                 val speech = SpeechService(recognizer, 16_000f)
                 service = speech
-                if (!active) { stopService(); return@execute }
+                if (!active || !AudioSessionManager.process.isCurrent(token)) { stopService(); return@execute }
                 speech.startListening(object : RecognitionListener {
-                    override fun onPartialResult(hypothesis: String?) { checkWake(hypothesis) }
-                    override fun onResult(hypothesis: String?) { checkWake(hypothesis) }
-                    override fun onFinalResult(hypothesis: String?) { checkWake(hypothesis) }
-                    override fun onError(exception: Exception?) { restart() }
-                    override fun onTimeout() { restart() }
+                    override fun onPartialResult(hypothesis: String?) { if (isCurrent(token)) checkWake(hypothesis) }
+                    override fun onResult(hypothesis: String?) { if (isCurrent(token)) checkWake(hypothesis) }
+                    override fun onFinalResult(hypothesis: String?) { if (isCurrent(token) && !checkWake(hypothesis)) restart(token) }
+                    override fun onError(exception: Exception?) { if (isCurrent(token)) restart(token) }
+                    override fun onTimeout() { if (isCurrent(token)) restart(token) }
                 })
-            } catch (_: Exception) { stop() }
+            } catch (_: Exception) { if (isCurrent(token)) stop() }
         }
     }
 
-    private fun checkWake(raw: String?) {
+    private fun checkWake(raw: String?): Boolean {
         val heard = runCatching {
             JSONObject(raw.orEmpty()).let { it.optString("text").ifBlank { it.optString("partial") } }
         }.getOrDefault("")
-        if (active && WakeWord.matches(heard)) {
+        if (active && WakeWord.matches(heard) && System.currentTimeMillis() - lastWakeAt >= WAKE_COOLDOWN_MS) {
+            lastWakeAt = System.currentTimeMillis()
+            failures = 0
             stop()
             onWake()
+            return true
         }
+        return false
     }
 
-    private fun restart() {
-        if (!active) return
-        stopService()
+    private fun restart(token: AudioSessionManager.Token) {
+        if (!active || session != token) return
         active = false
-        main.postDelayed(::start, RESTART_MS)
+        stopSession(token)
+        val delay = VoiceRetryBackoff.delay(++failures, RESTART_MS, MAX_RETRY_MS)
+        main.postDelayed(::start, delay)
     }
 
     fun stop() {
         active = false
+        session?.let(::stopSession)
+    }
+
+    private fun isCurrent(token: AudioSessionManager.Token) = active && session == token && AudioSessionManager.process.isCurrent(token)
+
+    private fun suspendSession(token: AudioSessionManager.Token) {
+        if (session == token) stopSession(token)
+    }
+
+    private fun stopSession(token: AudioSessionManager.Token) {
+        if (session != token) return
+        session = null
+        active = false
         stopService()
+        AudioSessionManager.process.release(token)
     }
 
     private fun stopService() {
@@ -351,7 +388,11 @@ class VoskWakeWord(private val context: Context, private val models: VoskModelSt
         if (current != null) { runCatching { current.stop() }; runCatching { current.shutdown() } }
     }
 
-    private companion object { const val RESTART_MS = 500L }
+    private companion object {
+        const val RESTART_MS = 500L
+        const val MAX_RETRY_MS = 30_000L
+        const val WAKE_COOLDOWN_MS = 2_000L
+    }
 }
 
 /** Share only the existing audible start/end cue; no tone is emitted by quiet follow-up recognition. */
