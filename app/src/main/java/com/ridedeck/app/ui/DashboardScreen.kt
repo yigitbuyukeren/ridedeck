@@ -97,6 +97,8 @@ fun DashboardScreen(vm: DashboardViewModel) {
     val voiceRequests by vm.voiceRequests.collectAsStateWithLifecycle()
     var voiceReplies by remember { mutableStateOf(Prefs.voiceReplies(context)) }
     var voiceHistoryOn by remember { mutableStateOf(Prefs.voiceHistoryOn(context)) }
+    var recentsOn by remember { mutableStateOf(Prefs.recentPlacesOn(context)) }
+    val recentPlaces by vm.recents.collectAsStateWithLifecycle()
     val voiceHistory by vm.voiceHistory.collectAsStateWithLifecycle()
     val voiceProactive by vm.voiceProactiveOn.collectAsStateWithLifecycle()
     val voiceProactiveKinds by vm.voiceProactiveKinds.collectAsStateWithLifecycle()
@@ -265,6 +267,11 @@ fun DashboardScreen(vm: DashboardViewModel) {
 
     LaunchedEffect(showSettings) { if (showSettings) vm.refreshOfflineVoice() }
 
+    // Settings are a place to read and tap: locked while riding (with a live fix), as the keypad and the map search are.
+    val settingsLocked = gps.hasFix && gps.speedKmh >= SETTINGS_LOCK_KMH
+    val tellSettingsLocked = { android.widget.Toast.makeText(context, R.string.settings_locked, android.widget.Toast.LENGTH_SHORT).show() }
+    LaunchedEffect(settingsLocked) { if (settingsLocked && showSettings) { showSettings = false; tellSettingsLocked() } }
+
     // A voice command asked for a screen.
     LaunchedEffect(voiceScreen) {
         val wanted = voiceScreen ?: return@LaunchedEffect
@@ -274,7 +281,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
             VoiceScreen.MUSIC -> showNowPlaying = true
             VoiceScreen.PHONE -> showPhone = true
             VoiceScreen.APPS -> showApps = true
-            VoiceScreen.SETTINGS -> showSettings = true
+            VoiceScreen.SETTINGS -> if (settingsLocked) tellSettingsLocked() else showSettings = true
             VoiceScreen.HOME -> {}
         }
         vm.voiceScreen.value = null
@@ -313,8 +320,10 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     onPhone = { vm.dialRequest.value = null; showPhone = !showPhone; showMap = false; showNowPlaying = false; showSettings = false; showApps = false },
                     onApps = { showApps = !showApps; showMap = false; showNowPlaying = false; showPhone = false; showSettings = false },
                     onSettings = {
-                        Prefs.setSettingsHintCount(context, -1); settingsHint = false
-                        showSettings = true; showMap = false; showNowPlaying = false; showPhone = false; showApps = false
+                        if (settingsLocked) tellSettingsLocked() else {
+                            Prefs.setSettingsHintCount(context, -1); settingsHint = false
+                            showSettings = true; showMap = false; showNowPlaying = false; showPhone = false; showApps = false
+                        }
                     },
                     settingsHint = settingsHint,
                     active = when { showMap -> DockTab.NAV; showNowPlaying -> DockTab.MUSIC; showPhone -> DockTab.PHONE; showApps -> DockTab.APPS; else -> DockTab.NONE },
@@ -372,6 +381,8 @@ fun DashboardScreen(vm: DashboardViewModel) {
                         onMic = { startVoice(true) },
                         onClose = { showMap = false },
                         modifier = m,
+                        recents = recentPlaces,
+                        onClearRecents = vm::clearRecents,
                     )
                 } else Column(modifier = m) {
                     val speedCard: @Composable (Modifier) -> Unit = { mod ->
@@ -503,6 +514,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     ToggleItem(stringResource(R.string.thermal_title), stringResource(R.string.thermal_desc), thermalOn, onChange = vm::setThermalEnabled),
                     ToggleItem(stringResource(R.string.speed_limit_title), stringResource(R.string.speed_limit_desc), speedLimitOn, onChange = vm::setSpeedLimitEnabled),
                     ToggleItem(stringResource(R.string.voice_replies_title), stringResource(R.string.voice_replies_desc), voiceReplies) { voiceReplies = it; vm.setVoiceRepliesEnabled(it) },
+                    ToggleItem(stringResource(R.string.recents_title), stringResource(R.string.recents_desc), recentsOn) { recentsOn = it; vm.setRecentsOn(it) },
                     ToggleItem(stringResource(R.string.voice_history_title), stringResource(R.string.voice_history_desc), voiceHistoryOn) { voiceHistoryOn = it; Prefs.setVoiceHistoryOn(context, it); if (!it) vm.clearVoiceHistory() },
                     ToggleItem(stringResource(R.string.voice_continuous_title), stringResource(R.string.voice_continuous_desc), voiceContinuous) { voiceContinuous = it; Prefs.setVoiceContinuous(context, it) },
                     ToggleItem(stringResource(R.string.voice_proactive_title), stringResource(R.string.voice_proactive_desc), voiceProactive, onChange = vm::setVoiceProactive),
@@ -581,7 +593,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     pinned = pinnedApps,
                     locked = gps.speedKmh >= PHONE_LOCK_KMH,
                     onPin = vm::pinApp, onUnpin = vm::unpinApp, onMove = vm::moveApp,
-                    onSettings = { showApps = false; showSettings = true },
+                    onSettings = { if (settingsLocked) tellSettingsLocked() else { showApps = false; showSettings = true } },
                     onClose = { showApps = false },
                 )
             }
@@ -621,6 +633,7 @@ private const val LOW_BATTERY_PERCENT = 30
 
 /** No number entry while riding, same limit as the map search box. */
 private const val PHONE_LOCK_KMH = 5
+private const val SETTINGS_LOCK_KMH = 5
 
 private fun toggleOverlay(context: Context, enabled: Boolean): Boolean {
     if (enabled && !overlayGranted(context)) {

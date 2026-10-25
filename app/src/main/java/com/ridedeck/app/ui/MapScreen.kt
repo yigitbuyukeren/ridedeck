@@ -160,6 +160,8 @@ fun MapScreen(
     onMic: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    recents: List<Place> = emptyList(),
+    onClearRecents: () -> Unit = {},
 ) {
     val ui by nav.ui.collectAsStateWithLifecycle()
     val fuel by nav.fuel.collectAsStateWithLifecycle()
@@ -344,6 +346,9 @@ fun MapScreen(
                     onSave = { saving = it },
                     onRemovePlace = onRemovePlace,
                     onMic = onMic,
+                    recents = recents,
+                    onClearRecents = onClearRecents,
+                    onSuggestion = { typing = false; nav.onQueryChange(it); nav.search() },
                 )
             }
             if (ui.rerouting) Chip(stringResource(R.string.rerouting_chip), MotoColors.Orange)
@@ -450,6 +455,9 @@ private fun SearchPanel(
     onSave: (Place) -> Unit,
     onRemovePlace: (SavedPlace) -> Unit,
     onMic: () -> Unit,
+    recents: List<Place>,
+    onClearRecents: () -> Unit,
+    onSuggestion: (String) -> Unit,
 ) {
     GlassPanel(Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -482,8 +490,24 @@ private fun SearchPanel(
                 ui.results.isEmpty() && ui.query.isEmpty() ->
                     Text(stringResource(if (places.isEmpty()) R.string.saved_hint else R.string.hint_long_press), fontSize = 14.sp, color = MotoColors.Gray)
             }
+            val suggestion = ui.suggestion
+            if (suggestion != null && ui.results.isEmpty() && !ui.searching) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(RoundedCornerShape(14.dp)).background(MotoColors.PanelHigh)
+                        .pressClickable(enabled = !locked, onClick = { onSuggestion(suggestion) }).padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) { Text(stringResource(R.string.did_you_mean_fmt, suggestion), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = MotoColors.Blue) }
+            }
+            if (ui.results.isEmpty() && !ui.loading && !ui.searching && ui.error != null) {
+                Text(stringResource(R.string.hint_long_press), fontSize = 14.sp, color = MotoColors.Gray)
+            }
+            val resultsFor = ui.resultsFor
+            if (resultsFor != null && ui.results.isNotEmpty()) {
+                Text(stringResource(R.string.search_results_for_fmt, resultsFor), fontSize = 14.sp, color = MotoColors.Gray)
+            }
             if (ui.results.isEmpty() && !ui.loading) {
                 SavedTiles(places, onGo = onSelect, onRemove = onRemovePlace)
+                if (recents.isNotEmpty()) RecentTiles(recents, onGo = onSelect, onClear = onClearRecents)
             }
             if (ui.results.isNotEmpty()) {
                 LazyColumn(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -509,6 +533,26 @@ private fun SearchPanel(
                     }
                 }
             }
+        }
+    }
+}
+
+/** The last chosen destinations as tiles, with a last tile that deletes the history. */
+@Composable
+private fun RecentTiles(recents: List<Place>, onGo: (Place) -> Unit, onClear: () -> Unit) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(recents) { place ->
+            Box(
+                modifier = Modifier.height(56.dp).clip(RoundedCornerShape(14.dp)).background(MotoColors.PanelHigh)
+                    .pressClickable(onClick = { onGo(place) }).padding(horizontal = 16.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text(place.name, fontSize = 17.sp, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        }
+        item {
+            Box(
+                modifier = Modifier.height(56.dp).clip(RoundedCornerShape(14.dp)).pressClickable(onClick = onClear).padding(horizontal = 16.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text(stringResource(R.string.recents_clear), fontSize = 15.sp, color = MotoColors.Gray) }
         }
     }
 }

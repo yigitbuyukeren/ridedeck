@@ -28,6 +28,13 @@
     <string name="search">Ara</string>
     <string name="route_computing">Rota hesaplanıyor…</string>
     <string name="searching">Aranıyor…</string>
+    <string name="did_you_mean_fmt">Bunu mu demek istedin: %1$s?</string>
+    <string name="search_results_for_fmt">“%1$s” için sonuçlar</string>
+    <string name="recents_clear">Geçmişi sil</string>
+    <string name="recents_title">Son aramaları sakla</string>
+    <string name="recents_desc">Seçtiğin hedefler yalnızca bu telefonda tutulur; kapatınca silinir.</string>
+    <string name="settings_locked">Sürerken Ayarlar kilitli. Durunca aç.</string>
+    <string name="voice_did_you_mean_fmt">%1$s mi demek istedin?</string>
     <string name="hint_long_press">İpucu: haritaya uzun basarak da hedef seçebilirsin.</string>
     <string name="arrival_fmt">Varış %1$s</string>
     <string name="start">Başlat</string>

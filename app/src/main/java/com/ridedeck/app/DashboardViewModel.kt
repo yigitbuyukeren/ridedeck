@@ -48,6 +48,7 @@ import com.ridedeck.app.data.RideRoutine
 import com.ridedeck.app.data.RideRoutines
 import com.ridedeck.app.data.VoiceInput
 import com.ridedeck.app.data.VoiceScreen
+import com.ridedeck.app.data.RecentPlaces
 import com.ridedeck.app.data.SavedPlaces
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -163,6 +164,8 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         repo = RouteRepository(miles = { Units.miles }),
         initialOptions = Prefs.routeOptions(app, profileNow),
         onOptionsChanged = { Prefs.setRouteOptions(app, it) },
+        knownPlaces = { places.value.map { it.place } + recents.value },
+        onPlaceChosen = ::rememberRecent,
     )
 
     /**
@@ -525,6 +528,25 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     fun moveApp(pkg: String, delta: Int) = updatePinned(PinnedApps.move(pinnedApps.value, pkg, delta))
 
     val places = MutableStateFlow(SavedPlaces.fromJson(Prefs.savedPlaces(app)))
+
+    /** Destinations the rider chose lately (this phone only); empty and not recorded while the history is off. */
+    val recents = MutableStateFlow(if (Prefs.recentPlacesOn(app)) RecentPlaces.fromJson(Prefs.recentPlaces(app)) else emptyList())
+
+    private fun rememberRecent(place: Place) {
+        if (!Prefs.recentPlacesOn(getApplication())) return
+        recents.value = RecentPlaces.put(recents.value, place)
+        Prefs.setRecentPlaces(getApplication(), RecentPlaces.toJson(recents.value))
+    }
+
+    fun clearRecents() {
+        recents.value = emptyList()
+        Prefs.setRecentPlaces(getApplication(), RecentPlaces.toJson(emptyList()))
+    }
+
+    fun setRecentsOn(on: Boolean) {
+        Prefs.setRecentPlacesOn(getApplication(), on)
+        if (!on) clearRecents()
+    }
 
     fun savePlace(kind: PlaceKind, place: Place) = updatePlaces(SavedPlaces.put(places.value, SavedPlace(kind, place)))
 

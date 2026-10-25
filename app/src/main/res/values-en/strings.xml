@@ -28,6 +28,13 @@
     <string name="search">Search</string>
     <string name="route_computing">Calculating route…</string>
     <string name="searching">Searching…</string>
+    <string name="did_you_mean_fmt">Did you mean %1$s?</string>
+    <string name="search_results_for_fmt">Results for “%1$s”</string>
+    <string name="recents_clear">Clear history</string>
+    <string name="recents_title">Keep recent searches</string>
+    <string name="recents_desc">Destinations you pick stay on this phone only; turning this off deletes them.</string>
+    <string name="settings_locked">Settings are locked while riding. Open them when stopped.</string>
+    <string name="voice_did_you_mean_fmt">Did you mean %1$s?</string>
     <string name="hint_long_press">Tip: long-press the map to pick a destination.</string>
     <string name="arrival_fmt">Arrive %1$s</string>
     <string name="start">Start</string>

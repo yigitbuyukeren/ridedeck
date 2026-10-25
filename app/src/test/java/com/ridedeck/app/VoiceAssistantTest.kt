@@ -111,7 +111,13 @@ class VoiceAssistantTest {
         override fun supportsVoiceSearchResults() = true
         override fun supportsVoiceStopResults() = true
         override fun openScreen(screen: VoiceScreen) { log += "screen:$screen" }
-        override suspend fun navigateTo(candidates: List<String>): String? { log += "nav:${candidates.first()}"; return candidates.first().replaceFirstChar { it.uppercase() } }
+        var navigateFails = false
+        var suggestion: String? = null
+        override fun suggestPlaceName(candidates: List<String>): String? = suggestion
+        override suspend fun navigateTo(candidates: List<String>): String? {
+            log += "nav:${candidates.first()}"
+            return if (navigateFails) null else candidates.first().replaceFirstChar { it.uppercase() }
+        }
         override suspend fun runRoutine(name: String): VoiceActionResponse? = routineResponse
         override suspend fun searchPlaces(candidates: List<String>): List<String> { log += "searchPlaces:${candidates.first()}"; return voicePlaces }
         override suspend fun navigateToSearchResult(index: Int): String? = voicePlaces.getOrNull(index)?.also { log += "route:$it" }
@@ -591,6 +597,26 @@ class VoiceAssistantTest {
         actions.log.clear()
         say(listOf("en yakın kafe"))
         assertEquals(listOf("screen:MAP", "searchPlaces:kafe", "near:kafe:false"), actions.log)
+    }
+
+    @Test
+    fun anUnknownPlaceOffersASuggestionAndWaitsForAYes() {
+        actions.navigateFails = true
+        actions.suggestion = "Taksim"
+        say(listOf("taksm'e git"), listOf("hayır"))
+        assertTrue(actions.log.none { it == "nav:Taksim" })
+        actions.log.clear()
+        say(listOf("taksm'e git"), listOf("evet"))
+        assertTrue("nav:Taksim" in actions.log)
+    }
+
+    @Test
+    fun anUnknownPlaceWithoutASuggestionJustSaysNothingFound() {
+        actions.navigateFails = true
+        actions.suggestion = null
+        say(listOf("qwzxv'e git"), listOf("evet"))
+        // nothing to confirm: the "evet" starts no second search
+        assertEquals(listOf("screen:MAP", "searchPlaces:qwzxv", "nav:qwzxv"), actions.log)
     }
 
     @Test

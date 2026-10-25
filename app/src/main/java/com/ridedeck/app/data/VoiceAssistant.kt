@@ -44,6 +44,8 @@ interface VoiceActions {
     /** Optional full result set for a voice destination; old actions keep their first-match behavior. */
     fun supportsVoiceSearchResults(): Boolean = false
     suspend fun searchPlaces(candidates: List<String>): List<String> = emptyList()
+    /** A known place name close to what was heard, to ask "did you mean"; null when nothing is close. */
+    fun suggestPlaceName(candidates: List<String>): String? = null
     suspend fun navigateToSearchResult(index: Int): String? = null
     fun supportsVoiceStopResults(): Boolean = false
     suspend fun searchFuelStopsForVoice(): List<String> = emptyList()
@@ -389,6 +391,13 @@ class VoiceAssistant(
         }
     }
 
+    /** Nothing found: offer a close known name ("Taksim mi demek istedin?"); nothing starts without a yes. */
+    private fun suggestOrSay(candidates: List<String>) {
+        val name = actions.suggestPlaceName(candidates)
+        if (name == null) say(text(R.string.no_results))
+        else ask(Expect.YesNo(String.format(text(R.string.voice_did_you_mean_fmt), name)) { run(VoiceCommand.NavigateTo(listOf(name))) })
+    }
+
     private fun run(command: VoiceCommand) {
         voiceStates.transition(VoiceRuntimeState.PROCESSING)
         if (command !is VoiceCommand.Chain) context.rememberCommand(command)
@@ -420,7 +429,8 @@ class VoiceAssistant(
                         }
                         else -> {
                             val place = actions.navigateTo(command.candidates)
-                            if (place != null) { context.rememberPlace(place); done(text(R.string.voice_route_ready) + " " + place) } else say(text(R.string.no_results))
+                            if (place != null) { context.rememberPlace(place); done(text(R.string.voice_route_ready) + " " + place) }
+                            else suggestOrSay(command.candidates)
                         }
                     }
                 }

@@ -4,6 +4,7 @@ import com.ridedeck.app.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +32,10 @@ data class NavUi(
     val remainingM: Int = 0,
     val remainingS: Int = 0,
     val termination: NavigationTermination = NavigationTermination.NONE,
+    /** "Did you mean": a known name close to a query that found nothing; picking it runs a search, never a route. */
+    val suggestion: String? = null,
+    /** Set when [results] come from a corrected spelling of the query, so the panel can say so. */
+    val resultsFor: String? = null,
 )
 
 data class FuelUi(
@@ -61,6 +66,12 @@ class NavigationController(
     private val onOptionsChanged: (RouteOptions) -> Unit = {},
     private val locationUpdates: Flow<LocationState> = location,
     private val routeTimeoutMs: Long = ROUTE_TIMEOUT_MS,
+    /** Saved and recent places, for fuzzy matching a mistyped query without the network. */
+    private val knownPlaces: () -> List<Place> = { emptyList() },
+    /** A place the rider picked as a destination (kept as a recent place when the rider allows it). */
+    private val onPlaceChosen: (Place) -> Unit = {},
+    /** Nominatim allows one request per second: the pause between a query and its corrected spellings. */
+    private val searchGapMs: Long = SEARCH_GAP_MS,
 ) {
     private val _options = MutableStateFlow(initialOptions)
     val options: StateFlow<RouteOptions> = _options
@@ -88,7 +99,36 @@ class NavigationController(
         location.value.takeIf { it.fixAtMs > 0 }?.let { GeoPoint(it.lat, it.lon) }
 
     fun onQueryChange(query: String) {
-        _ui.update { it.copy(query = query, error = null) }
+        _ui.update { it.copy(query = query, error = null, suggestion = null, resultsFor = null) }
+    }
+
+    private class SearchOutcome(val places: List<Place>, val resultsFor: String? = null, val suggestion: String? = null, val failed: Boolean = false)
+
+    private fun knownNames(): List<String> = (knownPlaces().map { it.name } + PlaceQuery.WELL_KNOWN).distinct()
+
+    /**
+     * The typed query first; when it finds nothing, very close saved or recent places, then the two or three best
+     * corrected spellings one second apart, and as a last resort a "did you mean" name. Results are only listed:
+     * a route starts when the rider picks one.
+     */
+    private suspend fun resolve(query: String): SearchOutcome {
+        val first = repo.search(query, here())
+        val firstPlaces = first.getOrElse { return SearchOutcome(emptyList(), failed = true) }
+        if (firstPlaces.isNotEmpty()) return SearchOutcome(firstPlaces)
+        val local = PlaceQuery.strongLocal(query, knownPlaces())
+        for (candidate in PlaceQuery.candidates(query, knownNames()).take(3)) {
+            delay(searchGapMs)
+            val places = repo.search(candidate, here()).getOrElse { return SearchOutcome(local, failed = local.isEmpty()) }
+            if (places.isNotEmpty()) return SearchOutcome(local + places, resultsFor = candidate)
+        }
+        val suggestion = PlaceQuery.suggest(query, knownNames()).firstOrNull()?.name
+        return SearchOutcome(local, suggestion = suggestion.takeIf { local.isEmpty() })
+    }
+
+    /** The best "did you mean" name for what a voice command asked for, from known places only (no network); null when nothing is close. */
+    fun suggestPlaceName(candidates: List<String>): String? {
+        val known = knownNames()
+        return candidates.flatMap { PlaceQuery.suggest(it, known) }.maxByOrNull { it.score }?.name
     }
 
     /** Runs on explicit submit only: Nominatim's usage policy forbids search-as-you-type. */
@@ -98,13 +138,16 @@ class NavigationController(
         searchJob?.cancel()
         _ui.update { it.copy(searching = true, results = emptyList(), error = null) }
         searchJob = scope.launch {
-            repo.search(query, here())
-                .onSuccess { places ->
-                    _ui.update {
-                        it.copy(results = places, searching = false, error = if (places.isEmpty()) text(R.string.no_results) else null)
-                    }
+            val outcome = resolve(query)
+            _ui.update {
+                when {
+                    outcome.failed -> it.copy(searching = false, error = text(R.string.search_failed))
+                    else -> it.copy(
+                        results = outcome.places, searching = false, resultsFor = outcome.resultsFor, suggestion = outcome.suggestion,
+                        error = if (outcome.places.isEmpty()) text(R.string.no_results) else null,
+                    )
                 }
-                .onFailure { _ui.update { s -> s.copy(searching = false, error = text(R.string.search_failed)) } }
+            }
         }
     }
 
@@ -162,14 +205,20 @@ class NavigationController(
     }
 
     fun selectPlace(place: Place) {
+        rememberChosen(place)
         val request = preparePlaceRoute(place) ?: return
         routeJob = scope.launch { calculatePlaceRoute(place, request.first, request.second) }
     }
 
     /** Routes voice and routine requests synchronously with the real route result. */
     suspend fun selectPlaceAndRoute(place: Place): Boolean {
+        rememberChosen(place)
         val request = preparePlaceRoute(place) ?: return false
         return calculatePlaceRoute(place, request.first, request.second)
+    }
+
+    private fun rememberChosen(place: Place) {
+        if (place.name != text(R.string.selected_place)) onPlaceChosen(place)
     }
 
     private fun preparePlaceRoute(place: Place): Pair<GeoPoint, Long>? {
@@ -673,6 +722,7 @@ class NavigationController(
 
     companion object {
         private const val ROUTE_TIMEOUT_MS = 30_000L
+        private const val SEARCH_GAP_MS = 1_000L
         const val MATCH_WINDOW = 80
         const val OFF_ROUTE_M = 60.0
         /** How far ahead on the route a voice-requested stop is looked for. */

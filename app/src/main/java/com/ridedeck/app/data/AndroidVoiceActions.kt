@@ -62,6 +62,8 @@ class AndroidVoiceActions(
     override suspend fun searchPlaces(candidates: List<String>): List<String> =
         nav.searchVoicePlaces(candidates).map { it.name }
 
+    override fun suggestPlaceName(candidates: List<String>): String? = nav.suggestPlaceName(candidates)
+
     override suspend fun navigateToSearchResult(index: Int): String? = nav.selectVoiceResult(index)?.name
 
     override fun supportsVoiceStopResults() = true

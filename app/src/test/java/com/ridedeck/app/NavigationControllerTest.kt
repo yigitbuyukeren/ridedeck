@@ -482,4 +482,107 @@ class NavigationControllerTest {
         assertNull(ui.finalDestination)
         assertEquals(dest.point, routing.requests.last().second)
     }
+
+    // ---- typo tolerance ----
+
+    private fun typoNav(known: List<Place> = emptyList(), chosen: MutableList<Place> = mutableListOf()) {
+        nav.shutdown()
+        nav = NavigationController(text, scope, location, speaker, routing, fuel, knownPlaces = { known }, onPlaceChosen = { chosen += it }, searchGapMs = 0)
+    }
+
+    @Test
+    fun aMistypedPlaceFindsResultsThroughACorrectedSpellingWithoutStartingARoute() {
+        typoNav()
+        val taksim = Place("Taksim Meydanı", "İstanbul", GeoPoint(41.037, 28.985))
+        routing.searchHandler = { q -> Result.success(if (q == "Taksim") listOf(taksim) else emptyList()) }
+        nav.onQueryChange("taksm")
+        nav.search()
+        assertEquals(listOf("taksm", "Taksim"), routing.searches)
+        assertEquals(listOf(taksim), nav.ui.value.results)
+        assertEquals("Taksim", nav.ui.value.resultsFor)
+        assertNull(nav.ui.value.error)
+        assertTrue(routing.requests.isEmpty())
+        assertNull(nav.ui.value.route)
+    }
+
+    @Test
+    fun anExactHitNeverTriggersExtraSearches() {
+        typoNav()
+        routing.searchResults = listOf(dest)
+        nav.onQueryChange("Dest")
+        nav.search()
+        assertEquals(listOf("Dest"), routing.searches)
+        assertNull(nav.ui.value.resultsFor)
+    }
+
+    @Test
+    fun nothingFoundAnywhereOffersADidYouMeanWithoutRouting() {
+        typoNav()
+        nav.onQueryChange("taksm")
+        nav.search()
+        assertTrue(nav.ui.value.results.isEmpty())
+        assertEquals("Taksim", nav.ui.value.suggestion)
+        assertEquals("t${R.string.no_results}", nav.ui.value.error)
+        assertTrue(routing.requests.isEmpty())
+        assertTrue(routing.searches.size in 2..4)
+    }
+
+    @Test
+    fun anUnrelatedQueryGetsNoSuggestion() {
+        typoNav()
+        nav.onQueryChange("qwzxv")
+        nav.search()
+        assertNull(nav.ui.value.suggestion)
+        assertEquals("t${R.string.no_results}", nav.ui.value.error)
+    }
+
+    @Test
+    fun editingTheQueryClearsTheSuggestionAndTheNote() {
+        typoNav()
+        nav.onQueryChange("taksm")
+        nav.search()
+        nav.onQueryChange("taksim")
+        assertNull(nav.ui.value.suggestion)
+        assertNull(nav.ui.value.resultsFor)
+    }
+
+    @Test
+    fun aVeryCloseSavedPlaceIsListedEvenWhenTheNetworkFindsNothing() {
+        val iskele = Place("Kadıköy İskele", "", GeoPoint(40.99, 29.02))
+        typoNav(known = listOf(iskele))
+        nav.onQueryChange("kadikoy iskele")
+        nav.search()
+        assertTrue(iskele in nav.ui.value.results)
+        assertNull(nav.ui.value.suggestion)
+        assertTrue(routing.requests.isEmpty())
+    }
+
+    @Test
+    fun aFailedSearchDoesNotTryCorrectedSpellings() {
+        typoNav()
+        routing.searchHandler = { Result.failure(java.io.IOException("offline")) }
+        nav.onQueryChange("taksm")
+        nav.search()
+        assertEquals(listOf("taksm"), routing.searches)
+        assertEquals("t${R.string.search_failed}", nav.ui.value.error)
+    }
+
+    @Test
+    fun didYouMeanForVoiceUsesKnownPlacesOnly() {
+        typoNav(known = listOf(Place("Evim", "", GeoPoint(41.0, 29.0))))
+        assertEquals("Taksim", nav.suggestPlaceName(listOf("taksm")))
+        assertEquals("Evim", nav.suggestPlaceName(listOf("evm")))
+        assertNull(nav.suggestPlaceName(listOf("qwzxv")))
+        assertTrue(routing.searches.isEmpty())
+    }
+
+    @Test
+    fun chosenPlacesAreReportedButAMapPointIsNot() {
+        val chosen = mutableListOf<Place>()
+        typoNav(chosen = chosen)
+        nav.selectPlace(dest)
+        assertEquals(listOf(dest), chosen)
+        nav.selectPoint(GeoPoint(41.02, 29.01))
+        assertEquals(listOf(dest), chosen)
+    }
 }

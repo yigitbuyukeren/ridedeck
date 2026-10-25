@@ -4,6 +4,7 @@ import android.util.Log
 import java.net.URLEncoder
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -174,21 +175,32 @@ class RouteRepository(
 
     override suspend fun search(query: String, near: GeoPoint?): Result<List<Place>> = withContext(Dispatchers.IO) {
         safely("search") {
-            val view = near?.let {
-                "&viewbox=${it.lon - 1.0},${it.lat + 1.0},${it.lon + 1.0},${it.lat - 1.0}"
-            }.orEmpty()
-            val url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=${Locale.getDefault().language}" +
-                "&q=${URLEncoder.encode(query, "UTF-8")}$view"
-            val items = JSONArray(Http.get(url))
-            (0 until items.length()).mapNotNull { i ->
-                val item = items.getJSONObject(i)
-                val full = item.optString("display_name")
-                val name = item.optString("name").ifBlank { full.substringBefore(",").trim() }
-                if (name.isBlank()) return@mapNotNull null
-                val detail = full.split(",").map { it.trim() }.drop(1).take(3).joinToString(", ")
-                Place(name, detail, GeoPoint(item.getDouble("lat"), item.getDouble("lon")))
-            }
+            val base = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=${Locale.getDefault().language}" +
+                "&q=${URLEncoder.encode(query, "UTF-8")}"
+            if (near == null) return@safely parsePlaces(Http.get(base))
+            val view = "&viewbox=${near.lon - 1.0},${near.lat + 1.0},${near.lon + 1.0},${near.lat - 1.0}"
+            // Places around the rider first; the whole country only when nothing is near (one request per second at most).
+            val nearby = parsePlaces(Http.get("$base$view&bounded=1"))
+            if (nearby.isNotEmpty()) return@safely nearby
+            delay(SEARCH_GAP_MS)
+            parsePlaces(Http.get("$base$view"))
         }
+    }
+
+    private fun parsePlaces(body: String): List<Place> {
+        val items = JSONArray(body)
+        return (0 until items.length()).mapNotNull { i ->
+            val item = items.getJSONObject(i)
+            val full = item.optString("display_name")
+            val name = item.optString("name").ifBlank { full.substringBefore(",").trim() }
+            if (name.isBlank()) return@mapNotNull null
+            val detail = full.split(",").map { it.trim() }.drop(1).take(3).joinToString(", ")
+            Place(name, detail, GeoPoint(item.getDouble("lat"), item.getDouble("lon")))
+        }
+    }
+
+    private companion object {
+        const val SEARCH_GAP_MS = 1_000L
     }
 }
 
