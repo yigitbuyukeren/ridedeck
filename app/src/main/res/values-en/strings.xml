@@ -153,6 +153,8 @@
     <string name="saved_parked">Parked</string>
     <string name="go_parked">Go to my bike</string>
     <string name="overlay_speed_fmt">%1$d km/h</string>
+    <string name="overlay_speed_unknown">-- km/h</string>
+    <string name="gps_lost">GPS signal lost</string>
     <string name="phone_recents">Recents</string>
     <string name="phone_favorites">Favorites</string>
     <string name="phone_keypad">Keypad</string>

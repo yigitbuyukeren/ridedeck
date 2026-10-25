@@ -153,6 +153,8 @@
     <string name="saved_parked">Park</string>
     <string name="go_parked">Park yerine git</string>
     <string name="overlay_speed_fmt">%1$d km/sa</string>
+    <string name="overlay_speed_unknown">-- km/sa</string>
+    <string name="gps_lost">GPS sinyali kayıp</string>
     <string name="phone_recents">Son aramalar</string>
     <string name="phone_favorites">Favoriler</string>
     <string name="phone_keypad">Tuş takımı</string>

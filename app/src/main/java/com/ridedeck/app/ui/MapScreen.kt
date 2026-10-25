@@ -150,6 +150,7 @@ fun MapScreen(
     nav: NavigationController,
     locationState: StateFlow<LocationState>,
     speedKmh: Int,
+    speedShown: Int? = null,
     speedLimit: Int?,
     isDay: Boolean,
     lowPower: Boolean,
@@ -374,7 +375,7 @@ fun MapScreen(
                 })
             }
             if (speedLimit != null) SpeedLimitSign(speedLimit, size = 64.dp)
-            SpeedChip(speedKmh, over = SpeedLimitMath.isOver(speedKmh, speedLimit))
+            SpeedChip(speedShown, over = SpeedLimitMath.isOver(speedKmh, speedLimit))
         }
         MapCredit(Modifier.align(Alignment.BottomEnd).padding(end = 8.dp, bottom = 4.dp))
 
@@ -828,13 +829,13 @@ private fun RoundIconButton(icon: androidx.compose.ui.graphics.vector.ImageVecto
 }
 
 @Composable
-private fun SpeedChip(speedKmh: Int, over: Boolean) {
+private fun SpeedChip(shown: Int?, over: Boolean) {
     Column(
         modifier = Modifier.size(72.dp).clip(CircleShape).background(Color(0xE6101114)).border(1.dp, Color(0x26FFFFFF), CircleShape),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(Units.speed(speedKmh).toString(), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = if (over) MotoColors.Red else Color.White)
+        Text(if (shown != null) Units.speed(shown).toString() else "--", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = if (shown == null) MotoColors.Gray else if (over) MotoColors.Red else Color.White)
         Text(stringResource(if (Units.miles) R.string.speed_unit_mph else R.string.speed_unit), fontSize = 11.sp, color = MotoColors.Gray)
     }
 }

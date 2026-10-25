@@ -101,13 +101,15 @@ data class GpsUi(
     val fixAgeMs: Int? = null,
     val fixIntervalMs: Int? = null,
     val speedAccuracyMps: Float? = null,
+    /** The speed every readout shows: the filtered speed rounded to km/h, null while unknown (same source as the dial). `speedKmh` stays the raw fix. */
+    val displayKmh: Int? = null,
 )
 
 class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     private val location = LocationRepository(app)
 
-    /** The speed the gauge draws, in km/h, smoothed and projected forward between fixes. */
-    fun displaySpeedKmh(): Double = location.displayKmh()
+    /** The speed the gauge draws, in km/h, smoothed and projected forward between fixes; null while the speed is unknown. */
+    fun displaySpeedKmh(): Double? = location.displayKmh()
     val battery = BatteryRepository(app)
     val media = MediaRepository(app)
     val call = CallRepository(app, viewModelScope)
@@ -403,7 +405,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
             lastTrip = { trips.trips().firstOrNull() },
             changeBrightness = ::stepBrightness,
             warningVoice = ::setRainVoice,
-            displaySpeedKmh = { location.displayKmh().roundToInt() },
+            displaySpeedKmh = { location.displayKmh()?.roundToInt() },
             outlook = { day, from, to ->
                 val fix = location.state.value
                 if (fix.fixAtMs == 0L) null else WeatherRepository().outlook(GeoPoint(fix.lat, fix.lon), day, from, to).getOrNull()
@@ -604,7 +606,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     val gps: StateFlow<GpsUi> = combine(location.state, ticker) { loc, now ->
         val fresh = now - loc.fixAtMs < FIX_TIMEOUT_MS
-        GpsUi(if (fresh) loc.speedKmh else 0, fresh, loc.accuracyM, loc.fixAgeMs, loc.fixIntervalMs, loc.speedAccuracyMps)
+        GpsUi(if (fresh) loc.speedKmh else 0, fresh, loc.accuracyM, loc.fixAgeMs, loc.fixIntervalMs, loc.speedAccuracyMps, if (fresh) location.displayKmh()?.roundToInt() else null)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, GpsUi())
 
     val thermalEnabled = MutableStateFlow(Prefs.thermalGuard(app))

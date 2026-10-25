@@ -73,7 +73,7 @@ import kotlinx.coroutines.delay
 fun CallScreen(
     call: CallState,
     callerName: String?,
-    speedKmh: Int,
+    speedShown: Int?,
     nav: NavUi,
     onAnswer: () -> Unit,
     onHangUp: () -> Unit,
@@ -103,7 +103,7 @@ fun CallScreen(
             .clickable(enabled = false) {},
     ) {
         Column(modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 28.dp, vertical = 10.dp)) {
-            RideStrip(speedKmh, nav, call)
+            RideStrip(speedShown, nav, call)
             TwoPane(
                 modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 12.dp),
                 first = { m -> Column(
@@ -181,7 +181,7 @@ private fun TwoPane(
 
 /** Clock, speed and the next turn: what the dashboard shows, so a call does not blind the rider to the road. */
 @Composable
-private fun RideStrip(speedKmh: Int, nav: NavUi, call: CallState) {
+private fun RideStrip(speedShown: Int?, nav: NavUi, call: CallState) {
     val now by produceState(System.currentTimeMillis()) {
         while (true) {
             value = System.currentTimeMillis()
@@ -196,7 +196,7 @@ private fun RideStrip(speedKmh: Int, nav: NavUi, call: CallState) {
     ) {
         Text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(now)), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Color.White)
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("${Units.speed(speedKmh)}", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text(if (speedShown != null) "${Units.speed(speedShown)}" else "--", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
             Text(stringResource(if (Units.miles) R.string.speed_unit_mph else R.string.speed_unit), fontSize = 15.sp, color = MotoColors.Gray, modifier = Modifier.padding(bottom = 4.dp))
         }
         if (maneuver != null) {

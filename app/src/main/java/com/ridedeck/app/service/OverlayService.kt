@@ -49,7 +49,9 @@ class OverlayService : Service() {
             // RideDeck already shows the speed itself: the strip is only for when another app is on screen.
             bar?.visibility = if (appInForeground) View.GONE else View.VISIBLE
             val fresh = System.currentTimeMillis() - loc.fixAtMs < 5000
-            speedView.text = getString(R.string.overlay_speed_fmt, if (fresh) UnitMath.speed(location.displayKmh().roundToInt(), Prefs.milesUnit(this@OverlayService)) else 0)
+            val shown = if (fresh) location.displayKmh() else null
+            speedView.text = if (shown == null) getString(R.string.overlay_speed_unknown)
+            else getString(R.string.overlay_speed_fmt, UnitMath.speed(shown.roundToInt(), Prefs.milesUnit(this@OverlayService)))
             clockView.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
             handler.postDelayed(this, 1000)
         }

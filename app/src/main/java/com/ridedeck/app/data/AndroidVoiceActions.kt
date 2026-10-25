@@ -40,7 +40,7 @@ class AndroidVoiceActions(
     private val changeBrightness: (Int) -> Unit,
     private val warningVoice: (Boolean) -> Unit,
     /** The smoothed speed the gauge shows, km/h; the spoken answer matches the dial. */
-    private val displaySpeedKmh: (() -> Int)? = null,
+    private val displaySpeedKmh: (() -> Int?)? = null,
     /** Hourly forecast for day offset 0/1 between two hours, for "yarın / akşam hava nasıl". */
     private val outlook: (suspend (dayOffset: Int, fromHour: Int, toHour: Int) -> WeatherOutlook?)? = null,
     /** Turns the assistant's own suggestions on or off (the settings switch follows). */
@@ -179,7 +179,8 @@ class AndroidVoiceActions(
         InfoQuestion.SPEED -> {
             val fix = location.value
             val fresh = System.currentTimeMillis() - fix.fixAtMs < 5000
-            if (!fresh) null else t(if (Units.miles) R.string.voice_speed_mph_fmt else R.string.voice_speed_kmh_fmt, Units.speed(displaySpeedKmh?.invoke() ?: fix.speedKmh))
+            val shown = if (displaySpeedKmh != null) displaySpeedKmh.invoke() else fix.speedKmh
+            if (!fresh || shown == null) null else t(if (Units.miles) R.string.voice_speed_mph_fmt else R.string.voice_speed_kmh_fmt, Units.speed(shown))
         }
         InfoQuestion.SPEED_LIMIT -> speedLimit()?.let { t(if (Units.miles) R.string.voice_limit_mph_fmt else R.string.voice_limit_kmh_fmt, Units.speed(it)) }
         InfoQuestion.TRIP -> lastTrip()?.let { trip ->

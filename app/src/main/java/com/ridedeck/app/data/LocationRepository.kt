@@ -9,6 +9,7 @@ import android.location.LocationManager
 import android.os.Build
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 import com.ridedeck.app.util.SpeedUtil
 import com.ridedeck.app.util.hasPermission
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,8 +49,8 @@ class LocationRepository(private val context: Context) {
     /** Smoothed, extrapolated speed for the screen; the raw speed in [state] stays untouched. */
     private val speedFilter = SpeedFilter()
 
-    /** The speed to draw right now, in km/h (filtered and projected forward from the last fix). */
-    fun displayKmh(): Double = speedFilter.speedKmh(SystemClock.elapsedRealtime())
+    /** The speed to draw right now, in km/h (filtered and projected forward from the last fix); null when it is unknown (no fix for a while). */
+    fun displayKmh(): Double? = speedFilter.speedKmhOrNull(SystemClock.elapsedRealtime())
 
     // An object, not a lambda: before Android 11 the listener's other callbacks are abstract, and a lambda
     // would crash with AbstractMethodError the first time the GPS is switched off or on.
@@ -63,6 +64,14 @@ class LocationRepository(private val context: Context) {
             val speedMps = if (location.hasSpeed()) location.speed else 0f
             // The filter works on the time the chip measured at, so a late delivery does not shift the estimate.
             speedFilter.onFix(if (measuredAt > 0) measuredAt else nowReal, speedMps, speedAcc)
+            // Opt-in: `adb shell setprop log.tag.RideDeckSpeed DEBUG`. Speeds and timing only, never a position.
+            if (Log.isLoggable(SPEED_LOG_TAG, Log.DEBUG)) {
+                Log.d(SPEED_LOG_TAG, "raw=%.2f acc=%s age=%s gap=%s shown=%.2f %s".format(
+                    java.util.Locale.US, speedMps, speedAcc?.let { "%.2f".format(java.util.Locale.US, it) } ?: "?",
+                    if (measuredAt > 0) (nowReal - measuredAt).toString() else "?",
+                    if (previous.elapsedRealtimeMs > 0 && measuredAt > 0) (measuredAt - previous.elapsedRealtimeMs).toString() else "?",
+                    speedFilter.speedMps(nowReal), speedFilter.debugState()))
+            }
             _state.value = LocationState(
                 speedKmh = kmh,
                 fixAtMs = System.currentTimeMillis(),
@@ -117,5 +126,9 @@ class LocationRepository(private val context: Context) {
         if (!active) return
         manager.removeUpdates(listener)
         active = false
+    }
+
+    private companion object {
+        const val SPEED_LOG_TAG = "RideDeckSpeed"
     }
 }

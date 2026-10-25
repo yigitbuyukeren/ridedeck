@@ -362,6 +362,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                         nav = vm.nav,
                         locationState = vm.locationState,
                         speedKmh = gps.speedKmh,
+                        speedShown = gps.displayKmh,
                         speedLimit = speedLimit,
                         isDay = isDay,
                         lowPower = lowPower,
@@ -593,7 +594,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
         // The call screen paints edge to edge (it pads its own content); inside the padded box it left a bare strip at the cutout.
         if (callState.phase != CallPhase.IDLE) {
             CallScreen(
-                callState, callerName, gps.speedKmh, navUi,
+                callState, callerName, gps.displayKmh, navUi,
                 onAnswer = vm.call::answer, onHangUp = vm.call::hangUp, onMute = vm.call::toggleMute, onRoute = vm.call::setRoute,
                 onVolumeUp = vm.call::volumeUp, onVolumeDown = vm.call::volumeDown, onDigit = vm.call::sendDigit,
             )

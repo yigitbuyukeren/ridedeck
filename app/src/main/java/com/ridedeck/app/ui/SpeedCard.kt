@@ -64,7 +64,7 @@ fun SpeedCard(
     /** Full-scale of the gauge, km/h; depends on the vehicle. */
     maxKmh: Float = 200f,
     /** The smoothed speed to draw this frame, km/h; the raw fix is only used for the limit colour. */
-    speedProvider: () -> Double = { gps.speedKmh.toDouble() },
+    speedProvider: () -> Double? = { gps.speedKmh.toDouble() },
     /** Hot or low battery: the dial updates at about 15 frames a second instead of every frame. */
     lowPower: Boolean = false,
     onClick: () -> Unit = {},
@@ -73,6 +73,9 @@ fun SpeedCard(
     val smoother = remember { SpeedSmoother() }
     var fraction by remember { mutableFloatStateOf(0f) }
     var digit by remember { mutableIntStateOf(0) }
+    // No usable speed (no fix, or the fixes stopped): show "--" and a message, never a made-up 0.
+    var unknown by remember { mutableStateOf(true) }
+    var hadSpeed by remember { mutableStateOf(false) }
     val currentGps by rememberUpdatedState(gps)
     val currentProvider by rememberUpdatedState(speedProvider)
     LaunchedEffect(maxKmh, lowPower) {
@@ -83,9 +86,12 @@ fun SpeedCard(
                 if (last != 0L && now - last < minFrameNs) return@withFrameNanos
                 val dt = if (last == 0L) 0.0 else (now - last) / 1_000_000_000.0
                 last = now
-                smoother.step(if (currentGps.hasFix) currentProvider() else 0.0, dt)
+                val shown = if (currentGps.hasFix) currentProvider() else null
+                smoother.step(shown ?: 0.0, dt)
                 fraction = (smoother.value / maxKmh).toFloat().coerceIn(0f, 1f)
                 digit = smoother.digit()
+                if (shown != null) hadSpeed = true
+                unknown = shown == null
             }
         }
     }
@@ -137,10 +143,10 @@ fun SpeedCard(
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                Units.speed(digit).toString(),
+                if (unknown) "--" else Units.speed(digit).toString(),
                 fontSize = cappedSp(92f),
                 fontWeight = FontWeight.Bold,
-                color = if (SpeedLimitMath.isOver(gps.speedKmh, limit)) MotoColors.Red else LocalMotoPalette.current.text,
+                color = if (unknown) LocalMotoPalette.current.muted else if (SpeedLimitMath.isOver(gps.speedKmh, limit)) MotoColors.Red else LocalMotoPalette.current.text,
             )
             Text(stringResource(if (Units.miles) R.string.speed_unit_mph else R.string.speed_unit), fontSize = cappedSp(22f), color = LocalMotoPalette.current.muted, fontWeight = FontWeight.Medium)
             if (!gps.hasFix && !locationGranted) {
@@ -149,8 +155,8 @@ fun SpeedCard(
                     stringResource(R.string.action_allow), MotoColors.Blue, onGrantLocation,
                     Modifier.padding(top = 8.dp), minHeight = 56.dp, fontSize = 17.sp, horizontalPadding = 20.dp, singleLine = true,
                 )
-            } else if (!gps.hasFix) {
-                Text(stringResource(R.string.gps_waiting), fontSize = cappedSp(16f), color = MotoColors.Orange, modifier = Modifier.padding(top = 8.dp))
+            } else if (unknown) {
+                Text(stringResource(if (hadSpeed) R.string.gps_lost else R.string.gps_waiting), fontSize = cappedSp(16f), color = MotoColors.Orange, modifier = Modifier.padding(top = 8.dp))
             } else {
                 GpsInfo(gps, showDebug, { showDebug = !showDebug }, Modifier.padding(top = 10.dp))
             }
