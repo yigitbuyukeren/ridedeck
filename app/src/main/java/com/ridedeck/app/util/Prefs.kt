@@ -35,6 +35,7 @@ object Prefs {
     private const val KEY_VOICE_REPLIES = "voice_replies"
     private const val KEY_VOICE_HISTORY = "voice_history"
     private const val KEY_VOICE_WAKE = "voice_wake"
+    private const val KEY_LEGACY_WAKE_MIGRATED = "legacy_speech_wake_migrated"
     private const val KEY_VOICE_BUTTON = "voice_button"
     private const val KEY_VOICE_HISTORY_ON = "voice_history_on"
     private const val KEY_VOICE_HELMET_MIC = "voice_helmet_mic"
@@ -44,7 +45,6 @@ object Prefs {
     private const val KEY_VOICE_MISSES = "voice_misses"
     private const val KEY_VOICE_ENGINE = "voice_engine"
     private const val KEY_VOICE_ROUTINES = "voice_routines"
-    private const val KEY_WAKE_MISSES = "wake_misses"
     private const val KEY_SETTINGS_HINT = "settings_hint_count"
     private const val KEY_MESSAGE_APPS_SEEN = "message_apps_seen"
     private const val KEY_MESSAGE_APPS_MUTED = "message_apps_muted"
@@ -134,12 +134,23 @@ object Prefs {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_VOICE_REPLIES, on).apply()
     }
 
-    /** "Hey RideDeck" while the dashboard is on screen (experimental, off by default). */
+    /** Local sherpa-onnx wake-word preference. */
     fun voiceWake(context: Context): Boolean =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_VOICE_WAKE, false)
 
     fun setVoiceWake(context: Context, on: Boolean) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_VOICE_WAKE, on).apply()
+    }
+
+    /** Retires the old SpeechRecognizer loop once, without clearing the sherpa KWS choice on later launches. */
+    fun migrateLegacyVoiceWake(context: Context) {
+        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(KEY_LEGACY_WAKE_MIGRATED, false)) {
+            prefs.edit {
+                putBoolean(KEY_VOICE_WAKE, false)
+                putBoolean(KEY_LEGACY_WAKE_MIGRATED, true)
+            }
+        }
     }
 
     /** Converts the retired Vosk choice to Android STT while preserving every other preference. */
@@ -174,16 +185,6 @@ object Prefs {
     fun setVoiceSpeechRate(context: Context, rate: Float) { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { putFloat("voice_speech_rate", rate.coerceIn(0.75f, 1.25f)) } }
     fun voiceTtsName(context: Context): String? = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("voice_tts_name", null)
     fun setVoiceTtsName(context: Context, name: String?) { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { if (name == null) remove("voice_tts_name") else putString("voice_tts_name", name) } }
-
-    fun wakeMisses(context: Context): Int =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getInt(KEY_WAKE_MISSES, 0)
-
-    fun incrementWakeMisses(context: Context): Int {
-        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-        val next = (prefs.getInt(KEY_WAKE_MISSES, 0) + 1).coerceAtMost(999_999)
-        prefs.edit { putInt(KEY_WAKE_MISSES, next) }
-        return next
-    }
 
     /** Double press of a headset's play/pause key starts the voice assistant (off by default). */
     fun voiceButton(context: Context): Boolean =

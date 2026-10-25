@@ -3,7 +3,6 @@ package com.ridedeck.app
 import com.ridedeck.app.data.AudioSessionManager
 import com.ridedeck.app.data.VoiceRuntimeState
 import com.ridedeck.app.data.VoiceStateMachine
-import com.ridedeck.app.data.VoiceRetryBackoff
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -14,23 +13,23 @@ class AudioSessionManagerTest {
     fun aNewSessionRevokesTheOldOwnerAndOnlyOneOwnerRemains() {
         val manager = AudioSessionManager()
         var revoked = 0
-        val wake = manager.acquire(AudioSessionManager.Owner.ANDROID_WAKE) { revoked++ }
-        val command = manager.acquire(AudioSessionManager.Owner.ANDROID_STT) { }
+        val command = manager.acquire(AudioSessionManager.Owner.ANDROID_STT) { revoked++ }
+        val followUp = manager.acquire(AudioSessionManager.Owner.FOLLOW_UP_STT) { }
 
         assertEquals(1, revoked)
-        assertEquals(AudioSessionManager.Owner.ANDROID_STT, manager.currentOwner())
-        assertFalse(manager.isCurrent(wake))
-        assertTrue(manager.isCurrent(command))
+        assertEquals(AudioSessionManager.Owner.FOLLOW_UP_STT, manager.currentOwner())
+        assertFalse(manager.isCurrent(command))
+        assertTrue(manager.isCurrent(followUp))
     }
 
     @Test
     fun aLateReleaseCannotClearTheNewSession() {
         val manager = AudioSessionManager()
         val old = manager.acquire(AudioSessionManager.Owner.ANDROID_STT) { }
-        val newest = manager.acquire(AudioSessionManager.Owner.ANDROID_WAKE) { }
+        val newest = manager.acquire(AudioSessionManager.Owner.FOLLOW_UP_STT) { }
 
         assertFalse(manager.release(old))
-        assertEquals(AudioSessionManager.Owner.ANDROID_WAKE, manager.currentOwner())
+        assertEquals(AudioSessionManager.Owner.FOLLOW_UP_STT, manager.currentOwner())
         assertTrue(manager.release(newest))
         assertEquals(null, manager.currentOwner())
         assertEquals(null, manager.owner.value)
@@ -40,8 +39,8 @@ class AudioSessionManagerTest {
     fun revocationCallbackMayReenterManager() {
         val manager = AudioSessionManager()
         var revoked = false
-        manager.acquire(AudioSessionManager.Owner.ANDROID_STT) { revoked = manager.currentOwner() == AudioSessionManager.Owner.ANDROID_WAKE }
-        manager.acquire(AudioSessionManager.Owner.ANDROID_WAKE) { }
+        manager.acquire(AudioSessionManager.Owner.ANDROID_STT) { revoked = manager.currentOwner() == AudioSessionManager.Owner.FOLLOW_UP_STT }
+        manager.acquire(AudioSessionManager.Owner.FOLLOW_UP_STT) { }
         assertTrue(revoked)
     }
 
@@ -57,9 +56,8 @@ class AudioSessionManagerTest {
     @Test
     fun voiceStateMachineAllowsExpectedConversationAndRejectsInvalidJump() {
         val machine = VoiceStateMachine()
-        assertTrue(machine.transition(VoiceRuntimeState.WAKE_LISTENING))
-        assertFalse(machine.transition(VoiceRuntimeState.FOLLOW_UP))
         assertTrue(machine.transition(VoiceRuntimeState.ACTIVATING))
+        assertFalse(machine.transition(VoiceRuntimeState.FOLLOW_UP))
         assertTrue(machine.transition(VoiceRuntimeState.COMMAND_LISTENING))
         assertTrue(machine.transition(VoiceRuntimeState.PROCESSING))
         assertTrue(machine.transition(VoiceRuntimeState.CONFIRMING))
@@ -80,6 +78,21 @@ class AudioSessionManagerTest {
     }
 
     @Test
+    fun sherpaWakeOwnsMicrophoneAndCanBePreemptedBySpeechOutput() {
+        val manager = AudioSessionManager()
+        var wakeStopped = false
+        val wake = manager.acquire(AudioSessionManager.Owner.SHERPA_WAKE) { wakeStopped = true }
+        assertEquals(VoiceRuntimeState.WAKE_LISTENING, manager.stateMachine.state.value)
+
+        val speech = manager.acquire(AudioSessionManager.Owner.TTS) { }
+        assertTrue(wakeStopped)
+        assertFalse(manager.isCurrent(wake))
+        assertEquals(AudioSessionManager.Owner.TTS, manager.currentOwner())
+        assertEquals(VoiceRuntimeState.SPEAKING, manager.stateMachine.state.value)
+        manager.release(speech)
+    }
+
+    @Test
     fun releasingAnAudioSessionDoesNotUndoLifecycleSuspension() {
         val manager = AudioSessionManager()
         val token = manager.acquire(AudioSessionManager.Owner.ANDROID_STT) { }
@@ -88,11 +101,4 @@ class AudioSessionManagerTest {
         assertEquals(VoiceRuntimeState.SUSPENDED, manager.stateMachine.state.value)
     }
 
-    @Test
-    fun wakeRetryBackoffGrowsAndCaps() {
-        assertEquals(0L, VoiceRetryBackoff.delay(0, 500, 30_000))
-        assertEquals(500L, VoiceRetryBackoff.delay(1, 500, 30_000))
-        assertEquals(2_000L, VoiceRetryBackoff.delay(3, 500, 30_000))
-        assertEquals(30_000L, VoiceRetryBackoff.delay(20, 500, 30_000))
-    }
 }

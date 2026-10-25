@@ -2,9 +2,7 @@ package com.ridedeck.app
 
 import com.ridedeck.app.data.VoiceHistory
 import com.ridedeck.app.data.VoiceHistoryEntry
-import com.ridedeck.app.data.WakeWord
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -26,11 +24,4 @@ class VoiceHistoryTest {
         assertTrue(VoiceHistory.fromJson(null).isEmpty())
     }
 
-    @Test
-    fun theWakePhraseIsRecognisedLoosely() {
-        for (p in listOf("hey ridedeck", "Hey RideDeck", "hey ride deck", "tamam hey ridedeck müziği aç")) {
-            assertTrue(p, WakeWord.matches(p))
-        }
-        for (p in listOf("müziği aç", "hey google", "moto kurye", "")) assertFalse(p, WakeWord.matches(p))
-    }
 }

@@ -114,20 +114,6 @@ fun VoiceOverlay(presentation: VoicePresentationState, onCancel: () -> Unit, onC
     }
 }
 
-@Composable
-fun VoiceWakeIndicator(presentation: VoicePresentationState, modifier: Modifier = Modifier) {
-    val runtimeState = presentation.runtime
-    if (runtimeState != VoiceRuntimeState.WAKE_LISTENING) return
-    Row(
-        modifier = modifier.clip(RoundedCornerShape(24.dp)).background(Color(0xE2182430)).padding(horizontal = 14.dp, vertical = 9.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Icon(Icons.Rounded.Mic, null, tint = MotoColors.Blue, modifier = Modifier.size(20.dp))
-        Text(stringResource(R.string.voice_wake_listening_status), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-    }
-}
-
 private fun voiceStatusLabel(ui: VoiceUi, state: VoiceRuntimeState): Int = when {
     ui.isError || state == VoiceRuntimeState.ERROR -> R.string.voice_status_error
     ui.phase == VoicePhase.LISTENING -> R.string.voice_status_listening

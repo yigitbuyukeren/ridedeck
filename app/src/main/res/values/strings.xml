@@ -382,10 +382,8 @@
     <string name="voice_history_desc">Son 10 sesli komutun metnini (ses kaydı değil) telefonda tutar; \"Ne diyebilirim?\" ekranında görünür.</string>
     <string name="voice_button_title">Kask tuşu (çift basış)</string>
     <string name="voice_button_desc">Kulaklık veya kaskın oynat/duraklat tuşuna çift basınca sesli asistan dinler; tek basış müziği durdurur/oynatır (biraz gecikmeyle). RideDeck ekrandayken çalışır.</string>
-    <string name="voice_wake_title">\"Hey RideDeck\" (deneysel)</string>
-    <string name="voice_wake_desc">RideDeck ekrandayken telefonda çevrimdışı dinleyip \"Hey RideDeck\" duyunca asistanı açar. Mikrofon sürekli açık kalır, pil ve ısıyı artırır; Android 13+ ve çevrimdışı Türkçe paket gerekir. Anlaşılmayan uyandırma: %1$d.</string>
-    <string name="voice_wake_unavailable">Bu telefonda çevrimdışı tanıma yok; \"Hey RideDeck\" çalışmaz (Android 13+ ve Türkçe paket gerekir). Anlaşılmayan uyandırma: %1$d.</string>
-    <string name="voice_wake_enable_unavailable">Uyandırma için bu motorun çevrimdışı Türkçe tanıması hazır olmalı.</string>
+    <string name="voice_wake_title">\"Hey RideDeck\" çevrimdışı uyandırma</string>
+    <string name="voice_wake_desc">Ekran açık ve uygulama öndeyken anahtar kelimeyi cihazda dinler. Mikrofon izni gerekir.</string>
     <string name="action_delete">Sil</string>
     <string name="voice_history_header">Son komutlar</string>
     <string name="voice_history_clear">Temizle</string>
@@ -505,7 +503,6 @@
     <string name="voice_status_speaking">RideDeck yanıt veriyor</string>
     <string name="voice_status_result">Sesli asistan sonucu</string>
     <string name="voice_status_error">Sesli asistan hatası</string>
-    <string name="voice_wake_listening_status">Hey RideDeck dinlemesi açık</string>
     <string name="voice_volume_up">Ses artırıldı.</string>
     <string name="voice_volume_down">Ses azaltıldı.</string>
     <string name="voice_theme_auto">Tema otomatiğe ayarlandı.</string>

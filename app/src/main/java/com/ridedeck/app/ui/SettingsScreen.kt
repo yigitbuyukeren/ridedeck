@@ -131,7 +131,13 @@ fun phonebookPermissions() = arrayOf(
 
 fun phonebookGranted(c: Context) = phonebookPermissions().all { c.hasPermission(it) }
 
-data class ToggleItem(val title: String, val description: String, val checked: Boolean, val onChange: (Boolean) -> Unit)
+data class ToggleItem(
+    val title: String,
+    val description: String,
+    val checked: Boolean,
+    val enabled: Boolean = true,
+    val onChange: (Boolean) -> Unit,
+)
 
 private enum class SettingsTab(val label: Int) {
     SETUP(R.string.settings_tab_setup),
@@ -308,14 +314,14 @@ private fun ToggleRow(t: ToggleItem) {
     // The whole row toggles, not just the small switch: much easier to hit with gloves.
     Row(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card)
-            .clickable { t.onChange(!t.checked) }.padding(horizontal = 16.dp, vertical = 20.dp),
+            .clickable(enabled = t.enabled) { t.onChange(!t.checked) }.padding(horizontal = 16.dp, vertical = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(t.title, fontSize = 20.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
             Text(t.description, fontSize = 15.sp, color = LocalMotoPalette.current.muted)
         }
-        Switch(checked = t.checked, onCheckedChange = t.onChange)
+        Switch(checked = t.checked, onCheckedChange = t.onChange, enabled = t.enabled)
     }
 }
 

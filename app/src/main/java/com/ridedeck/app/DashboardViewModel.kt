@@ -38,8 +38,8 @@ import com.ridedeck.app.data.Speaker
 import com.ridedeck.app.data.OfflineVoice
 import com.ridedeck.app.data.OfflineVoiceCheck
 import com.ridedeck.app.data.VoiceButtonTrigger
+import com.ridedeck.app.data.SherpaWakeWord
 import com.ridedeck.app.data.VoicePhase
-import com.ridedeck.app.data.WakeWord
 import com.ridedeck.app.data.VoiceHistory
 import com.ridedeck.app.data.VoiceHistoryEntry
 import com.ridedeck.app.data.VoiceResponseMode
@@ -204,9 +204,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     /** Counts requests that start listening from outside the screen (the helmet's voice button, "assist"). */
     val voiceRequests = MutableStateFlow(0)
 
-    private var wakeTriggered = false
-    fun requestVoice(fromWakeWord: Boolean = false) { wakeTriggered = fromWakeWord; voiceRequests.value += 1 }
-    fun clearPendingWake() { wakeTriggered = false }
+    fun requestVoice() { voiceRequests.value += 1 }
 
     /** Names the recogniser should expect: contacts, saved places and pinned apps. */
     private fun voiceNames(): List<String> {
@@ -215,7 +213,6 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         return phone.contacts.value.map { it.name } + places.value.map { it.place.name } + appNames
     }
 
-    val wakeMisses = MutableStateFlow(Prefs.wakeMisses(app))
     private val voiceInput = VoiceInput(app) { voiceNames() }
 
     val voiceResponseMode = MutableStateFlow(runCatching { VoiceResponseMode.valueOf(Prefs.voiceResponseMode(app)) }.getOrDefault(VoiceResponseMode.NORMAL))
@@ -260,16 +257,9 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { delay(6000); refreshOfflineVoice() }
     }
 
-    private val wake = WakeWord(app, { requestVoice(fromWakeWord = true) }) { wakeEligible() }
-    val voiceWakeOn = MutableStateFlow(Prefs.voiceWake(app))
     val voiceButtonOn = MutableStateFlow(Prefs.voiceButton(app))
+    val voiceWakeOn = MutableStateFlow(Prefs.voiceWake(app))
     private val voiceButton = VoiceButtonTrigger(app, onDoublePress = { requestVoice() }, onSinglePress = { media.togglePlay() })
-
-    fun setVoiceWake(on: Boolean) {
-        Prefs.setVoiceWake(getApplication(), on)
-        voiceWakeOn.value = on
-        applyVoiceExtras()
-    }
 
     fun setVoiceButton(on: Boolean) {
         Prefs.setVoiceButton(getApplication(), on)
@@ -277,29 +267,40 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         applyVoiceExtras()
     }
 
-    /** The wake phrase and the headset key only listen while the dashboard is on screen, the phone is not in a call and has charge. */
+    private val wakeWord = SherpaWakeWord(
+        app,
+        canRun = { wakeEligible() && voiceAssistant.ui.value.phase == VoicePhase.IDLE },
+        onWake = { requestVoice() },
+    )
+
+    fun setVoiceWake(on: Boolean) {
+        Prefs.setVoiceWake(getApplication(), on)
+        voiceWakeOn.value = on
+        applyVoiceExtras()
+    }
+
+    /** Wake capture is only active while the foreground dashboard is idle and no call is active. */
+    private fun wakeEligible(): Boolean = onScreen && call.state.value.phase == CallPhase.IDLE &&
+        voiceWakeOn.value && getApplication<Application>().hasPermission(Manifest.permission.RECORD_AUDIO) &&
+        (AudioSessionManager.process.currentOwner() == null || AudioSessionManager.process.currentOwner() == AudioSessionManager.Owner.SHERPA_WAKE)
+
     private fun applyVoiceExtras() {
         val calm = onScreen && call.state.value.phase == CallPhase.IDLE
-        val shouldWake = wakeEligible()
         if (!calm) AudioSessionManager.process.stateMachine.transition(VoiceRuntimeState.SUSPENDED)
         else if (AudioSessionManager.process.stateMachine.state.value == VoiceRuntimeState.SUSPENDED) {
             AudioSessionManager.process.stateMachine.transition(VoiceRuntimeState.IDLE)
         }
-        if (shouldWake) { wake.resume(); wake.start() } else wake.stop()
+        if (calm && voiceAssistant.ui.value.phase == VoicePhase.IDLE && voiceWakeOn.value) wakeWord.start()
+        else wakeWord.stop()
         if (onScreen && voiceButtonOn.value) voiceButton.start() else voiceButton.stop()
-    }
-
-    /** Re-check every live constraint when a delayed wake retry fires, not only when settings change. */
-    private fun wakeEligible(): Boolean {
-        val ctx = getApplication<Application>()
-        val charged = battery.state.value.let { it.charging || it.percent >= WAKE_MIN_BATTERY }
-        return onScreen && call.state.value.phase == CallPhase.IDLE &&
-            voiceWakeOn.value && charged && ctx.hasPermission(Manifest.permission.RECORD_AUDIO)
     }
 
     val voiceHistory = MutableStateFlow(VoiceHistory.fromPreference(Prefs.voiceHistory(app), Prefs.voiceHistoryOn(app)))
 
     init {
+        // Android SpeechRecognizer is not a supported continuous hotword engine. Clear the old opt-in
+        // so an upgrade never resumes the repeated microphone restart loop.
+        Prefs.migrateLegacyVoiceWake(app)
         if (!Prefs.voiceHistoryOn(app)) {
             Prefs.setVoiceHistory(app, VoiceHistory.toJson(emptyList()))
             Prefs.setVoiceMisses(app, VoiceHistory.missesToJson(emptyList()))
@@ -319,10 +320,6 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun recordVoice(heard: String, understood: Boolean) {
-        if (wakeTriggered) {
-            wakeTriggered = false
-            if (!understood) wakeMisses.value = Prefs.incrementWakeMisses(getApplication())
-        }
         if (heard.isBlank()) return
         if (!Prefs.voiceHistoryOn(getApplication())) return
         val safeHeard = VoiceHistory.safeTranscript(heard)
@@ -491,14 +488,17 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     init {
-        // The microphone is the assistant's while it listens or asks; the wake phrase waits.
         viewModelScope.launch {
-            voiceAssistant.ui.collect {
-                if (it.phase == VoicePhase.IDLE) {
-                    wake.resume()
-                    applyVoiceExtras()
+            var assistantWasBusy = false
+            voiceAssistant.ui.collect { state ->
+                if (state.phase != VoicePhase.IDLE) {
+                    assistantWasBusy = true
+                    wakeWord.stop()
+                } else if (assistantWasBusy) {
+                    assistantWasBusy = false
+                    wakeWord.resumeAfterCommand()
                 } else {
-                    wake.pause()
+                    applyVoiceExtras()
                 }
             }
         }
@@ -751,7 +751,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         onScreen = false
         voiceAssistant.cancel()
         voiceInput.cancel()
-        wake.stop()
+        wakeWord.stop()
         voiceButton.stop()
         AudioSessionManager.process.stateMachine.transition(VoiceRuntimeState.SUSPENDED)
         crashSensor.stop()
@@ -760,6 +760,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     override fun onCleared() {
         voiceAssistant.cancel()
+        wakeWord.stop()
         announcer.shutdown()
         theme.stop()
         nav.shutdown()
@@ -771,7 +772,6 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         const val PROACTIVE_TICK_MS = 20_000L
         const val FRESH_MESSAGE_MS = 30_000L
         const val RESUME_AFTER_CALL_MS = 1500L
-        const val WAKE_MIN_BATTERY = 30
         const val DEFAULT_VOICE_BRIGHTNESS = 0.7f
         const val MIN_VOICE_BRIGHTNESS = 0.1f
         const val BRIGHTNESS_STEP = 0.2f

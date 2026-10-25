@@ -382,10 +382,8 @@
     <string name="voice_history_desc">Keeps the text (not audio) of the last 10 voice commands on the phone; shown on the \"What can I say?\" screen.</string>
     <string name="voice_button_title">Helmet button (double press)</string>
     <string name="voice_button_desc">A double press of the headset or helmet play/pause key starts the voice assistant; a single press still plays or pauses the music (after a short wait). Works while RideDeck is on screen.</string>
-    <string name="voice_wake_title">\"Hey RideDeck\" (experimental)</string>
-    <string name="voice_wake_desc">While RideDeck is on screen, the phone listens offline and opens the assistant when it hears \"Hey RideDeck\". The microphone stays on and can use battery and add heat; needs Android 13+ and the offline Turkish pack. Unmatched wake-ups: %1$d.</string>
-    <string name="voice_wake_unavailable">This phone has no offline recognition; \"Hey RideDeck\" will not work (needs Android 13+ and the Turkish pack). Unmatched wake-ups: %1$d.</string>
-    <string name="voice_wake_enable_unavailable">Offline Turkish recognition for this engine must be ready before wake-word can be enabled.</string>
+    <string name="voice_wake_title">\"Hey RideDeck\" offline wake word</string>
+    <string name="voice_wake_desc">Listens for the keyword on device while the screen is on and the app is in front. Microphone permission is required.</string>
     <string name="action_delete">Delete</string>
     <string name="voice_history_header">Recent commands</string>
     <string name="voice_history_clear">Clear</string>
@@ -505,7 +503,6 @@
     <string name="voice_status_speaking">RideDeck is responding</string>
     <string name="voice_status_result">Voice assistant result</string>
     <string name="voice_status_error">Voice assistant error</string>
-    <string name="voice_wake_listening_status">Hey RideDeck listening is on</string>
     <string name="voice_volume_up">Volume increased.</string>
     <string name="voice_volume_down">Volume decreased.</string>
     <string name="voice_theme_auto">Theme set to automatic.</string>
