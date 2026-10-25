@@ -48,7 +48,7 @@ interface VoiceActions {
     fun supportsVoiceStopResults(): Boolean = false
     suspend fun searchFuelStopsForVoice(): List<String> = emptyList()
     suspend fun selectFuelStopResult(index: Int): String? = null
-    fun goSaved(kind: PlaceKind): String?
+    suspend fun goSaved(kind: PlaceKind): VoiceActionResponse?
     fun stopNavigation(): Boolean
     fun findStops()
     suspend fun findNearest(term: String, along: Boolean): String?
@@ -107,7 +107,7 @@ interface VoiceActions {
     fun setReminder(minutes: Int, what: String?): Boolean = false
     fun setProactive(on: Boolean) {}
     fun matchRoutine(phrase: String): String? = null
-    suspend fun runRoutine(name: String): String? = null
+    suspend fun runRoutine(name: String): VoiceActionResponse? = null
     fun restoreRoutineState(): Boolean = false
 }
 
@@ -167,6 +167,7 @@ class VoiceAssistant(
     private var allowFollowUp = true
     private var followUpTurn = false
     private var followUpWatchdog: Job? = null
+    private val hidePartial: (String) -> Unit = { }
     /** The current question was the assistant's own idea: an unanswered one is dropped without a word. */
     private var proactiveAsk = false
 
@@ -224,7 +225,7 @@ class VoiceAssistant(
         _ui.update { VoiceUi(VoicePhase.LISTENING, choices = it.choices) }
         // Partial speech can contain contact details or a dictated message. Do not expose it
         // before the complete utterance has been classified.
-        val onPartial: (String) -> Unit = { }
+        val onPartial = hidePartial
         val onResult: (VoiceHeard) -> Unit = { heard -> handle(heard.alternatives, heard.confidence, searchFallback, heard.failure) }
         if (expect is Expect.Dictation) listener.startDictation(onPartial, onResult) else listener.start(
             onPartial = onPartial,
@@ -412,9 +413,10 @@ class VoiceAssistant(
                             }))
                         }
                         matches.size == 1 -> {
-                            val place = actions.navigateToSearchResult(0) ?: if (actions.supportsVoiceSearchResults()) null else actions.navigateTo(command.candidates)
+                            val place = if (actions.supportsVoiceSearchResults()) actions.navigateToSearchResult(0)
+                                else actions.navigateTo(command.candidates)
                             if (place != null) { context.rememberPlace(place); done(text(R.string.voice_route_ready) + " " + place) }
-                            else say(text(R.string.no_results))
+                            else say(text(if (actions.supportsVoiceSearchResults()) R.string.route_failed else R.string.no_results))
                         }
                         else -> {
                             val place = actions.navigateTo(command.candidates)
@@ -457,9 +459,10 @@ class VoiceAssistant(
                             }
                         }))
                         matches.size == 1 -> {
-                            val place = actions.navigateToSearchResult(0) ?: if (actions.supportsVoiceSearchResults()) null else actions.findNearest(command.term, command.along)
+                            val place = if (actions.supportsVoiceSearchResults()) actions.navigateToSearchResult(0)
+                                else actions.findNearest(command.term, command.along)
                             if (place != null) { context.rememberPlace(place); done(command.label + ": " + place) }
-                            else say(text(R.string.no_results))
+                            else say(text(if (actions.supportsVoiceSearchResults()) R.string.route_failed else R.string.no_results))
                         }
                         else -> {
                             val place = actions.findNearest(command.term, command.along)
@@ -532,7 +535,10 @@ class VoiceAssistant(
             is VoiceCommand.Brightness -> { actions.setBrightness(command.delta); done(text(if (command.delta > 0) R.string.voice_brightness_up else R.string.voice_brightness_down)) }
             is VoiceCommand.WarningVoice -> { actions.setWarningVoice(command.on); done(text(if (command.on) R.string.voice_warnings_on else R.string.voice_warnings_off)) }
             is VoiceCommand.RunRoutine -> {
-                job = scope.launch { actions.runRoutine(command.name)?.let(::done) ?: say(text(R.string.voice_routine_failed)) }
+                job = scope.launch {
+                    actions.runRoutine(command.name)?.let { done(it.message, it.kind) }
+                        ?: say(text(R.string.voice_routine_failed))
+                }
             }
             VoiceCommand.RestoreRoutineState -> if (actions.restoreRoutineState()) done(text(R.string.voice_routine_restored)) else say(text(R.string.voice_routine_nothing_to_restore))
             is VoiceCommand.SetMiles -> { actions.setMiles(command.miles); done(text(if (command.miles) R.string.voice_miles else R.string.voice_km)) }
@@ -564,11 +570,17 @@ class VoiceAssistant(
     }
 
     private fun goSaved(kind: PlaceKind, missing: Int) {
-        val name = actions.goSaved(kind)
-        if (name == null) { say(text(missing)); return }
-        actions.openScreen(VoiceScreen.MAP)
-        context.rememberPlace(name)
-        done(text(R.string.voice_route_ready) + " " + name)
+        job = scope.launch {
+            val response = actions.goSaved(kind)
+            if (response == null) { say(text(missing)); return@launch }
+            if (response.kind == VoiceResponseKind.ERROR || response.kind == VoiceResponseKind.PARTIAL) {
+                done(response.message, response.kind)
+                return@launch
+            }
+            actions.openScreen(VoiceScreen.MAP)
+            context.rememberPlace(response.message)
+            done(text(R.string.voice_route_ready) + " " + response.message)
+        }
     }
 
     private fun saveHere(kind: PlaceKind) {
@@ -721,7 +733,7 @@ class VoiceAssistant(
     }
 
     /** A short result: spoken and shown, then it clears itself. With the follow-up setting on, the rider may add one more command. */
-    private fun done(message: String, kind: VoiceResponseKind = VoiceResponseKind.ACTION) {
+    private fun done(message: String, kind: VoiceResponseKind = VoiceResponseKind.SUCCESS) {
         val response = speaker.formatResponse(message, kind)
         context.rememberSpoken(response)
         if (allowFollowUp && continuous()) {
@@ -730,7 +742,7 @@ class VoiceAssistant(
         } else {
             speaker.speak(response)
         }
-            say(response, speak = false, errorState = false)
+            say(response, speak = false, errorState = kind == VoiceResponseKind.ERROR || kind == VoiceResponseKind.PARTIAL)
     }
 
     /** Listens once more for a few seconds without beeping; silence just closes the card. */
@@ -740,7 +752,7 @@ class VoiceAssistant(
         voiceStates.transition(VoiceRuntimeState.FOLLOW_UP)
         _ui.value = VoiceUi(VoicePhase.LISTENING)
         listener.startQuiet(
-            onPartial = { partial -> _ui.update { if (it.phase == VoicePhase.LISTENING) it.copy(text = partial) else it } },
+            onPartial = hidePartial,
             onResult = { heard ->
                 if (followUpTurn) {
                     followUpTurn = false

@@ -70,10 +70,10 @@ class AndroidVoiceActions(
 
     override suspend fun selectFuelStopResult(index: Int): String? = nav.selectFuelVoiceResult(index)?.name
 
-    override fun goSaved(kind: PlaceKind): String? {
+    override suspend fun goSaved(kind: PlaceKind): VoiceActionResponse? {
         val place = places().firstOrNull { it.kind == kind }?.place ?: return null
-        nav.selectPlace(place)
-        return place.name
+        return if (nav.selectPlaceAndRoute(place)) VoiceActionResponse(place.name)
+        else VoiceActionResponse(context.getString(R.string.route_failed), VoiceResponseKind.ERROR)
     }
 
     override fun stopNavigation(): Boolean {
@@ -251,9 +251,9 @@ class AndroidVoiceActions(
         return RideRoutines.matchPhrase(routines(), VoiceParser.normalize(phrase))
     }
 
-    override suspend fun runRoutine(name: String): String? {
+    override suspend fun runRoutine(name: String): VoiceActionResponse? {
         val routine = routines().firstOrNull { RideRoutines.key(it.name) == RideRoutines.key(name) } ?: return null
-        val result = RoutineExecutor.execute(
+        val result = RoutineExecutor.executeSuspend(
             routine = routine,
             existingSnapshot = routineSnapshot(),
             captureSnapshot = { RoutineSnapshot(media.volumePercent(), Prefs.rainVoice(context), Prefs.themeMode(context)) },
@@ -261,7 +261,9 @@ class AndroidVoiceActions(
             applyStep = { step -> when (step) {
                 RoutineStep.NavigateHome -> {
                     val home = places().firstOrNull { it.kind == PlaceKind.HOME }?.place
-                    if (home == null) false else { nav.selectPlace(home); true }
+                    val routed = home != null && nav.selectPlaceAndRoute(home)
+                    if (routed) showScreen(VoiceScreen.MAP)
+                    routed
                 }
                 is RoutineStep.MediaVolume -> { media.setVolumePercent(step.percent); true }
                 is RoutineStep.VoiceWarnings -> { warningVoice(step.enabled); true }
@@ -271,13 +273,13 @@ class AndroidVoiceActions(
         if (!result.succeeded) {
             val homeMissing = result.failedStep == RoutineStep.NavigateHome
             return when {
-                result.appliedSteps == 0 && homeMissing -> t(R.string.voice_routine_home_failed_fmt, routine.name)
-                result.appliedSteps == 0 -> t(R.string.voice_routine_failed_fmt, routine.name)
-                homeMissing -> t(R.string.voice_routine_partial_home_fmt, routine.name, result.appliedSteps, result.totalSteps)
-                else -> t(R.string.voice_routine_partial_fmt, routine.name, result.appliedSteps, result.totalSteps)
+                result.appliedSteps == 0 && homeMissing -> VoiceActionResponse(t(R.string.voice_routine_home_failed_fmt, routine.name), VoiceResponseKind.ERROR)
+                result.appliedSteps == 0 -> VoiceActionResponse(t(R.string.voice_routine_failed_fmt, routine.name), VoiceResponseKind.ERROR)
+                homeMissing -> VoiceActionResponse(t(R.string.voice_routine_partial_home_fmt, routine.name, result.appliedSteps, result.totalSteps), VoiceResponseKind.PARTIAL)
+                else -> VoiceActionResponse(t(R.string.voice_routine_partial_fmt, routine.name, result.appliedSteps, result.totalSteps), VoiceResponseKind.PARTIAL)
             }
         }
-        return t(R.string.voice_routine_applied_fmt, routine.name)
+        return VoiceActionResponse(t(R.string.voice_routine_applied_fmt, routine.name))
     }
 
     override fun restoreRoutineState(): Boolean {

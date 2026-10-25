@@ -16,6 +16,7 @@ import com.ridedeck.app.data.VoiceActions
 import com.ridedeck.app.data.VoiceHeard
 import com.ridedeck.app.data.VoiceAssistant
 import com.ridedeck.app.data.VoiceResponseFormatter
+import com.ridedeck.app.data.VoiceActionResponse
 import com.ridedeck.app.data.VoiceResponseKind
 import com.ridedeck.app.data.VoiceResponseMode
 import com.ridedeck.app.data.VoiceFailure
@@ -26,6 +27,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -40,6 +42,8 @@ class VoiceAssistantTest {
         var holdResults = false
         private var pendingResult: ((VoiceHeard) -> Unit)? = null
         private var partialResult: ((String) -> Unit)? = null
+        private var quietPartial: ((String) -> Unit)? = null
+        private var quietResult: ((VoiceHeard) -> Unit)? = null
         /** The score the recogniser reports for the next result (null: it reports none). */
         var confidence: Float? = null
         var failure: VoiceFailure? = null
@@ -52,6 +56,16 @@ class VoiceAssistantTest {
         }
         fun deliver(phrase: String) { (pendingResult.also { pendingResult = null } ?: error("No pending speech result"))(VoiceHeard(listOf(phrase))) }
         fun emitPartial(phrase: String) { partialResult?.invoke(phrase) }
+        override fun startQuiet(onPartial: (String) -> Unit, onResult: (VoiceHeard) -> Unit) {
+            listens++
+            quietPartial = onPartial
+            quietResult = onResult
+        }
+        fun emitQuietPartial(phrase: String) { quietPartial?.invoke(phrase) }
+        fun deliverQuiet(phrase: String) {
+            quietPartial = null
+            quietResult.also { quietResult = null }?.invoke(VoiceHeard(listOf(phrase)))
+        }
         override fun cancel() {}
     }
 
@@ -93,15 +107,22 @@ class VoiceAssistantTest {
         var dialOutcome = DialOutcome.REQUESTED
         var voicePlaces = emptyList<String>()
         var voiceStops = emptyList<String>()
+        var routineResponse: VoiceActionResponse? = null
         override fun supportsVoiceSearchResults() = true
         override fun supportsVoiceStopResults() = true
         override fun openScreen(screen: VoiceScreen) { log += "screen:$screen" }
         override suspend fun navigateTo(candidates: List<String>): String? { log += "nav:${candidates.first()}"; return candidates.first().replaceFirstChar { it.uppercase() } }
+        override suspend fun runRoutine(name: String): VoiceActionResponse? = routineResponse
         override suspend fun searchPlaces(candidates: List<String>): List<String> { log += "searchPlaces:${candidates.first()}"; return voicePlaces }
         override suspend fun navigateToSearchResult(index: Int): String? = voicePlaces.getOrNull(index)?.also { log += "route:$it" }
         override suspend fun searchFuelStopsForVoice(): List<String> { log += "searchFuelStops"; return voiceStops }
         override suspend fun selectFuelStopResult(index: Int): String? = voiceStops.getOrNull(index)?.also { log += "fuelRoute:$it" }
-        override fun goSaved(kind: PlaceKind): String? = if (homeSaved) "Ev" else null.also { log += "no:$kind" }
+        override suspend fun goSaved(kind: PlaceKind): VoiceActionResponse? =
+            when {
+                !homeSaved -> null.also { log += "no:$kind" }
+                !routing -> VoiceActionResponse("Rota oluşturulamadı.", VoiceResponseKind.ERROR)
+                else -> VoiceActionResponse("Ev")
+            }
         override fun stopNavigation(): Boolean { log += "stop"; return routing }
         override fun findStops() { log += "stops" }
         override suspend fun findNearest(term: String, along: Boolean): String? { log += "near:$term:$along"; return "Bir $term" }
@@ -332,6 +353,52 @@ class VoiceAssistantTest {
 
         privateAssistant.cancel()
         ear.holdResults = false
+    }
+
+    @Test
+    fun followUpPartialTranscriptUsesTheSamePrivacyRuleAndFinalCommandStillRuns() {
+        val quietEar = ScriptedEar()
+        val quietMouth = HoldingMouth()
+        val followAssistant = VoiceAssistant(
+            text = { id -> "s$id" },
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+            listener = quietEar,
+            speaker = quietMouth,
+            actions = actions,
+            pause = { delay(100_000) },
+            continuous = { true },
+        )
+        quietEar.script = ArrayDeque(listOf(listOf("müziği durdur")))
+        followAssistant.listen()
+        quietMouth.finishSpeaking()
+        assertEquals(VoicePhase.LISTENING, followAssistant.ui.value.phase)
+
+        quietEar.emitQuietPartial("Ayşe'ye mesaj at şifrem 824193")
+        assertEquals("", followAssistant.ui.value.text)
+        assertFalse(followAssistant.ui.value.text.contains("824193"))
+
+        quietEar.deliverQuiet("müziği aç")
+        assertTrue("play" in actions.log)
+        followAssistant.cancel()
+    }
+
+    @Test
+    fun partialRoutineResultCannotBecomeMinimalSuccessAcknowledgement() {
+        mouth.responseMode = VoiceResponseMode.MINIMAL
+        actions.routineResponse = VoiceActionResponse("Ev modu kısmen uygulandı: 2/3 adım.", VoiceResponseKind.PARTIAL)
+
+        assistant.runRoutine("ev modu")
+
+        assertEquals("Ev modu kısmen uygulandı: 2/3 adım.", mouth.said.last())
+    }
+
+    @Test
+    fun savedPlaceRouteFailureIsNotReportedAsMissingPlaceOrSuccess() {
+        actions.routing = false
+        say(listOf("eve git"))
+
+        assertEquals("Rota oluşturulamadı.", mouth.said.last())
+        assertFalse(mouth.said.last().contains("rota oluşturuldu"))
     }
 
     @Test

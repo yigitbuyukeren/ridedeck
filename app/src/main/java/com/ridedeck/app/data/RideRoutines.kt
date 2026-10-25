@@ -1,6 +1,7 @@
 package com.ridedeck.app.data
 
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -19,6 +20,33 @@ data class RoutineExecutionResult(val appliedSteps: Int, val totalSteps: Int, va
 }
 
 object RoutineExecutor {
+    suspend fun executeSuspend(
+        routine: RideRoutine,
+        existingSnapshot: RoutineSnapshot?,
+        captureSnapshot: () -> RoutineSnapshot,
+        persistSnapshot: (RoutineSnapshot?) -> Unit,
+        applyStep: suspend (RoutineStep) -> Boolean,
+    ): RoutineExecutionResult {
+        val capturedNow = existingSnapshot == null
+        if (capturedNow) persistSnapshot(captureSnapshot())
+        var applied = 0
+        for (step in routine.steps) {
+            val succeeded = try {
+                applyStep(step)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                false
+            }
+            if (!succeeded) {
+                if (capturedNow && applied == 0) persistSnapshot(null)
+                return RoutineExecutionResult(applied, routine.steps.size, step)
+            }
+            applied++
+        }
+        return RoutineExecutionResult(applied, routine.steps.size, null)
+    }
+
     fun execute(
         routine: RideRoutine,
         existingSnapshot: RoutineSnapshot?,

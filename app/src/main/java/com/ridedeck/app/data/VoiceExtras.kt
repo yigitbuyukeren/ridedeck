@@ -1,5 +1,7 @@
 package com.ridedeck.app.data
 
+import android.Manifest
+import android.annotation.TargetApi
 import android.content.Context
 import android.content.Intent
 import android.media.session.MediaSession
@@ -14,6 +16,7 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.os.Bundle
 import android.view.KeyEvent
+import com.ridedeck.app.util.hasPermission
 
 /** Whether Turkish recognition works without a network on this phone. */
 enum class OfflineVoice { UNKNOWN, INSTALLED, MISSING, UNSUPPORTED }
@@ -58,7 +61,11 @@ object OfflineVoiceCheck {
  * on-device recogniser only (never the network one) for the wake phrase, restarting after every short session.
  * It needs Android 13+ with the Turkish offline model; without them it stays silent.
  */
-class WakeWord(private val context: Context, private val onWake: () -> Unit) {
+class WakeWord(
+    private val context: Context,
+    private val onWake: () -> Unit,
+    private val canRun: () -> Boolean = { true },
+) {
     private val handler = Handler(Looper.getMainLooper())
     private var recognizer: SpeechRecognizer? = null
     private var running = false
@@ -84,7 +91,7 @@ class WakeWord(private val context: Context, private val onWake: () -> Unit) {
     }
 
     fun start() {
-        if (running || !available(context)) return
+        if (running || !eligible()) return
         running = true
         paused = false
         lateinit var token: AudioSessionManager.Token
@@ -111,6 +118,7 @@ class WakeWord(private val context: Context, private val onWake: () -> Unit) {
 
     fun resume() {
         if (!paused) return
+        if (!eligible()) { stop(); return }
         paused = false
         if (!running) return
         lateinit var token: AudioSessionManager.Token
@@ -139,9 +147,11 @@ class WakeWord(private val context: Context, private val onWake: () -> Unit) {
         recognizer = null
     }
 
+    @TargetApi(33)
     private fun listenOnce() {
         val token = session ?: return
-        if (!running || paused || !AudioSessionManager.process.isCurrent(token) || Build.VERSION.SDK_INT < 33) return
+        if (!running || paused || !AudioSessionManager.process.isCurrent(token)) return
+        if (!eligible()) { stop(); return }
         destroyRecognizer()
         try {
             val r = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
@@ -149,6 +159,7 @@ class WakeWord(private val context: Context, private val onWake: () -> Unit) {
             r.setRecognitionListener(object : RecognitionListener {
             private fun check(bundle: Bundle?): Boolean {
                 if (session != token || !AudioSessionManager.process.isCurrent(token)) return false
+                if (!eligible()) { stop(); return false }
                 val heard = bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
                 if (heard.any(::matches) && System.currentTimeMillis() - lastWakeAt >= WAKE_COOLDOWN_MS) {
                     lastWakeAt = System.currentTimeMillis()
@@ -188,8 +199,12 @@ class WakeWord(private val context: Context, private val onWake: () -> Unit) {
 
     private fun again(delayMs: Long) {
         if (!running || paused || session?.let(AudioSessionManager.process::isCurrent) != true) return
-        handler.postDelayed(::listenOnce, delayMs)
+        if (!eligible()) { stop(); return }
+        handler.postDelayed({ if (eligible()) listenOnce() else stop() }, delayMs)
     }
+
+    private fun eligible(): Boolean =
+        available(context) && context.hasPermission(Manifest.permission.RECORD_AUDIO) && canRun()
 
 }
 

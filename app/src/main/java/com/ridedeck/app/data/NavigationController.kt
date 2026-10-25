@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 enum class NavigationTermination { NONE, USER_CANCELLED, ARRIVED, LOCATION_DISABLED, LOCATION_PERMISSION_REVOKED, TRACKING_ERROR }
 
@@ -59,10 +60,13 @@ class NavigationController(
     initialOptions: RouteOptions = RouteOptions(),
     private val onOptionsChanged: (RouteOptions) -> Unit = {},
     private val locationUpdates: Flow<LocationState> = location,
+    private val routeTimeoutMs: Long = ROUTE_TIMEOUT_MS,
 ) {
     private val _options = MutableStateFlow(initialOptions)
     val options: StateFlow<RouteOptions> = _options
     private var routeJob: Job? = null
+    private var routeGeneration = 0L
+    private data class DetourRequest(val stop: Place, val final: Place, val from: GeoPoint, val generation: Long)
 
     private val _ui = MutableStateFlow(NavUi())
     val ui: StateFlow<NavUi> = _ui
@@ -109,13 +113,15 @@ class NavigationController(
      * False when none of them finds anything or the search fails.
      */
     suspend fun goToFirstMatch(candidates: List<String>): Boolean {
+        val generation = routeGeneration
         for (candidate in candidates) {
+            if (generation != routeGeneration) return false
             _ui.update { it.copy(query = candidate, searching = true, results = emptyList(), error = null) }
             val places = repo.search(candidate, here()).getOrNull()
+            if (generation != routeGeneration) return false
             _ui.update { it.copy(searching = false) }
             val first = places?.firstOrNull() ?: continue
-            selectPlace(first)
-            return true
+            return selectPlaceAndRoute(first)
         }
         _ui.update { it.copy(error = text(R.string.no_results)) }
         return false
@@ -123,9 +129,12 @@ class NavigationController(
 
     /** Search voice candidates and retain the full result set for a spoken ordinal follow-up. */
     suspend fun searchVoicePlaces(candidates: List<String>): List<Place> {
+        val generation = routeGeneration
         for (candidate in candidates) {
+            if (generation != routeGeneration) return emptyList()
             _ui.update { it.copy(query = candidate, searching = true, results = emptyList(), error = null) }
             val places = repo.search(candidate, here()).getOrNull().orEmpty()
+            if (generation != routeGeneration) return emptyList()
             if (places.isNotEmpty()) {
                 _ui.update { it.copy(searching = false, results = places) }
                 return places
@@ -138,22 +147,7 @@ class NavigationController(
     /** Select one of the retained voice search results; stale ordinals safely fail. */
     suspend fun selectVoiceResult(index: Int): Place? {
         val place = _ui.value.results.getOrNull(index) ?: return null
-        searchJob?.cancel()
-        closeFuel()
-        val from = here() ?: return null
-        _ui.update { it.copy(destination = place, finalDestination = null, query = place.name, results = emptyList(), loading = true, error = null) }
-        routeJob?.cancel()
-        val result = repo.route(from, place.point, _options.value)
-        return result.fold(
-            onSuccess = { route ->
-                _ui.update { it.copy(route = route, loading = false) }
-                place
-            },
-            onFailure = {
-                _ui.update { it.copy(loading = false, destination = null, error = text(R.string.route_failed)) }
-                null
-            },
-        )
+        return place.takeIf { selectPlaceAndRoute(it) }
     }
 
     /** A spot picked on the map: routed at once under a generic name, renamed when its address arrives. */
@@ -168,22 +162,80 @@ class NavigationController(
     }
 
     fun selectPlace(place: Place) {
+        val request = preparePlaceRoute(place) ?: return
+        routeJob = scope.launch { calculatePlaceRoute(place, request.first, request.second) }
+    }
+
+    /** Routes voice and routine requests synchronously with the real route result. */
+    suspend fun selectPlaceAndRoute(place: Place): Boolean {
+        val request = preparePlaceRoute(place) ?: return false
+        return calculatePlaceRoute(place, request.first, request.second)
+    }
+
+    private fun preparePlaceRoute(place: Place): Pair<GeoPoint, Long>? {
         searchJob?.cancel()
         closeFuel()
+        val generation = invalidateRoute()
         val from = here()
         if (from == null) {
-            _ui.update { it.copy(error = text(R.string.gps_waiting)) }
-            return
+            _ui.update { it.copy(loading = false, error = text(R.string.gps_waiting)) }
+            return null
         }
         _ui.update {
-            it.copy(destination = place, finalDestination = null, query = place.name, results = emptyList(), loading = true, error = null)
+            it.copy(destination = place, finalDestination = null, route = null, query = place.name,
+                results = emptyList(), loading = true, error = null)
         }
+        return from to generation
+    }
+
+    private suspend fun calculatePlaceRoute(place: Place, from: GeoPoint, generation: Long): Boolean {
+        val result = try {
+            routeResult(from, place.point)
+        } catch (cancelled: CancellationException) {
+            if (generation == routeGeneration) {
+                _ui.update { it.copy(loading = false, destination = null, route = null) }
+            }
+            throw cancelled
+        }
+        if (generation != routeGeneration) return false
+        if (result == null) {
+            _ui.update { it.copy(loading = false, destination = null, route = null, error = text(R.string.route_failed)) }
+            return false
+        }
+        return result.fold(
+            onSuccess = { route ->
+                if (generation != routeGeneration) return@fold false
+                _ui.update { it.copy(route = route, loading = false, error = null) }
+                true
+            },
+            onFailure = {
+                if (generation == routeGeneration) {
+                    _ui.update { it.copy(loading = false, destination = null, route = null, error = text(R.string.route_failed)) }
+                }
+                false
+            },
+        )
+    }
+
+    private suspend fun routeResult(
+        from: GeoPoint,
+        to: GeoPoint,
+        options: RouteOptions = _options.value,
+    ): Result<Route>? = withTimeoutOrNull(routeTimeoutMs) {
+        try {
+            repo.route(from, to, options)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            Result.failure(failure)
+        }
+    }
+
+    private fun invalidateRoute(): Long {
+        routeGeneration++
         routeJob?.cancel()
-        routeJob = scope.launch {
-            repo.route(from, place.point, _options.value)
-                .onSuccess { route -> _ui.update { it.copy(route = route, loading = false) } }
-                .onFailure { _ui.update { s -> s.copy(loading = false, destination = null, error = text(R.string.route_failed)) } }
-        }
+        routeJob = null
+        return routeGeneration
     }
 
     /**
@@ -199,11 +251,13 @@ class NavigationController(
         val from = here()
         if (dest == null || from == null || state.route == null || state.navigating) return
         _ui.update { it.copy(loading = true, error = null) }
-        routeJob?.cancel()
+        val generation = invalidateRoute()
         routeJob = scope.launch {
-            repo.route(from, dest.point, options)
-                .onSuccess { route -> _ui.update { it.copy(route = route, loading = false) } }
-                .onFailure { _ui.update { s -> s.copy(loading = false, error = text(R.string.route_failed)) } }
+            val result = routeResult(from, dest.point, options)
+            if (generation != routeGeneration) return@launch
+            result?.onSuccess { route -> _ui.update { it.copy(route = route, loading = false) } }
+                ?.onFailure { _ui.update { s -> s.copy(loading = false, error = text(R.string.route_failed)) } }
+                ?: _ui.update { it.copy(loading = false, error = text(R.string.route_failed)) }
         }
     }
 
@@ -258,7 +312,7 @@ class NavigationController(
     fun stopNavigation() {
         trackJob?.cancel()
         // A route still being computed (re-route, stop detour) must not come back to life after "Finish".
-        routeJob?.cancel()
+        invalidateRoute()
         fuelJob?.cancel()
         voice.stop()
         _ui.value = NavUi(termination = if (_ui.value.navigating) NavigationTermination.USER_CANCELLED else NavigationTermination.NONE)
@@ -326,22 +380,33 @@ class NavigationController(
         val from = here() ?: return null
         val before = _ui.value
         val final = (before.finalDestination ?: before.destination).takeIf { before.navigating }
-        _ui.update { it.copy(destination = place, finalDestination = final, loading = final == null, rerouting = final != null, error = null) }
-        val result = repo.route(from, place.point, _options.value)
+        val generation = invalidateRoute()
+        _ui.update { it.copy(loading = final == null, rerouting = final != null, error = null) }
+        val result = try {
+            routeResult(from, place.point)
+        } catch (cancelled: CancellationException) {
+            if (generation == routeGeneration) _ui.update { it.copy(loading = false, rerouting = false) }
+            throw cancelled
+        }
+        if (generation != routeGeneration) return null
+        if (result == null) {
+            _ui.update { it.copy(loading = false, rerouting = false, error = text(R.string.route_failed)) }
+            return null
+        }
         return result.fold(
             onSuccess = { route ->
                 if (final != null) {
                     progressIndex = 0
                     offRouteFixes = 0
                     spoken.clear()
-                    _ui.update { it.copy(route = route, loading = false, rerouting = false, maneuverIndex = 1.coerceAtMost(route.maneuvers.lastIndex), remainingM = route.distanceM.toInt(), remainingS = route.durationS.toInt()) }
+                    _ui.update { it.copy(destination = place, finalDestination = final, route = route, loading = false, rerouting = false, maneuverIndex = 1.coerceAtMost(route.maneuvers.lastIndex), remainingM = route.distanceM.toInt(), remainingS = route.durationS.toInt()) }
                     route.maneuvers.firstOrNull()?.let { voice.speak(it.verbal) }
-                } else _ui.update { it.copy(route = route, loading = false) }
+                } else _ui.update { it.copy(destination = place, finalDestination = null, route = route, loading = false) }
                 _fuel.value = FuelUi()
                 place
             },
             onFailure = {
-                _ui.update { it.copy(loading = false, rerouting = false, destination = null, error = text(R.string.route_failed)) }
+                _ui.update { it.copy(loading = false, rerouting = false, error = text(R.string.route_failed)) }
                 null
             },
         )
@@ -354,27 +419,48 @@ class NavigationController(
 
     /** Turns the trip into "fuel stop first, then the original destination". */
     fun detourVia(stop: Place) {
+        val request = prepareDetour(stop) ?: return
+        routeJob = scope.launch { calculateDetour(request) }
+    }
+
+    suspend fun detourViaAndRoute(stop: Place): Boolean {
+        val request = prepareDetour(stop) ?: return false
+        return calculateDetour(request)
+    }
+
+    private fun prepareDetour(stop: Place): DetourRequest? {
         val state = _ui.value
-        val from = here() ?: return
-        val final = state.finalDestination ?: state.destination ?: return
+        val from = here() ?: return null
+        val final = state.finalDestination ?: state.destination ?: return null
         closeFuel()
+        val generation = invalidateRoute()
         _ui.update { it.copy(rerouting = true) }
-        routeJob?.cancel()
-        routeJob = scope.launch {
-            repo.route(from, stop.point, _options.value)
-                .onSuccess { route ->
-                    progressIndex = 0
-                    offRouteFixes = 0
-                    spoken.clear()
-                    _ui.update {
-                        it.copy(destination = stop, finalDestination = final, route = route, rerouting = false,
-                            maneuverIndex = 1.coerceAtMost(route.maneuvers.lastIndex),
-                            remainingM = route.distanceM.toInt(), remainingS = route.durationS.toInt())
-                    }
-                    route.maneuvers.firstOrNull()?.let { voice.speak(it.verbal) }
-                }
-                .onFailure { _ui.update { s -> s.copy(rerouting = false, error = text(R.string.route_failed)) } }
+        return DetourRequest(stop, final, from, generation)
+    }
+
+    private suspend fun calculateDetour(request: DetourRequest): Boolean {
+        val result = try {
+            routeResult(request.from, request.stop.point)
+        } catch (cancelled: CancellationException) {
+            if (request.generation == routeGeneration) _ui.update { it.copy(rerouting = false) }
+            throw cancelled
         }
+        if (request.generation != routeGeneration) return false
+        if (result == null || result.isFailure) {
+            _ui.update { it.copy(rerouting = false, loading = false, error = text(R.string.route_failed)) }
+            return false
+        }
+        val route = result.getOrThrow()
+        progressIndex = 0
+        offRouteFixes = 0
+        spoken.clear()
+        _ui.update {
+            it.copy(destination = request.stop, finalDestination = request.final, route = route, rerouting = false,
+                maneuverIndex = 1.coerceAtMost(route.maneuvers.lastIndex),
+                remainingM = route.distanceM.toInt(), remainingS = route.durationS.toInt())
+        }
+        route.maneuvers.firstOrNull()?.let { voice.speak(it.verbal) }
+        return true
     }
 
     /** At the fuel stop: route on to the original destination and keep guiding. */
@@ -382,14 +468,16 @@ class NavigationController(
         val final = _ui.value.finalDestination ?: return
         val from = here() ?: return
         _ui.update { it.copy(loading = true, arrived = false) }
-        routeJob?.cancel()
+        val generation = invalidateRoute()
         routeJob = scope.launch {
-            repo.route(from, final.point, _options.value)
+            val result = routeResult(from, final.point)
+            if (generation != routeGeneration) return@launch
+            (result ?: Result.failure(IllegalStateException("routing timeout")))
                 .onSuccess { route ->
                     _ui.update { it.copy(destination = final, finalDestination = null, route = route, loading = false) }
                     startNavigation()
                 }
-                .onFailure { _ui.update { s -> s.copy(loading = false, arrived = true, error = text(R.string.route_failed)) } }
+                .onFailure { _ui.update { s -> s.copy(loading = false, arrived = false, error = text(R.string.route_failed)) } }
         }
     }
 
@@ -449,7 +537,7 @@ class NavigationController(
         if (remaining <= ARRIVAL_M) {
             voice.speak(text(if (state.finalDestination != null) R.string.stop_arrived else R.string.arrived))
             trackJob?.cancel()
-            routeJob?.cancel()
+            invalidateRoute()
             _ui.update { it.copy(navigating = false, arrived = true, remainingM = 0, remainingS = 0, distToNextM = 0, termination = NavigationTermination.ARRIVED) }
             return
         }
@@ -484,7 +572,14 @@ class NavigationController(
     suspend fun useAlternative(): Boolean {
         val dest = _ui.value.destination ?: return false
         val from = here() ?: return false
-        val routes = repo.alternatives(from, dest.point, _options.value).getOrNull().orEmpty()
+        val generation = routeGeneration
+        val result = withTimeoutOrNull(routeTimeoutMs) {
+            try { repo.alternatives(from, dest.point, _options.value) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) { Result.failure(failure) }
+        } ?: return false
+        if (generation != routeGeneration || _ui.value.destination != dest) return false
+        val routes = result.getOrNull().orEmpty()
         if (routes.size < 2) return false
         alternativeCursor = (alternativeCursor + 1) % routes.size
         val pick = routes[alternativeCursor]
@@ -506,29 +601,30 @@ class NavigationController(
         val state = _ui.value
         val route = state.route ?: return null
         if (!state.navigating) return null
+        val generation = routeGeneration
         val base = route.cumulative[progressIndex.coerceIn(0, route.shape.lastIndex)]
         val idx = route.cumulative.indexOfFirst { it >= base + AHEAD_STOP_M }.takeIf { it >= 0 } ?: route.shape.lastIndex
         val place = repo.search(term, route.shape[idx]).getOrNull()?.firstOrNull() ?: return null
-        detourVia(place)
-        return place.name
+        if (generation != routeGeneration || _ui.value.route !== route || _ui.value.destination != state.destination) return null
+        return if (detourViaAndRoute(place)) place.name else null
     }
 
     /** Voice "bir de X'e uğra": searches each candidate near the rider and makes the first hit a stop before the destination. */
     suspend fun addStopNamed(candidates: List<String>): Place? {
-        if (_ui.value.destination == null) return null
+        val destination = _ui.value.destination ?: return null
+        val generation = routeGeneration
         for (c in candidates) {
             val place = repo.search(c, here()).getOrNull()?.firstOrNull() ?: continue
-            detourVia(place)
-            return place
+            if (generation != routeGeneration || _ui.value.destination != destination) return null
+            if (detourViaAndRoute(place)) return place
         }
         return null
     }
 
     /** A saved place (home, work) as a stop before the destination. False without a destination. */
-    fun addStop(place: Place): Boolean {
+    suspend fun addStop(place: Place): Boolean {
         if (_ui.value.destination == null) return false
-        detourVia(place)
-        return true
+        return detourViaAndRoute(place)
     }
 
     /** Voice "recalculate": re-plans from here to the same destination. False without a destination or a position. */
@@ -547,9 +643,11 @@ class NavigationController(
             rerouteSpoken = true
             voice.speak(text(R.string.rerouting_voice))
         }
-        routeJob?.cancel()
+        val generation = invalidateRoute()
         routeJob = scope.launch {
-            repo.route(from, dest.point, _options.value)
+            val result = routeResult(from, dest.point)
+            if (generation != routeGeneration) return@launch
+            (result ?: Result.failure(IllegalStateException("routing timeout")))
                 .onSuccess { route ->
                     progressIndex = 0
                     offRouteFixes = 0
@@ -569,10 +667,12 @@ class NavigationController(
     fun shutdown() {
         trackJob?.cancel()
         fuelJob?.cancel()
+        invalidateRoute()
         voice.shutdown()
     }
 
     companion object {
+        private const val ROUTE_TIMEOUT_MS = 30_000L
         const val MATCH_WINDOW = 80
         const val OFF_ROUTE_M = 60.0
         /** How far ahead on the route a voice-requested stop is looked for. */

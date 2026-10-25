@@ -120,7 +120,10 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val readMessagesAloud = MutableStateFlow(Prefs.readMessagesAloud(app))
     val voiceTtsNames = MutableStateFlow<List<String>>(emptyList())
     val selectedTtsVoice = MutableStateFlow(Prefs.voiceTtsName(app))
-    private val announcer = Voice(app) { voiceTtsNames.value = it }
+    private val announcer = Voice(app) {
+        voiceTtsNames.value = it
+        selectedTtsVoice.value = Prefs.voiceTtsName(app)
+    }
 
     fun setTurkishTtsVoice(name: String?) {
         if (announcer.selectTurkishVoice(name)) {
@@ -293,8 +296,12 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         applyVoiceExtras()
     }
 
-    private val wake = WakeWord(app) { requestVoice(fromWakeWord = true) }
-    private val voskWake = VoskWakeWord(app, voskModels) { requestVoice(fromWakeWord = true) }
+    private val wake = WakeWord(app, { requestVoice(fromWakeWord = true) }) {
+        wakeEligible(SelectableVoiceInput.ENGINE_SYSTEM)
+    }
+    private val voskWake = VoskWakeWord(app, voskModels, { requestVoice(fromWakeWord = true) }) {
+        wakeEligible(SelectableVoiceInput.ENGINE_VOSK)
+    }
     val voiceWakeOn = MutableStateFlow(Prefs.voiceWake(app))
     val voiceButtonOn = MutableStateFlow(Prefs.voiceButton(app))
     private val voiceButton = VoiceButtonTrigger(app, onDoublePress = { requestVoice() }, onSinglePress = { media.togglePlay() })
@@ -313,10 +320,8 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     /** The wake phrase and the headset key only listen while the dashboard is on screen, the phone is not in a call and has charge. */
     private fun applyVoiceExtras() {
-        val ctx = getApplication<Application>()
         val calm = onScreen && call.state.value.phase == CallPhase.IDLE
-        val charged = battery.state.value.let { it.charging || it.percent >= WAKE_MIN_BATTERY }
-        val shouldWake = calm && voiceWakeOn.value && charged && ctx.hasPermission(Manifest.permission.RECORD_AUDIO)
+        val shouldWake = wakeEligible(voiceEngine.value)
         if (!calm) AudioSessionManager.process.stateMachine.transition(VoiceRuntimeState.SUSPENDED)
         else if (AudioSessionManager.process.stateMachine.state.value == VoiceRuntimeState.SUSPENDED) {
             AudioSessionManager.process.stateMachine.transition(VoiceRuntimeState.IDLE)
@@ -329,6 +334,15 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
             if (shouldWake) { wake.resume(); wake.start() } else wake.stop()
         }
         if (onScreen && voiceButtonOn.value) voiceButton.start() else voiceButton.stop()
+    }
+
+    /** Re-check every live constraint when a delayed wake retry fires, not only when settings change. */
+    private fun wakeEligible(engine: String): Boolean {
+        val ctx = getApplication<Application>()
+        val charged = battery.state.value.let { it.charging || it.percent >= WAKE_MIN_BATTERY }
+        return engine == voiceEngine.value && onScreen && call.state.value.phase == CallPhase.IDLE &&
+            voiceWakeOn.value && charged && ctx.hasPermission(Manifest.permission.RECORD_AUDIO) &&
+            (engine != SelectableVoiceInput.ENGINE_VOSK || voskModels.isReady())
     }
 
     val voiceHistory = MutableStateFlow(VoiceHistory.fromPreference(Prefs.voiceHistory(app), Prefs.voiceHistoryOn(app)))
@@ -796,7 +810,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     override fun onCleared() {
         voiceAssistant.cancel()
-        voskWake.stop()
+        voskWake.shutdown()
         announcer.shutdown()
         theme.stop()
         nav.shutdown()

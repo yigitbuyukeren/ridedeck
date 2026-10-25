@@ -1,6 +1,7 @@
 package com.ridedeck.app.data
 
 import android.content.Context
+import android.Manifest
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -15,6 +16,7 @@ import org.vosk.Recognizer
 import org.vosk.android.RecognitionListener
 import org.vosk.android.SpeechService
 import com.ridedeck.app.util.Prefs
+import com.ridedeck.app.util.hasPermission
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -305,17 +307,33 @@ class SelectableVoiceInput(
 }
 
 /** Vosk's streaming grammar narrows the always-on decoder to the wake phrase. */
-class VoskWakeWord(private val context: Context, private val models: VoskModelStore, private val onWake: () -> Unit) {
+class VoskWakeWord(
+    private val context: Context,
+    private val models: VoskModelStore,
+    private val onWake: () -> Unit,
+    private val canRun: () -> Boolean = { true },
+) {
     private val worker = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     @Volatile private var active = false
+    @Volatile private var closed = false
     @Volatile private var service: SpeechService? = null
     @Volatile private var session: AudioSessionManager.Token? = null
     @Volatile private var failures = 0
     @Volatile private var lastWakeAt = 0L
+    private val retry = CancellableRetry(
+        scheduler = RetryScheduler { delay, task ->
+            val callback = Runnable(task)
+            main.postDelayed(callback, delay)
+            RetryHandle { main.removeCallbacks(callback) }
+        },
+        allowed = { eligible() },
+        action = ::start,
+    )
 
     fun start() {
-        if (active || !models.isReady()) return
+        retry.cancel()
+        if (closed || active || !eligible()) return
         active = true
         lateinit var token: AudioSessionManager.Token
         token = AudioSessionManager.process.acquire(AudioSessionManager.Owner.VOSK_WAKE) { suspendSession(token) }
@@ -337,7 +355,7 @@ class VoskWakeWord(private val context: Context, private val models: VoskModelSt
                     override fun onError(exception: Exception?) { if (isCurrent(token)) restart(token) }
                     override fun onTimeout() { if (isCurrent(token)) restart(token) }
                 })
-            } catch (_: Exception) { if (isCurrent(token)) stop() }
+            } catch (_: Exception) { if (isCurrent(token)) restart(token) }
         }
     }
 
@@ -360,15 +378,31 @@ class VoskWakeWord(private val context: Context, private val models: VoskModelSt
         active = false
         stopSession(token)
         val delay = VoiceRetryBackoff.delay(++failures, RESTART_MS, MAX_RETRY_MS)
-        main.postDelayed(::start, delay)
+        retry.schedule(delay)
     }
 
     fun stop() {
+        retry.cancel()
         active = false
         session?.let(::stopSession)
     }
 
-    private fun isCurrent(token: AudioSessionManager.Token) = active && session == token && AudioSessionManager.process.isCurrent(token)
+    private fun eligible(): Boolean =
+        canRun() && context.hasPermission(Manifest.permission.RECORD_AUDIO) && models.isReady()
+
+    private fun isCurrent(token: AudioSessionManager.Token): Boolean {
+        if (!active || session != token || !AudioSessionManager.process.isCurrent(token)) return false
+        if (eligible()) return true
+        stopSession(token)
+        retry.cancel()
+        return false
+    }
+
+    fun shutdown() {
+        closed = true
+        stop()
+        worker.shutdownNow()
+    }
 
     private fun suspendSession(token: AudioSessionManager.Token) {
         if (session == token) stopSession(token)
