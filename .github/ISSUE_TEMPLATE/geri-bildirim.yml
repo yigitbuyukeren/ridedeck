@@ -1,0 +1,47 @@
+name: Geri bildirim / deneme raporu
+description: Denedin mi? Ne çalıştı, ne çalışmadı? Kısa bir not yeter.
+title: "Geri bildirim: "
+labels: [geri-bildirim]
+body:
+  - type: markdown
+    attributes:
+      value: "Kullanım deneyimini paylaştığın için teşekkürler. Lütfen kişisel veri, konum, fotoğraf veya sohbet içeriği paylaşma; gerekiyorsa örneği anonimleştir."
+  - type: input
+    attributes:
+      label: "Telefon modeli ve Android sürümü"
+      description: "Örn. Pixel 7, Android 15"
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: "RideDeck sürümü"
+      description: "Ayarlar veya sürüm sayfasından"
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: "Araç"
+      options:
+        - "Motosiklet"
+        - "Araba"
+        - "Bisiklet"
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: "Neyi denedin?"
+      description: "Navigasyon, sesli komut, SOS, telefon, müzik vb. Gerçek sürüşte mi, park halinde mi denedin?"
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: "Ne çalıştı, ne çalışmadı?"
+      description: "Beklenen ve gerçekleşen davranış. SOS veya kaza algılama için gerçek bir olay bildirmek zorunda değilsin; sadece test ettiysen yaz."
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: "Önerin var mı?"
+      description: "Hiçbir şey yazmasan da olur."
+    validations:
+      required: false
