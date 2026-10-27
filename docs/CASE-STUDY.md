@@ -101,6 +101,10 @@ Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sür�
 | Çevrimdışı harita yok (issue kapatıldı) | Büyük iş, doğrulanamaz; rotanın canlı hizmete bağlı olduğu açıkça yazıldı. |
 | OBD, bakım takibi, eğim, GPX çıkarıldı | Sürerken kullanılamayan veya doğrulanamayan özelliklerden kaçınmak; odak sürüş panelinde. |
 
+## Gerçek cihaz doğrulamaları
+
+`docs/STATUS.md` kayıtlarına göre debug ve R8'li release APK'ları bir fiziksel Android telefona kurulup denendi. Cihaz günlükleri, sürekli "Hey RideDeck" dinlemesinin neden bırakıldığını gösterdi (§5). Bu çalışmada telefon bağlı olmadığı için **yeni bir cihaz testi yapılmadı**; aşağıdaki "denenmedi" listesi güncel tutuluyor. Gerçek cihazla 60–90 sn'lik kayıt için hazır senaryo ve komutlar: [DEMO-SCENARIO.md](DEMO-SCENARIO.md). Henüz gerçek cihaz videosu yok.
+
 ## Doğrulama durumu
 
 **Doğrulandı (otomatik):** 396 birim test, `lintDebug`, debug ve R8 release derlemesi, CI. **Emülatörde görüldü:** ana ekranlar, araç seçimi, navigasyon, benzinlik, SOS geri sayımı, dik bisiklet düzeni, farklı yazı boyutları. README'deki ekran görüntüleri ve demo GIF'i emülatörden alınmıştır (sahte GPS ile); demo GIF bir ekran görüntüsü geçişidir, ekran kaydı değildir.
