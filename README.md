@@ -7,7 +7,7 @@
 
 <div align="center">
 
-**[⬇️ APK indir](https://github.com/yigitbuyukeren/ridedeck/releases/latest)** &nbsp;·&nbsp; **[🌐 Proje sayfası](https://yigitbuyukeren.com/ridedeck/)** &nbsp;·&nbsp; **[🧭 Özellikler](#-özellikler)** &nbsp;·&nbsp; **[🛠️ Derleme](#️-derleme)** &nbsp;·&nbsp; **[🤝 Katkı](CONTRIBUTING.md)**
+**[⬇️ APK indir](https://github.com/yigitbuyukeren/ridedeck/releases/latest)** &nbsp;·&nbsp; **[🌐 Proje sayfası](https://yigitbuyukeren.com/ridedeck/)** &nbsp;·&nbsp; **[📖 Teknik vaka analizi](docs/CASE-STUDY.md)** &nbsp;·&nbsp; **[🧭 Özellikler](#-özellikler)** &nbsp;·&nbsp; **[🛠️ Derleme](#️-derleme)** &nbsp;·&nbsp; **[🤝 Katkı](CONTRIBUTING.md)**
 
 [![Sürüm](https://img.shields.io/github/v/release/yigitbuyukeren/ridedeck?style=flat-square&labelColor=16150F&color=E8480C&label=s%C3%BCr%C3%BCm)](https://github.com/yigitbuyukeren/ridedeck/releases/latest)
 [![CI](https://img.shields.io/github/actions/workflow/status/yigitbuyukeren/ridedeck/ci.yml?style=flat-square&labelColor=16150F&color=E8480C&label=CI)](https://github.com/yigitbuyukeren/ridedeck/actions/workflows/ci.yml)
@@ -20,7 +20,7 @@
 
 </div>
 
-<p align="center"><img src="docs/screenshots/demo.gif" width="800" alt="RideDeck demosu: araç seçimi, ana panel, rota, sesli navigasyon, benzinlikler ve SOS geri sayımı ekranları sırayla"></p>
+<p align="center"><img src="docs/screenshots/demo.gif" width="800" alt="RideDeck demosu: araç seçimi, ana panel, rota, sesli navigasyon, benzinlikler ve SOS geri sayımı ekranları sırayla"><br><sub>Emülatörde, sahte GPS ile alınmış ekran görüntülerinin geçişi; ekran kaydı veya gerçek cihaz testi değildir.</sub></p>
 
 <details open>
 <summary><h2>🇹🇷 Türkçe</h2></summary>
@@ -36,6 +36,8 @@ Telefonu gidona veya torpido üstüne takınca **hız, harita, müzik ve telefon
 | Kapak kaydırma, uygulama içi rehber, tuş takımı ve arama ekranı | Yağmur, buzlanma ve rüzgâr uyarısı; telefon ısınınca ekran kısılır | Veriler telefonda kalır; yalnızca harita/yer sorguları çıkar, konuşma tanıma Android servisleriyle yapılır |
 
 ### 📸 Ekran görüntüleri
+
+Aşağıdakiler Android emülatöründen (Türkçe arayüz) alınmıştır.
 
 | İlk açılışta araç seçimi | Rota |
 |---|---|
@@ -132,6 +134,16 @@ Ayrıntılar için başlıklara dokun.
 
 </details>
 
+### 🚧 Bilinen sınırlamalar
+
+- **Sahada doğrulanmayanlar:** kaza algılama eşikleri (gerçek düşüşte denenmedi), gerçek SMS gönderimi, kask Bluetooth mikrofonu, gürültüde Türkçe tanıma kalitesi, varsayılan telefon uygulamasıyken arama ses yolu, gidonda ısınma ve mini harita pil etkisi, Android 8–10 davranışı. Güncel liste: [docs/STATUS.md](docs/STATUS.md).
+- Navigasyon ve hava durumu **internet gerektirir** (çevrimdışı harita/rota yok); genel servisler garantisizdir.
+- Sürekli "Hey RideDeck" dinlemesi yok; mikrofon düğmesi veya kask tuşu kullanılır. Sesli komutlar yalnızca Türkçe.
+- Canlı trafik, radar uyarısı, iOS ve Android Auto desteği yok.
+- SOS/kaza algılama yardımcı bir özelliktir, güvenlik garantisi değildir; yalnızca uygulama ekrandayken çalışır.
+
+📖 Tasarım kararları ve testler: [Teknik vaka analizi](docs/CASE-STUDY.md) · [English](docs/CASE-STUDY.en.md)
+
 ### 🛠️ Derleme
 
 ```bash
@@ -186,7 +198,7 @@ Issue ve PR'lar açık. Başlamak için [CONTRIBUTING.md](CONTRIBUTING.md) dosya
 | 🎵 **Music and phone** | 🌦️ **Alerts** | 🔒 **Privacy** |
 | Cover swipe, in-app contacts, dial pad and call screen | Rain, ice and wind alerts; the screen dims when the phone overheats | Data stays on the phone; public map queries leave it, and speech uses Android's recognition service |
 
-RideDeck is a free, open-source Android app (Kotlin, Jetpack Compose, minSdk 26) that turns a phone into a CarPlay-style landscape dashboard for motorcycles, cars and bicycles: GPS speedometer, voice-guided OpenStreetMap navigation, fuel/charging/repair stops, weather alerts, music, an in-app phone, a Turkish voice assistant and crash-detecting SOS. No accounts, API keys or RideDeck backend; navigation queries use free public map services and speech uses Android's recognizer. The UI has Turkish and English; voice commands are Turkish only. Build with `./gradlew assembleDebug` (JDK 17). Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
+RideDeck is a free, open-source Android app (Kotlin, Jetpack Compose, minSdk 26) that turns a phone into a CarPlay-style landscape dashboard for motorcycles, cars and bicycles: GPS speedometer, voice-guided OpenStreetMap navigation, fuel/charging/repair stops, weather alerts, music, an in-app phone, a Turkish voice assistant and crash-detecting SOS. No accounts, API keys or RideDeck backend; navigation queries use free public map services and speech uses Android's recognizer. The UI has Turkish and English; voice commands are Turkish only. Build with `./gradlew assembleDebug` (JDK 17). Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md). Technical write-up: [case study](docs/CASE-STUDY.en.md). Known limits: crash-detection thresholds, real SMS sending and the helmet microphone are not field-tested; screenshots and the demo GIF come from an emulator with simulated GPS; navigation needs a network connection; SOS is an aid, not a safety guarantee.
 Voice commands use Android's speech recognition service. Offline recognition depends on the Turkish speech pack supported by the device. Optional “Hey RideDeck” wake detection uses the bundled sherpa-onnx KWS model locally while RideDeck is in the foreground; the existing Android recognizer takes over after a match.
 
 </details>
