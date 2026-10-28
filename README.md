@@ -29,9 +29,9 @@ Telefonu gidona veya torpido üstüne takınca **hız, harita, müzik ve telefon
 
 ### ✨ Öne çıkanlar
 
-| 🧭 **Sesli navigasyon** | 🎙️ **Türkçe sesli asistan** | 🆘 **SOS ve kaza algılama** |
+| 🧭 **Sesli yönlendirme** | 📞 **Telefon ve müzik** | 🆘 **SOS ve kaza algılama** |
 |:---:|:---:|:---:|
-| OpenStreetMap haritası, motosiklet / araba / bisiklet rotası, ara durak, benzinlik ve şarj | "Eve git", "Ali'yi ara", "son mesajı oku"; kask mikrofonu desteği | Sert darbe ve hareketsizlikte geri sayım, sonra konum linkli tek SMS |
+| OpenStreetMap haritası, motosiklet / araba / bisiklet rotası, ara durak, benzinlik ve şarj | Uygulama içi telefon (son aramalar, rehber, tuş takımı), müzik kontrolü, mesajları sesli okuma | Sert darbe ve hareketsizlikte geri sayım, sonra konum linkli tek SMS |
 | 🎵 **Müzik ve telefon** | 🌦️ **Uyarılar** | 🔒 **Gizlilik** |
 | Kapak kaydırma, uygulama içi rehber, tuş takımı ve arama ekranı | Yağmur, buzlanma ve rüzgâr uyarısı; telefon ısınınca ekran kısılır | Veriler telefonda kalır; yalnızca harita/yer sorguları çıkar, konuşma tanıma Android servisleriyle yapılır |
 
@@ -95,7 +95,7 @@ Ayrıntılar için başlıklara dokun.
 - Duraklar (benzinlik, şarj, tamirci, su): yakınında veya rotanın üzerinde; navigasyon sırasında tek dokunuşla **ara durak** ekle, varınca "Yola devam"
 - Yolun hız limiti ve aşınca sesli uyarı
 - Sürerken arama kutusu ve Ayarlar kilitlenir (sürüş kuralı: hareket halindeyken yazı girişi ve ayar değişikliği yok); hedefi kayıtlı yerlerden veya haritaya uzun basarak seç
-- Yazım hatası toleransı: sonuç çıkmazsa düzeltilmiş yazımlar (Türkçe harfler, eksik veya yer değiştirmiş harf) en çok üç kez, saniyede en fazla bir istekle denenir; yine bulunamazsa "Bunu mu demek istedin?" önerisi gelir. Önerilen yer sormadan rotaya girmez; sesli komutta da evet/hayır sorulur. Seçtiğin son hedefler yalnızca telefonda tutulur (Ayarlar > Sürüş'ten kapatılır, "Geçmişi sil" ile silinir)
+- Yazım hatası toleransı: sonuç çıkmazsa düzeltilmiş yazımlar (Türkçe harfler, eksik veya yer değiştirmiş harf) en çok üç kez, saniyede en fazla bir istekle denenir; yine bulunamazsa "Bunu mu demek istedin?" önerisi gelir. Önerilen yer sormadan rotaya girmez;. Seçtiğin son hedefler yalnızca telefonda tutulur (Ayarlar > Sürüş'ten kapatılır, "Geçmişi sil" ile silinir)
 - Navigasyon sürerken ana ekranda canlı mini harita, sıradaki dönüş, kalan mesafe ve varış saati
 - Arama kutusu için uygulamanın kendi Türkçe klavyesi
 
@@ -107,8 +107,6 @@ Ayrıntılar için başlıklara dokun.
 - Uygulama rafı (dock'taki son karo): mesajlaşma, video veya istediğin uygulamayı sabitle, büyük karolarla tek dokunuşla başlat; ekleme ve sıralama sürerken kilitli; Ayarlar rafın sağ üstündeki dişli düğmesinden açılır
 - Ana ekran kartları ayarlanır (Ayarlar > Sürüş): harita, müzik, uygulama kartı (sabitlediğin uygulamalar tek sırada) veya boş
 - Rota kartında "Navigasyon uygulamasında aç" (Google Haritalar, Waze, Yandex Navi derin bağlantıları, yalnızca dururken); rota hâlâ RideDeck'te hesaplanır, canlı trafik isteyen bu uygulamalara geçer
-- Sesle komut (Türkçe, yaklaşık 130 kalıp): mikrofon düğmesi (navigasyon kartı, harita arama kutusu), Bluetooth kaskın sesli komut düğmesi veya sistem "asistan" hareketi dinlemeyi başlatır; bip ve titreşim başlangıcı ve bitişi bildirir. Hedefe git, eve/işe/park yerine git, en yakın benzinlik/kafe/eczane/hastane/ATM, kalan süre ve varış saati, sıradaki dönüş, otoyolsuz/ücretsiz yol, burayı kaydet; "Ali'yi ara" (birden çok Ali varsa "hangisi?" diye sorar, 3 sn geri sayım), son arananı/cevapsızı ara, gelen aramada cevapla/reddet/sessize al/hoparlör; son mesajı oku, "cevap yaz" (ne yazacağını sorar, göndermeden önce sesli onay ister); müzik, ada göre çalma, ses seviyesi yüzdesi; hava, saat, pil, hız, hız sınırı; uygulama aç, gece/gündüz, mil/km. Aynı cümlede en çok dört komut art arda verilebilir. "Ne diyebilirim?" ekranı tüm komutları listeler. Komutlar Android'in konuşma tanıyıcısıyla tanınır; çevrimdışı Türkçe paketi telefona göre indirilebilir, ses tanıma hizmetinin veri politikası cihaza bağlıdır. Sesli yanıt ve kask mikrofonu Ayarlar > Sürüş'ten kapatılır. Sürekli "Hey RideDeck" uyandırması şu an kullanılamıyor; manuel mikrofon ve kask tuşuyla başlatma kullanılabilir.
-- Sesli asistan ayarları (Ayarlar > Sürüş): Android tanıyıcısı, sesli yanıt, kask mikrofonu, komut geçmişi (son 10 komutun metni), kask tuşuna çift basış ve isteğe bağlı "Hey RideDeck" çevrimdışı uyandırması. Uyandırma, sherpa-onnx KWS ve uygulamayla gelen yerel modelle yalnızca ekran açıkken çalışır; algılamadan sonra mevcut Android konuşma tanıyıcısı komut için devralır. Ayarlar > Kurulum'dan RideDeck varsayılan dijital asistan seçilebilir (kaskın sesli komut düğmesi için) ve çevrimdışı Türkçe tanıma paketi indirilebilir. Komutlara ayrıca başka rota, yolda kafe/eczane gibi ara durak, yolculuk özeti, ekran parlaklığı ve sesli hava uyarısını kapatma eklendi; belirsiz duyulan komut "şunu mu dedin?" diye sorulur
 - Mil ve mph ayarı (Ayarlar > Sürüş): hız, mesafe, hız limiti ve rota sesleri
 - Mesaj uygulamalarını tek tek sessize alma (Ayarlar'da görülen uygulamalar için anahtar)
 
@@ -136,9 +134,8 @@ Ayrıntılar için başlıklara dokun.
 
 ### 🚧 Bilinen sınırlamalar
 
-- **Sahada doğrulanmayanlar:** kaza algılama eşikleri (gerçek düşüşte denenmedi), gerçek SMS gönderimi, kask Bluetooth mikrofonu, gürültüde Türkçe tanıma kalitesi, varsayılan telefon uygulamasıyken arama ses yolu, gidonda ısınma ve mini harita pil etkisi, Android 8–10 davranışı. Güncel liste: [docs/STATUS.md](docs/STATUS.md).
+- **Sahada doğrulanmayanlar:** kaza algılama eşikleri (gerçek düşüşte denenmedi), gerçek SMS gönderimi, varsayılan telefon uygulamasıyken arama ses yolu, gidonda ısınma ve mini harita pil etkisi, Android 8–10 davranışı. Güncel liste: [docs/STATUS.md](docs/STATUS.md).
 - Navigasyon ve hava durumu **internet gerektirir** (çevrimdışı harita/rota yok); genel servisler garantisizdir.
-- Sürekli "Hey RideDeck" dinlemesi yok; mikrofon düğmesi veya kask tuşu kullanılır. Sesli komutlar yalnızca Türkçe.
 - Canlı trafik, radar uyarısı, iOS ve Android Auto desteği yok.
 - SOS/kaza algılama yardımcı bir özelliktir, güvenlik garantisi değildir; yalnızca uygulama ekrandayken çalışır.
 
@@ -159,7 +156,7 @@ Sürüm APK'sı (R8 ile küçültülmüş, ~24 MB): kök dizine `keystore.proper
 
 Hesap ve sunucu yok; veriler telefonda kalır. Dışarı giden tek şey, aşağıdaki genel servislere giden sorgulardır: arama metni (Nominatim, yalnızca Ara'ya basınca), rota uç noktaları ve hız limiti için son konum noktaları (Valhalla), yaklaşık konum (hava durumu için 1 km hassasiyetle, Open-Meteo), çevre veya rota boyunca benzinlik sorgusu (Nominatim / Overpass).
 
-SOS yalnızca sen açarsan çalışır ve `SEND_SMS` izni ister; kişiler telefonun kişi seçicisinden eklenir (rehber izni gerekmez). Sesle komut için mikrofon izni ilk kullanımda ekrandaki düğmeyle istenir; ses tanıma Android'in kendi tanıyıcısıyla yapılır. Kaza algılama yalnızca uygulama ekrandayken çalışır; Android arka plandaki sensörleri kısıtlar. Operatörün SMS ücreti uygulanabilir. Bu özellik bir güvenlik garantisi değildir.
+SOS yalnızca sen açarsan çalışır ve `SEND_SMS` izni ister; kişiler telefonun kişi seçicisinden eklenir (rehber izni gerekmez). Kaza algılama yalnızca uygulama ekrandayken çalışır; Android arka plandaki sensörleri kısıtlar. Operatörün SMS ücreti uygulanabilir. Bu özellik bir güvenlik garantisi değildir.
 
 ### ⚠️ Güvenlik notu
 
@@ -192,13 +189,12 @@ Issue ve PR'lar açık; RideDeck'i denediysen [geri bildirim formunu](https://gi
 <details>
 <summary><h2>🇬🇧 English</h2></summary>
 
-| 🧭 **Voice navigation** | 🎙️ **Turkish voice assistant** | 🆘 **SOS and crash detection** |
+| 🧭 **Voice guidance** | 📞 **Phone and music** | 🆘 **SOS and crash detection** |
 |:---:|:---:|:---:|
-| OpenStreetMap, motorcycle / car / bicycle routing, waypoints, fuel and charging stops | "Go home", "Call Ali", "read the last message"; helmet mic support | Countdown after a hard impact and no movement, then a single SMS with your location |
+| OpenStreetMap, motorcycle / car / bicycle routing, waypoints, fuel and charging stops | In-app phone (recents, contacts, keypad), music control, messages read aloud | Countdown after a hard impact and no movement, then a single SMS with your location |
 | 🎵 **Music and phone** | 🌦️ **Alerts** | 🔒 **Privacy** |
 | Cover swipe, in-app contacts, dial pad and call screen | Rain, ice and wind alerts; the screen dims when the phone overheats | Data stays on the phone; public map queries leave it, and speech uses Android's recognition service |
 
-RideDeck is a free, open-source Android app (Kotlin, Jetpack Compose, minSdk 26) that turns a phone into a CarPlay-style landscape dashboard for motorcycles, cars and bicycles: GPS speedometer, voice-guided OpenStreetMap navigation, fuel/charging/repair stops, weather alerts, music, an in-app phone, a Turkish voice assistant and crash-detecting SOS. No accounts, API keys or RideDeck backend; navigation queries use free public map services and speech uses Android's recognizer. The UI has Turkish and English; voice commands are Turkish only. Build with `./gradlew assembleDebug` (JDK 17). Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md). Technical write-up: [case study](docs/CASE-STUDY.en.md). Known limits: crash-detection thresholds, real SMS sending and the helmet microphone are not field-tested; screenshots and the demo GIF come from an emulator with simulated GPS; navigation needs a network connection; SOS is an aid, not a safety guarantee.
-Voice commands use Android's speech recognition service. Offline recognition depends on the Turkish speech pack supported by the device. Optional “Hey RideDeck” wake detection uses the bundled sherpa-onnx KWS model locally while RideDeck is in the foreground; the existing Android recognizer takes over after a match.
+RideDeck is a free, open-source Android app (Kotlin, Jetpack Compose, minSdk 26) that turns a phone into a CarPlay-style landscape dashboard for motorcycles, cars and bicycles: GPS speedometer, voice-guided OpenStreetMap navigation, fuel/charging/repair stops, weather alerts, music, an in-app phone and crash-detecting SOS. No accounts, API keys or RideDeck backend; navigation queries use free public map services. The UI has Turkish and English. Build with `./gradlew assembleDebug` (JDK 17). Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md). Technical write-up: [case study](docs/CASE-STUDY.en.md). Known limits: crash-detection thresholds and real SMS sending are not field-tested; screenshots and the demo GIF come from an emulator with simulated GPS; navigation needs a network connection; SOS is an aid, not a safety guarantee.
 
 </details>

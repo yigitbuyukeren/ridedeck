@@ -1,9 +1,0 @@
-Model: sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01 (INT8)
-Source: https://github.com/k2-fsa/sherpa-onnx
-Model card: https://k2-fsa.github.io/sherpa/onnx/kws/pretrained_models/
-License: Apache License 2.0
-
-The English GigaSpeech Zipformer KWS model runs locally through sherpa-onnx.
-The custom keyword file encodes “HEY RIDEDECK” and “HEY RIDE DECK” with the
-model's BPE vocabulary. Wake-word and speech accuracy depends on microphone,
-accent, noise, and device conditions.

@@ -57,15 +57,10 @@ android {
 
     packaging {
         jniLibs.useLegacyPackaging = true
-        jniLibs.excludes += setOf("**/libsherpa-onnx-c-api.so", "**/libsherpa-onnx-cxx-api.so")
     }
 }
 
 dependencies {
-    implementation("com.github.k2-fsa:sherpa-onnx:v1.13.8") {
-        // The Android AAR already contains the Kotlin API; the umbrella JitPack POM also exposes a JVM jar.
-        exclude(group = "com.github.k2-fsa.sherpa-onnx", module = "sherpa-onnx-jvm")
-    }
     implementation(platform("androidx.compose:compose-bom:2025.06.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")

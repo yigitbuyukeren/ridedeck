@@ -92,7 +92,6 @@ fun NowPlayingScreen(
     state: MediaState,
     media: MediaRepository,
     onGrantAccess: () -> Unit,
-    onMic: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalMotoPalette.current
@@ -158,7 +157,6 @@ fun NowPlayingScreen(
                 }
             }
         }
-        MicButton(onMic, Modifier.align(Alignment.TopEnd).padding(14.dp), size = 56.dp)
     }
 }
 

@@ -8,7 +8,7 @@ import com.ridedeck.app.util.Prefs
 class RideDeckApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        Prefs.migrateLegacyVoskEngine(this)
+        Prefs.removeVoiceAssistantData(this)
         if (!LegacyVoskDataMigration.removeArtifacts(filesDir, cacheDir)) {
             Log.w("RideDeck", "Could not remove all retired speech model files; will retry next launch")
         }

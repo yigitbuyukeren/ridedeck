@@ -13,26 +13,11 @@ import com.ridedeck.app.util.Prefs
 
 /** Anything that can say a sentence out loud; lets the navigation logic run in plain unit tests. */
 interface Speaker {
-    fun formatResponse(text: String, kind: VoiceResponseKind = VoiceResponseKind.SUCCESS): String = text
     fun setSpeechRate(rate: Float) {}
     fun speak(text: String)
-
-    /** Says [text] after whatever is being said (a turn-by-turn prompt is never cut off by it). */
-    fun speakQueued(text: String) = speak(text)
-
-    /** Says [text] after whatever is being said, then calls [then] (at once when there is nothing to say). */
-    fun speakThen(text: String, then: () -> Unit) {
-        speakQueued(text)
-        then()
-    }
-
     fun stop()
     fun shutdown()
 }
-
-enum class VoiceResponseMode { MINIMAL, NORMAL, DETAILED }
-enum class VoiceResponseKind { SUCCESS, INFORMATION, PARTIAL, ERROR, ACTION }
-data class VoiceActionResponse(val message: String, val kind: VoiceResponseKind = VoiceResponseKind.SUCCESS)
 
 data class TurkishTtsVoice(val name: String, val language: String, val requiresNetwork: Boolean)
 data class TurkishTtsStartupPlan(val ready: Boolean, val voices: List<TurkishTtsVoice>, val selected: TurkishTtsVoice?)
@@ -50,30 +35,6 @@ object TurkishTtsVoicePolicy {
         val available = voices.filter { it.language.equals("tr", ignoreCase = true) }.distinctBy { it.name }.sortedBy { it.name }
         return TurkishTtsStartupPlan(ready = true, voices = available, selected = choose(preferredName, available))
     }
-}
-
-object TtsContinuationPolicy {
-    fun <T> transferAfterFlush(callbacks: List<Pair<Long, T>>): T? =
-        callbacks.maxByOrNull { it.first }?.second
-}
-
-object VoiceResponseFormatter {
-    fun format(
-        message: String,
-        mode: VoiceResponseMode,
-        kind: VoiceResponseKind = VoiceResponseKind.SUCCESS,
-    ): String = when (mode) {
-        // A short action acknowledgement is fine; facts and answers must keep their useful content.
-        VoiceResponseMode.MINIMAL -> when (kind) {
-            VoiceResponseKind.SUCCESS, VoiceResponseKind.ACTION -> "Tamam."
-            VoiceResponseKind.INFORMATION, VoiceResponseKind.PARTIAL, VoiceResponseKind.ERROR -> firstSentence(message)
-        }
-        VoiceResponseMode.NORMAL -> firstSentence(message)
-        VoiceResponseMode.DETAILED -> message
-    }
-
-    private fun firstSentence(message: String): String =
-        message.trim().split(Regex("(?<=[.!?])\\s+")).firstOrNull().orEmpty().ifBlank { message }
 }
 
 /** Turn-by-turn announcements that duck the music while speaking. */
@@ -108,7 +69,6 @@ class Voice(context: Context, private val onTurkishVoices: (List<String>) -> Uni
         val progressListener = object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) {}
             override fun onDone(utteranceId: String?) = finished(utteranceId)
-            // A navigation prompt may cut a queued sentence off; its follow-up must still run.
             override fun onStop(utteranceId: String?, interrupted: Boolean) = finished(utteranceId)
             @Deprecated("Deprecated in Java")
             override fun onError(utteranceId: String?) = finished(utteranceId)
@@ -157,95 +117,32 @@ class Voice(context: Context, private val onTurkishVoices: (List<String>) -> Uni
         return runCatching { tts.voice = voice; true }.getOrDefault(false)
     }
 
-    private val thenCallbacks = java.util.concurrent.ConcurrentHashMap<String, () -> Unit>()
-    private val utteranceSessions = java.util.concurrent.ConcurrentHashMap<String, AudioSessionManager.Token>()
-    private var thenCounter = 0
-    private var speechSession: AudioSessionManager.Token? = null
+    /** Utterances handed to the engine and not yet finished; audio focus is held while any remain. */
+    private val pending = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private var counter = 0
 
     private fun onMain(block: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) block() else mainHandler.post { block() }
     }
 
-    private fun acquireSpeechSession(): AudioSessionManager.Token {
-        speechSession?.takeIf(AudioSessionManager.process::isCurrent)?.let { return it }
-        speechSession?.let(::revokeSpeechSessionOnMain)
-        lateinit var token: AudioSessionManager.Token
-        token = AudioSessionManager.process.acquire(AudioSessionManager.Owner.TTS) { revokeSpeechSession(token) }
-        speechSession = token
-        runCatching { audio.requestAudioFocus(focusRequest) }
-        return token
-    }
-
-    private fun revokeSpeechSession(token: AudioSessionManager.Token) {
-        // A competing audio owner can revoke on another thread; decide against the main-thread maps.
-        onMain { if (!closed) revokeSpeechSessionOnMain(token) }
-    }
-
-    private fun revokeSpeechSessionOnMain(token: AudioSessionManager.Token) {
-        if (speechSession != token) return
-        speechSession = null
-        utteranceSessions.entries.removeAll { it.value == token }
-        thenCallbacks.clear()
-        if (ready) runCatching { tts.stop() }
-        runCatching { audio.abandonAudioFocusRequest(focusRequest) }
-    }
-
-    private fun trackUtterance(id: String) { utteranceSessions[id] = acquireSpeechSession() }
-
-    private fun submit(id: String, text: String, queueMode: Int) {
-        val status = runCatching { tts.speak(text, queueMode, null, id) }.getOrDefault(TextToSpeech.ERROR)
-        if (status != TextToSpeech.SUCCESS) finished(id)
-    }
-
     override fun speak(text: String) {
         if (Looper.myLooper() != Looper.getMainLooper()) { mainHandler.post { speak(text) }; return }
         if (!ready || closed || text.isBlank()) return
-        speechSession?.takeUnless(AudioSessionManager.process::isCurrent)?.let(::revokeSpeechSessionOnMain)
-        // Move the active follow-up onto the interrupting navigation prompt. If the old queued
-        // answer is flushed, its continuation must wait until this higher-priority utterance ends.
-        val continuation = TtsContinuationPolicy.transferAfterFlush(
-            thenCallbacks.entries.mapNotNull { (id, callback) ->
-                id.substringAfterLast('-').toLongOrNull()?.let { it to callback }
-            },
-        )
-        utteranceSessions.clear()
-        thenCallbacks.clear()
-        val id = "speech-${thenCounter++}"
-        trackUtterance(id)
-        continuation?.let { thenCallbacks[id] = it }
-        submit(id, text, TextToSpeech.QUEUE_FLUSH)
-    }
-
-    override fun speakQueued(text: String) {
-        if (Looper.myLooper() != Looper.getMainLooper()) { mainHandler.post { speakQueued(text) }; return }
-        if (!ready || closed || text.isBlank()) return
-        val id = "queued-${thenCounter++}"
-        trackUtterance(id)
-        submit(id, text, TextToSpeech.QUEUE_ADD)
-    }
-
-    override fun speakThen(text: String, then: () -> Unit) {
-        if (Looper.myLooper() != Looper.getMainLooper()) { mainHandler.post { speakThen(text, then) }; return }
-        if (closed) return
-        if (!ready || text.isBlank()) { then(); return }
-        val id = "then-${thenCounter++}"
-        trackUtterance(id)
-        thenCallbacks[id] = then
-        submit(id, text, TextToSpeech.QUEUE_ADD)
+        // QUEUE_FLUSH cuts the previous prompt off: its completion callback no longer matters.
+        pending.clear()
+        val id = "speech-${counter++}"
+        pending.add(id)
+        runCatching { audio.requestAudioFocus(focusRequest) }
+        val status = runCatching { tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, id) }.getOrDefault(TextToSpeech.ERROR)
+        if (status != TextToSpeech.SUCCESS) finished(id)
     }
 
     private fun finished(id: String?) {
-        // TTS reports completion on a binder thread; release only after checking the maps on main.
-        onMain { if (!closed) finishedOnMain(id) }
-    }
-
-    private fun finishedOnMain(id: String?) {
-        val token = id?.let(utteranceSessions::remove) ?: return
-        id.let(thenCallbacks::remove)?.let { callback -> mainHandler.post { if (!closed) callback() } }
-        if (utteranceSessions.values.none { it == token } && speechSession == token) {
-            speechSession = null
-            runCatching { audio.abandonAudioFocusRequest(focusRequest) }
-            AudioSessionManager.process.release(token)
+        // TTS reports completion on a binder thread; settle the bookkeeping on main.
+        onMain {
+            if (!closed && id != null && pending.remove(id) && pending.isEmpty()) {
+                runCatching { audio.abandonAudioFocusRequest(focusRequest) }
+            }
         }
     }
 
@@ -254,13 +151,9 @@ class Voice(context: Context, private val onTurkishVoices: (List<String>) -> Uni
     }
 
     private fun stopOnMain() {
-        utteranceSessions.clear()
-        thenCallbacks.clear()
+        pending.clear()
         if (ready) runCatching { tts.stop() }
-        val token = speechSession
-        speechSession = null
         runCatching { audio.abandonAudioFocusRequest(focusRequest) }
-        token?.let(AudioSessionManager.process::release)
     }
 
     override fun shutdown() {

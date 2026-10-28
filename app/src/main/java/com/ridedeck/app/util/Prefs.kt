@@ -6,7 +6,6 @@ import com.ridedeck.app.data.BikeType
 import com.ridedeck.app.data.RouteOptions
 import com.ridedeck.app.data.ThemeMode
 import com.ridedeck.app.data.VehicleProfile
-import com.ridedeck.app.data.ProactiveKind
 
 object Prefs {
     private const val FILE = "ridedeck"
@@ -34,19 +33,6 @@ object Prefs {
     private const val KEY_MILES = "units_miles"
     private const val KEY_PINNED_APPS = "pinned_apps"
     private const val KEY_DASH_SLOTS = "dash_slots"
-    private const val KEY_VOICE_REPLIES = "voice_replies"
-    private const val KEY_VOICE_HISTORY = "voice_history"
-    private const val KEY_VOICE_WAKE = "voice_wake"
-    private const val KEY_LEGACY_WAKE_MIGRATED = "legacy_speech_wake_migrated"
-    private const val KEY_VOICE_BUTTON = "voice_button"
-    private const val KEY_VOICE_HISTORY_ON = "voice_history_on"
-    private const val KEY_VOICE_HELMET_MIC = "voice_helmet_mic"
-    private const val KEY_NICKNAMES = "voice_nicknames"
-    private const val KEY_VOICE_PROACTIVE = "voice_proactive"
-    private const val KEY_VOICE_CONTINUOUS = "voice_continuous"
-    private const val KEY_VOICE_MISSES = "voice_misses"
-    private const val KEY_VOICE_ENGINE = "voice_engine"
-    private const val KEY_VOICE_ROUTINES = "voice_routines"
     private const val KEY_SETTINGS_HINT = "settings_hint_count"
     private const val KEY_MESSAGE_APPS_SEEN = "message_apps_seen"
     private const val KEY_MESSAGE_APPS_MUTED = "message_apps_muted"
@@ -57,45 +43,6 @@ object Prefs {
 
     fun setSettingsHintCount(context: Context, n: Int) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putInt(KEY_SETTINGS_HINT, n).apply()
-    }
-
-    /** Nickname -> contact (JSON), see `Nicknames`. */
-    fun nicknames(context: Context): String? =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_NICKNAMES, null)
-
-    fun setNicknames(context: Context, json: String) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(KEY_NICKNAMES, json).apply()
-    }
-
-    /** The assistant may bring things up by itself (rain, low battery, arrival, a break). Off until the rider turns it on. */
-    fun voiceProactive(context: Context): Boolean =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_VOICE_PROACTIVE, false)
-
-    fun setVoiceProactive(context: Context, on: Boolean) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_VOICE_PROACTIVE, on).apply()
-    }
-
-    fun voiceProactiveKind(context: Context, kind: ProactiveKind): Boolean =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean("voice_proactive_${kind.name.lowercase()}", true)
-
-    fun setVoiceProactiveKind(context: Context, kind: ProactiveKind, on: Boolean) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { putBoolean("voice_proactive_${kind.name.lowercase()}", on) }
-    }
-
-    /** After an answer the assistant listens once more, quietly. */
-    fun voiceContinuous(context: Context): Boolean =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_VOICE_CONTINUOUS, true)
-
-    fun setVoiceContinuous(context: Context, on: Boolean) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_VOICE_CONTINUOUS, on).apply()
-    }
-
-    /** Sentences that were not understood (text only), newest first, for the export in Settings. */
-    fun voiceMisses(context: Context): String? =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_VOICE_MISSES, null)
-
-    fun setVoiceMisses(context: Context, json: String) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(KEY_VOICE_MISSES, json).apply()
     }
 
     fun pinnedApps(context: Context): String? =
@@ -128,96 +75,10 @@ object Prefs {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(KEY_DASH_SLOTS, value).apply()
     }
 
-    /** Spoken answers from the voice assistant (on by default). */
-    fun voiceReplies(context: Context): Boolean =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_VOICE_REPLIES, true)
-
-    fun setVoiceReplies(context: Context, on: Boolean) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_VOICE_REPLIES, on).apply()
-    }
-
-    /** Local sherpa-onnx wake-word preference. */
-    fun voiceWake(context: Context): Boolean =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_VOICE_WAKE, false)
-
-    fun setVoiceWake(context: Context, on: Boolean) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_VOICE_WAKE, on).apply()
-    }
-
-    /** Retires the old SpeechRecognizer loop once, without clearing the sherpa KWS choice on later launches. */
-    fun migrateLegacyVoiceWake(context: Context) {
-        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-        if (!prefs.getBoolean(KEY_LEGACY_WAKE_MIGRATED, false)) {
-            prefs.edit {
-                putBoolean(KEY_VOICE_WAKE, false)
-                putBoolean(KEY_LEGACY_WAKE_MIGRATED, true)
-            }
-        }
-    }
-
-    /** Converts the retired Vosk choice to Android STT while preserving every other preference. */
-    fun migrateLegacyVoskEngine(context: Context) {
-        val preferences = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-        val previous = preferences.getString(KEY_VOICE_ENGINE, null)
-        val migrated = LegacyVoskDataMigration.androidEngine(previous)
-        if (migrated != previous) {
-            preferences.edit().putString(KEY_VOICE_ENGINE, migrated).commit()
-        }
-    }
-
-    fun voiceRoutines(context: Context): String? =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_VOICE_ROUTINES, null)
-
-    fun setVoiceRoutines(context: Context, json: String) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { putString(KEY_VOICE_ROUTINES, json) }
-    }
-
-    fun routineSnapshot(context: Context): String? =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("voice_routine_snapshot", null)
-
-    fun setRoutineSnapshot(context: Context, json: String?) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit {
-            if (json == null) remove("voice_routine_snapshot") else putString("voice_routine_snapshot", json)
-        }
-    }
-
-    fun voiceResponseMode(context: Context): String = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("voice_response_mode", "NORMAL") ?: "NORMAL"
-    fun setVoiceResponseMode(context: Context, mode: String) { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { putString("voice_response_mode", mode) } }
     fun voiceSpeechRate(context: Context): Float = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getFloat("voice_speech_rate", 1f).coerceIn(0.75f, 1.25f)
     fun setVoiceSpeechRate(context: Context, rate: Float) { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { putFloat("voice_speech_rate", rate.coerceIn(0.75f, 1.25f)) } }
     fun voiceTtsName(context: Context): String? = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("voice_tts_name", null)
     fun setVoiceTtsName(context: Context, name: String?) { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { if (name == null) remove("voice_tts_name") else putString("voice_tts_name", name) } }
-
-    /** Double press of a headset's play/pause key starts the voice assistant (off by default). */
-    fun voiceButton(context: Context): Boolean =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_VOICE_BUTTON, false)
-
-    fun setVoiceButton(context: Context, on: Boolean) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_VOICE_BUTTON, on).apply()
-    }
-
-    fun voiceHistory(context: Context): String? =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_VOICE_HISTORY, null)
-
-    fun setVoiceHistory(context: Context, json: String) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(KEY_VOICE_HISTORY, json).apply()
-    }
-
-    /** Keep the last ten spoken commands as text (on by default; nothing is sent anywhere). */
-    fun voiceHistoryOn(context: Context): Boolean =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_VOICE_HISTORY_ON, true)
-
-    fun setVoiceHistoryOn(context: Context, on: Boolean) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_VOICE_HISTORY_ON, on).apply()
-    }
-
-    /** Listen through a connected Bluetooth helmet microphone (on by default). */
-    fun voiceHelmetMic(context: Context): Boolean =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_VOICE_HELMET_MIC, true)
-
-    fun setVoiceHelmetMic(context: Context, on: Boolean) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_VOICE_HELMET_MIC, on).apply()
-    }
 
     fun milesUnit(context: Context): Boolean =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_MILES, false)
@@ -383,4 +244,14 @@ object Prefs {
             .putString(KEY_BIKE_TYPE, options.bikeType.name).apply()
     }
 
+    /** Older builds had a voice assistant; forget everything it stored (transcripts, nicknames, routines, switches). */
+    fun removeVoiceAssistantData(context: Context) {
+        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val stale = prefs.all.keys.filter { key ->
+            key.startsWith("voice_") && key !in KEEP_VOICE_KEYS || key == "legacy_speech_wake_migrated"
+        }
+        if (stale.isNotEmpty()) prefs.edit { stale.forEach(::remove) }
+    }
+
+    private val KEEP_VOICE_KEYS = setOf("voice_speech_rate", "voice_tts_name")
 }

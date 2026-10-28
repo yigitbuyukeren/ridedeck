@@ -137,108 +137,6 @@ class NavigationControllerTest {
     }
 
     @Test
-    fun voiceDestinationWaitsForRoutingFailureInsteadOfReportingSelectionAsSuccess() = runBlocking {
-        routing.searchResults = listOf(dest)
-        routing.routeHandler = { _, _ -> Result.failure(IllegalStateException("offline")) }
-
-        assertFalse(nav.goToFirstMatch(listOf("evim")))
-        assertNull(nav.ui.value.route)
-        assertFalse(nav.ui.value.loading)
-        assertEquals("t${com.ridedeck.app.R.string.route_failed}", nav.ui.value.error)
-    }
-
-    @Test
-    fun voiceDestinationTimeoutIsFailureAndNotARoutePreview() = runBlocking {
-        nav.shutdown()
-        nav = NavigationController(text, scope, location, speaker, routing, fuel, routeTimeoutMs = 15)
-        routing.searchResults = listOf(dest)
-        routing.routeHandler = { _, _ -> delay(200); Result.success(straightRoute()) }
-
-        assertFalse(nav.goToFirstMatch(listOf("evim")))
-        assertNull(nav.ui.value.route)
-        assertFalse(nav.ui.value.loading)
-    }
-
-    @Test
-    fun aLateVoiceRouteCannotReplaceANewerDestination() = runBlocking {
-        val slow = CompletableDeferred<Result<Route>>()
-        val newer = Place("New", "", GeoPoint(41.03, 29.0))
-        routing.routeHandler = { _, to ->
-            if (to == dest.point) slow.await() else Result.success(straightRoute(to))
-        }
-        val oldRequest = async(start = CoroutineStart.UNDISPATCHED) { nav.selectPlaceAndRoute(dest) }
-        nav.selectPlace(newer)
-        assertEquals(newer, nav.ui.value.destination)
-        assertTrue(nav.ui.value.route != null)
-        slow.complete(Result.success(straightRoute()))
-        assertFalse(oldRequest.await())
-        assertEquals(newer, nav.ui.value.destination)
-        assertEquals(newer.point, nav.ui.value.route?.shape?.firstOrNull())
-    }
-
-    @Test
-    fun cancelledVoiceRouteClearsPendingStateAndNeverReportsCompletion() = runBlocking {
-        val gate = CompletableDeferred<Result<Route>>()
-        routing.routeHandler = { _, _ -> gate.await() }
-        val request = launch(start = CoroutineStart.UNDISPATCHED) { nav.selectPlaceAndRoute(dest) }
-        assertTrue(nav.ui.value.loading)
-
-        request.cancelAndJoin()
-
-        assertFalse(nav.ui.value.loading)
-        assertNull(nav.ui.value.destination)
-        assertNull(nav.ui.value.route)
-    }
-
-    @Test
-    fun stoppingNavigationWhileVoiceSearchIsPendingPreventsLateRouteStart() = runBlocking {
-        val gate = CompletableDeferred<Result<List<Place>>>()
-        routing.searchHandler = { gate.await() }
-        val search = async(start = CoroutineStart.UNDISPATCHED) { nav.goToFirstMatch(listOf("ev")) }
-        nav.stopNavigation()
-        gate.complete(Result.success(listOf(dest)))
-
-        assertFalse(search.await())
-        assertNull(nav.ui.value.destination)
-        assertNull(nav.ui.value.route)
-    }
-
-    @Test
-    fun failedFuelStopRouteKeepsTheExistingDestinationAndReturnsNoSelection() = runBlocking {
-        nav.selectPlace(dest)
-        nav.searchFuelForVoice()
-        routing.routeHandler = { _, _ -> Result.failure(IllegalStateException("offline")) }
-
-        assertNull(nav.selectFuelVoiceResult(0))
-        assertEquals(dest, nav.ui.value.destination)
-        assertNotNull(nav.ui.value.route)
-        assertFalse(nav.ui.value.loading)
-        assertEquals("t${com.ridedeck.app.R.string.route_failed}", nav.ui.value.error)
-    }
-
-    @Test
-    fun voiceSearchRetainsAlternativesAndStaleOrdinalsCannotSelect() = runBlocking {
-        val first = Place("Kafe A", "", GeoPoint(41.01, 29.0))
-        val second = Place("Kafe B", "", GeoPoint(41.02, 29.0))
-        routing.searchResults = listOf(first, second)
-
-        assertEquals(listOf("Kafe A", "Kafe B"), nav.searchVoicePlaces(listOf("kafe")).map { it.name })
-        assertEquals(listOf(first, second), nav.ui.value.results)
-        assertEquals("Kafe B", nav.selectVoiceResult(1)?.name)
-        assertEquals(second, nav.ui.value.destination)
-        assertNull(nav.selectVoiceResult(5))
-    }
-
-    @Test
-    fun voiceFuelSearchRetainsStopsAndRoutesTheRequestedOne() = runBlocking {
-        val stops = nav.searchFuelForVoice()
-        assertEquals("Opet", stops.single().name)
-        assertEquals("Opet", nav.selectFuelVoiceResult(0)?.name)
-        assertEquals("Opet", nav.ui.value.destination?.name)
-        assertNull(nav.selectFuelVoiceResult(1))
-    }
-
-    @Test
     fun aPickedPointIsRenamedWhenItsAddressArrives() {
         routing.address = Place("Cadde 12", "Fatih, İstanbul", dest.point)
         nav.selectPoint(dest.point)
@@ -565,15 +463,6 @@ class NavigationControllerTest {
         nav.search()
         assertEquals(listOf("taksm"), routing.searches)
         assertEquals("t${R.string.search_failed}", nav.ui.value.error)
-    }
-
-    @Test
-    fun didYouMeanForVoiceUsesKnownPlacesOnly() {
-        typoNav(known = listOf(Place("Evim", "", GeoPoint(41.0, 29.0))))
-        assertEquals("Taksim", nav.suggestPlaceName(listOf("taksm")))
-        assertEquals("Evim", nav.suggestPlaceName(listOf("evm")))
-        assertNull(nav.suggestPlaceName(listOf("qwzxv")))
-        assertTrue(routing.searches.isEmpty())
     }
 
     @Test

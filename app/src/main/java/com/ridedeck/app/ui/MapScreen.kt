@@ -157,7 +157,6 @@ fun MapScreen(
     places: List<SavedPlace>,
     onSavePlace: (PlaceKind, Place) -> Unit,
     onRemovePlace: (SavedPlace) -> Unit,
-    onMic: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
     recents: List<Place> = emptyList(),
@@ -345,7 +344,6 @@ fun MapScreen(
                     onSelect = nav::selectPlace,
                     onSave = { saving = it },
                     onRemovePlace = onRemovePlace,
-                    onMic = onMic,
                     recents = recents,
                     onClearRecents = onClearRecents,
                     onSuggestion = { typing = false; nav.onQueryChange(it); nav.search() },
@@ -454,7 +452,6 @@ private fun SearchPanel(
     onSelect: (Place) -> Unit,
     onSave: (Place) -> Unit,
     onRemovePlace: (SavedPlace) -> Unit,
-    onMic: () -> Unit,
     recents: List<Place>,
     onClearRecents: () -> Unit,
     onSuggestion: (String) -> Unit,
@@ -472,7 +469,6 @@ private fun SearchPanel(
                     if (ui.query.isEmpty()) Text(stringResource(R.string.where_to), fontSize = 20.sp, color = MotoColors.Gray, maxLines = 1)
                     else Text(ui.query + if (typing) "▏" else "", fontSize = 20.sp, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                MicButton(onMic, Modifier.padding(start = 8.dp), size = 52.dp)
                 if (ui.query.isNotEmpty()) {
                     Box(
                         modifier = Modifier.padding(start = 8.dp).height(52.dp).clip(RoundedCornerShape(14.dp))

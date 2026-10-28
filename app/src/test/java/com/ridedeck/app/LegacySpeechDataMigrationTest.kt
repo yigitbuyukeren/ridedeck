@@ -3,18 +3,11 @@ package com.ridedeck.app
 import com.ridedeck.app.util.LegacyVoskDataMigration
 import java.io.File
 import java.nio.file.Files
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LegacySpeechDataMigrationTest {
-    @Test fun oldEngineChoiceMigratesToAndroidAndCurrentChoiceStays() {
-        assertEquals("system", LegacyVoskDataMigration.androidEngine("vosk"))
-        assertEquals("system", LegacyVoskDataMigration.androidEngine("system"))
-        assertEquals("system", LegacyVoskDataMigration.androidEngine(null))
-    }
-
     @Test fun cleanupRemovesOnlyRetiredModelArtifacts() {
         val root = Files.createTempDirectory("ridedeck-legacy-speech").toFile()
         try {

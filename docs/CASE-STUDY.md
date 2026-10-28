@@ -8,7 +8,7 @@ Bu belge RideDeck'in hangi problemi çözdüğünü, nasıl kurulduğunu ve hang
 
 Motosiklet, bisiklet ve araba sürerken telefon üç sorunla gelir: ekran küçük ve eldivenle kullanılmaz, hız ve navigasyon ayrı uygulamalardadır, yazı girişi sürüş güvenliğini bozar. Hazır çözümler (Android Auto, CarPlay) araç ekranı ister ve motosiklette yoktur.
 
-RideDeck telefonun kendisini yatay, büyük hedefli bir sürüş paneline çevirir (aynı zamanda HOME launcher'dır): hız, harita, müzik, telefon ve sesli asistan tek ekranda. Hedefler:
+RideDeck telefonun kendisini yatay, büyük hedefli bir sürüş paneline çevirir (aynı zamanda HOME launcher'dır): hız, harita, müzik ve telefon tek ekranda. Hedefler:
 
 - Hesap, API anahtarı ve kendi sunucusu olmayacak; veri telefonda kalacak.
 - Sürerken yazı girişi olmayacak; her şey büyük hedeflerle veya sesle yapılacak.
@@ -25,7 +25,6 @@ LocationRepository (ham LocationManager, Play Services yok)
    ├─► CrashDetector + SosController ─► tek SMS
    └─► TripRecorder ─► yolculuk geçmişi, park yeri
 DashboardViewModel  = tüm repository'lerin tek bağlama noktası
-Voice*  : Turkish → VoiceParser → VoiceAssistant → VoiceActions
 Data/Http.kt : bütün genel servis çağrılarının tek çıkışı
 ```
 
@@ -61,18 +60,9 @@ Testler: `SpeedFilterTest`, `PositionSmootherTest`, `GaugeScaleTest`.
 
 Testler: `NavigationControllerTest`, `GeoTest`, `PlaceQueryTest`, `FuelTest`, `RouteOptionsTest`.
 
-## 5. Sesli komutlar
+## 5. Sesli asistan neden yok
 
-Ses tanıma Android'in `SpeechRecognizer`'ına bırakılmıştır; uygulama **tanınan metni** anlar.
-
-`Turkish` (normalleştirme, ek ayıklama, bulanık eşleşme, sayı sözcükleri) → `VoiceParser` (kural tablosu, ~130 kalıp; evet/hayır ve sıra sayıları için ayrı `parseAnswer`) → `VoiceAssistant` (diyalog durumu) → `VoiceActions` (arayüz; Android gerçeklemesi ayrı).
-
-- **Türkçe'nin morfolojisi** ayrı bir problemdir: "Ankara'ya", "eve git", "ikincisine git" gibi çekimli ifadeler tek kurala bağlanır. Kural eklemek = `VoiceParser.rules`'a satır + test; 300 cümlelik derlem (`VoiceParserTest`) her değişiklikte yeşil kalmalıdır.
-- **Çok turlu diyalog:** birden çok "Ali" varsa "hangisi?" diye sorar, arama için 3 sn geri sayım, mesaj cevabında göndermeden sesli onay. Belirsiz duyulan komut "şunu mu dedin?" diye sorulur; **riskli eylemler (arama, SMS) onaysız yapılmaz**.
-- **Yanıt sahipliği:** `AudioSessionManager` mikrofon, tanıyıcı ve TTS'in aynı anda tek sahibi olmasını sağlar; `VoiceStateMachine` geçişleri testlidir.
-- **Eylemin gerçek sonucu:** navigasyon komutu yalnızca rota **gerçekten hazırsa** başarı bildirir; zaman aşımı, hata, iptal ve eski callback'ler testlidir.
-- **Kask mikrofonu:** Bluetooth SCO/BLE yönlendirme ve telefon mikrofonuna geri dönüş mantığı `BluetoothMicRouter` + `BluetoothMicRoutePolicyTest`'te; **gerçek kaskla sahada doğrulanmadı**.
-- **Sürekli "Hey RideDeck" bilinçli olarak kapatıldı.** Android `SpeechRecognizer` sürekli dinleme için tasarlanmamıştır; cihaz günlüklerinde sessizlikte `NO_SPEECH_DETECTED` ve yeniden başlatmada `MICROPHONE_UNAVAILABLE` görüldü. Uygulama içi, isteğe bağlı sherpa-onnx anahtar sözcük modeli yalnızca ekran açıkken çalışır; manuel mikrofon ve kask tuşu ana yoldur.
+Uygulamada bir dönem Türkçe sesli asistan vardı (komut ayrıştırıcı, çok turlu diyalog, kask mikrofonu, "Hey RideDeck" uyandırma denemeleri). 2026-10-28'de tamamen kaldırıldı: Android'in `SpeechRecognizer`'ı sürekli dinleme için tasarlanmadığı için uyandırma güvenilir çalışmadı, yerel uyandırma modeli de gerçek sesle yeterince tutarlı sonuç vermedi. Çalışmayan özelliği göstermek yerine kaldırmak tercih edildi. Sesli yönlendirme (sıradaki dönüş anonsu, hava ve hız uyarıları, mesaj okuma) Android TTS ile devam ediyor.
 
 ## 6. Güvenlik özellikleri (SOS) ve sınırı
 
@@ -83,7 +73,7 @@ Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sür�
 ## 7. Testler ve CI
 
 - **396 birim testi, 48 test sınıfı/dosyası; 0 hata** (JUnit, Gradle `testDebugUnitTest`). Bu belge yazılırken yerelde temiz yeniden çalıştırmayla doğrulandı.
-- Test edilenler: GPS filtresi, konum eşleme ve rota mantığı, yazım toleransı, sesli komut parser'ı (300 cümlelik derlem), ses diyaloğu ve durum makinesi, SOS/kaza algılama, ısınma koruması, araç profilleri, telefon/klavye matematiği, birimler, yolculuk kaydı.
+- Test edilenler: GPS filtresi, konum eşleme ve rota mantığı, yazım toleransı, SOS/kaza algılama, ısınma koruması, araç profilleri, telefon/klavye matematiği, birimler, yolculuk kaydı.
 - **GitHub Actions** (`.github/workflows/ci.yml`): her `main` push'unda ve PR'da Temurin JDK 17 ile `testDebugUnitTest lintDebug assembleDebug assembleRelease`. `assembleRelease` R8 küçültmesini de dener, böylece küçültme hataları PR'da çıkar. Son çalışmalar başarılı.
 - `lintDebug` hatasız tutulur; minSdk 26 ile API 28/30 çağrıları gibi hataları yakalar.
 - Test edilmeyen: arayüz (Compose) ve gerçek sensör/ağ davranışı. Bunlar emülatörde elle görüldü.
@@ -97,7 +87,7 @@ Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sür�
 | Gösterim hızı ≠ karar hızı | Titremeyen kadran ile gecikmeyen güvenlik kararı birbirine feda edilmedi. |
 | Sahte 0 yok, `--` var | Sinyal kaybında yanlış güven vermemek. |
 | Sürerken yazı girişi/ayar kilidi (5 km/sa üstü) | Güvenlik; kendi Türkçe klavyesi park halinde arama içindir. |
-| Sürekli wake-word kapatıldı | Platform sınırlaması ölçülerek görüldü; çalışmayan özelliği göstermek yerine kapatıldı. |
+| Sesli asistan kaldırıldı | Güvenilir uyandırma ve tanıma sağlanamadı; çalışmayan özelliği göstermek yerine kaldırıldı. |
 | Çevrimdışı harita yok (issue kapatıldı) | Büyük iş, doğrulanamaz; rotanın canlı hizmete bağlı olduğu açıkça yazıldı. |
 | OBD, bakım takibi, eğim, GPX çıkarıldı | Sürerken kullanılamayan veya doğrulanamayan özelliklerden kaçınmak; odak sürüş panelinde. |
 
@@ -109,4 +99,4 @@ Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sür�
 
 **Doğrulandı (otomatik):** 396 birim test, `lintDebug`, debug ve R8 release derlemesi, CI. **Emülatörde görüldü:** ana ekranlar, araç seçimi, navigasyon, benzinlik, SOS geri sayımı, dik bisiklet düzeni, farklı yazı boyutları. README'deki ekran görüntüleri ve demo GIF'i emülatörden alınmıştır (sahte GPS ile); demo GIF bir ekran görüntüsü geçişidir, ekran kaydı değildir.
 
-**Sahada denenmedi:** kaza algılama eşikleri, gerçek SMS gönderimi, kask Bluetooth mikrofonu, Türkçe tanıma kalitesi gürültüde, varsayılan telefon uygulamasıyken arama ses yolu, gidonda ısınma ve mini haritanın pil etkisi, Android 8–10 davranışı. Güncel liste: [STATUS.md](STATUS.md).
+**Sahada denenmedi:** kaza algılama eşikleri, gerçek SMS gönderimi, varsayılan telefon uygulamasıyken arama ses yolu, gidonda ısınma ve mini haritanın pil etkisi, Android 8–10 davranışı. Güncel liste: [STATUS.md](STATUS.md).

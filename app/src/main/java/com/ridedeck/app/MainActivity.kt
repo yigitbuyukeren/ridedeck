@@ -36,18 +36,13 @@ class MainActivity : ComponentActivity() {
         com.ridedeck.app.util.LegacyCleanup.run(this)
         enableEdgeToEdge()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        if (savedInstanceState == null) { handleDialIntent(intent); handleVoiceIntent(intent) }
+        if (savedInstanceState == null) handleDialIntent(intent)
         // A hot phone dims itself (see ThermalGuard); a cool one keeps the system brightness.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                combine(viewModel.thermal.state, viewModel.sos.ui, viewModel.brightnessChoice) { thermal, sos, chosen ->
-                    // Never leave a dimmed screen during an SOS countdown; a hot phone stays dimmer than the rider asked.
-                    when {
-                        sos.phase == SosPhase.COUNTDOWN -> 1f
-                        chosen == null -> thermal.brightness
-                        thermal.brightness >= 0f -> minOf(thermal.brightness, chosen)
-                        else -> chosen
-                    }
+                combine(viewModel.thermal.state, viewModel.sos.ui) { thermal, sos ->
+                    // Never leave a dimmed screen during an SOS countdown.
+                    if (sos.phase == SosPhase.COUNTDOWN) 1f else thermal.brightness
                 }.distinctUntilChanged().collect { brightness ->
                     window.attributes = window.attributes.also { it.screenBrightness = brightness }
                 }
@@ -70,12 +65,6 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleDialIntent(intent)
-        handleVoiceIntent(intent)
-    }
-
-    /** The helmet's voice button and the system assist gesture start listening. */
-    private fun handleVoiceIntent(intent: Intent?) {
-        if (intent?.action == Intent.ACTION_VOICE_COMMAND || intent?.action == Intent.ACTION_ASSIST) viewModel.requestVoice()
     }
 
     /** Another app's tel: link: the phone screen opens with the number on the keypad. */

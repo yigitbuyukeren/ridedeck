@@ -24,7 +24,7 @@ scrcpy --record=ridedeck-demo.mp4 --max-fps=30 --time-limit=90
 ffmpeg -i ridedeck-demo.mp4 -vf scale=-2:720 -c:v libx264 -crf 28 -an ridedeck-demo-720p.mp4
 ```
 
-Uygulama yatay kilitlidir (`sensorLandscape`); telefon yatay tutulmalı. Sesli komut gösterilecekse ses de gerekir: `scrcpy --record=... --audio-source=playback` (Android 11+, sürüme göre değişir) ya da dışarıdan kaydet.
+Uygulama yatay kilitlidir (`sensorLandscape`); telefon yatay tutulmalı.
 
 ## 75 saniyelik çekim planı
 
@@ -34,7 +34,7 @@ Uygulama yatay kilitlidir (`sensorLandscape`); telefon yatay tutulmalı. Sesli k
 | 8–25 sn | Hedef arama ("Ara" ile), rota önizleme, "Başla" | Arama sürerken kilitlenir; bunu da göster |
 | 25–45 sn | Sesli navigasyon kartı, bir dönüş anonsu, mini harita | Gerçek sürüşte değil de park halinde sahte konumla çekiliyorsa altyazıda belirt |
 | 45–55 sn | ⛽ benzinlik listesi, ara durak ekleme | |
-| 55–65 sn | Sesli komut ("En yakın benzinlik", "Kalan süre") | Tanıma cihaza ve gürültüye bağlıdır; başarısız denemeyi de kesme |
+| 55–65 sn | Telefon ekranı (son aramalar, tuş takımı) ve müzik ekranı | Tuş takımı 5 km/sa üstünde kilitlidir |
 | 65–75 sn | SOS geri sayımı, **İptal** | Gerçek SMS gönderme |
 
 ## Kayıttan sonra

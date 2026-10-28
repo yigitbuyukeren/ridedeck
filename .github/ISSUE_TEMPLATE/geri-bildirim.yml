@@ -30,7 +30,7 @@ body:
   - type: textarea
     attributes:
       label: "Neyi denedin?"
-      description: "Navigasyon, sesli komut, SOS, telefon, müzik vb. Gerçek sürüşte mi, park halinde mi denedin?"
+      description: "Navigasyon, SOS, telefon, müzik vb. Gerçek sürüşte mi, park halinde mi denedin?"
     validations:
       required: true
   - type: textarea

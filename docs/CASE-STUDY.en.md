@@ -32,9 +32,9 @@ Single-module Android app (Kotlin, Jetpack Compose, minSdk 26). One `MainActivit
 
 Explicit-submit Nominatim search (its policy forbids search-as-you-type), with rate-limited typo-tolerant retries and a "Did you mean…?" step that never routes without confirmation. Valhalla routing with `motorcycle`, `auto` or `bicycle` costing. Each GPS fix is projected onto the nearest segment inside an 80-segment window ahead of the last progress index; 60 m off the route for 4 consecutive fixes triggers a re-route. Announcements at 600 m (alert), 150 m (instruction) and 25 m (arrival), each spoken once. Every route/search request carries a generation so stale replies are dropped. Fuel/charging stops are routed as their own trip while the real destination is kept. Public Overpass servers are flaky, so queries race several mirrors and fall back to Nominatim.
 
-## 5. Voice commands
+## 5. Why there is no voice assistant
 
-Speech recognition is Android's `SpeechRecognizer`; the app understands the **recognised text**: `Turkish` (normalisation, suffix stripping, fuzzy matching) → `VoiceParser` (≈130 phrase rules, 300-phrase test corpus) → `VoiceAssistant` (multi-turn dialogue) → `VoiceActions` (interface; fake in tests). Risky actions (calls, SMS, SOS) need a spoken confirmation or a countdown. Success is reported only when the route is really ready. Continuous "Hey RideDeck" listening through `SpeechRecognizer` was **deliberately disabled** after device logs showed it is not reliable; manual mic and helmet button are the main paths.
+The app once had a Turkish voice assistant (command parser, multi-turn dialogue, helmet microphone, "Hey RideDeck" wake attempts). It was removed entirely on 2026-10-28: Android's `SpeechRecognizer` is not designed for continuous listening, so wake detection was not reliable, and the local wake model was not consistent enough on real speech. Removing a feature that did not work was preferred to showing it broken. Spoken guidance (turn prompts, weather and speed warnings, message reading) still uses Android TTS.
 
 ## 6. SOS / crash detection and its limits
 
@@ -54,7 +54,7 @@ Speech recognition is Android's `SpeechRecognizer`; the app understands the **re
 | Display speed ≠ decision speed | A steady gauge and an undelayed safety decision are not traded against each other. |
 | `--` instead of a fake 0 | No false confidence when the signal is lost. |
 | Lock text entry and settings above 5 km/h | Riding safety. |
-| Continuous wake word disabled | Platform limit observed by measurement; disabled rather than shown broken. |
+| Voice assistant removed | Reliable wake and recognition could not be achieved; removed rather than shown broken. |
 | OBD, maintenance log, GPX, offline maps dropped | Unusable while riding or unverifiable. |
 
 ## Verification status

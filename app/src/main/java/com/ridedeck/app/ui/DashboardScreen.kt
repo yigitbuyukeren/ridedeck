@@ -1,7 +1,5 @@
 package com.ridedeck.app.ui
 
-import com.ridedeck.app.data.OfflineVoice
-import com.ridedeck.app.data.VoiceScreen
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
@@ -91,40 +89,11 @@ fun DashboardScreen(vm: DashboardViewModel) {
         if (n in 0 until 5) { settingsHint = true; Prefs.setSettingsHintCount(context, n + 1) }
     }
     val dashSlots by vm.dashSlots.collectAsStateWithLifecycle()
-    val voicePresentation by vm.voicePresentation.collectAsStateWithLifecycle()
-    val voiceScreen by vm.voiceScreen.collectAsStateWithLifecycle()
-    val showVoiceHelp by vm.voiceHelp.collectAsStateWithLifecycle()
-    val voiceRequests by vm.voiceRequests.collectAsStateWithLifecycle()
-    var voiceReplies by remember { mutableStateOf(Prefs.voiceReplies(context)) }
-    var voiceHistoryOn by remember { mutableStateOf(Prefs.voiceHistoryOn(context)) }
     var recentsOn by remember { mutableStateOf(Prefs.recentPlacesOn(context)) }
     val recentPlaces by vm.recents.collectAsStateWithLifecycle()
-    val voiceHistory by vm.voiceHistory.collectAsStateWithLifecycle()
-    val voiceProactive by vm.voiceProactiveOn.collectAsStateWithLifecycle()
-    val voiceProactiveKinds by vm.voiceProactiveKinds.collectAsStateWithLifecycle()
-    val voiceRoutines by vm.voiceRoutines.collectAsStateWithLifecycle()
-    val voiceResponseMode by vm.voiceResponseMode.collectAsStateWithLifecycle()
     val voiceSpeechRate by vm.voiceSpeechRate.collectAsStateWithLifecycle()
     val ttsVoiceNames by vm.voiceTtsNames.collectAsStateWithLifecycle()
     val selectedTtsVoice by vm.selectedTtsVoice.collectAsStateWithLifecycle()
-    var voiceContinuous by remember { mutableStateOf(Prefs.voiceContinuous(context)) }
-    val voiceButton by vm.voiceButtonOn.collectAsStateWithLifecycle()
-    val voiceWake by vm.voiceWakeOn.collectAsStateWithLifecycle()
-    val offlineVoice by vm.offlineVoice.collectAsStateWithLifecycle()
-    var voiceHelmetMic by remember { mutableStateOf(Prefs.voiceHelmetMic(context)) }
-    var pendingSearchFallback by remember { mutableStateOf(false) }
-    var pendingWakeEnable by remember { mutableStateOf(false) }
-    val micLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (pendingWakeEnable) {
-            pendingWakeEnable = false
-            if (granted) vm.setVoiceWake(true)
-        } else if (granted) vm.voiceAssistant.listen(pendingSearchFallback)
-    }
-    fun startVoice(searchFallback: Boolean) {
-        pendingSearchFallback = searchFallback
-        if (context.hasPermission(Manifest.permission.RECORD_AUDIO)) vm.voiceAssistant.listen(searchFallback)
-        else micLauncher.launch(Manifest.permission.RECORD_AUDIO)
-    }
     val pinnedApps by vm.pinnedApps.collectAsStateWithLifecycle()
     val messageApps by vm.messageApps.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { vm.refreshMessageApps() }
@@ -194,7 +163,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
     LaunchedEffect(showPhone, resume, callState.phase) { if (showPhone && callState.phase == CallPhase.IDLE) vm.phone.refresh() }
 
     // Re-evaluated whenever the activity resumes (e.g. coming back from a system settings page).
-    val settingItems = remember(resume, offlineVoice) {
+    val settingItems = remember(resume) {
         listOf(
             SettingItem(
                 context.getString(R.string.perm_location),
@@ -223,31 +192,10 @@ fun DashboardScreen(vm: DashboardViewModel) {
             SettingItem(context.getString(R.string.perm_battery), context.getString(R.string.perm_battery_desc), ignoresBatteryOptimization(context), context.getString(R.string.action_open)) {
                 context.openSettingsAction(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
             },
-            SettingItem(context.getString(R.string.perm_assistant), context.getString(R.string.perm_assistant_desc), isDefaultAssistant(context), context.getString(R.string.action_set)) {
-                context.openSettingsAction(Settings.ACTION_VOICE_INPUT_SETTINGS)
-            },
             SettingItem(context.getString(R.string.perm_sms), context.getString(R.string.perm_sms_desc), context.hasPermission(Manifest.permission.SEND_SMS), context.getString(R.string.action_allow)) {
                 smsLauncher.launch(Manifest.permission.SEND_SMS)
             },
-            SettingItem(context.getString(R.string.voice_nicknames_title), context.getString(R.string.voice_nicknames_desc), false, context.getString(R.string.voice_nicknames_action)) {
-                vm.clearNicknames()
-                Toast.makeText(context, R.string.voice_nicknames_cleared, Toast.LENGTH_SHORT).show()
-            },
-            SettingItem(context.getString(R.string.voice_misses_title), context.getString(R.string.voice_misses_desc), false, context.getString(R.string.voice_misses_action)) {
-                val text = vm.missedPhrases()
-                if (text.isBlank()) Toast.makeText(context, R.string.voice_misses_empty, Toast.LENGTH_SHORT).show()
-                else context.startActivity(
-                    Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), null)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                )
-            },
-        ) + (if (offlineVoice == OfflineVoice.UNKNOWN) emptyList() else listOf(
-            SettingItem(
-                context.getString(R.string.perm_offline_voice),
-                context.getString(if (offlineVoice == OfflineVoice.UNSUPPORTED) R.string.perm_offline_voice_unsupported else R.string.perm_offline_voice_desc),
-                offlineVoice == OfflineVoice.INSTALLED, context.getString(R.string.action_download),
-            ) { vm.downloadOfflineVoice() },
-        ))
+        )
     }
 
     val introRows = remember(resume) {
@@ -265,31 +213,10 @@ fun DashboardScreen(vm: DashboardViewModel) {
         )
     }
 
-    LaunchedEffect(showSettings) { if (showSettings) vm.refreshOfflineVoice() }
-
     // Settings are a place to read and tap: locked while riding (with a live fix), as the keypad and the map search are.
     val settingsLocked = gps.hasFix && gps.speedKmh >= SETTINGS_LOCK_KMH
     val tellSettingsLocked = { android.widget.Toast.makeText(context, R.string.settings_locked, android.widget.Toast.LENGTH_SHORT).show() }
     LaunchedEffect(settingsLocked) { if (settingsLocked && showSettings) { showSettings = false; tellSettingsLocked() } }
-
-    // A voice command asked for a screen.
-    LaunchedEffect(voiceScreen) {
-        val wanted = voiceScreen ?: return@LaunchedEffect
-        showMap = false; showNowPlaying = false; showPhone = false; showApps = false; showSettings = false
-        when (wanted) {
-            VoiceScreen.MAP -> showMap = true
-            VoiceScreen.MUSIC -> showNowPlaying = true
-            VoiceScreen.PHONE -> showPhone = true
-            VoiceScreen.APPS -> showApps = true
-            VoiceScreen.SETTINGS -> if (settingsLocked) tellSettingsLocked() else showSettings = true
-            VoiceScreen.HOME -> {}
-        }
-        vm.voiceScreen.value = null
-    }
-    // The helmet's voice button (or the system "assist" gesture) asks to listen.
-    LaunchedEffect(voiceRequests) {
-        if (voiceRequests > 0) startVoice(false)
-    }
 
     BackHandler(enabled = showMap || showNowPlaying || showPhone || showTrips || showApps) {
         showApps = false
@@ -355,7 +282,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
                                 dialerLauncher.launch(defaultDialerIntent(context))
                             } else vm.dial(number, name)
                         },
-                        onMic = { startVoice(false) },
                         modifier = m,
                     )
                 } else if (target == MotoScreen.MUSIC) {
@@ -363,7 +289,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
                         state = mediaState,
                         media = vm.media,
                         onGrantAccess = { context.openSettingsAction(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) },
-                        onMic = { startVoice(false) },
                         modifier = m,
                     )
                 } else if (target == MotoScreen.MAP) {
@@ -378,7 +303,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
                         places = places,
                         onSavePlace = vm::savePlace,
                         onRemovePlace = vm::removePlace,
-                        onMic = { startVoice(true) },
                         onClose = { showMap = false },
                         modifier = m,
                         recents = recentPlaces,
@@ -394,7 +318,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
                             me = locationState, isDay = isDay, lowPower = lowPower,
                             onOpenMap = { showMap = true },
                             onGoTo = { vm.nav.selectPlace(it); showMap = true },
-                            onMic = { startVoice(false) },
                             modifier = mod)
                     }
                     val mediaCard: @Composable (Modifier) -> Unit = { mod ->
@@ -513,35 +436,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     ToggleItem(stringResource(R.string.rain_voice_title), stringResource(R.string.rain_voice_desc), rainVoice, onChange = vm::setRainVoice),
                     ToggleItem(stringResource(R.string.thermal_title), stringResource(R.string.thermal_desc), thermalOn, onChange = vm::setThermalEnabled),
                     ToggleItem(stringResource(R.string.speed_limit_title), stringResource(R.string.speed_limit_desc), speedLimitOn, onChange = vm::setSpeedLimitEnabled),
-                    ToggleItem(stringResource(R.string.voice_replies_title), stringResource(R.string.voice_replies_desc), voiceReplies) { voiceReplies = it; vm.setVoiceRepliesEnabled(it) },
                     ToggleItem(stringResource(R.string.recents_title), stringResource(R.string.recents_desc), recentsOn) { recentsOn = it; vm.setRecentsOn(it) },
-                    ToggleItem(stringResource(R.string.voice_history_title), stringResource(R.string.voice_history_desc), voiceHistoryOn) { voiceHistoryOn = it; Prefs.setVoiceHistoryOn(context, it); if (!it) vm.clearVoiceHistory() },
-                    ToggleItem(stringResource(R.string.voice_continuous_title), stringResource(R.string.voice_continuous_desc), voiceContinuous) { voiceContinuous = it; Prefs.setVoiceContinuous(context, it) },
-                    ToggleItem(stringResource(R.string.voice_proactive_title), stringResource(R.string.voice_proactive_desc), voiceProactive, onChange = vm::setVoiceProactive),
-                ) + com.ridedeck.app.data.ProactiveKind.entries.map { kind ->
-                        val label = when (kind) {
-                            com.ridedeck.app.data.ProactiveKind.RAIN -> R.string.voice_proactive_rain_category
-                            com.ridedeck.app.data.ProactiveKind.BATTERY -> R.string.voice_proactive_battery_category
-                            com.ridedeck.app.data.ProactiveKind.TEMPERATURE -> R.string.voice_proactive_temperature_category
-                            com.ridedeck.app.data.ProactiveKind.ARRIVAL -> R.string.voice_proactive_arrival_category
-                            com.ridedeck.app.data.ProactiveKind.BREAK -> R.string.voice_proactive_break_category
-                            com.ridedeck.app.data.ProactiveKind.BLUETOOTH -> R.string.voice_proactive_bluetooth_category
-                            com.ridedeck.app.data.ProactiveKind.NAVIGATION_ERROR -> R.string.voice_proactive_navigation_error_category
-                        }
-                        ToggleItem(stringResource(label), stringResource(R.string.voice_proactive_desc), voiceProactiveKinds[kind] ?: true) { vm.setVoiceProactiveKind(kind, it) }
-                } + listOf(
-                    ToggleItem(stringResource(R.string.voice_button_title), stringResource(R.string.voice_button_desc), voiceButton, onChange = vm::setVoiceButton),
-                    ToggleItem(
-                        stringResource(R.string.voice_wake_title),
-                        stringResource(R.string.voice_wake_desc),
-                        voiceWake,
-                    ) { enabled ->
-                        if (enabled && !context.hasPermission(Manifest.permission.RECORD_AUDIO)) {
-                            pendingWakeEnable = true
-                            micLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                        } else vm.setVoiceWake(enabled)
-                    },
-                    ToggleItem(stringResource(R.string.voice_helmet_title), stringResource(R.string.voice_helmet_desc), voiceHelmetMic) { voiceHelmetMic = it; Prefs.setVoiceHelmetMic(context, it) },
                     ToggleItem(stringResource(R.string.units_title), stringResource(R.string.units_desc), Units.miles) { Units.set(context, it) },
                     ToggleItem(stringResource(R.string.record_trips_title), stringResource(R.string.record_trips_desc), recordTrips, onChange = vm::setRecordTrips),
                     ToggleItem(stringResource(R.string.overlay_title), stringResource(R.string.overlay_desc), overlayEnabled) { enabled ->
@@ -561,18 +456,11 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     onDashSlot = vm::setDashSlot,
                     bikeType = routeOptions.bikeType,
                     onBikeType = { vm.nav.setOptions(routeOptions.copy(bikeType = it)) },
-                    routines = voiceRoutines,
-                    onSaveRoutine = vm::saveVoiceRoutine,
-                    onDeleteRoutine = vm::deleteVoiceRoutine,
-                    onRunRoutine = vm.voiceAssistant::runRoutine,
-                    responseMode = voiceResponseMode,
-                    onResponseMode = vm::setVoiceResponseMode,
                     speechRate = voiceSpeechRate,
                     onSpeechRate = vm::setVoiceSpeechRate,
                     ttsVoiceNames = ttsVoiceNames,
                     selectedTtsVoice = selectedTtsVoice,
                     onTtsVoice = vm::setTurkishTtsVoice,
-                    canEditRoutines = com.ridedeck.app.data.RideRoutines.canEditAtSpeed(gps.speedKmh, gps.hasFix),
                     safetyCard = {
                         SosSettingsCard(
                             contacts = sosContacts,
@@ -615,12 +503,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
         // The first-launch question sits above everything but the SOS countdown.
         if (vehicleChosen == null) VehicleChooser(onChoose = vm::setVehicle)
         else if (showPermIntro) PermissionIntro(introRows, onClose = { showPermIntro = false })
-
-        AnimatedVisibility(visible = showVoiceHelp, enter = overlayEnter, exit = overlayExit) {
-            VoiceHelpScreen(history = voiceHistory, onClear = vm::clearVoiceHistory, onClose = { vm.voiceHelp.value = false })
-        }
-
-        VoiceOverlay(voicePresentation, onCancel = { vm.voiceAssistant.cancel() }, onChoose = vm.voiceAssistant::choose, onHelp = { vm.voiceAssistant.cancel(); vm.voiceHelp.value = true })
 
         // Last, so nothing can cover an SOS countdown.
         SosScreen(sosUi, sosContacts.map { it.name }, onCancel = vm.sos::cancel, onDismiss = vm.sos::dismiss)

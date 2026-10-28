@@ -4,8 +4,6 @@ import java.io.File
 
 /** Narrow one-time cleanup for files owned by the retired offline speech engine. */
 internal object LegacyVoskDataMigration {
-    fun androidEngine(previous: String?): String = if (previous == "vosk" || previous.isNullOrBlank()) "system" else previous
-
     fun removeArtifacts(filesDir: File, cacheDir: File): Boolean {
         val retiredPaths = listOf(
             File(filesDir, "speech/vosk-tr-0.3"),

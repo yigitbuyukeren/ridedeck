@@ -56,7 +56,6 @@ fun NavCard(
     lowPower: Boolean,
     onOpenMap: () -> Unit,
     onGoTo: (Place) -> Unit,
-    onMic: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(28.dp)
@@ -89,9 +88,8 @@ fun NavCard(
         }
         val narrowCard = isNarrowScreen()
         Row(Modifier.align(Alignment.TopEnd).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            // On a narrow card the weather chip gives way; the 64dp microphone stays.
+            // On a narrow card the weather chip gives way.
             if (weather != null && !narrowCard) WeatherChip(weather)
-            MicButton(onMic)
         }
         if (guiding) MapCredit(Modifier.align(Alignment.BottomEnd).padding(end = 10.dp, bottom = 6.dp))
         Column(

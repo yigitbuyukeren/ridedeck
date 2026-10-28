@@ -150,29 +150,6 @@ class MediaRepository(private val context: Context) {
         controller?.transportControls?.play()
     }
 
-    /** "Play X": hands the search to the music app; false when no music app has a session to ask. */
-    fun playSearch(query: String): Boolean {
-        val c = controller ?: return false
-        return dispatch(c, PlaybackState.ACTION_PLAY_FROM_SEARCH) { it.playFromSearch(query, null) }
-    }
-
-    /** Returns true only when the active player advertises the requested operation and accepts the dispatch. */
-    fun playForVoice(): Boolean {
-        val c = controller ?: run {
-            if (!canResumeLast()) return false
-            resumeLast()
-            return true
-        }
-        if (c.playbackState?.state == PlaybackState.STATE_PLAYING) return true
-        return dispatch(c, PlaybackState.ACTION_PLAY) { it.play() }
-    }
-
-    fun pauseForVoice(): Boolean {
-        val c = controller ?: return false
-        if (c.playbackState?.state != PlaybackState.STATE_PLAYING) return true
-        return dispatch(c, PlaybackState.ACTION_PAUSE) { it.pause() }
-    }
-
     private inline fun dispatch(
         target: MediaController,
         action: Long,
@@ -187,17 +164,6 @@ class MediaRepository(private val context: Context) {
         } catch (_: RuntimeException) {
             false
         }
-    }
-
-    /** Music volume as a percentage of the loudest setting. */
-    fun setVolumePercent(percent: Int) {
-        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        audio.setStreamVolume(AudioManager.STREAM_MUSIC, (percent.coerceIn(0, 100) * max / 100f).toInt(), AudioManager.FLAG_SHOW_UI)
-    }
-
-    fun volumePercent(): Int {
-        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
-        return (audio.getStreamVolume(AudioManager.STREAM_MUSIC) * 100f / max).toInt().coerceIn(0, 100)
     }
 
     fun pause(): Boolean {

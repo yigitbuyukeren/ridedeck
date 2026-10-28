@@ -56,8 +56,6 @@ import androidx.compose.ui.platform.testTag
 import com.ridedeck.app.data.BikeType
 import com.ridedeck.app.data.ThemeMode
 import com.ridedeck.app.data.VehicleProfile
-import com.ridedeck.app.data.RideRoutine
-import com.ridedeck.app.data.VoiceResponseMode
 import com.ridedeck.app.util.hasPermission
 
 data class SettingItem(
@@ -164,18 +162,11 @@ fun SettingsScreen(
     bikeType: BikeType = BikeType.CITY,
     onBikeType: (BikeType) -> Unit = {},
     safetyCard: @Composable () -> Unit = {},
-    routines: List<RideRoutine> = emptyList(),
-    onSaveRoutine: (RideRoutine, String?) -> Boolean = { _, _ -> false },
-    onDeleteRoutine: (String) -> Unit = {},
-    onRunRoutine: (String) -> Unit = {},
-    responseMode: VoiceResponseMode = VoiceResponseMode.NORMAL,
-    onResponseMode: (VoiceResponseMode) -> Unit = {},
     speechRate: Float = 1f,
     onSpeechRate: (Float) -> Unit = {},
     ttsVoiceNames: List<String> = emptyList(),
     selectedTtsVoice: String? = null,
     onTtsVoice: (String?) -> Unit = {},
-    canEditRoutines: Boolean = true,
 ) {
     val palette = LocalMotoPalette.current
     // Start on the setup page while a permission is missing, otherwise on the everyday options.
@@ -233,17 +224,14 @@ fun SettingsScreen(
                             items(items) { item -> SettingRow(item) }
                         }
                         SettingsTab.RIDE -> {
-                            item { Text(stringResource(R.string.voice_privacy_note), Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MotoColors.Card).padding(14.dp), color = LocalMotoPalette.current.muted) }
                             item {
                                 Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(14.dp)) {
-                                    ChoiceRow(stringResource(R.string.voice_response_mode_title), stringResource(R.string.voice_response_mode_desc), listOf(stringResource(R.string.voice_response_minimal) to (responseMode == VoiceResponseMode.MINIMAL), stringResource(R.string.voice_response_normal) to (responseMode == VoiceResponseMode.NORMAL), stringResource(R.string.voice_response_detailed) to (responseMode == VoiceResponseMode.DETAILED))) { onResponseMode(VoiceResponseMode.entries[it]) }
                                     Text(stringResource(R.string.voice_speech_rate, (speechRate * 100).toInt()), color = LocalMotoPalette.current.text)
                                     Slider(speechRate, onSpeechRate, valueRange = 0.75f..1.25f)
                                     if (ttsVoiceNames.isEmpty()) Text(stringResource(R.string.voice_tts_missing), color = LocalMotoPalette.current.muted)
                                     else ChoiceRow(stringResource(R.string.voice_tts_title), stringResource(R.string.voice_tts_desc), listOf(stringResource(R.string.voice_tts_default) to (selectedTtsVoice == null)) + ttsVoiceNames.map { it to (it == selectedTtsVoice) }) { index -> onTtsVoice(ttsVoiceNames.getOrNull(index - 1)) }
                                 }
                             }
-                            item { RoutineManager(routines, onSaveRoutine, onDeleteRoutine, onRunRoutine, canEditRoutines) }
                             if (vehicle == VehicleProfile.BICYCLE) {
                                 item {
                                     ChoiceRow(
