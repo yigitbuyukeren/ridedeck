@@ -37,6 +37,7 @@ class SherpaWakeWord(
     private var lastWakeAt = 0L
     private var retryAfterMs = 0L
     private val isRunning = AtomicBoolean(false)
+    private val retryStart = Runnable { start() }
 
     fun start() {
         if (Looper.myLooper() != Looper.getMainLooper()) {
@@ -56,6 +57,12 @@ class SherpaWakeWord(
         }
     }
 
+    /** start() only checks the retry deadline; without a timer nothing would call it again after a failure. */
+    private fun scheduleRetry() {
+        main.removeCallbacks(retryStart)
+        main.postDelayed(retryStart, RETRY_DELAY_MS)
+    }
+
     /** Prevents the owner-release callback after a match from reopening KWS during STT handoff. */
     fun pauseForCommand() {
         pausedForHandoff = true
@@ -68,6 +75,7 @@ class SherpaWakeWord(
     }
 
     fun stop() {
+        main.removeCallbacks(retryStart)
         val runId = synchronized(lock) { generation }
         stopRun(runId, releaseOwner = true)
     }
@@ -97,7 +105,7 @@ class SherpaWakeWord(
                         modelType = "zipformer2",
                     ),
                     keywordsFile = model + "keywords.txt",
-                    keywordsThreshold = 0.35f,
+                    keywordsThreshold = 0.15f,
                     keywordsScore = 1.5f,
                 ),
             )
@@ -124,7 +132,9 @@ class SherpaWakeWord(
             val shortBuffer = ShortArray(SAMPLE_RATE / 10)
             captureLoop@ while (isCurrent(runId)) {
                 val count = localRecorder.read(shortBuffer, 0, shortBuffer.size)
-                if (count <= 0) continue
+                // Negative values are AudioRecord error codes (dead object, bad value, invalid operation).
+                if (count < 0) throw IllegalStateException("AudioRecord.read failed: $count")
+                if (count == 0) continue
                 val samples = FloatArray(count) { shortBuffer[it] / 32768.0f }
                 stream.acceptWaveform(samples, sampleRate = SAMPLE_RATE)
                 while (spotter.isReady(stream)) {
@@ -144,6 +154,7 @@ class SherpaWakeWord(
             if (isCurrent(runId)) {
                 retryAfterMs = android.os.SystemClock.elapsedRealtime() + RETRY_DELAY_MS
                 Log.w(TAG, "Local wake listener stopped", error)
+                scheduleRetry()
             }
         } finally {
             runCatching { stream?.release() }
