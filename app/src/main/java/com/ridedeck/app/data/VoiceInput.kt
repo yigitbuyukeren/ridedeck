@@ -48,45 +48,53 @@ class VoiceInput(private val context: Context, private val biasing: () -> List<S
         val owner = if (quiet) AudioSessionManager.Owner.FOLLOW_UP_STT else AudioSessionManager.Owner.ANDROID_STT
         token = AudioSessionManager.process.acquire(owner) { cancelSession(token) }
         session = token
-        val r = SpeechRecognizer.createSpeechRecognizer(context)
-        recognizer = r
-        audio.requestAudioFocus(focusRequest)
-        micRouter.start()
-        if (!quiet) beep(ToneGenerator.TONE_PROP_BEEP)
-        r.setRecognitionListener(object : RecognitionListener {
-            override fun onPartialResults(partialResults: Bundle?) {
-                if (!AudioSessionManager.process.isCurrent(token)) return
-                partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.let(onPartial)
-            }
-
-            override fun onResults(results: Bundle?) {
-                val heard = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
-                val score = results?.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)?.firstOrNull()
-                finish(token, onResult, VoiceHeard(heard, score), quiet)
-            }
-
-            override fun onError(error: Int) = finish(token, onResult, VoiceHeard(emptyList(), failure = failure(error)), quiet)
-            override fun onReadyForSpeech(params: Bundle?) {}
-            override fun onBeginningOfSpeech() {}
-            override fun onRmsChanged(rmsdB: Float) {}
-            override fun onBufferReceived(buffer: ByteArray?) {}
-            override fun onEndOfSpeech() {}
-            override fun onEvent(eventType: Int, params: Bundle?) {}
-        })
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "tr-TR")
-            .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
-            .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
-            // Wind and engine noise: wait a little longer before deciding the sentence is over.
-            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1600L)
-            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1300L)
-        if (Build.VERSION.SDK_INT >= 33) {
-            val names = biasing().filter { it.isNotBlank() }.distinct().take(MAX_BIASING)
-            if (names.isNotEmpty()) intent.putStringArrayListExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, ArrayList(names))
-        }
         try {
+            if (!AudioSessionManager.process.isCurrent(token)) {
+                release(token)
+                return
+            }
+            val r = SpeechRecognizer.createSpeechRecognizer(context)
+            recognizer = r
+            audio.requestAudioFocus(focusRequest)
+            micRouter.start()
+            if (!quiet) beep(ToneGenerator.TONE_PROP_BEEP)
+            r.setRecognitionListener(object : RecognitionListener {
+                override fun onPartialResults(partialResults: Bundle?) {
+                    if (!AudioSessionManager.process.isCurrent(token)) return
+                    partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.let(onPartial)
+                }
+
+                override fun onResults(results: Bundle?) {
+                    val heard = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
+                    val score = results?.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)?.firstOrNull()
+                    finish(token, onResult, VoiceHeard(heard, score), quiet)
+                }
+
+                override fun onError(error: Int) = finish(token, onResult, VoiceHeard(emptyList(), failure = failure(error)), quiet)
+                override fun onReadyForSpeech(params: Bundle?) {}
+                override fun onBeginningOfSpeech() {}
+                override fun onRmsChanged(rmsdB: Float) {}
+                override fun onBufferReceived(buffer: ByteArray?) {}
+                override fun onEndOfSpeech() {}
+                override fun onEvent(eventType: Int, params: Bundle?) {}
+            })
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "tr-TR")
+                .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+                .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
+                // Wind and engine noise: wait a little longer before deciding the sentence is over.
+                .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1600L)
+                .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1300L)
+            if (Build.VERSION.SDK_INT >= 33) {
+                val names = biasing().filter { it.isNotBlank() }.distinct().take(MAX_BIASING)
+                if (names.isNotEmpty()) intent.putStringArrayListExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, ArrayList(names))
+            }
+            if (!AudioSessionManager.process.isCurrent(token)) {
+                release(token)
+                return
+            }
             r.startListening(intent)
         } catch (_: RuntimeException) {
             finish(token, onResult, VoiceHeard(emptyList()), quiet)
@@ -94,7 +102,10 @@ class VoiceInput(private val context: Context, private val biasing: () -> List<S
     }
 
     private fun finish(token: AudioSessionManager.Token, onResult: (VoiceHeard) -> Unit, results: VoiceHeard, quiet: Boolean = false) {
-        if (!AudioSessionManager.process.isCurrent(token)) return
+        if (!AudioSessionManager.process.isCurrent(token)) {
+            release(token)
+            return
+        }
         if (!quiet) beep(ToneGenerator.TONE_PROP_ACK)
         release(token)
         onResult(results)
