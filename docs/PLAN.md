@@ -6,6 +6,6 @@ Bekleyen madde: aşağıdaki çevrimdışı harita (öncelikli). Önceki üç ma
 
 ## 1. Çevrimdışı harita (öncelikli, ayrı görev)
 
-2026-10-28'de kullanıcı kararı: GPS, hız göstergesi ve önceden indirilmiş haritalar internetsiz çalışmalı. Şu an harita yalnızca çevrimiçi (OpenFreeMap), #5 "planlanmıyor" diye kapatılmıştı; bu karar geçersiz. Ses işi (çevrimiçi STT) bunu beklemez, ama bu madde ondan önce planlanır.
+2026-10-28'de kullanıcı kararı: GPS, hız göstergesi ve önceden indirilmiş haritalar internetsiz çalışmalı. Şu an harita yalnızca çevrimiçi (OpenFreeMap), #5 "planlanmıyor" diye kapatılmıştı; bu karar geçersiz. Sesli asistan kaldırılmıştır; bu plan onu geri getirmez.
 
 Başlangıç noktaları (araştırılacak, henüz karar yok): MapLibre offline region API (`OfflineManager`, mevcut sürüm 11.13.5'te var) ile vektör karo indirme; OpenFreeMap karolarının toplu indirme kullanım şartları; bölge seçimi (il/dikdörtgen), boyut ve disk tahmini; çevrimdışıyken rota (Valhalla çevrimiçi, yani rota hesabı ayrı bir karar) ve arama; kilit/uyarı davranışı. Kabul ölçütü: uçak modunda indirilmiş bölgede harita çizilir, konum ve hız çalışır; indirilmemiş bölgede açık uyarı.
