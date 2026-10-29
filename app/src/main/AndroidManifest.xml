@@ -23,7 +23,7 @@
 
     <queries>
         <intent>
-            <action android:name="android.speech.RecognitionService" />
+            <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
         <!-- The app shelf lists launchable apps so the rider can pin them (no QUERY_ALL_PACKAGES needed). -->
         <intent>
@@ -107,6 +107,12 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <service
+            android:name=".service.RideTrackingService"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="location" />
 
         <service
             android:name=".service.OverlayService"
