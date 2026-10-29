@@ -31,4 +31,23 @@ class GeoTest {
         assertEquals(0.5, proj.fraction, 0.01)
         assertEquals(55.6, proj.distanceM, 2.0)
     }
+
+    @Test
+    fun splitRouteMeetsAtTheRidersPosition() {
+        val shape = listOf(GeoPoint(41.0, 29.0), GeoPoint(41.0, 29.01), GeoPoint(41.0, 29.02))
+        val (behind, ahead) = Geo.splitRoute(shape, 1, 0.5)
+        assertEquals(3, behind.size)
+        assertEquals(2, ahead.size)
+        assertEquals(29.015, behind.last().lon, 1e-9)
+        assertEquals(behind.last(), ahead.first())
+        assertEquals(shape.last(), ahead.last())
+    }
+
+    @Test
+    fun splitRouteAtStartLeavesNothingBehind() {
+        val shape = listOf(GeoPoint(41.0, 29.0), GeoPoint(41.0, 29.01))
+        val (behind, ahead) = Geo.splitRoute(shape, 0, 0.0)
+        assertEquals(1, behind.distinct().size)
+        assertEquals(shape, ahead)
+    }
 }

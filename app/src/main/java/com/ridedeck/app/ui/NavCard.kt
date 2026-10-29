@@ -70,7 +70,7 @@ fun NavCard(
     ) {
         if (guiding) {
             // Live map while guiding: the same route the full map shows, at a glance.
-            MiniMap(nav.route, nav.destination, me, isDay, lowPower)
+            MiniMap(nav.route, nav.progressIndex, nav.progressFraction, nav.destination, me, isDay, lowPower)
             // The map view swallows touches; this clear layer on top passes a tap on to the card.
             Box(Modifier.fillMaxSize().pressClickable(onClick = onOpenMap))
             Box(

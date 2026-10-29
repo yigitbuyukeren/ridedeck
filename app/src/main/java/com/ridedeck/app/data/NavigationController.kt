@@ -28,6 +28,9 @@ data class NavUi(
     val rerouting: Boolean = false,
     val arrived: Boolean = false,
     val maneuverIndex: Int = 0,
+    /** Matched position on [route]: segment index and fraction along it; the map greys out what lies behind. */
+    val progressIndex: Int = 0,
+    val progressFraction: Double = 0.0,
     val distToNextM: Int = 0,
     val remainingM: Int = 0,
     val remainingS: Int = 0,
@@ -299,6 +302,7 @@ class NavigationController(
         val remaining = (route.distanceM - route.cumulative[startIndex]).coerceAtLeast(0.0)
         _ui.update {
             it.copy(navigating = true, arrived = false, maneuverIndex = next.coerceAtLeast(0),
+                progressIndex = startIndex, progressFraction = 0.0,
                 remainingM = remaining.toInt(), remainingS = (route.durationS * remaining / route.distanceM).toInt(),
                 termination = NavigationTermination.NONE)
         }
@@ -402,6 +406,7 @@ class NavigationController(
         spoken.clear()
         _ui.update {
             it.copy(destination = request.stop, finalDestination = request.final, route = route, rerouting = false,
+                progressIndex = 0, progressFraction = 0.0,
                 maneuverIndex = 1.coerceAtMost(route.maneuvers.lastIndex),
                 remainingM = route.distanceM.toInt(), remainingS = route.durationS.toInt())
         }
@@ -506,6 +511,8 @@ class NavigationController(
         _ui.update {
             it.copy(
                 maneuverIndex = next,
+                progressIndex = bestIdx,
+                progressFraction = best.fraction,
                 distToNextM = distToNext.toInt(),
                 remainingM = remaining.toInt(),
                 remainingS = (route.durationS * remaining / route.distanceM).toInt(),
@@ -530,7 +537,7 @@ class NavigationController(
                     offRouteFixes = 0
                     nextRerouteAtMs = 0L
                     spoken.clear()
-                    _ui.update { it.copy(route = route, rerouting = false) }
+                    _ui.update { it.copy(route = route, rerouting = false, progressIndex = 0, progressFraction = 0.0) }
                 }
                 .onFailure {
                     offRouteFixes = 0

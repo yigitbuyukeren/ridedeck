@@ -66,6 +66,20 @@ object Geo {
         return Projection(hypot(px - t * bx, py - t * by), t)
     }
 
+    /**
+     * Splits [shape] at the matched position (segment [index], [fraction] along it) into the part
+     * already ridden and the part still ahead; both include the split point so the two lines meet.
+     */
+    fun splitRoute(shape: List<GeoPoint>, index: Int, fraction: Double): Pair<List<GeoPoint>, List<GeoPoint>> {
+        if (shape.size < 2) return shape to shape
+        val i = index.coerceIn(0, shape.size - 2)
+        val t = fraction.coerceIn(0.0, 1.0)
+        val a = shape[i]
+        val b = shape[i + 1]
+        val at = GeoPoint(a.lat + (b.lat - a.lat) * t, a.lon + (b.lon - a.lon) * t)
+        return (shape.subList(0, i + 1) + at) to (listOf(at) + shape.subList(i + 1, shape.size))
+    }
+
     fun bearing(a: GeoPoint, b: GeoPoint): Double {
         val dLon = Math.toRadians(b.lon - a.lon)
         val y = kotlin.math.sin(dLon) * cos(Math.toRadians(b.lat))

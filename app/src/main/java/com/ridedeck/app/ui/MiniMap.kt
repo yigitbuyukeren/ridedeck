@@ -38,6 +38,8 @@ private const val MINI_LOW_POWER_FPS = 15
 @Composable
 fun MiniMap(
     route: Route?,
+    progressIndex: Int,
+    progressFraction: Double,
     destination: Place?,
     me: LocationState,
     isDay: Boolean,
@@ -66,12 +68,13 @@ fun MiniMap(
         }
     }
 
-    LaunchedEffect(styleReady, route, destination) {
+    LaunchedEffect(styleReady, route, progressIndex, progressFraction) {
         val style = map?.style?.takeIf { styleReady } ?: return@LaunchedEffect
-        val line = route?.let { r -> LineString.fromLngLats(r.shape.map { Point.fromLngLat(it.lon, it.lat) }) }
-        val routeSource = style.getSourceAs<GeoJsonSource>(SRC_ROUTE)
-        if (line != null) routeSource?.setGeoJson(Feature.fromGeometry(line))
-        else routeSource?.setGeoJson(FeatureCollection.fromFeatures(emptyList<Feature>()))
+        showRoute(style, route, progressIndex, progressFraction)
+    }
+
+    LaunchedEffect(styleReady, destination) {
+        val style = map?.style?.takeIf { styleReady } ?: return@LaunchedEffect
         val destSource = style.getSourceAs<GeoJsonSource>(SRC_DEST)
         if (destination != null) destSource?.setGeoJson(Feature.fromGeometry(Point.fromLngLat(destination.point.lon, destination.point.lat)))
         else destSource?.setGeoJson(FeatureCollection.fromFeatures(emptyList<Feature>()))

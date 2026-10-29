@@ -94,6 +94,7 @@ import com.ridedeck.app.data.LocationState
 import com.ridedeck.app.data.NavUi
 import com.ridedeck.app.data.NavigationController
 import com.ridedeck.app.data.Place
+import com.ridedeck.app.data.Route
 import com.ridedeck.app.data.RouteOptions
 import com.ridedeck.app.data.StopKind
 import com.ridedeck.app.data.VehicleProfile
@@ -131,6 +132,7 @@ import org.maplibre.geojson.Point
 internal fun styleUrl(isDay: Boolean) =
     "https://tiles.openfreemap.org/styles/" + if (isDay) "bright" else "dark"
 internal const val SRC_ROUTE = "route"
+internal const val SRC_ROUTE_DONE = "route-done"
 internal const val SRC_DEST = "dest"
 internal const val SRC_ME = "me"
 internal const val SRC_FUEL = "fuel"
@@ -210,16 +212,18 @@ fun MapScreen(
         }
     }
 
-    // Route line and destination pin.
+    // Route line: grey behind the rider, blue ahead.
+    LaunchedEffect(styleReady, ui.route, ui.progressIndex, ui.progressFraction) {
+        val style = map?.style?.takeIf { styleReady } ?: return@LaunchedEffect
+        showRoute(style, ui.route, ui.progressIndex, ui.progressFraction)
+    }
+
+    // Destination pin and the overview camera.
     LaunchedEffect(styleReady, ui.route, ui.destination) {
         val m = map ?: return@LaunchedEffect
         if (!styleReady) return@LaunchedEffect
         val style = m.style ?: return@LaunchedEffect
         val route = ui.route
-        val line = route?.let { r -> LineString.fromLngLats(r.shape.map { Point.fromLngLat(it.lon, it.lat) }) }
-        val routeSource = style.getSourceAs<GeoJsonSource>(SRC_ROUTE)
-        if (line != null) routeSource?.setGeoJson(Feature.fromGeometry(line))
-        else routeSource?.setGeoJson(FeatureCollection.fromFeatures(emptyList<Feature>()))
         val dest = ui.destination
         val destSource = style.getSourceAs<GeoJsonSource>(SRC_DEST)
         if (dest != null) destSource?.setGeoJson(Feature.fromGeometry(Point.fromLngLat(dest.point.lon, dest.point.lat)))
@@ -372,7 +376,34 @@ fun MapScreen(
     }
 }
 
+/** Draws [route] in two parts: the stretch already ridden in grey, the rest ahead in blue. */
+internal fun showRoute(style: Style, route: Route?, progressIndex: Int, progressFraction: Double) {
+    val ahead = style.getSourceAs<GeoJsonSource>(SRC_ROUTE)
+    val done = style.getSourceAs<GeoJsonSource>(SRC_ROUTE_DONE)
+    if (route == null || route.shape.size < 2) {
+        ahead?.setGeoJson(FeatureCollection.fromFeatures(emptyList<Feature>()))
+        done?.setGeoJson(FeatureCollection.fromFeatures(emptyList<Feature>()))
+        return
+    }
+    val (behind, front) = Geo.splitRoute(route.shape, progressIndex, progressFraction)
+    fun line(points: List<GeoPoint>) = Feature.fromGeometry(LineString.fromLngLats(points.map { Point.fromLngLat(it.lon, it.lat) }))
+    ahead?.setGeoJson(line(front))
+    if (behind.size >= 2) done?.setGeoJson(line(behind))
+    else done?.setGeoJson(FeatureCollection.fromFeatures(emptyList<Feature>()))
+}
+
 internal fun addMapLayers(style: Style) {
+    style.addSource(GeoJsonSource(SRC_ROUTE_DONE))
+    style.addLayer(
+        LineLayer("route-done-casing", SRC_ROUTE_DONE).withProperties(
+            lineColor("#3A3A3C"), lineWidth(11f), lineCap(Property.LINE_CAP_ROUND), lineJoin(Property.LINE_JOIN_ROUND)
+        )
+    )
+    style.addLayer(
+        LineLayer("route-done-line", SRC_ROUTE_DONE).withProperties(
+            lineColor("#8E8E93"), lineWidth(7f), lineCap(Property.LINE_CAP_ROUND), lineJoin(Property.LINE_JOIN_ROUND)
+        )
+    )
     style.addSource(GeoJsonSource(SRC_ROUTE))
     style.addLayer(
         LineLayer("route-casing", SRC_ROUTE).withProperties(
