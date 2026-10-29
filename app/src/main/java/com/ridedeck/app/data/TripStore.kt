@@ -5,8 +5,20 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
+interface TripStorage {
+    fun startTrip(startedAt: Long): Long
+    fun addPoint(tripId: Long, p: TripPoint)
+    fun finishTrip(tripId: Long, endedAt: Long, stats: TripStats)
+    fun trips(): List<Trip>
+    fun points(tripId: Long): List<TripPoint>
+    fun unfinishedIds(): List<Long>
+    fun lastPointTime(tripId: Long): Long
+    fun delete(tripId: Long)
+    fun deleteAll()
+}
+
 /** Trips and their GPS points in a small local SQLite database. Nothing leaves the device. */
-class TripStore(context: Context) : SQLiteOpenHelper(context, "trips.db", null, 1) {
+class TripStore(context: Context) : SQLiteOpenHelper(context, "trips.db", null, 1), TripStorage {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
             "CREATE TABLE trips (id INTEGER PRIMARY KEY AUTOINCREMENT, started_at INTEGER NOT NULL, " +
@@ -22,26 +34,27 @@ class TripStore(context: Context) : SQLiteOpenHelper(context, "trips.db", null, 
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {}
 
-    fun startTrip(startedAt: Long): Long =
-        writableDatabase.insert("trips", null, ContentValues().apply { put("started_at", startedAt) })
+    override fun startTrip(startedAt: Long): Long =
+        writableDatabase.insertOrThrow("trips", null, ContentValues().apply { put("started_at", startedAt) })
 
-    fun addPoint(tripId: Long, p: TripPoint) {
-        writableDatabase.insert("points", null, ContentValues().apply {
+    override fun addPoint(tripId: Long, p: TripPoint) {
+        writableDatabase.insertOrThrow("points", null, ContentValues().apply {
             put("trip_id", tripId); put("t", p.t); put("lat", p.lat); put("lon", p.lon); put("kmh", p.kmh)
         })
     }
 
-    fun finishTrip(tripId: Long, endedAt: Long, stats: TripStats) {
+    override fun finishTrip(tripId: Long, endedAt: Long, stats: TripStats) = transaction {
         writableDatabase.update("trips", ContentValues().apply {
             put("ended_at", endedAt)
             put("distance_m", stats.distanceM)
             put("moving_ms", stats.movingMs)
             put("max_kmh", stats.maxKmh)
         }, "id = ?", arrayOf(tripId.toString()))
+        writableDatabase.delete("points", "trip_id = ? AND t > ?", arrayOf(tripId.toString(), endedAt.toString()))
     }
 
     /** Finished trips, newest first. */
-    fun trips(): List<Trip> = readableDatabase.query(
+    override fun trips(): List<Trip> = readableDatabase.query(
         "trips", null, "ended_at > 0", null, null, null, "started_at DESC"
     ).use { c ->
         buildList {
@@ -62,7 +75,7 @@ class TripStore(context: Context) : SQLiteOpenHelper(context, "trips.db", null, 
         }
     }
 
-    fun points(tripId: Long): List<TripPoint> = readableDatabase.query(
+    override fun points(tripId: Long): List<TripPoint> = readableDatabase.query(
         "points", null, "trip_id = ?", arrayOf(tripId.toString()), null, null, "t ASC"
     ).use { c ->
         buildList {
@@ -80,26 +93,30 @@ class TripStore(context: Context) : SQLiteOpenHelper(context, "trips.db", null, 
     }
 
     /** Trips that never got an end time, because the process died mid-ride. */
-    fun unfinishedIds(): List<Long> = readableDatabase.query(
+    override fun unfinishedIds(): List<Long> = readableDatabase.query(
         "trips", arrayOf("id"), "ended_at = 0", null, null, null, null
     ).use { c -> buildList { while (c.moveToNext()) add(c.getLong(0)) } }
 
-    fun lastPointTime(tripId: Long): Long = readableDatabase.rawQuery(
+    override fun lastPointTime(tripId: Long): Long = readableDatabase.rawQuery(
         "SELECT MAX(t) FROM points WHERE trip_id = ?", arrayOf(tripId.toString())
     ).use { c -> if (c.moveToFirst()) c.getLong(0) else 0L }
 
-    fun delete(tripId: Long) {
+    private inline fun transaction(block: () -> Unit) {
         writableDatabase.beginTransaction()
         try {
-            writableDatabase.delete("points", "trip_id = ?", arrayOf(tripId.toString()))
-            writableDatabase.delete("trips", "id = ?", arrayOf(tripId.toString()))
+            block()
             writableDatabase.setTransactionSuccessful()
         } finally {
             writableDatabase.endTransaction()
         }
     }
 
-    fun deleteAll() {
+    override fun delete(tripId: Long) = transaction {
+        writableDatabase.delete("points", "trip_id = ?", arrayOf(tripId.toString()))
+        writableDatabase.delete("trips", "id = ?", arrayOf(tripId.toString()))
+    }
+
+    override fun deleteAll() = transaction {
         writableDatabase.delete("points", null, null)
         writableDatabase.delete("trips", null, null)
     }

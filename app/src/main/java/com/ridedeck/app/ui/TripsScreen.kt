@@ -44,17 +44,24 @@ import androidx.compose.ui.unit.sp
 import com.ridedeck.app.R
 import com.ridedeck.app.data.Trip
 import com.ridedeck.app.data.TripRecorder
+import com.ridedeck.app.data.RideTracking
+import com.ridedeck.app.data.RidePhase
+import androidx.core.app.NotificationManagerCompat
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
 
 @Composable
-fun TripsScreen(trips: TripRecorder, onClose: () -> Unit) {
+fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit) {
     val palette = LocalMotoPalette.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val version by trips.version.collectAsState()
     val recording by trips.recording.collectAsState()
+    val storageError by trips.error.collectAsState()
+    val ride by tracking.session.state.collectAsState()
+    val recordingAllowed by tracking.recordTrips.collectAsState()
+    val startRide = rememberRideStart(tracking)
     val list by produceState(emptyList<Trip>(), version) { value = trips.trips() }
     var selectedId by remember { mutableStateOf<Long?>(null) }
     val selected = list.firstOrNull { it.id == selectedId } ?: list.firstOrNull()
@@ -70,11 +77,31 @@ fun TripsScreen(trips: TripRecorder, onClose: () -> Unit) {
                 Column {
                     Text(stringResource(R.string.trips_title), fontSize = 30.sp, fontWeight = FontWeight.Bold, color = palette.text)
                     if (recording) Text(stringResource(R.string.trip_recording), fontSize = 16.sp, color = MotoColors.Red)
+                    if (storageError) Text(stringResource(R.string.trip_storage_error), fontSize = 16.sp, color = MotoColors.Red)
                 }
                 Box(
                     modifier = Modifier.size(72.dp).clip(CircleShape).background(palette.cardHigh).clickable(onClick = onClose),
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Rounded.Close, null, tint = palette.text, modifier = Modifier.size(32.dp)) }
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                PillButton(
+                    stringResource(if (ride.running) R.string.ride_stop else R.string.ride_start),
+                    if (ride.running) MotoColors.Red else MotoColors.Green,
+                    { if (ride.running) tracking.session.stop() else startRide() },
+                    Modifier.weight(1f),
+                )
+                Text(stringResource(when (ride.phase) {
+                    RidePhase.STARTING -> R.string.ride_starting
+                    RidePhase.STOPPING -> R.string.ride_stopping
+                    RidePhase.ACTIVE -> R.string.ride_active
+                    RidePhase.IDLE -> R.string.ride_idle
+                }), color = palette.muted, fontSize = 15.sp, modifier = Modifier.weight(1f))
+            }
+            ride.failure?.let { Text(stringResource(it.textId()), color = MotoColors.Red, fontSize = 15.sp) }
+            if (ride.running && !recordingAllowed) Text(stringResource(R.string.ride_recording_off), color = palette.muted, fontSize = 14.sp)
+            if (ride.running && !NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+                Text(stringResource(R.string.ride_notifications_off), color = palette.muted, fontSize = 14.sp)
             }
             if (list.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

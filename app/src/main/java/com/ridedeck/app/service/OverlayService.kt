@@ -17,6 +17,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -45,6 +46,10 @@ class OverlayService : Service() {
 
     private val tick = object : Runnable {
         override fun run() {
+            if (!Settings.canDrawOverlays(this@OverlayService) || !hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                stopSelf()
+                return
+            }
             val loc = location.state.value
             // RideDeck already shows the speed itself: the strip is only for when another app is on screen.
             bar?.visibility = if (appInForeground) View.GONE else View.VISIBLE
@@ -65,11 +70,18 @@ class OverlayService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        startForegroundCompat()
-        if (bar == null) addBar()
-        location.start()
-        handler.removeCallbacks(tick)
-        handler.post(tick)
+        try {
+            startForegroundCompat()
+            if (bar == null) addBar()
+            location.start()
+            handler.removeCallbacks(tick)
+            handler.post(tick)
+        } catch (failure: RuntimeException) {
+            // Permissions can be revoked between the check and WindowManager/foreground-service calls.
+            Log.w("RideDeck", "Overlay unavailable (${failure.javaClass.simpleName})")
+            stopSelf()
+            return START_NOT_STICKY
+        }
         return START_STICKY
     }
 
@@ -82,7 +94,7 @@ class OverlayService : Service() {
     override fun onDestroy() {
         handler.removeCallbacks(tick)
         location.stop()
-        bar?.let { windowManager.removeView(it) }
+        bar?.let { runCatching { windowManager.removeView(it) } }
         bar = null
         super.onDestroy()
     }
@@ -149,9 +161,15 @@ class OverlayService : Service() {
         /** Set by the activity: true between onResume and onPause. */
         @Volatile var appInForeground = false
 
-        fun start(context: Context) {
-            if (!Settings.canDrawOverlays(context) || !context.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) return
-            context.startForegroundService(Intent(context, OverlayService::class.java))
+        fun start(context: Context): Boolean {
+            if (!Settings.canDrawOverlays(context) || !context.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) return false
+            return try {
+                context.startForegroundService(Intent(context, OverlayService::class.java))
+                true
+            } catch (failure: RuntimeException) {
+                Log.w("RideDeck", "Overlay start rejected (${failure.javaClass.simpleName})")
+                false
+            }
         }
 
         fun stop(context: Context) {

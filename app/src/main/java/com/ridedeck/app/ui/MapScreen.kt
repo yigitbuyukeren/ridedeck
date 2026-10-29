@@ -61,7 +61,6 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -86,9 +85,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ridedeck.app.R
 import com.ridedeck.app.data.FuelStation
@@ -158,6 +154,8 @@ fun MapScreen(
     onSavePlace: (PlaceKind, Place) -> Unit,
     onRemovePlace: (SavedPlace) -> Unit,
     onClose: () -> Unit,
+    onStartNavigation: () -> Unit,
+    onContinueNavigation: () -> Unit,
     modifier: Modifier = Modifier,
     recents: List<Place> = emptyList(),
     onClearRecents: () -> Unit = {},
@@ -167,7 +165,6 @@ fun MapScreen(
     val options by nav.options.collectAsStateWithLifecycle()
     val me by locationState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
     val portrait = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
 
     val mapView = remember {
@@ -184,28 +181,8 @@ fun MapScreen(
     // A hot phone gets a calmer map: fewer frames per second.
     LaunchedEffect(lowPower) { mapView.setMaximumFps(if (lowPower) LOW_POWER_FPS else FULL_FPS) }
 
-    DisposableEffect(lifecycle, mapView) {
-        var destroyed = false
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_CREATE -> mapView.onCreate(null)
-                Lifecycle.Event.ON_START -> mapView.onStart()
-                Lifecycle.Event.ON_RESUME -> mapView.onResume()
-                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
-                Lifecycle.Event.ON_STOP -> mapView.onStop()
-                Lifecycle.Event.ON_DESTROY -> if (!destroyed) { destroyed = true; mapView.onDestroy() }
-                else -> {}
-            }
-        }
-        lifecycle.addObserver(observer)
-        onDispose {
-            lifecycle.removeObserver(observer)
-            if (!destroyed) {
-                destroyed = true
-                mapView.onPause(); mapView.onStop(); mapView.onDestroy()
-            }
-        }
-    }
+    MapLifecycleEffect(mapView)
+
 
     // (Re)load the style when the map is ready or the day/night theme flips; layers are re-added on each load.
     LaunchedEffect(map, isDay) {
@@ -218,7 +195,7 @@ fun MapScreen(
     }
 
     // My position marker and the navigation chase camera are drawn per frame (see SmoothFollow).
-    SmoothFollow(map, mapView, styleReady, me, follow = ui.navigating, zoom = 17.0, tilt = 55.0, padTopFraction = 0.45)
+    SmoothFollow(map, mapView, styleReady, me, follow = ui.navigating, zoom = 17.0, tilt = 55.0, padTopFraction = 0.45, maxFps = if (lowPower) LOW_POWER_FPS else FULL_FPS)
 
     LaunchedEffect(styleReady, me.fixAtMs, ui.navigating) {
         val m = map ?: return@LaunchedEffect
@@ -324,13 +301,13 @@ fun MapScreen(
                 ui.navigating -> ManeuverBanner(ui)
                 ui.arrived -> ArrivedCard(
                     next = ui.finalDestination,
-                    onContinue = nav::continueToFinal,
+                    onContinue = onContinueNavigation,
                     onDone = nav::stopNavigation,
                 )
                 ui.route != null -> RouteCard(
                     ui, options, onOptions = nav::setOptions,
                     canOpenExternal = speedKmh < SEARCH_LOCK_KMH,
-                    onStart = nav::startNavigation, onCancel = nav::stopNavigation,
+                    onStart = onStartNavigation, onCancel = nav::stopNavigation,
                     saved = ui.destination?.let { d -> places.any { Geo.distance(it.place.point, d.point) < SAVED_SPOT_M } } == true,
                     onSave = { ui.destination?.let { saving = it } },
                 )

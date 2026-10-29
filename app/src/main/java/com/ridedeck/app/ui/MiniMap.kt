@@ -2,7 +2,6 @@ package com.ridedeck.app.ui
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -12,9 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.ridedeck.app.data.LocationState
 import com.ridedeck.app.data.Place
 import com.ridedeck.app.data.Route
@@ -49,7 +45,6 @@ fun MiniMap(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
     val mapView = remember {
         MapLibre.getInstance(context)
         MapView(context)
@@ -59,32 +54,8 @@ fun MiniMap(
 
     LaunchedEffect(lowPower) { mapView.setMaximumFps(if (lowPower) MINI_LOW_POWER_FPS else MINI_FULL_FPS) }
 
-    DisposableEffect(lifecycle, mapView) {
-        var destroyed = false
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_CREATE -> mapView.onCreate(null)
-                Lifecycle.Event.ON_START -> mapView.onStart()
-                Lifecycle.Event.ON_RESUME -> mapView.onResume()
-                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
-                Lifecycle.Event.ON_STOP -> mapView.onStop()
-                Lifecycle.Event.ON_DESTROY -> if (!destroyed) { destroyed = true; mapView.onDestroy() }
-                else -> {}
-            }
-        }
-        lifecycle.addObserver(observer)
-        // Composed after the activity started, so the events it already missed are replayed by hand.
-        if (lifecycle.currentState.isAtLeast(Lifecycle.State.CREATED)) mapView.onCreate(null)
-        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) mapView.onStart()
-        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) mapView.onResume()
-        onDispose {
-            lifecycle.removeObserver(observer)
-            if (!destroyed) {
-                destroyed = true
-                mapView.onPause(); mapView.onStop(); mapView.onDestroy()
-            }
-        }
-    }
+    MapLifecycleEffect(mapView)
+
 
     LaunchedEffect(map, isDay) {
         val m = map ?: return@LaunchedEffect
@@ -106,7 +77,7 @@ fun MiniMap(
         else destSource?.setGeoJson(FeatureCollection.fromFeatures(emptyList<Feature>()))
     }
 
-    SmoothFollow(map, mapView, styleReady, me, follow = true, zoom = 16.0, tilt = 50.0, padTopFraction = 0.3)
+    SmoothFollow(map, mapView, styleReady, me, follow = true, zoom = 16.0, tilt = 50.0, padTopFraction = 0.3, maxFps = if (lowPower) MINI_LOW_POWER_FPS else MINI_FULL_FPS)
 
     AndroidView(
         modifier = modifier.fillMaxSize(),

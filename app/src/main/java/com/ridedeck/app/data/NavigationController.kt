@@ -72,6 +72,8 @@ class NavigationController(
     private val onPlaceChosen: (Place) -> Unit = {},
     /** Nominatim allows one request per second: the pause between a query and its corrected spellings. */
     private val searchGapMs: Long = SEARCH_GAP_MS,
+    private val nowMs: () -> Long = System::currentTimeMillis,
+    private val beforeStart: () -> Boolean = { true },
 ) {
     private val _options = MutableStateFlow(initialOptions)
     val options: StateFlow<RouteOptions> = _options
@@ -96,10 +98,11 @@ class NavigationController(
     private var nextRerouteAtMs = 0L
 
     private fun here(): GeoPoint? =
-        location.value.takeIf { it.fixAtMs > 0 }?.let { GeoPoint(it.lat, it.lon) }
+        location.value.takeIf { it.hasFreshFix(nowMs()) }?.let { GeoPoint(it.lat, it.lon) }
 
     fun onQueryChange(query: String) {
-        _ui.update { it.copy(query = query, error = null, suggestion = null, resultsFor = null) }
+        searchJob?.cancel()
+        _ui.update { it.copy(query = query, searching = false, error = null, suggestion = null, resultsFor = null) }
     }
 
     private class SearchOutcome(val places: List<Place>, val resultsFor: String? = null, val suggestion: String? = null, val failed: Boolean = false)
@@ -175,9 +178,12 @@ class NavigationController(
             _ui.update { it.copy(loading = false, error = text(R.string.gps_waiting)) }
             return null
         }
+        trackJob?.cancel()
+        voice.stop()
         _ui.update {
             it.copy(destination = place, finalDestination = null, route = null, query = place.name,
-                results = emptyList(), loading = true, error = null)
+                results = emptyList(), searching = false, loading = true, error = null,
+                navigating = false, rerouting = false, arrived = false, termination = NavigationTermination.NONE)
         }
         return from to generation
     }
@@ -217,7 +223,10 @@ class NavigationController(
         options: RouteOptions = _options.value,
     ): Result<Route>? = withTimeoutOrNull(routeTimeoutMs) {
         try {
-            repo.route(from, to, options)
+            repo.route(from, to, options).mapCatching { route ->
+                require(route.isUsable()) { "Invalid route geometry or maneuvers" }
+                route
+            }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
@@ -243,8 +252,8 @@ class NavigationController(
         val state = _ui.value
         val dest = state.destination
         val from = here()
-        if (dest == null || from == null || state.route == null || state.navigating) return
-        _ui.update { it.copy(loading = true, error = null) }
+        if (dest == null || from == null || (state.route == null && !state.loading) || state.navigating) return
+        _ui.update { it.copy(loading = true, route = null, error = null) }
         val generation = invalidateRoute()
         routeJob = scope.launch {
             val result = routeResult(from, dest.point, options)
@@ -269,7 +278,16 @@ class NavigationController(
     }
 
     fun startNavigation() {
+        if (_ui.value.navigating || _ui.value.loading || _ui.value.rerouting) return
         val route = _ui.value.route ?: return
+        if (here() == null) {
+            _ui.update { it.copy(error = text(R.string.gps_waiting)) }
+            return
+        }
+        if (!beforeStart()) {
+            _ui.update { it.copy(error = text(R.string.ride_start_error)) }
+            return
+        }
         begin(route, 0)
     }
 
@@ -293,6 +311,7 @@ class NavigationController(
                 throw cancelled
             } catch (_: Exception) {
                 if (_ui.value.navigating) {
+                    invalidateRoute()
                     voice.stop()
                     _ui.update {
                         it.copy(navigating = false, rerouting = false, error = text(R.string.voice_navigation_tracking_failed),
@@ -304,12 +323,13 @@ class NavigationController(
     }
 
     fun stopNavigation() {
+        searchJob?.cancel()
         trackJob?.cancel()
         // A route still being computed (re-route, stop detour) must not come back to life after "Finish".
         invalidateRoute()
         fuelJob?.cancel()
         voice.stop()
-        _ui.value = NavUi(termination = if (_ui.value.navigating) NavigationTermination.USER_CANCELLED else NavigationTermination.NONE)
+        _ui.value = NavUi(termination = NavigationTermination.USER_CANCELLED)
         _fuel.value = FuelUi()
     }
 
@@ -391,19 +411,21 @@ class NavigationController(
 
     /** At the fuel stop: route on to the original destination and keep guiding. */
     fun continueToFinal() {
+        if (_ui.value.loading || _ui.value.navigating) return
         val final = _ui.value.finalDestination ?: return
         val from = here() ?: return
-        _ui.update { it.copy(loading = true, arrived = false) }
+        _ui.update { it.copy(loading = true, error = null) }
         val generation = invalidateRoute()
         routeJob = scope.launch {
             val result = routeResult(from, final.point)
             if (generation != routeGeneration) return@launch
             (result ?: Result.failure(IllegalStateException("routing timeout")))
                 .onSuccess { route ->
-                    _ui.update { it.copy(destination = final, finalDestination = null, route = route, loading = false) }
+                    _ui.update { it.copy(destination = final, finalDestination = null, route = route, loading = false,
+                        arrived = false, termination = NavigationTermination.NONE) }
                     startNavigation()
                 }
-                .onFailure { _ui.update { s -> s.copy(loading = false, arrived = false, error = text(R.string.route_failed)) } }
+                .onFailure { _ui.update { s -> s.copy(loading = false, error = text(R.string.route_failed)) } }
         }
     }
 
@@ -413,6 +435,7 @@ class NavigationController(
         val state = _ui.value
         val route = state.route ?: return
         if (state.navigating && fix.locationPermissionGranted == false) {
+            invalidateRoute()
             voice.stop()
             _ui.update {
                 it.copy(navigating = false, rerouting = false, error = text(R.string.voice_navigation_permission_revoked),
@@ -422,6 +445,7 @@ class NavigationController(
             return
         }
         if (state.navigating && fix.gpsProviderEnabled == false) {
+            invalidateRoute()
             voice.stop()
             _ui.update {
                 it.copy(navigating = false, rerouting = false, error = text(R.string.voice_navigation_location_disabled),
@@ -430,7 +454,7 @@ class NavigationController(
             trackJob?.cancel()
             return
         }
-        if (!state.navigating || fix.fixAtMs == 0L || route.shape.size < 2) return
+        if (!state.navigating || !fix.hasFreshFix(nowMs()) || route.shape.size < 2) return
         val p = GeoPoint(fix.lat, fix.lon)
 
         // Match to the nearest segment within a window ahead of the last known position.
@@ -518,6 +542,7 @@ class NavigationController(
     }
 
     fun shutdown() {
+        searchJob?.cancel()
         trackJob?.cancel()
         fuelJob?.cancel()
         invalidateRoute()

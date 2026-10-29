@@ -194,8 +194,8 @@ class SpeedFilterTest {
         feed(f, List(5) { 12f })
         feed(f, listOf(6f, 1f, 0.1f, 0f, 0.1f, 0f), startMs = 1000L + 5000L)
         assertEquals(0.0, f.speedMps(1000L + 11000L), 0.0)
-        f.onFix(1000L + 11000L, 3f, 0.4f)
-        assertEquals(3.0, f.speedMps(1000L + 11000L), 0.5)
+        f.onFix(1000L + 12000L, 3f, 0.4f)
+        assertEquals(3.0, f.speedMps(1000L + 12000L), 0.5)
     }
 
     /** Worst |displayed - true| in km/h while braking from 25 m/s at [decel] m/s², chip claiming [acc], noise [sigma]; fixes at 1 Hz. */
@@ -237,5 +237,31 @@ class SpeedFilterTest {
             if (i > 5) worst = maxOf(worst, abs(f.speedMps(i * 1000L) - 20.0) * 3.6)
         }
         assertTrue("worst=$worst", worst < 15.0)
+    }
+
+    @Test fun duplicateAndOlderFixesCannotResetSpeedOrExtendFreshness() {
+        val f = SpeedFilter()
+        f.onFix(10_000, 20f)
+        f.onFix(10_000, 0f)
+        f.onFix(9_000, 0f)
+        assertEquals(72.0, f.speedKmh(10_000), 0.0)
+        assertNull(f.speedOrNull(13_001))
+    }
+
+    @Test fun invalidNumbersDoNotPoisonLaterReadouts() {
+        val f = SpeedFilter()
+        f.onFix(1_000, Float.NaN)
+        assertNull(f.speedOrNull(1_000))
+        f.onFix(2_000, 20f, Float.NaN)
+        f.onFix(3_000, 21f, Float.POSITIVE_INFINITY)
+        assertTrue(f.speedKmh(3_000).isFinite())
+    }
+
+    @Test fun aStopAfterLongSignalLossStartsFromTheNewMeasurement() {
+        val f = SpeedFilter()
+        f.onFix(1_000, 25f)
+        f.onFix(20_000, 0f)
+        assertEquals(0.0, f.speedOrNull(20_000)!!, 0.0)
+        assertEquals(0.0, f.speedOrNull(24_000)!!, 0.0)
     }
 }

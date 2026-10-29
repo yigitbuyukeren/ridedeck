@@ -10,6 +10,10 @@ import com.ridedeck.app.data.LocationState
 import com.ridedeck.app.data.Maneuver
 import com.ridedeck.app.data.NavigationController
 import com.ridedeck.app.data.NavigationTermination
+import com.ridedeck.app.data.NavigationRideLifecycle
+import com.ridedeck.app.data.RideSessionController
+import com.ridedeck.app.data.RidePhase
+import com.ridedeck.app.data.RideFailure
 import com.ridedeck.app.data.Place
 import com.ridedeck.app.data.Route
 import com.ridedeck.app.data.RouteOptions
@@ -26,6 +30,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -117,11 +122,11 @@ class NavigationControllerTest {
         speaker = RecordingSpeaker()
         routing = FakeRouting(ArrayDeque(listOf(straightRoute())))
         fuel = FakeFuel()
-        nav = NavigationController(text, scope, location, speaker, routing, fuel)
+        nav = NavigationController(text, scope, location, speaker, routing, fuel, nowMs = { clock })
     }
 
     @After
-    fun tearDown() = nav.shutdown()
+    fun tearDown() { nav.shutdown(); scope.cancel() }
 
     private fun startGuidance() {
         nav.selectPlace(dest)
@@ -154,7 +159,7 @@ class NavigationControllerTest {
     @Test
     fun changingTheOptionsInThePreviewRoutesAgainWithThem() {
         val saved = mutableListOf<RouteOptions>()
-        nav = NavigationController(text, scope, location, speaker, routing, fuel, onOptionsChanged = { saved += it })
+        nav = NavigationController(text, scope, location, speaker, routing, fuel, nowMs = { clock }, onOptionsChanged = { saved += it })
         nav.selectPlace(dest)
         assertEquals(RouteOptions(), routing.optionsSeen.last())
 
@@ -170,7 +175,7 @@ class NavigationControllerTest {
 
     @Test
     fun optionsChosenBeforeRoutingAreUsedForTheFirstRoute() {
-        nav = NavigationController(text, scope, location, speaker, routing, fuel, initialOptions = RouteOptions(avoidTolls = true))
+        nav = NavigationController(text, scope, location, speaker, routing, fuel, nowMs = { clock }, initialOptions = RouteOptions(avoidTolls = true))
         nav.selectPlace(dest)
         assertEquals(RouteOptions(avoidTolls = true), routing.optionsSeen.single())
     }
@@ -270,6 +275,7 @@ class NavigationControllerTest {
         nav.shutdown()
         nav = NavigationController(
             text, scope, location, speaker, routing, fuel,
+            nowMs = { clock },
             locationUpdates = flow { throw IllegalStateException("sensor stream failed") },
         )
         nav.selectPlace(dest)
@@ -385,7 +391,7 @@ class NavigationControllerTest {
 
     private fun typoNav(known: List<Place> = emptyList(), chosen: MutableList<Place> = mutableListOf()) {
         nav.shutdown()
-        nav = NavigationController(text, scope, location, speaker, routing, fuel, knownPlaces = { known }, onPlaceChosen = { chosen += it }, searchGapMs = 0)
+        nav = NavigationController(text, scope, location, speaker, routing, fuel, nowMs = { clock }, knownPlaces = { known }, onPlaceChosen = { chosen += it }, searchGapMs = 0)
     }
 
     @Test
@@ -473,5 +479,258 @@ class NavigationControllerTest {
         assertEquals(listOf(dest), chosen)
         nav.selectPoint(GeoPoint(41.02, 29.01))
         assertEquals(listOf(dest), chosen)
+    }
+
+    @Test fun staleFixCannotStartARouteOrAdvanceGuidance() {
+        clock += 6_000
+        nav.selectPlace(dest)
+        assertTrue(routing.requests.isEmpty())
+        assertEquals("t${R.string.gps_waiting}", nav.ui.value.error)
+        drive(0)
+        startGuidance()
+        val remaining = nav.ui.value.remainingM
+        location.value = location.value.copy(fixAtMs = clock - 6_000, lat = dest.point.lat)
+        assertTrue(nav.ui.value.navigating)
+        assertFalse(nav.ui.value.arrived)
+        assertEquals(remaining, nav.ui.value.remainingM)
+    }
+
+    @Test fun selectingNewDestinationDuringGuidanceReturnsToPreview() {
+        startGuidance()
+        drive(10)
+        speaker.said.clear()
+        nav.selectPlace(Place("Other", "", GeoPoint(41.03, 29.0)))
+        assertFalse(nav.ui.value.navigating)
+        drive(14)
+        assertTrue(speaker.said.isEmpty())
+        nav.startNavigation()
+        assertTrue(nav.ui.value.navigating)
+    }
+
+    @Test fun invalidRoutingRepliesBecomeErrorsInsteadOfCrashingGuidance() {
+        val valid = straightRoute()
+        for (bad in listOf(valid.copy(shape = emptyList()), valid.copy(maneuvers = emptyList()),
+            valid.copy(distanceM = Double.NaN), valid.copy(maneuvers = listOf(valid.maneuvers[0].copy(beginIndex = 999))))) {
+            routing.routeHandler = { _, _ -> Result.success(bad) }
+            nav.selectPlace(dest)
+            nav.startNavigation()
+            assertNull(nav.ui.value.route)
+            assertFalse(nav.ui.value.navigating)
+            assertEquals("t${R.string.route_failed}", nav.ui.value.error)
+        }
+    }
+
+    @Test fun providerLossCancelsAnInFlightDetour() = runBlocking {
+        startGuidance()
+        val result = CompletableDeferred<Result<Route>>()
+        routing.routeHandler = { _, _ -> result.await() }
+        nav.detourVia(Place("Stop", "", GeoPoint(41.01, 29.0)))
+        assertTrue(nav.ui.value.rerouting)
+        location.value = location.value.copy(gpsProviderEnabled = false)
+        result.complete(Result.success(straightRoute()))
+        assertFalse(nav.ui.value.navigating)
+        assertFalse(nav.ui.value.rerouting)
+        assertEquals(dest, nav.ui.value.destination)
+        assertNull(nav.ui.value.finalDestination)
+        assertEquals(NavigationTermination.LOCATION_DISABLED, nav.ui.value.termination)
+    }
+
+    @Test fun editingQueryCancelsTheOldSearchBeforeItCanPublish() = runBlocking {
+        val result = CompletableDeferred<Result<List<Place>>>()
+        routing.searchHandler = { result.await() }
+        nav.onQueryChange("Old place")
+        nav.search()
+        assertTrue(nav.ui.value.searching)
+        nav.onQueryChange("New place")
+        result.complete(Result.success(listOf(dest)))
+        assertFalse(nav.ui.value.searching)
+        assertTrue(nav.ui.value.results.isEmpty())
+        assertEquals("New place", nav.ui.value.query)
+    }
+
+    @Test fun routePreviewCannotStartGuidanceWithAnExpiredFix() {
+        nav.selectPlace(dest)
+        clock += 6_000
+        nav.startNavigation()
+        assertFalse(nav.ui.value.navigating)
+        assertTrue(speaker.said.isEmpty())
+        assertEquals("t${R.string.gps_waiting}", nav.ui.value.error)
+    }
+
+    @Test fun vehicleChangeWhileLoadingReplacesThePendingRouteRequest() = runBlocking {
+        val first = CompletableDeferred<Result<Route>>()
+        routing.routeHandler = { _, _ -> first.await() }
+        nav.selectPlace(dest)
+        routing.routeHandler = { from, _ -> Result.success(straightRoute(from)) }
+        nav.setProfile(VehicleProfile.BICYCLE)
+        assertEquals(VehicleProfile.BICYCLE, routing.optionsSeen.last().profile)
+        assertEquals(2, routing.requests.size)
+        assertFalse(nav.ui.value.loading)
+        assertNotNull(nav.ui.value.route)
+        first.complete(Result.success(straightRoute()))
+        assertEquals(VehicleProfile.BICYCLE, nav.options.value.profile)
+    }
+
+    @Test fun failedOptionChangeCannotStartTheOldRouteWithDifferentOptions() {
+        nav.selectPlace(dest)
+        routing.routeHandler = { _, _ -> Result.failure(java.io.IOException("offline")) }
+        nav.setOptions(RouteOptions(avoidTolls = true))
+        assertNull(nav.ui.value.route)
+        nav.startNavigation()
+        assertFalse(nav.ui.value.navigating)
+        assertEquals("t${R.string.route_failed}", nav.ui.value.error)
+    }
+
+    @Test fun rejectedForegroundTrackingDoesNotStartGuidanceOrSpeakDeparture() {
+        nav.shutdown()
+        nav = NavigationController(text, scope, location, speaker, routing, fuel, nowMs = { clock }, beforeStart = { false })
+        nav.selectPlace(dest)
+        nav.startNavigation()
+        assertFalse(nav.ui.value.navigating)
+        assertTrue(speaker.said.isEmpty())
+        assertEquals("t${R.string.ride_start_error}", nav.ui.value.error)
+    }
+
+    @Test fun repeatedStartDoesNotResetProgressOrRepeatDeparture() {
+        startGuidance()
+        drive(10)
+        val remaining = nav.ui.value.remainingM
+        val said = speaker.said.toList()
+        nav.startNavigation()
+        assertEquals(remaining, nav.ui.value.remainingM)
+        assertEquals(said, speaker.said)
+    }
+
+    @Test fun finishingAlsoCancelsAPendingSearch() = runBlocking {
+        val result = CompletableDeferred<Result<List<Place>>>()
+        routing.searchHandler = { result.await() }
+        nav.onQueryChange("Old place")
+        nav.search()
+        nav.stopNavigation()
+        result.complete(Result.success(listOf(dest)))
+        assertTrue(nav.ui.value.results.isEmpty())
+        assertFalse(nav.ui.value.searching)
+    }
+
+    @Test fun failedContinuationKeepsTheStopAndOffersRetry() {
+        startGuidance()
+        nav.detourVia(Place("Stop", "", dest.point))
+        location.value = fixAt(nav.ui.value.route!!.shape.last())
+        assertTrue(nav.ui.value.arrived)
+        routing.routeHandler = { _, _ -> Result.failure(java.io.IOException("offline")) }
+        nav.continueToFinal()
+        assertTrue(nav.ui.value.arrived)
+        assertEquals(dest, nav.ui.value.finalDestination)
+        assertFalse(nav.ui.value.loading)
+    }
+
+    private var keepsRideAlive = false
+    private var token = 0L
+    private fun bindRide(): RideSessionController {
+        val ride = RideSessionController(scope, { null }, { token = it }, {}, {}, { true }, {}, { clock })
+        NavigationRideLifecycle(scope, nav, ride) { keepsRideAlive = it }
+        assertTrue(ride.requestStart(true))
+        assertTrue(ride.serviceStarted(token))
+        return ride
+    }
+
+    @Test fun finalArrivalEndsTheRideWithoutClearingTheArrivalSummary() {
+        val ride = bindRide()
+        startGuidance()
+        assertTrue(keepsRideAlive)
+        drive(20)
+        assertEquals(RidePhase.IDLE, ride.state.value.phase)
+        assertTrue(nav.ui.value.arrived)
+        assertEquals(NavigationTermination.ARRIVED, nav.ui.value.termination)
+        assertFalse(keepsRideAlive)
+    }
+
+    @Test fun plannedStopAndFailedContinuationKeepTheRideAliveUntilUserFinishes() {
+        val ride = bindRide()
+        startGuidance()
+        nav.detourVia(Place("Stop", "", dest.point))
+        location.value = fixAt(nav.ui.value.route!!.shape.last())
+        assertTrue(keepsRideAlive)
+        assertEquals(RidePhase.ACTIVE, ride.state.value.phase)
+        routing.routeHandler = { _, _ -> Result.failure(java.io.IOException("offline")) }
+        nav.continueToFinal()
+        assertTrue(keepsRideAlive)
+        assertEquals(RidePhase.ACTIVE, ride.state.value.phase)
+        nav.stopNavigation()
+        assertEquals(RidePhase.IDLE, ride.state.value.phase)
+        assertFalse(keepsRideAlive)
+    }
+
+    @Test fun stopArrivalAndContinuationDoNotEndTheRideBetweenLegs() {
+        val ride = bindRide()
+        startGuidance()
+        nav.detourVia(Place("Stop", "", dest.point))
+        location.value = fixAt(nav.ui.value.route!!.shape.last())
+        nav.continueToFinal()
+        assertTrue(nav.ui.value.navigating)
+        assertEquals(RidePhase.ACTIVE, ride.state.value.phase)
+        assertTrue(keepsRideAlive)
+    }
+
+    @Test fun notificationStopAtAStopCancelsThePendingContinuationAndLateReply() = runBlocking {
+        val ride = bindRide()
+        startGuidance()
+        nav.detourVia(Place("Stop", "", dest.point))
+        location.value = fixAt(nav.ui.value.route!!.shape.last())
+        val result = CompletableDeferred<Result<Route>>()
+        routing.routeHandler = { _, _ -> result.await() }
+        nav.continueToFinal()
+        assertTrue(nav.ui.value.loading)
+        val announcements = speaker.said.toList()
+        ride.stop()
+        result.complete(Result.success(straightRoute()))
+        assertEquals(RidePhase.IDLE, ride.state.value.phase)
+        assertFalse(nav.ui.value.navigating)
+        assertFalse(nav.ui.value.loading)
+        assertNull(nav.ui.value.finalDestination)
+        assertEquals(announcements, speaker.said)
+        assertFalse(keepsRideAlive)
+    }
+
+    @Test fun serviceDestructionStopsGuidanceAndFreshGpsCannotReviveIt() {
+        val ride = bindRide()
+        startGuidance()
+        ride.serviceDestroyed(token)
+        drive(10)
+        assertEquals(RideFailure.INTERRUPTED, ride.state.value.failure)
+        assertFalse(nav.ui.value.navigating)
+        assertFalse(keepsRideAlive)
+    }
+
+    @Test fun permissionLossEndsTheRideAndPreservesTheTypedNavigationError() {
+        val ride = bindRide()
+        startGuidance()
+        location.value = location.value.copy(locationPermissionGranted = false)
+        assertEquals(RidePhase.IDLE, ride.state.value.phase)
+        assertEquals(RideFailure.PERMISSION, ride.state.value.failure)
+        assertEquals(NavigationTermination.LOCATION_PERMISSION_REVOKED, nav.ui.value.termination)
+        assertEquals("t${R.string.voice_navigation_permission_revoked}", nav.ui.value.error)
+    }
+
+    @Test fun oldCancellationUiDoesNotStopANewManualRideWhenQueryChanges() {
+        val ride = bindRide()
+        startGuidance()
+        nav.stopNavigation()
+        assertEquals(RidePhase.IDLE, ride.state.value.phase)
+        assertTrue(ride.requestStart(true))
+        assertTrue(ride.serviceStarted(token))
+        nav.onQueryChange("Another destination")
+        assertEquals(RidePhase.ACTIVE, ride.state.value.phase)
+    }
+
+    @Test fun permissionLossDuringADetourPreservesTheErrorAndReleasesGuidance() {
+        val ride = bindRide()
+        startGuidance()
+        nav.detourVia(Place("Stop", "", dest.point))
+        assertNotNull(nav.ui.value.finalDestination)
+        location.value = location.value.copy(locationPermissionGranted = false)
+        assertEquals(RidePhase.IDLE, ride.state.value.phase)
+        assertEquals(NavigationTermination.LOCATION_PERMISSION_REVOKED, nav.ui.value.termination)
+        assertFalse(keepsRideAlive)
     }
 }

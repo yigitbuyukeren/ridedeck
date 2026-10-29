@@ -31,18 +31,20 @@ class SpeedFilter {
 
     /** A fix: [tMs] on any steady clock (elapsed realtime), [speedMps] the measured speed, [accuracyMps] its 1-sigma error if the chip reports it. */
     fun onFix(tMs: Long, speedMps: Float, accuracyMps: Float? = null) {
+        if (!speedMps.isFinite() || (started && tMs <= lastFixMs)) return
         val z = max(0.0, speedMps.toDouble())
         val gap = (tMs - lastFixMs) / 1000.0
         lastHeld = false
-        if (!started || gap > GAP_RESET_S || gap <= 0.0) {
+        if (!started || gap > GAP_RESET_S) {
             // First fix, a long hole or a clock hiccup: start over from the measurement.
             v = z; a = 0.0; started = true; outliers = 0; lastRaw = z
             lastFixMs = tMs
+            standstill = true; slowFixes = 0
             updateStandstill(z)
             return
         }
         val dt = min(gap, 2.0)
-        val sigma = (accuracyMps ?: DEFAULT_SIGMA).toDouble().coerceAtLeast(MIN_SIGMA)
+        val sigma = (accuracyMps?.takeIf { it.isFinite() && it >= 0f } ?: DEFAULT_SIGMA).toDouble().coerceAtLeast(MIN_SIGMA)
         val jump = abs(z - lastRaw)
         val dropped = z < lastRaw
         lastRaw = z

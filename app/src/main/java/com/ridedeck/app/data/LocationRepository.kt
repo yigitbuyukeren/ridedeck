@@ -26,6 +26,7 @@ data class LocationState(
     val accuracyM: Int? = null,
     /** Raw speed in m/s as the chip reports it (speedKmh is this, rounded, with the standstill cut). */
     val speedMps: Float = 0f,
+    val hasSpeed: Boolean = true,
     /** The chip's 1-sigma speed error in m/s (API 26+), when it gives one. */
     val speedAccuracyMps: Float? = null,
     /** When the fix was measured, on the elapsed-realtime clock. */
@@ -50,20 +51,26 @@ class LocationRepository(private val context: Context) {
     private val speedFilter = SpeedFilter()
 
     /** The speed to draw right now, in km/h (filtered and projected forward from the last fix); null when it is unknown (no fix for a while). */
-    fun displayKmh(): Double? = speedFilter.speedKmhOrNull(SystemClock.elapsedRealtime())
+    fun displayKmh(): Double? {
+        val elapsed = SystemClock.elapsedRealtime()
+        return if (_state.value.hasSpeed && _state.value.hasFreshFix(System.currentTimeMillis(), elapsed)) speedFilter.speedKmhOrNull(elapsed) else null
+    }
 
     // An object, not a lambda: before Android 11 the listener's other callbacks are abstract, and a lambda
     // would crash with AbstractMethodError the first time the GPS is switched off or on.
     private val listener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
-            val kmh = if (location.hasSpeed()) SpeedUtil.msToKmh(location.speed) else 0
+            val hasSpeed = location.hasSpeed() && location.speed.isFinite() && location.speed >= 0f
+            val kmh = if (hasSpeed) SpeedUtil.msToKmh(location.speed) else 0
             val nowReal = SystemClock.elapsedRealtime()
             val measuredAt = location.elapsedRealtimeNanos / 1_000_000L
-            val speedAcc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && location.hasSpeedAccuracy()) location.speedAccuracyMetersPerSecond else null
+            val fixTime = if (measuredAt > 0L) measuredAt else nowReal
+            if (!LocationFixPolicy.accepts(fixTime, _state.value.elapsedRealtimeMs, nowReal, location.latitude, location.longitude)) return
+            val speedAcc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && location.hasSpeedAccuracy()) location.speedAccuracyMetersPerSecond.takeIf { it.isFinite() && it >= 0f } else null
             val previous = _state.value
-            val speedMps = if (location.hasSpeed()) location.speed else 0f
+            val speedMps = if (hasSpeed) location.speed else 0f
             // The filter works on the time the chip measured at, so a late delivery does not shift the estimate.
-            speedFilter.onFix(if (measuredAt > 0) measuredAt else nowReal, speedMps, speedAcc)
+            if (hasSpeed) speedFilter.onFix(fixTime, speedMps, speedAcc) else speedFilter.reset()
             // Opt-in: `adb shell setprop log.tag.RideDeckSpeed DEBUG`. Speeds and timing only, never a position.
             if (Log.isLoggable(SPEED_LOG_TAG, Log.DEBUG)) {
                 Log.d(SPEED_LOG_TAG, "raw=%.2f acc=%s age=%s gap=%s shown=%.2f %s".format(
@@ -74,14 +81,15 @@ class LocationRepository(private val context: Context) {
             }
             _state.value = LocationState(
                 speedKmh = kmh,
-                fixAtMs = System.currentTimeMillis(),
+                fixAtMs = System.currentTimeMillis() - (nowReal - fixTime),
                 lat = location.latitude,
                 lon = location.longitude,
-                bearing = if (location.hasBearing() && kmh > 0) location.bearing else _state.value.bearing,
-                accuracyM = if (location.hasAccuracy()) Math.round(location.accuracy) else null,
+                bearing = if (location.hasBearing() && location.bearing.isFinite() && kmh > 0) location.bearing else _state.value.bearing,
+                accuracyM = if (location.hasAccuracy() && location.accuracy.isFinite() && location.accuracy >= 0f) Math.round(location.accuracy) else null,
                 speedMps = speedMps,
+                hasSpeed = hasSpeed,
                 speedAccuracyMps = speedAcc,
-                elapsedRealtimeMs = measuredAt,
+                elapsedRealtimeMs = fixTime,
                 fixAgeMs = if (measuredAt > 0) (nowReal - measuredAt).toInt().coerceAtLeast(0) else null,
                 fixIntervalMs = if (previous.elapsedRealtimeMs > 0 && measuredAt > 0) (measuredAt - previous.elapsedRealtimeMs).toInt() else null,
                 gpsProviderEnabled = previous.gpsProviderEnabled,
@@ -94,7 +102,10 @@ class LocationRepository(private val context: Context) {
         }
 
         override fun onProviderDisabled(provider: String) {
-            if (provider == LocationManager.GPS_PROVIDER) _state.value = _state.value.copy(gpsProviderEnabled = false)
+            if (provider == LocationManager.GPS_PROVIDER) {
+                invalidateFix()
+                _state.value = _state.value.copy(gpsProviderEnabled = false)
+            }
         }
 
         @Deprecated("Deprecated in Java")
@@ -109,23 +120,33 @@ class LocationRepository(private val context: Context) {
         if (!permissionGranted) {
             if (active) runCatching { manager.removeUpdates(listener) }
             active = false
+            invalidateFix()
             return
         }
-        if (active || providerEnabled == false) return
+        if (providerEnabled == false) invalidateFix()
+        // Register even while GPS is disabled, so turning it back on delivers provider callbacks and fixes.
+        if (active) return
         try {
             manager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener, Looper.getMainLooper())
             active = true
         } catch (_: SecurityException) {
+            invalidateFix()
             _state.value = _state.value.copy(locationPermissionGranted = false)
         } catch (_: IllegalArgumentException) {
+            invalidateFix()
             _state.value = _state.value.copy(gpsProviderEnabled = false)
         }
     }
 
     fun stop() {
-        if (!active) return
-        manager.removeUpdates(listener)
+        if (active) runCatching { manager.removeUpdates(listener) }
         active = false
+        invalidateFix()
+    }
+
+    private fun invalidateFix() {
+        speedFilter.reset()
+        _state.value = _state.value.copy(fixAtMs = 0L, elapsedRealtimeMs = 0L, speedKmh = 0, speedMps = 0f, hasSpeed = false)
     }
 
     private companion object {

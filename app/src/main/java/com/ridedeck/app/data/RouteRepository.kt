@@ -32,6 +32,10 @@ data class Route(
     val cumulative: DoubleArray = DoubleArray(shape.size).also { c ->
         for (i in 1 until shape.size) c[i] = c[i - 1] + Geo.distance(shape[i - 1], shape[i])
     }
+
+    fun isUsable(): Boolean = shape.size >= 2 && shape.all { it.lat.isFinite() && it.lon.isFinite() && it.lat in -90.0..90.0 && it.lon in -180.0..180.0 } &&
+        maneuvers.isNotEmpty() && maneuvers.all { it.beginIndex in shape.indices } &&
+        distanceM.isFinite() && distanceM > 0 && durationS.isFinite() && durationS >= 0 && cumulative.last() > 0
 }
 
 /** Valhalla `bicycle_type`: how much road bike the cyclist is on. */
