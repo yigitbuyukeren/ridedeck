@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -15,9 +19,35 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
-      - name: Unit tests, lint, debug build and minified release build
-        run: ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
+      - name: Unit tests, debug/release lint, APKs and Android test compilation
+        run: ./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest
+      - name: Verify release APK alignment
+        run: |
+          python3 scripts/check-apk-alignment.py app/build/outputs/apk/release/*.apk
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 4 app/build/outputs/apk/release/*.apk
       - uses: actions/upload-artifact@v4
         with:
           name: RideDeck-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RideDeck-android-test-apk
+          path: app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RideDeck-release-unsigned-apk
+          path: app/build/outputs/apk/release/*-unsigned.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RideDeck-check-reports
+          path: |
+            app/build/test-results/testDebugUnitTest/
+            app/build/test-results/testReleaseUnitTest/
+            app/build/reports/tests/
+            app/build/reports/lint-results-*.html
+            app/build/reports/lint-results-*.xml
+            app/build/outputs/mapping/release/mapping.txt
