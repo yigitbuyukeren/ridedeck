@@ -6,6 +6,8 @@ import com.ridedeck.app.util.LegacyVoskDataMigration
 import com.ridedeck.app.util.Prefs
 
 class RideDeckApplication : Application() {
+    val rideTracking by lazy { com.ridedeck.app.data.RideTracking(this) }
+    val rideNavigation by lazy { com.ridedeck.app.data.RideNavigation(this, rideTracking) }
     override fun onCreate() {
         super.onCreate()
         Prefs.removeVoiceAssistantData(this)

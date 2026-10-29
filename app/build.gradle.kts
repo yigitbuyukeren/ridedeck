@@ -73,6 +73,7 @@ dependencies {
     implementation("androidx.palette:palette-ktx:1.0.0")
     implementation("org.maplibre.gl:android-sdk:11.13.5")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     testImplementation("org.json:json:20240303")
     androidTestImplementation(platform("androidx.compose:compose-bom:2025.06.01"))
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

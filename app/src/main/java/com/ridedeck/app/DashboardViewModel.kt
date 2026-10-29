@@ -4,8 +4,6 @@ import android.Manifest
 import com.ridedeck.app.data.AndroidSmsSender
 import com.ridedeck.app.data.AndroidSosAlarm
 import com.ridedeck.app.data.CrashSensor
-import com.ridedeck.app.data.GeoPoint
-import kotlinx.coroutines.Job
 import com.ridedeck.app.data.outlook
 import com.ridedeck.app.data.WeatherRepository
 import com.ridedeck.app.data.Place
@@ -24,34 +22,25 @@ import com.ridedeck.app.data.SavedPlace
 import com.ridedeck.app.data.DashCard
 import com.ridedeck.app.data.DashLayout
 import com.ridedeck.app.data.PinnedApps
-import com.ridedeck.app.data.Speaker
 import com.ridedeck.app.data.RecentPlaces
 import com.ridedeck.app.data.SavedPlaces
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import com.ridedeck.app.data.SpeedLimitController
-import com.ridedeck.app.data.TripStore
-import com.ridedeck.app.data.TripRecorder
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ridedeck.app.data.BatteryRepository
 import com.ridedeck.app.data.CallPhase
-import com.ridedeck.app.data.CallRepository
-import com.ridedeck.app.data.LocationRepository
 import com.ridedeck.app.data.LocationState
-import com.ridedeck.app.data.MediaRepository
-import com.ridedeck.app.data.NavigationController
-import com.ridedeck.app.data.NavigationTermination
+import com.ridedeck.app.data.hasFreshFix
 import com.ridedeck.app.data.PhoneMath
 import com.ridedeck.app.data.PhoneRepository
 import com.ridedeck.app.data.ThemeController
-import com.ridedeck.app.data.Voice
 import com.ridedeck.app.service.CallBridge
 import com.ridedeck.app.service.OverlayService
 import com.ridedeck.app.service.IncomingMessage
 import com.ridedeck.app.service.MessageBridge
-import com.ridedeck.app.data.RouteRepository
 import com.ridedeck.app.util.Prefs
 import com.ridedeck.app.util.Units
 import com.ridedeck.app.util.simplifyMessage
@@ -67,7 +56,6 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 data class GpsUi(
     val speedKmh: Int = 0,
@@ -82,23 +70,23 @@ data class GpsUi(
 )
 
 class DashboardViewModel(app: Application) : AndroidViewModel(app) {
-    private val location = LocationRepository(app)
+    val rideTracking = (app as RideDeckApplication).rideTracking
+    private val location = rideTracking.location
+    val openTrips = MutableStateFlow(false)
 
     /** The speed the gauge draws, in km/h, smoothed and projected forward between fixes; null while the speed is unknown. */
     fun displaySpeedKmh(): Double? = location.displayKmh()
     val battery = BatteryRepository(app)
-    val media = MediaRepository(app)
-    val call = CallRepository(app, viewModelScope)
+    private val navigation = (app as RideDeckApplication).rideNavigation
+    val media = navigation.media
+    val call = navigation.call
     val theme = ThemeController(app)
 
     val messages: StateFlow<IncomingMessage?> = MessageBridge.latest
     val readMessagesAloud = MutableStateFlow(Prefs.readMessagesAloud(app))
-    val voiceTtsNames = MutableStateFlow<List<String>>(emptyList())
-    val selectedTtsVoice = MutableStateFlow(Prefs.voiceTtsName(app))
-    private val announcer = Voice(app) {
-        voiceTtsNames.value = it
-        selectedTtsVoice.value = Prefs.voiceTtsName(app)
-    }
+    val voiceTtsNames = navigation.voiceTtsNames
+    val selectedTtsVoice = navigation.selectedTtsVoice
+    private val announcer = navigation.voice
 
     fun setTurkishTtsVoice(name: String?) {
         if (announcer.selectTurkishVoice(name)) {
@@ -121,11 +109,6 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         return result
     }
 
-    init {
-        // A name left over from one call must not label the next one.
-        viewModelScope.launch { call.state.collect { if (it.phase == CallPhase.IDLE) CallBridge.callerName.value = null } }
-    }
-
     val locationState: StateFlow<LocationState> = location.state
 
     /** Null until the first-launch chooser has been answered. */
@@ -134,14 +117,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val profile: StateFlow<VehicleProfile> = vehicleChosen.map { it ?: VehicleProfile.MOTORCYCLE }
         .stateIn(viewModelScope, SharingStarted.Eagerly, profileNow)
 
-    val nav = NavigationController(
-        app::getString, viewModelScope, location.state, announcer,
-        repo = RouteRepository(miles = { Units.miles }),
-        initialOptions = Prefs.routeOptions(app, profileNow),
-        onOptionsChanged = { Prefs.setRouteOptions(app, it) },
-        knownPlaces = { places.value.map { it.place } + recents.value },
-        onPlaceChosen = ::rememberRecent,
-    )
+    val nav = navigation.nav
 
     /**
      * First-launch choice or a change in Settings. Settings the user set themselves stay as they are;
@@ -152,6 +128,8 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         Prefs.setVehicle(app, profile)
         vehicleChosen.value = profile
         nav.setProfile(profile)
+        crashSensor.stop()
+        if (onScreen && sosCrashEnabled.value) crashSensor.start()
         if (!Prefs.speedLimitChosen(app)) speedLimitEnabled.value = profile.config.speedLimitDefault
     }
 
@@ -207,16 +185,10 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     fun moveApp(pkg: String, delta: Int) = updatePinned(PinnedApps.move(pinnedApps.value, pkg, delta))
 
-    val places = MutableStateFlow(SavedPlaces.fromJson(Prefs.savedPlaces(app)))
+    val places = rideTracking.places
 
     /** Destinations the rider chose lately (this phone only); empty and not recorded while the history is off. */
-    val recents = MutableStateFlow(if (Prefs.recentPlacesOn(app)) RecentPlaces.fromJson(Prefs.recentPlaces(app)) else emptyList())
-
-    private fun rememberRecent(place: Place) {
-        if (!Prefs.recentPlacesOn(getApplication())) return
-        recents.value = RecentPlaces.put(recents.value, place)
-        Prefs.setRecentPlaces(getApplication(), RecentPlaces.toJson(recents.value))
-    }
+    val recents = navigation.recents
 
     fun clearRecents() {
         recents.value = emptyList()
@@ -283,17 +255,14 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         speedLimitEnabled.value = enabled
     }
 
-    val recordTrips = MutableStateFlow(Prefs.recordTrips(app))
-    val trips = TripRecorder(TripStore(app), viewModelScope, location.state, recordTrips) { stop ->
-        // Today only the time; an older spot also says which day, so a bike left yesterday is not mistaken for one just left.
-        val pattern = if (android.text.format.DateUtils.isToday(stop.t)) "HH:mm" else "d MMM HH:mm"
-        val time = java.text.SimpleDateFormat(pattern, java.util.Locale.getDefault()).format(java.util.Date(stop.t))
-        savePlace(PlaceKind.PARKED, Place(app.getString(R.string.saved_parked), time, GeoPoint(stop.lat, stop.lon)))
-    }
+    val recordTrips = rideTracking.recordTrips
+    val trips = rideTracking.trips
 
-    fun setRecordTrips(enabled: Boolean) {
-        Prefs.setRecordTrips(getApplication(), enabled)
-        recordTrips.value = enabled
+    fun setRecordTrips(enabled: Boolean) = rideTracking.setRecording(enabled)
+
+    /** Route Start is also an explicit ride action; preferences still decide whether points are saved. */
+    fun startNavigation() {
+        nav.startNavigation()
     }
 
     /** Bumped on every onResume so permission-dependent UI re-checks its state. */
@@ -307,7 +276,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     val gps: StateFlow<GpsUi> = combine(location.state, ticker) { loc, now ->
-        val fresh = now - loc.fixAtMs < FIX_TIMEOUT_MS
+        val fresh = loc.hasFreshFix(now, android.os.SystemClock.elapsedRealtime())
         GpsUi(if (fresh) loc.speedKmh else 0, fresh, loc.accuracyM, loc.fixAgeMs, loc.fixIntervalMs, loc.speedAccuracyMps, if (fresh) location.displayKmh()?.roundToInt() else null)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, GpsUi())
 
@@ -361,12 +330,15 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
             "$head $where"
         },
     )
-    private val crashSensor = CrashSensor(app, speedKmh = { gps.value.speedKmh }, config = { profileNow.config }) { sos.trigger(SosReason.AUTO) }
+    private val crashSensor = CrashSensor(app, speedKmh = {
+        val fix = locationState.value
+        if (fix.hasSpeed && fix.hasFreshFix(System.currentTimeMillis(), android.os.SystemClock.elapsedRealtime())) fix.speedKmh else null
+    }, config = { profileNow.config }) { sos.trigger(SosReason.AUTO) }
 
     fun setSosCrashEnabled(enabled: Boolean) {
         Prefs.setSosCrash(getApplication(), enabled)
         sosCrashEnabled.value = enabled
-        if (enabled) crashSensor.start() else crashSensor.stop()
+        if (enabled && onScreen) crashSensor.start() else crashSensor.stop()
     }
 
     fun setSosButtonEnabled(enabled: Boolean) {
@@ -402,34 +374,13 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     /** True between onResume and onPause: messages are only read aloud while RideDeck is the app on screen. */
     @Volatile private var onScreen = false
 
-    init {
-        // Music that was playing before a call goes on afterwards, for apps that do not resume by themselves.
-        viewModelScope.launch {
-            var resumeAfter = false
-            var previous = CallPhase.IDLE
-            call.state.collect { c ->
-                if (previous == CallPhase.IDLE && c.phase != CallPhase.IDLE) {
-                    resumeAfter = media.isPlaying
-                    announcer.stop()
-                }
-                if (previous != CallPhase.IDLE && c.phase == CallPhase.IDLE && resumeAfter) {
-                    resumeAfter = false
-                    delay(RESUME_AFTER_CALL_MS)
-                    if (!media.isPlaying) media.play()
-                }
-                previous = c.phase
-            }
-        }
-    }
-
     fun onResume() {
         onScreen = true
-        location.start()
+        rideTracking.refresh()
         battery.start()
-        media.start()
+        navigation.refreshAudio()
         theme.start()
         if (sosCrashEnabled.value) crashSensor.start()
-        call.start()
         // The strip is a service: after a reboot or a killed process it has to be started again.
         if (Prefs.overlayEnabled(getApplication())) OverlayService.start(getApplication())
         resumeTick.value++
@@ -454,15 +405,13 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     override fun onCleared() {
-        announcer.shutdown()
+        sos.close()
+        battery.stop()
+        crashSensor.stop()
         theme.stop()
-        nav.shutdown()
-        location.stop()
     }
 
     private companion object {
-        const val FIX_TIMEOUT_MS = 5000L
         const val FRESH_MESSAGE_MS = 30_000L
-        const val RESUME_AFTER_CALL_MS = 1500L
     }
 }

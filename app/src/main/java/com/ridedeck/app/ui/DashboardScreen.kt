@@ -56,6 +56,18 @@ import com.ridedeck.app.util.openSettingsAction
 @Composable
 fun DashboardScreen(vm: DashboardViewModel) {
     val context = LocalContext.current
+    fun callAction(action: () -> Boolean): Boolean {
+        val accepted = action()
+        if (!accepted) Toast.makeText(context, R.string.call_control_failed, Toast.LENGTH_SHORT).show()
+        return accepted
+    }
+    val startNavigation = rememberRideStart(vm.rideTracking, vm::startNavigation)
+    val continueNavigation = rememberRideStart(vm.rideTracking, vm.nav::continueToFinal)
+    val rideState by vm.rideTracking.session.state.collectAsStateWithLifecycle()
+    val tripsRequested by vm.openTrips.collectAsStateWithLifecycle()
+    LaunchedEffect(rideState.failure) {
+        rideState.failure?.let { Toast.makeText(context, context.getString(it.textId()), Toast.LENGTH_LONG).show() }
+    }
     val gps by vm.gps.collectAsStateWithLifecycle()
     val locationState by vm.locationState.collectAsStateWithLifecycle()
     val battery by vm.battery.state.collectAsStateWithLifecycle()
@@ -73,6 +85,9 @@ fun DashboardScreen(vm: DashboardViewModel) {
     val speedLimit by vm.speedLimit.limit.collectAsStateWithLifecycle()
     val recordTrips by vm.recordTrips.collectAsStateWithLifecycle()
     var showTrips by remember { mutableStateOf(false) }
+    LaunchedEffect(tripsRequested) {
+        if (tripsRequested) { showTrips = true; vm.openTrips.value = false }
+    }
     val message by vm.messages.collectAsStateWithLifecycle()
     val autoRead by vm.readMessagesAloud.collectAsStateWithLifecycle()
     var dismissedMessageId by remember { mutableLongStateOf(0L) }
@@ -293,6 +308,8 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     )
                 } else if (target == MotoScreen.MAP) {
                     MapScreen(
+                        onStartNavigation = startNavigation,
+                        onContinueNavigation = continueNavigation,
                         nav = vm.nav,
                         locationState = vm.locationState,
                         speedKmh = gps.speedKmh,
@@ -487,7 +504,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
             }
 
             AnimatedVisibility(visible = showTrips, enter = overlayEnter, exit = overlayExit) {
-                TripsScreen(trips = vm.trips, onClose = { showTrips = false })
+                TripsScreen(trips = vm.trips, tracking = vm.rideTracking, onClose = { showTrips = false })
             }
 
 
@@ -495,8 +512,9 @@ fun DashboardScreen(vm: DashboardViewModel) {
         if (callState.phase != CallPhase.IDLE) {
             CallScreen(
                 callState, callerName, gps.displayKmh, navUi,
-                onAnswer = vm.call::answer, onHangUp = vm.call::hangUp, onMute = vm.call::toggleMute, onRoute = vm.call::setRoute,
-                onVolumeUp = vm.call::volumeUp, onVolumeDown = vm.call::volumeDown, onDigit = vm.call::sendDigit,
+                onAnswer = { callAction(vm.call::answer) }, onHangUp = { callAction(vm.call::hangUp) },
+                onMute = { callAction(vm.call::toggleMute) }, onRoute = { route -> callAction { vm.call.setRoute(route) } },
+                onVolumeUp = vm.call::volumeUp, onVolumeDown = vm.call::volumeDown, onDigit = { digit -> callAction { vm.call.sendDigit(digit) } },
             )
         }
 
@@ -522,7 +540,8 @@ private fun toggleOverlay(context: Context, enabled: Boolean): Boolean {
         context.openOverlaySettings()
         return false
     }
-    Prefs.setOverlayEnabled(context, enabled)
-    if (enabled) OverlayService.start(context) else OverlayService.stop(context)
-    return enabled
+    val active = enabled && OverlayService.start(context)
+    if (!enabled) OverlayService.stop(context)
+    Prefs.setOverlayEnabled(context, active)
+    return active
 }

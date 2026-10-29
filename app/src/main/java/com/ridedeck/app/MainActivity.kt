@@ -69,6 +69,7 @@ class MainActivity : ComponentActivity() {
 
     /** Another app's tel: link: the phone screen opens with the number on the keypad. */
     private fun handleDialIntent(intent: Intent?) {
+        if (intent?.action == com.ridedeck.app.service.RideTrackingService.ACTION_OPEN) viewModel.openTrips.value = true
         if (intent?.action == Intent.ACTION_DIAL && intent.data?.scheme == "tel") {
             viewModel.dialRequest.value = intent.data?.schemeSpecificPart.orEmpty()
         }
@@ -78,6 +79,24 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         OverlayService.appInForeground = true
         viewModel.onResume()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        (application as RideDeckApplication).rideTracking.setScreenVisible(this, true)
+        (application as RideDeckApplication).rideNavigation.setScreenVisible(this, true)
+    }
+
+    override fun onStop() {
+        (application as RideDeckApplication).rideNavigation.setScreenVisible(this, false)
+        (application as RideDeckApplication).rideTracking.setScreenVisible(this, false)
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        (application as RideDeckApplication).rideNavigation.setScreenVisible(this, false)
+        (application as RideDeckApplication).rideTracking.setScreenVisible(this, false)
+        super.onDestroy()
     }
 
     override fun onPause() {
