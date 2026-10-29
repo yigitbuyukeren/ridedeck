@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Job
 
 enum class CallKind { INCOMING, OUTGOING, MISSED }
 enum class DialOutcome { REQUESTED, DIALER_OPENED, FAILED }
@@ -105,13 +106,20 @@ class PhoneRepository(private val context: Context, private val scope: Coroutine
 
     fun canReadLog() = context.hasPermission(Manifest.permission.READ_CALL_LOG)
     fun canReadContacts() = context.hasPermission(Manifest.permission.READ_CONTACTS)
+    private var refreshJob: Job? = null
 
     fun refresh() {
-        scope.launch {
-            withContext(Dispatchers.IO) {
-                if (canReadLog()) _recents.value = safely(emptyList()) { PhoneMath.collapse(readLog()) }
-                if (canReadContacts()) _contacts.value = safely(emptyList()) { PhoneMath.contacts(readContacts()) }
+        refreshJob?.cancel()
+        if (!canReadLog()) _recents.value = emptyList()
+        if (!canReadContacts()) _contacts.value = emptyList()
+        refreshJob = scope.launch {
+            val (recents, contacts) = withContext(Dispatchers.IO) {
+                val recent = if (canReadLog()) safely(emptyList()) { PhoneMath.collapse(readLog()) } else emptyList()
+                val contact = if (canReadContacts()) safely(emptyList()) { PhoneMath.contacts(readContacts()) } else emptyList()
+                recent to contact
             }
+            _recents.value = if (canReadLog()) recents else emptyList()
+            _contacts.value = if (canReadContacts()) contacts else emptyList()
         }
     }
 

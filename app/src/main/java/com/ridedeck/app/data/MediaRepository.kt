@@ -3,6 +3,11 @@ package com.ridedeck.app.data
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
+import android.media.AudioDeviceInfo
+import android.os.Build
+import androidx.core.content.ContextCompat
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
@@ -37,11 +42,27 @@ data class MediaState(
 )
 
 class MediaRepository(private val context: Context) {
+    var commandVersion = 0L
+        private set
     private val sessions = context.getSystemService(MediaSessionManager::class.java)
     private val audio = context.getSystemService(AudioManager::class.java)
     private val listenerComponent = ComponentName(context, CarNotificationListener::class.java)
 
     private val handler = Handler(Looper.getMainLooper())
+    private var noisyRegistered = false
+    private val noisy = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) { commandVersion++; cancelPendingResume() }
+        }
+    }
+
+    fun externalOutputDevices(): Set<Int> = runCatching {
+        audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter { device ->
+            device.type in setOf(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_WIRED_HEADPHONES, AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE) ||
+                (Build.VERSION.SDK_INT >= 31 && device.type in setOf(AudioDeviceInfo.TYPE_BLE_HEADSET, AudioDeviceInfo.TYPE_BLE_SPEAKER))
+        }.map { it.id }.toSet()
+    }.getOrDefault(emptySet())
 
     /** Apps that count as music players: the well known ones plus anything that declares itself a music app. */
     private val musicPackages: Set<String> by lazy {
@@ -76,6 +97,9 @@ class MediaRepository(private val context: Context) {
         }
 
     fun start() {
+        if (!noisyRegistered) noisyRegistered = runCatching {
+            ContextCompat.registerReceiver(context, noisy, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY), ContextCompat.RECEIVER_NOT_EXPORTED)
+        }.isSuccess
         if (!hasAccess()) {
             // Access was switched off: drop the old listener so it can be registered afresh when it comes back.
             if (registered) {
@@ -110,6 +134,16 @@ class MediaRepository(private val context: Context) {
         publish()
     }
 
+    fun stop() {
+        if (noisyRegistered) { runCatching { context.unregisterReceiver(noisy) }; noisyRegistered = false }
+        handler.removeCallbacksAndMessages(null)
+        if (registered) runCatching { sessions.removeOnActiveSessionsChangedListener(sessionsListener) }
+        controller?.unregisterCallback(callback)
+        controller = null
+        registered = false
+        _state.value = MediaState()
+    }
+
     private fun publish() {
         val c = controller
         if (c == null) {
@@ -137,17 +171,19 @@ class MediaRepository(private val context: Context) {
     }
 
     fun togglePlay() {
+        commandVersion++
         val c = controller
         if (c == null) {
             resumeLast()
             return
         }
-        if (c.playbackState?.state == PlaybackState.STATE_PLAYING) c.transportControls.pause()
-        else c.transportControls.play()
+        if (c.playbackState?.state == PlaybackState.STATE_PLAYING) dispatch(c, PlaybackState.ACTION_PAUSE) { it.pause() }
+        else dispatch(c, PlaybackState.ACTION_PLAY) { it.play() }
     }
 
     fun play() {
-        controller?.transportControls?.play()
+        commandVersion++
+        controller?.let { dispatch(it, PlaybackState.ACTION_PLAY) { controls -> controls.play() } }
     }
 
     private inline fun dispatch(
@@ -167,6 +203,7 @@ class MediaRepository(private val context: Context) {
     }
 
     fun pause(): Boolean {
+        commandVersion++
         val c = controller ?: return false
         return dispatch(c, PlaybackState.ACTION_PAUSE) { it.pause() }
     }
@@ -174,7 +211,8 @@ class MediaRepository(private val context: Context) {
     val isPlaying: Boolean get() = controller?.playbackState?.state == PlaybackState.STATE_PLAYING
 
     fun seekTo(ms: Long) {
-        controller?.transportControls?.seekTo(ms.coerceAtLeast(0))
+        commandVersion++
+        controller?.let { dispatch(it, PlaybackState.ACTION_SEEK_TO) { controls -> controls.seekTo(ms.coerceAtLeast(0)) } }
     }
 
     /**
@@ -183,6 +221,7 @@ class MediaRepository(private val context: Context) {
      * app is launched and asked to play.
      */
     fun resumeLast() {
+        commandVersion++
         val pkg = MusicResumePolicy.select(Prefs.lastMusicApp(context), musicPackages.toList(), context::isInstalled) ?: return
         sendPlayKey()
         handler.postDelayed({
@@ -193,11 +232,15 @@ class MediaRepository(private val context: Context) {
         }, WAKE_WAIT_MS)
     }
 
+    fun cancelPendingResume() { handler.removeCallbacksAndMessages(null) }
+
     fun canResumeLast(): Boolean = MusicResumePolicy.select(Prefs.lastMusicApp(context), musicPackages.toList(), context::isInstalled) != null
 
     private fun sendPlayKey() {
-        audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY))
-        audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY))
+        runCatching {
+            audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY))
+            audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY))
+        }
     }
 
     /** +1 after "next", -1 after "previous": which way the cover should slide when the track changes. */
@@ -205,6 +248,7 @@ class MediaRepository(private val context: Context) {
         private set
 
     fun next(): Boolean {
+        commandVersion++
         val c = controller ?: return false
         val sent = dispatch(c, PlaybackState.ACTION_SKIP_TO_NEXT) { it.skipToNext() }
         if (sent) skipDirection = 1
@@ -212,6 +256,7 @@ class MediaRepository(private val context: Context) {
     }
 
     fun previous(): Boolean {
+        commandVersion++
         val c = controller ?: return false
         val sent = dispatch(c, PlaybackState.ACTION_SKIP_TO_PREVIOUS) { it.skipToPrevious() }
         if (sent) skipDirection = -1

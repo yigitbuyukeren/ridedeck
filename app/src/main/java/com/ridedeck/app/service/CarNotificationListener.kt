@@ -49,6 +49,7 @@ object MessageBridge {
 }
 
 class CarNotificationListener : NotificationListenerService() {
+    private val callSource = com.ridedeck.app.data.CallerNotificationSource()
     private var lastKey: String? = null
     private var lastText: String? = null
 
@@ -57,7 +58,10 @@ class CarNotificationListener : NotificationListenerService() {
         if (sbn.packageName == packageName) return
         val n = sbn.notification
         if (n.category == Notification.CATEGORY_CALL) {
-            CallBridge.callerName.value = n.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
+            val dialer = runCatching { getSystemService(android.telecom.TelecomManager::class.java).defaultDialerPackage }.getOrNull()
+            if (callSource.posted(sbn.key, sbn.packageName, dialer, InCallHub.call != null)) {
+                CallBridge.callerName.value = n.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
+            }
             return
         }
         if (n.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
@@ -87,7 +91,14 @@ class CarNotificationListener : NotificationListenerService() {
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         if (sbn.packageName == packageName) return
-        if (sbn.notification.category == Notification.CATEGORY_CALL) CallBridge.callerName.value = null
+        if (sbn.notification.category == Notification.CATEGORY_CALL && callSource.removed(sbn.key, InCallHub.call != null)) CallBridge.callerName.value = null
+    }
+
+    override fun onListenerDisconnected() {
+        if (callSource.disconnected(InCallHub.call != null)) CallBridge.callerName.value = null
+        MessageBridge.latest.value = null
+        lastKey = null; lastText = null
+        super.onListenerDisconnected()
     }
 
     /**

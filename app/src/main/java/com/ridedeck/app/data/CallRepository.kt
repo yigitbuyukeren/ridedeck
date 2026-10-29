@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 
-enum class CallPhase { IDLE, RINGING, DIALING, ACTIVE }
+enum class CallPhase { IDLE, RINGING, DIALING, ACTIVE, HELD }
 
 /** [managed] is true when RideDeck is the default phone app and so can mute and switch to the speaker itself. */
 data class CallState(
@@ -32,6 +32,7 @@ data class CallState(
     val route: Int = CallAudioState.ROUTE_EARPIECE,
     val routes: Int = CallAudioState.ROUTE_EARPIECE,
     val managed: Boolean = false,
+    val routeError: Boolean = false,
 )
 
 class CallRepository(private val context: Context, private val scope: CoroutineScope) {
@@ -64,10 +65,13 @@ class CallRepository(private val context: Context, private val scope: CoroutineS
 
     private var dialingJob: kotlinx.coroutines.Job? = null
     private var started = false
+    private var modernCallback: TelephonyCallback? = null
+    private var legacyCallback: PhoneStateListener? = null
 
     private fun handle(raw: Int) {
         // A call that ends (or fails) right after being placed must not leave the screen on "calling".
-        if (raw == TelephonyManager.CALL_STATE_IDLE && phoneState.value.phase == CallPhase.ACTIVE) dialingUntil.value = 0
+        if (raw == TelephonyManager.CALL_STATE_IDLE && phoneState.value.phase != CallPhase.IDLE) dialingUntil.value = 0
+        if (raw != TelephonyManager.CALL_STATE_OFFHOOK) dtmf.stop()
         phoneState.value = when (raw) {
             TelephonyManager.CALL_STATE_RINGING -> CallState(CallPhase.RINGING)
             TelephonyManager.CALL_STATE_OFFHOOK -> {
@@ -80,20 +84,42 @@ class CallRepository(private val context: Context, private val scope: CoroutineS
 
     @Suppress("DEPRECATION")
     fun start() {
-        if (started || !context.hasPermission(Manifest.permission.READ_PHONE_STATE)) return
-        started = true
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            telephony.registerTelephonyCallback(
-                context.mainExecutor,
-                object : TelephonyCallback(), TelephonyCallback.CallStateListener {
-                    override fun onCallStateChanged(state: Int) = handle(state)
-                },
-            )
-        } else {
-            telephony.listen(object : PhoneStateListener() {
-                override fun onCallStateChanged(state: Int, phoneNumber: String?) = handle(state)
-            }, PhoneStateListener.LISTEN_CALL_STATE)
+        if (!context.hasPermission(Manifest.permission.READ_PHONE_STATE)) {
+            stop()
+            return
         }
+        if (started) return
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val callback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
+                    override fun onCallStateChanged(state: Int) = handle(state)
+                }
+                telephony.registerTelephonyCallback(context.mainExecutor, callback)
+                modernCallback = callback
+            } else {
+                val callback = object : PhoneStateListener() {
+                    override fun onCallStateChanged(state: Int, phoneNumber: String?) = handle(state)
+                }
+                telephony.listen(callback, PhoneStateListener.LISTEN_CALL_STATE)
+                legacyCallback = callback
+            }
+            started = true
+        } catch (_: RuntimeException) {
+            stop()
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    fun stop() {
+        dtmf.stop()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) modernCallback?.let { runCatching { telephony.unregisterTelephonyCallback(it) } }
+        legacyCallback?.let { runCatching { telephony.listen(it, PhoneStateListener.LISTEN_NONE) } }
+        modernCallback = null
+        legacyCallback = null
+        dialingJob?.cancel()
+        dialingUntil.value = 0L
+        phoneState.value = CallState()
+        started = false
     }
 
     fun answer(): Boolean {
@@ -115,6 +141,7 @@ class CallRepository(private val context: Context, private val scope: CoroutineS
     @Suppress("DEPRECATION")
     fun hangUp(): Boolean {
         InCallHub.call?.let { call ->
+            if (TelecomCallPolicy.priority(call.state) == null) return false
             return runCatching {
                 if (call.state == Call.STATE_RINGING) call.reject(false, null) else call.disconnect()
                 true
@@ -140,8 +167,8 @@ class CallRepository(private val context: Context, private val scope: CoroutineS
     /** Sends the call sound to one of the routes the phone offers: earpiece, speaker, headset or Bluetooth. */
     fun setRoute(route: Int): Boolean {
         val service = InCallHub.service ?: return false
-        if (state.value.phase != CallPhase.ACTIVE || state.value.routes and route == 0) return false
-        return runCatching { service.setAudioRoute(route); true }.getOrDefault(false)
+        if (state.value.phase != CallPhase.ACTIVE || !CallAudioRoutePolicy.supports(route, state.value.routes)) return false
+        return service.requestRoute(route)
     }
 
     private val audio = context.getSystemService(android.media.AudioManager::class.java)
@@ -150,17 +177,14 @@ class CallRepository(private val context: Context, private val scope: CoroutineS
     fun volumeDown() = audio.adjustStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL, android.media.AudioManager.ADJUST_LOWER, android.media.AudioManager.FLAG_SHOW_UI)
 
     /** Sends one key tone down the line, for voice menus ("press 1"); only possible when RideDeck holds the call. */
-    fun sendDigit(key: Char) {
-        val call = InCallHub.call ?: return
-        call.playDtmfTone(key)
-        scope.launch {
-            delay(DTMF_MS)
-            call.stopDtmfTone()
-        }
+    private val dtmf = DtmfController<Call>(scope, { call, key -> call.playDtmfTone(key) }, { it.stopDtmfTone() })
+
+    fun sendDigit(key: Char): Boolean {
+        val call = InCallHub.call ?: return false
+        return dtmf.send(call, state.value.phase == CallPhase.ACTIVE && call.state == Call.STATE_ACTIVE, key)
     }
 
     private companion object {
-        const val DTMF_MS = 150L
         const val DIALING_GRACE_MS = 8000L
     }
 }

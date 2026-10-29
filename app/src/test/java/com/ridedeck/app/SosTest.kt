@@ -3,6 +3,8 @@ package com.ridedeck.app
 import com.ridedeck.app.data.CrashDetector
 import com.ridedeck.app.data.LocationState
 import com.ridedeck.app.data.SmsSender
+import com.ridedeck.app.data.SmsReport
+import com.ridedeck.app.data.SmsStatus
 import com.ridedeck.app.data.SosAlarm
 import com.ridedeck.app.data.SosContact
 import com.ridedeck.app.data.SosController
@@ -138,9 +140,9 @@ class SosControllerTest {
 
     private class FakeSms(var fail: Boolean = false) : SmsSender {
         val sent = mutableListOf<Pair<List<String>, String>>()
-        override fun send(numbers: List<String>, text: String): Result<Unit> {
+        override suspend fun send(numbers: List<String>, text: String): SmsReport {
             sent += numbers to text
-            return if (fail) Result.failure(RuntimeException("no radio")) else Result.success(Unit)
+            return SmsReport(numbers.associateWith { if (fail) SmsStatus.FAILED else SmsStatus.SENT })
         }
     }
 

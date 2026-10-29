@@ -11,11 +11,19 @@ import android.provider.ContactsContract
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.InCallService
+import android.telecom.CallEndpoint
+import android.telecom.CallEndpointException
+import android.os.OutcomeReceiver
+import android.os.Handler
+import android.os.Looper
+import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import com.ridedeck.app.MainActivity
 import com.ridedeck.app.R
 import com.ridedeck.app.data.CallPhase
 import com.ridedeck.app.data.CallState
+import com.ridedeck.app.data.TelecomCallPolicy
+import com.ridedeck.app.data.CallAudioRoutePolicy
 import com.ridedeck.app.util.hasPermission
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -25,11 +33,7 @@ object InCallHub {
     @Volatile var service: MotoInCallService? = null
     @Volatile var call: Call? = null
 
-    fun phaseOf(callState: Int): CallPhase = when (callState) {
-        Call.STATE_RINGING -> CallPhase.RINGING
-        Call.STATE_NEW, Call.STATE_DIALING, Call.STATE_CONNECTING, Call.STATE_PULLING_CALL, Call.STATE_SELECT_PHONE_ACCOUNT -> CallPhase.DIALING
-        else -> CallPhase.ACTIVE
-    }
+    fun phaseOf(callState: Int): CallPhase = TelecomCallPolicy.phase(callState)
 }
 
 /**
@@ -38,6 +42,18 @@ object InCallHub {
  */
 class MotoInCallService : InCallService() {
     @Volatile private var latestAudio: CallAudioState? = null
+    private val modern = if (Build.VERSION.SDK_INT >= 34) ModernAudio() else null
+    private val muteState = com.ridedeck.app.data.CallMuteState(Build.VERSION.SDK_INT >= 34)
+    private val routeRequests = com.ridedeck.app.data.CallRouteRequests()
+    private val handler = Handler(Looper.getMainLooper())
+
+    @RequiresApi(34)
+    private class ModernAudio {
+        var endpoints: List<CallEndpoint> = emptyList()
+        var current: CallEndpoint? = null
+        fun routeOf(endpoint: CallEndpoint?): Int = CallAudioRoutePolicy.fromEndpointType(endpoint?.endpointType ?: -1)
+        val routes: Int get() = endpoints.fold(0) { mask, endpoint -> mask or routeOf(endpoint) }
+    }
 
     private val callback = object : Call.Callback() {
         override fun onStateChanged(call: Call, state: Int) = publish()
@@ -50,6 +66,9 @@ class MotoInCallService : InCallService() {
     }
 
     override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
+        calls.forEach { runCatching { it.stopDtmfTone(); it.unregisterCallback(callback) } }
+        getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
         InCallHub.service = null
         InCallHub.call = null
         InCallHub.state.value = null
@@ -81,6 +100,7 @@ class MotoInCallService : InCallService() {
     }
 
     override fun onCallRemoved(call: Call) {
+        runCatching { call.stopDtmfTone() }
         call.unregisterCallback(callback)
         getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
         publish()
@@ -88,14 +108,63 @@ class MotoInCallService : InCallService() {
 
     override fun onCallAudioStateChanged(audioState: CallAudioState) {
         latestAudio = audioState
+        muteState.legacyChanged(audioState.isMuted)
+        if (Build.VERSION.SDK_INT < 34) routeRequests.confirmed(audioState.route)
         publish()
+    }
+
+    @RequiresApi(34)
+    override fun onCallEndpointChanged(callEndpoint: CallEndpoint) {
+        modern?.current = callEndpoint
+        modern?.let { routeRequests.confirmed(it.routeOf(callEndpoint)) }
+        publish()
+    }
+
+    @RequiresApi(34)
+    override fun onAvailableCallEndpointsChanged(availableEndpoints: MutableList<CallEndpoint>) {
+        modern?.endpoints = availableEndpoints.toList()
+        publish()
+    }
+
+    @RequiresApi(34)
+    override fun onMuteStateChanged(isMuted: Boolean) { muteState.modernChanged(isMuted); publish() }
+
+    /** Request an actual Telecom-provided endpoint; UI selection changes only on confirmed callbacks. */
+    fun requestRoute(route: Int): Boolean {
+        if (!CallAudioRoutePolicy.supports(route, InCallHub.state.value?.routes ?: 0)) return false
+        val alreadySelected = if (Build.VERSION.SDK_INT >= 34) modern?.let { audio ->
+            audio.current?.let { current -> audio.routeOf(current) == route && audio.endpoints.any { it.identifier == current.identifier } } == true
+        } == true else InCallHub.state.value?.route == route
+        if (alreadySelected) { routeRequests.confirmed(route); publish(); return true }
+        val generation = routeRequests.begin(route) ?: return false
+        return try {
+            if (Build.VERSION.SDK_INT >= 34) {
+                val audio = modern ?: return false
+                val endpoint = audio.endpoints.firstOrNull { audio.routeOf(it) == route } ?: run { routeRequests.failure(generation); publish(); return false }
+                requestCallEndpointChange(endpoint, mainExecutor, object : OutcomeReceiver<Void, CallEndpointException> {
+                    override fun onResult(result: Void?) {}
+                    override fun onError(error: CallEndpointException) {
+                        if (InCallHub.service === this@MotoInCallService) { routeRequests.failure(generation); publish() }
+                    }
+                })
+            } else {
+                @Suppress("DEPRECATION") setAudioRoute(route)
+            }
+            handler.postDelayed({
+                if (InCallHub.service === this) {
+                    routeRequests.failure(generation)
+                    publish()
+                }
+            }, 5_000L)
+            true
+        } catch (_: RuntimeException) { routeRequests.failure(generation); publish(); false }
     }
 
 
     /** The call the rider cares about: one that is ringing first, otherwise the first live one. */
     private fun publish() {
-        val live = calls.filter { it.state != Call.STATE_DISCONNECTED }
-        val main = live.firstOrNull { it.state == Call.STATE_RINGING } ?: live.firstOrNull()
+        val main = calls.filter { TelecomCallPolicy.priority(it.state) != null }.minByOrNull { TelecomCallPolicy.priority(it.state)!! }
+        if (main !== InCallHub.call) routeRequests.reset()
         InCallHub.call = main
         // The "incoming call" notification is for ringing only; once answered or ended it must not hang on.
         if (main?.state != Call.STATE_RINGING) getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
@@ -110,13 +179,16 @@ class MotoInCallService : InCallService() {
         // Last resort before the bare number: the name the carrier sends with the call, when it sends one.
         CallBridge.callerName.value = listOf(saved, d.callerDisplayName, number).firstOrNull { !it.isNullOrBlank() }
         @Suppress("DEPRECATION") val audio = latestAudio ?: callAudioState
+        val routes = if (Build.VERSION.SDK_INT >= 34) modern?.routes ?: 0 else audio?.supportedRouteMask ?: 0
+        routeRequests.availability(routes)
         InCallHub.state.value = CallState(
             phase = InCallHub.phaseOf(main.state),
             startedAtMs = d.connectTimeMillis,
-            muted = audio?.isMuted == true,
-            route = audio?.route ?: CallAudioState.ROUTE_EARPIECE,
-            routes = audio?.supportedRouteMask ?: CallAudioState.ROUTE_EARPIECE,
+            muted = muteState.muted,
+            route = if (Build.VERSION.SDK_INT >= 34) modern?.routeOf(modern.current) ?: 0 else audio?.route ?: 0,
+            routes = routes,
             managed = true,
+            routeError = routeRequests.failed,
         )
     }
 

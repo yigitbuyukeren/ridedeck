@@ -69,13 +69,16 @@ private object NoStops : FuelFinder {
 
 class BugFixTest {
     private var clock = 1L
-    private fun fix(p: GeoPoint, at: Long = ++clock) = LocationState(speedKmh = 30, fixAtMs = at, lat = p.lat, lon = p.lon)
+    private fun fix(p: GeoPoint, at: Long = clock + 1): LocationState {
+        clock = at
+        return LocationState(speedKmh = 30, fixAtMs = at, lat = p.lat, lon = p.lon)
+    }
     private val off = GeoPoint(41.0045, 29.003) // about 250 m beside the road
 
     private fun guiding(routing: ScriptedRouting, words: Words = Words()): Pair<NavigationController, MutableStateFlow<LocationState>> {
         val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
         val loc = MutableStateFlow(fix(GeoPoint(41.0, 29.0)))
-        val nav = NavigationController({ "t$it" }, scope, loc, words, routing, NoStops)
+        val nav = NavigationController({ "t$it" }, scope, loc, words, routing, NoStops, nowMs = { clock })
         nav.selectPlace(Place("Dest", "", GeoPoint(41.018, 29.0)))
         nav.startNavigation()
         return nav to loc
@@ -179,7 +182,7 @@ class BugFixTest {
     }
 
     @Test
-    fun withoutATiltReadingTheOldRulesApply() {
+    fun missingTiltEvidenceDoesNotConfirmAnOrdinaryTwoWheelImpact() {
         val d = twoWheels()
         var t = 0L
         var fired = false
@@ -188,7 +191,7 @@ class BugFixTest {
         feed(4.5f, 30)
         repeat(15) { feed(1f, 10) }
         repeat(120) { feed(1f, 0) }
-        assertTrue(fired)
+        assertFalse(fired)
     }
 
     // ---- messages and stops -------------------------------------------------------------------

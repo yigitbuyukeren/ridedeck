@@ -38,4 +38,10 @@ class BatteryRepository(private val context: Context) {
         sticky?.let(::publish)
         registered = true
     }
+
+    fun stop() {
+        if (!registered) return
+        context.unregisterReceiver(receiver)
+        registered = false
+    }
 }

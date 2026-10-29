@@ -18,6 +18,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -157,9 +159,15 @@ fun SosScreen(ui: SosUi, contactNames: List<String>, onCancel: () -> Unit, onDis
     ) {
         when (ui.phase) {
             SosPhase.COUNTDOWN -> Countdown(ui, contactNames, onCancel)
+            SosPhase.SENDING -> Text(stringResource(R.string.sos_sending), color = Color.White, fontSize = 24.sp, modifier = Modifier.padding(32.dp))
             SosPhase.SENT -> Result(
                 title = stringResource(if (ui.reason == SosReason.TEST) R.string.sos_test_done else R.string.sos_sent),
-                detail = ui.sentTo.takeIf { it.isNotEmpty() }?.let { stringResource(R.string.sos_sent_to_fmt, it.joinToString(", ")) },
+                detail = if (ui.reason == SosReason.TEST) null else smsResultDetail(ui),
+                onDismiss = onDismiss,
+            )
+            SosPhase.PARTIAL, SosPhase.UNKNOWN -> Result(
+                title = stringResource(if (ui.phase == SosPhase.PARTIAL) R.string.sos_partial else R.string.sos_unknown),
+                detail = smsResultDetail(ui),
                 onDismiss = onDismiss,
             )
             SosPhase.FAILED -> Result(
@@ -168,6 +176,7 @@ fun SosScreen(ui: SosUi, contactNames: List<String>, onCancel: () -> Unit, onDis
                     when (ui.error) {
                         SosError.NO_CONTACTS -> R.string.sos_err_no_contacts
                         SosError.NO_PERMISSION -> R.string.sos_err_no_permission
+                        SosError.NO_SIM -> R.string.sos_err_no_sim
                         else -> R.string.sos_err_send_failed
                     }
                 ),
@@ -177,6 +186,14 @@ fun SosScreen(ui: SosUi, contactNames: List<String>, onCancel: () -> Unit, onDis
         }
     }
 }
+
+@Composable
+private fun smsResultDetail(ui: SosUi): String = listOfNotNull(
+    ui.sentTo.takeIf { it.isNotEmpty() }?.let { stringResource(R.string.sos_sent_to_fmt, it.joinToString(", ")) },
+    ui.failedTo.takeIf { it.isNotEmpty() }?.let { stringResource(R.string.sos_failed_to_fmt, it.joinToString(", ")) },
+    ui.unknownTo.takeIf { it.isNotEmpty() }?.let { stringResource(R.string.sos_unknown_to_fmt, it.joinToString(", ")) },
+    stringResource(R.string.sos_delivery_note),
+).joinToString("\n")
 
 @Composable
 private fun Countdown(ui: SosUi, contactNames: List<String>, onCancel: () -> Unit) {
@@ -250,7 +267,7 @@ private fun Countdown(ui: SosUi, contactNames: List<String>, onCancel: () -> Uni
 @Composable
 private fun Result(title: String, detail: String?, onDismiss: () -> Unit) {
     Column(
-        modifier = Modifier.padding(32.dp),
+        modifier = Modifier.verticalScroll(rememberScrollState()).padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {

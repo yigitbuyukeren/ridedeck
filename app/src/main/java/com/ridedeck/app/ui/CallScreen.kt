@@ -81,7 +81,7 @@ fun CallScreen(
     onRoute: (Int) -> Unit = {},
     onVolumeUp: () -> Unit = {},
     onVolumeDown: () -> Unit = {},
-    onDigit: (Char) -> Unit = {},
+    onDigit: (Char) -> Boolean = { false },
 ) {
     val elapsed by produceState(0L, call.startedAtMs, call.phase) {
         while (call.phase == CallPhase.ACTIVE) {
@@ -122,6 +122,7 @@ fun CallScreen(
                             fontSize = 32.sp, fontWeight = FontWeight.Medium, color = MotoColors.Green,
                         )
                         CallPhase.DIALING -> Text(stringResource(R.string.call_dialing) + "…", fontSize = 22.sp, color = MotoColors.Gray)
+                        CallPhase.HELD -> Text(stringResource(R.string.call_held), fontSize = 22.sp, color = MotoColors.Gray)
                         else -> Text(stringResource(R.string.call_incoming), fontSize = 22.sp, color = MotoColors.Gray)
                     }
                     if (!ringing) VolumeRow(onVolumeDown, onVolumeUp)
@@ -136,20 +137,21 @@ fun CallScreen(
                             ActionPill(Icons.Rounded.Call, stringResource(R.string.call_answer), MotoColors.Green, onAnswer)
                             ActionPill(Icons.Rounded.CallEnd, stringResource(R.string.call_decline), MotoColors.Red, onHangUp)
                         }
-                        keys -> {
+                        keys && call.phase == CallPhase.ACTIVE -> {
                             // What has been sent so far, so a long menu ("press 1, then 3") can be followed.
                             Text(typed.takeLast(14), fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, modifier = Modifier.height(36.dp))
-                            InCallKeypad({ typed += it; onDigit(it) }, modifier = Modifier.weight(1f))
+                            InCallKeypad({ if (onDigit(it)) typed += it }, modifier = Modifier.weight(1f))
                             ToggleAction(Icons.Rounded.Dialpad, stringResource(R.string.call_keys_hide), false, { keys = false }, Modifier.fillMaxWidth())
                         }
                         else -> {
-                            if (call.managed) {
+                            if (call.managed && call.phase == CallPhase.ACTIVE) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     ToggleAction(Icons.Rounded.MicOff, stringResource(R.string.call_mute), call.muted, onMute, Modifier.weight(1f))
                                     ToggleAction(Icons.Rounded.Dialpad, stringResource(R.string.call_keys), false, { keys = true }, Modifier.weight(1f))
                                 }
                                 RoutePicker(call.route, call.routes, onRoute)
                             }
+                            if (call.routeError) Text(stringResource(R.string.call_route_failed), color = MotoColors.Red, fontSize = 16.sp)
                             ActionPill(Icons.Rounded.CallEnd, stringResource(R.string.call_hangup), MotoColors.Red, onHangUp)
                         }
                     }
