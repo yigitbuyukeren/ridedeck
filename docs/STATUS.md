@@ -2,9 +2,12 @@
 
 Her gün sonunda güncellenir (bkz. [WORKFLOW.md](WORKFLOW.md)).
 
-**Son güncelleme:** 2026-10-29
+**Son güncelleme:** 2026-11-01
 
 ## Şu anki durum
+- **2026-11-01 (haritada yön oku):** Konum işareti, nokta yerine yöne dönen ok oldu (`me-arrow` SymbolLayer). 8 km/sa üstünde GPS gidiş yönünü, altında veya GPS yönü yokken telefonun pusulasını gösterir (`CompassMath`, `CompassEffect`, `SmoothFollow`). Sensör yalnız ekran açıkken dinlenir; pusula yoksa GPS yönüne düşer. Telefon düz dururken yatay ekranda 90/270 dönüş eksenlerinin ters alınması düzeltildi, iki regresyon testi eklendi.
+  - **PASS:** JDK 17 wrapper ile `testDebugUnitTest lintDebug assembleDebug`; debug **353 test**, hata/atlama yok. Release derlemesi ve Android testleri bu değişiklik için çalıştırılmadı.
+  - **UNVERIFIED:** gerçek telefonda pusula yönü ve okun haritadaki görünümü denenmedi. Pusula manyetik kuzeyi verir; manyetik sapma düzeltmesi yok.
 - **2026-10-29 (navigasyon yaşam döngüsü tamamlandı):** `RideDeckApplication.rideNavigation` tek navigasyon/TTS/medya/telefon ve son hedefler sahibidir. ViewModel temizlenmesi rehberliği kapatmaz; servis–navigasyon bağlantısı `NavigationRideLifecycle` içinde uygulama ömründedir. Bu kayıt aşağıdaki eski ViewModel ömrü sınırı açıklamalarının yerini alır. Süreç ölümü/force-stop sonrası rota geri yükleme eklenmedi.
   - Eski kodda FAIL ile kanıtlanan tekrar Başlat/progress sıfırlama, Bitir sonrası arama cevabı ve başarısız Yola devam/tekrar düğmesi düzeltildi. Toplam **11 yeni birim regresyonu**; ara/son varış, servis kapanışı, bekleyen devam/yeniden rota iptali, izin kaybı ve eski iptal durumunun yeni manuel yolculuğu kapatmaması kapsanır. Planlı durakta servis hareketsizlik yüzünden kapanmaz; GPS kaybı sınırı korunur.
   - **PASS:** JDK 17 wrapper ile `test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest`; debug/release **344'er test**, hata/atlama yok. Lint 0 hata, 80/81 uyarı. Güncel release v2 imza, ELF64 LOAD ve ZIP 16 KB statik kontrolleri geçti. Tam Android paketi API 35 ARM emülatöründe (fiziksel cihaz değil) **20/20** geçti; bunun içinde iki yeni Android testi: gerçek Activity/ViewModel yok edilip yeniden açılışında aynı sahipler; gerçek servis + sentetik GPS + sahte routing/speaker ile ekran uykusunda rehberlik ve bildirimden Bitir/late reply iptali.

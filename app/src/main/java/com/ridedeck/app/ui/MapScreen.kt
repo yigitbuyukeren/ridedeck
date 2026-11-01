@@ -12,6 +12,10 @@ import com.ridedeck.app.data.Geo
 import com.ridedeck.app.data.PlaceKind
 import com.ridedeck.app.data.SavedPlace
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -112,7 +116,16 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.CircleLayer
+import org.maplibre.android.style.expressions.Expression.get
 import org.maplibre.android.style.layers.LineLayer
+import org.maplibre.android.style.layers.SymbolLayer
+import org.maplibre.android.style.layers.PropertyFactory.iconAllowOverlap
+import org.maplibre.android.style.layers.PropertyFactory.iconIgnorePlacement
+import org.maplibre.android.style.layers.PropertyFactory.iconImage
+import org.maplibre.android.style.layers.PropertyFactory.iconPitchAlignment
+import org.maplibre.android.style.layers.PropertyFactory.iconRotate
+import org.maplibre.android.style.layers.PropertyFactory.iconRotationAlignment
+import org.maplibre.android.style.layers.PropertyFactory.iconSize
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory.circleColor
 import org.maplibre.android.style.layers.PropertyFactory.circleOpacity
@@ -428,12 +441,43 @@ internal fun addMapLayers(style: Style) {
         )
     )
     style.addSource(GeoJsonSource(SRC_ME))
-    style.addLayer(CircleLayer("me-halo", SRC_ME).withProperties(circleColor("#0A84FF"), circleRadius(18f), circleOpacity(0.25f)))
+    style.addImage(ME_ARROW_IMAGE, meArrowBitmap(), false)
     style.addLayer(
-        CircleLayer("me-dot", SRC_ME).withProperties(
-            circleColor("#0A84FF"), circleRadius(8f), circleStrokeColor("#FFFFFF"), circleStrokeWidth(3f)
+        SymbolLayer("me-arrow", SRC_ME).withProperties(
+            iconImage(ME_ARROW_IMAGE),
+            iconSize(0.6f),
+            iconRotate(get("bearing")),
+            iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP),
+            iconPitchAlignment(Property.ICON_PITCH_ALIGNMENT_MAP),
+            iconAllowOverlap(true),
+            iconIgnorePlacement(true),
         )
     )
+}
+
+private const val ME_ARROW_IMAGE = "me-arrow"
+
+/** The position marker: a light disc with a blue arrow pointing up (rotated to the heading by the symbol layer). */
+private fun meArrowBitmap(): Bitmap {
+    val size = 128
+    val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val c = Canvas(bmp)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    val mid = size / 2f
+    paint.color = 0x55000000
+    c.drawCircle(mid, mid + 3f, mid - 6f, paint)
+    paint.color = 0xFFF2F2F7.toInt()
+    c.drawCircle(mid, mid, mid - 8f, paint)
+    val arrow = Path().apply {
+        moveTo(mid, 26f)
+        lineTo(mid + 25f, 92f)
+        lineTo(mid, 78f)
+        lineTo(mid - 25f, 92f)
+        close()
+    }
+    paint.color = 0xFF0A84FF.toInt()
+    c.drawPath(arrow, paint)
+    return bmp
 }
 
 // ---- panel pieces -------------------------------------------------------------------------
