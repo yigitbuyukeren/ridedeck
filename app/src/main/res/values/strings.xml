@@ -52,6 +52,7 @@
     <string name="search_failed">Arama başarısız, internet bağlantısını kontrol et</string>
     <string name="route_failed">Rota alınamadı</string>
     <string name="rerouting_voice">Rota yeniden hesaplanıyor</string>
+    <string name="then_voice">ardından</string>
     <string name="unit_hour">sa</string>
     <string name="unit_minute">dk</string>
     <string name="theme_title">Tema</string>

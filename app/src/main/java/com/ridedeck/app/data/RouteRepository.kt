@@ -20,6 +20,14 @@ data class Maneuver(
     val verbal: String,
     val lengthM: Double,
     val beginIndex: Int,
+    /** Seconds Valhalla expects this manoeuvre's stretch to take; 0 when unknown. */
+    val timeS: Double = 0.0,
+    /** Road names after the manoeuvre ("Atatürk Cd."), may be empty. */
+    val streetNames: List<String> = emptyList(),
+    /** Roundabout exit to take (1-based), 0 when this is not a roundabout. */
+    val roundaboutExit: Int = 0,
+    /** Spoken right after the manoeuvre ("Continue for 2 km"), may be empty. */
+    val postVerbal: String = "",
 )
 
 data class Route(
@@ -28,6 +36,21 @@ data class Route(
     val distanceM: Double,
     val durationS: Double,
 ) {
+    /**
+     * Seconds still to ride when [travelledM] metres are done, from the manoeuvre times Valhalla gave (the share of the
+     * current stretch left plus every later stretch); proportional to the distance when it gave none.
+     */
+    fun remainingTimeS(travelledM: Double): Double {
+        val remaining = (distanceM - travelledM).coerceAtLeast(0.0)
+        val proportional = durationS * remaining / distanceM
+        if (maneuvers.none { it.timeS > 0 }) return proportional
+        val k = maneuvers.indexOfLast { cumulative[it.beginIndex.coerceIn(0, shape.lastIndex)] <= travelledM }.coerceAtLeast(0)
+        val begin = cumulative[maneuvers[k].beginIndex.coerceIn(0, shape.lastIndex)]
+        val end = maneuvers.getOrNull(k + 1)?.let { cumulative[it.beginIndex.coerceIn(0, shape.lastIndex)] } ?: cumulative.last()
+        val share = if (end > begin) ((end - travelledM) / (end - begin)).coerceIn(0.0, 1.0) else 0.0
+        return maneuvers[k].timeS * share + maneuvers.drop(k + 1).sumOf { it.timeS }
+    }
+
     /** cumulative[i] = metres from the start to shape[i]. */
     val cumulative: DoubleArray = DoubleArray(shape.size).also { c ->
         for (i in 1 until shape.size) c[i] = c[i - 1] + Geo.distance(shape[i - 1], shape[i])
@@ -157,6 +180,10 @@ class RouteRepository(
                     verbal = InstructionText.clean(m.optString("verbal_pre_transition_instruction", m.optString("instruction"))),
                     lengthM = m.getDouble("length") * metresPerUnit,
                     beginIndex = m.getInt("begin_shape_index"),
+                    timeS = m.optDouble("time", 0.0).takeIf { it.isFinite() } ?: 0.0,
+                    streetNames = m.optJSONArray("street_names")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty(),
+                    roundaboutExit = m.optInt("roundabout_exit_count", 0),
+                    postVerbal = InstructionText.clean(m.optString("verbal_post_transition_instruction")),
                 )
             }
         }

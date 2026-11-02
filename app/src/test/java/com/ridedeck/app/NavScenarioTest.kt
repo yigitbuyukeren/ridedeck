@@ -137,3 +137,26 @@ class NavScenarioTest {
         assertTrue(now.metresToNext >= 0)
     }
 }
+
+class NavGuidanceBeatsBaselineTest {
+    @Test
+    fun highwayTurnWarningNowGivesAtLeast10Seconds() {
+        val r = replay(lShapedRoute(kmStraight = 4.0), RouteSimulator.Plan(speedMps = 30.0))
+        val now = r.spoken.first { it.text == "Turn right now" }
+        assertTrue("said ${now.metresToNext} m before", now.metresToNext / 30.0 >= 10.0)
+    }
+
+    @Test
+    fun closeSecondTurnIsAnnouncedTogether() {
+        val shape = (0..20).map { GeoPoint(41.0 + it * 0.0009, 29.0) }
+        val ms = listOf(
+            Maneuver(1, "", "", "Head north", 1500.0, 0),
+            Maneuver(10, "", "", "Turn right", 100.0, 15),
+            Maneuver(15, "", "", "Turn left", 300.0, 16),
+            Maneuver(4, "", "", "Arrived", 0.0, 20),
+        )
+        val len = Route(shape, ms, 1.0, 1.0).cumulative.last()
+        val r = replay(Route(shape, ms, len, len / 14), RouteSimulator.Plan(speedMps = 14.0))
+        assertTrue(r.spoken.map { it.text }.toString(), r.spoken.any { it.text == "Turn right, t${R.string.then_voice} Turn left" })
+    }
+}

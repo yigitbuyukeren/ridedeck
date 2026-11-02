@@ -300,10 +300,11 @@ class NavigationController(
         spoken.clear()
         val next = route.maneuvers.indexOfFirst { it.beginIndex > startIndex }.takeIf { it >= 0 } ?: route.maneuvers.lastIndex
         val remaining = (route.distanceM - route.cumulative[startIndex]).coerceAtLeast(0.0)
+        val remainingS = route.remainingTimeS(route.cumulative[startIndex]).toInt()
         _ui.update {
             it.copy(navigating = true, arrived = false, maneuverIndex = next.coerceAtLeast(0),
                 progressIndex = startIndex, progressFraction = 0.0,
-                remainingM = remaining.toInt(), remainingS = (route.durationS * remaining / route.distanceM).toInt(),
+                remainingM = remaining.toInt(), remainingS = remainingS,
                 termination = NavigationTermination.NONE)
         }
         if (startIndex == 0) route.maneuvers.firstOrNull()?.let { voice.speak(it.verbal) }
@@ -462,21 +463,15 @@ class NavigationController(
         if (!state.navigating || !fix.hasFreshFix(nowMs()) || route.shape.size < 2) return
         val p = GeoPoint(fix.lat, fix.lon)
 
-        // Match to the nearest segment within a window ahead of the last known position.
-        var bestIdx = progressIndex
-        var best = Geo.Projection(Double.MAX_VALUE, 0.0)
-        val end = minOf(route.shape.size - 2, progressIndex + MATCH_WINDOW)
-        for (i in progressIndex..end) {
-            val proj = Geo.project(p, route.shape[i], route.shape[i + 1])
-            if (proj.distanceM < best.distanceM) {
-                best = proj
-                bestIdx = i
-            }
-        }
+        // Match to the best segment near the last known position, preferring the direction of travel.
+        val speedMps = fix.speedKmh / 3.6
+        val match = RouteMatcher.match(route.shape, p, progressIndex, MATCH_WINDOW, fix.bearing?.toDouble(), speedMps)
+        val bestIdx = match.index
+        val best = match.projection
 
-        if (best.distanceM > OFF_ROUTE_M) {
+        if (best.distanceM > RouteMatcher.offRouteM(speedMps, fix.accuracyM)) {
             offRouteFixes++
-            if (offRouteFixes >= OFF_ROUTE_FIXES && !state.rerouting && fix.fixAtMs >= nextRerouteAtMs) {
+            if (offRouteFixes >= RouteMatcher.offRouteFixes(speedMps) && !state.rerouting && fix.fixAtMs >= nextRerouteAtMs) {
                 reroute(p)
             }
             return
@@ -503,10 +498,10 @@ class NavigationController(
         val distToNext = (route.cumulative[maneuver.beginIndex.coerceAtMost(route.shape.lastIndex)] - travelled)
             .coerceAtLeast(0.0)
 
-        if (distToNext < ALERT_M && maneuver.alert.isNotBlank() && spoken.add(next * 10)) {
-            if (distToNext > PRE_M + 50) voice.speak(maneuver.alert)
+        if (distToNext < PromptSchedule.alertM(speedMps) && maneuver.alert.isNotBlank() && spoken.add(next * 10)) {
+            if (PromptSchedule.alertWorthIt(distToNext, speedMps)) voice.speak(maneuver.alert)
         }
-        if (distToNext < PRE_M && spoken.add(next * 10 + 1)) voice.speak(maneuver.verbal)
+        if (distToNext < PromptSchedule.nearM(speedMps) && spoken.add(next * 10 + 1)) voice.speak(withFollowUp(route, next))
 
         _ui.update {
             it.copy(
@@ -515,9 +510,17 @@ class NavigationController(
                 progressFraction = best.fraction,
                 distToNextM = distToNext.toInt(),
                 remainingM = remaining.toInt(),
-                remainingS = (route.durationS * remaining / route.distanceM).toInt(),
+                remainingS = route.remainingTimeS(travelled).toInt(),
             )
         }
+    }
+
+    /** "Turn right now, then left": a second turn closer than [THEN_M] is announced together with the first. */
+    private fun withFollowUp(route: Route, index: Int): String {
+        val m = route.maneuvers[index]
+        val following = route.maneuvers.getOrNull(index + 1) ?: return m.verbal
+        if (m.lengthM >= THEN_M || following.type in ARRIVE_TYPES || following.verbal.isBlank()) return m.verbal
+        return "${m.verbal.trimEnd('.', ' ')}, ${text(R.string.then_voice)} ${following.verbal.trimEnd('.', ' ')}"
     }
 
     private fun reroute(from: GeoPoint) {
@@ -560,11 +563,9 @@ class NavigationController(
         private const val ROUTE_TIMEOUT_MS = 30_000L
         private const val SEARCH_GAP_MS = 1_000L
         const val MATCH_WINDOW = 80
-        const val OFF_ROUTE_M = 60.0
-        const val OFF_ROUTE_FIXES = 4
         const val ARRIVAL_M = 25.0
-        const val ALERT_M = 600.0
-        const val PRE_M = 150.0
+        const val THEN_M = 250.0
+        private val ARRIVE_TYPES = 4..7
         const val REROUTE_RETRY_MS = 10_000L
     }
 }
