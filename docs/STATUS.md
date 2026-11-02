@@ -2,9 +2,12 @@
 
 Her gün sonunda güncellenir (bkz. [WORKFLOW.md](WORKFLOW.md)).
 
-**Son güncelleme:** 2026-11-01
+**Son güncelleme:** 2026-11-02
 
 ## Şu anki durum
+- **2026-11-02 (navigasyon yükseltmesi, PLAN #2):** Aşama 0: `RouteSimulator` + `NavScenarioTest` (temiz sürüş, gürültülü GPS, tünel, sapma, otoyol uyarısı; taban: otoyolda "şimdi" talimatı 5,4 sn önce). Aşama 1: `PromptSchedule` (uyarı mesafesi hıza göre, otoyolda ≥10 sn), `RouteMatcher` (yön cezalı eşleme, geri pay, hız/GPS doğruluğuna göre rotadan çıkma eşiği), yakın ikinci dönüşün "ardından" ile birleştirilmesi, kalan sürenin Valhalla manevra sürelerinden hesabı, `Maneuver` yeni alanları (süre, yol adı, kavşak çıkışı). Aşama 2: rota önizlemesinde alternatif rotalar (kartta seçilir, haritada gri), rehberlikte genel bakış düğmesi (8 sn). Aşama 3: `CameraPlan` ile hıza/dönüşe göre zoom-eğim, manevra bandında yol adı, kavşak çıkışı, mesafe çubuğu ve "Sonra" satırı. Aşama 4: süreç ölümünden sonra son hedef GPS gelince önizleme olarak geri önerilir (`ActiveTrip`, 6 sa).
+  - **PASS:** `testDebugUnitTest lintDebug assembleDebug assembleRelease`; yeni testler eklendi (senaryo, GuidanceMath, RouteChoice, ActiveTrip). İmzalı release APK telefona kuruldu, açılışta çökme yok.
+  - **UNVERIFIED:** gerçek sürüşte uyarı zamanlaması, alternatif rota ekranı ve yeni kamera telefonda görsel olarak denenmedi. Yapılmayanlar: çok noktalı rota, dönüş oku katmanı, şerit bilgisi, uygulama içi simülasyon, çevrimdışı harita (bkz. `PLAN.md`). Varışta hedef yönü zaten Valhalla'nın destination_left/right metninden söyleniyor.
 - **2026-11-01 (haritada yön oku):** Konum işareti, nokta yerine yöne dönen ok oldu (`me-arrow` SymbolLayer). 8 km/sa üstünde GPS gidiş yönünü, altında veya GPS yönü yokken telefonun pusulasını gösterir (`CompassMath`, `CompassEffect`, `SmoothFollow`). Sensör yalnız ekran açıkken dinlenir; pusula yoksa GPS yönüne düşer. Telefon düz dururken yatay ekranda 90/270 dönüş eksenlerinin ters alınması düzeltildi, iki regresyon testi eklendi.
   - **PASS:** JDK 17 wrapper ile `testDebugUnitTest lintDebug assembleDebug`; debug **353 test**, hata/atlama yok. Release derlemesi ve Android testleri bu değişiklik için çalıştırılmadı.
   - **UNVERIFIED:** gerçek telefonda pusula yönü ve okun haritadaki görünümü denenmedi. Pusula manyetik kuzeyi verir; manyetik sapma düzeltmesi yok.
