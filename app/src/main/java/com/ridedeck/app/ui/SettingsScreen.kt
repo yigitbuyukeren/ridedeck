@@ -166,6 +166,7 @@ fun SettingsScreen(
     bikeType: BikeType = BikeType.CITY,
     onBikeType: (BikeType) -> Unit = {},
     safetyCard: @Composable () -> Unit = {},
+    offlineCard: @Composable () -> Unit = {},
     speechRate: Float = 1f,
     onSpeechRate: (Float) -> Unit = {},
     ttsVoiceNames: List<String> = emptyList(),
@@ -226,6 +227,7 @@ fun SettingsScreen(
                                 ) { onVehicle(VehicleProfile.entries[it]) }
                             }
                             items(items) { item -> SettingRow(item) }
+                            item { offlineCard() }
                         }
                         SettingsTab.RIDE -> {
                             item {

@@ -159,6 +159,13 @@ object Prefs {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(KEY_RECENT_PLACES, json).apply()
     }
 
+    fun offlineAreas(context: Context): String? =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("offline_areas", null)
+
+    fun setOfflineAreas(context: Context, json: String) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString("offline_areas", json).apply()
+    }
+
     /** JSON of the trip being guided (see ActiveTrip), null when none. */
     fun activeTrip(context: Context): String? =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("active_trip", null)

@@ -10,16 +10,8 @@ Bekleyen maddeler: çevrimdışı harita (#1, öncelikli) ve navigasyonun üst d
 
 Başlangıç noktaları (araştırılacak, henüz karar yok): MapLibre offline region API (`OfflineManager`, mevcut sürüm 11.13.5'te var) ile vektör karo indirme; OpenFreeMap karolarının toplu indirme kullanım şartları; bölge seçimi (il/dikdörtgen), boyut ve disk tahmini; çevrimdışıyken rota (Valhalla çevrimiçi, yani rota hesabı ayrı bir karar) ve arama; kilit/uyarı davranışı. Kabul ölçütü: uçak modunda indirilmiş bölgede harita çizilir, konum ve hız çalışır; indirilmemiş bölgede açık uyarı.
 
-## 2. Navigasyonu üst düzeye taşımak: kalan işler (2026-11-02)
+## Bekleyen madde yok
 
-Aşama 0, 1, 2 (alternatif rota, genel bakış), 3 (dinamik kamera, zengin manevra bandı) ve aşama 4'ün rota geri önerme kısmı yapıldı; ayrıntı `docs/STATUS.md`. Değişmeyen sınırlar: anahtarsız public servisler, sürerken yazı girişi yok, eldivenle kullanım.
+Navigasyon yükseltmesinin tüm aşamaları uygulandı (kayıt: `docs/STATUS.md`). Telefonda denenmemiş kısımlar STATUS'ta UNVERIFIED olarak duruyor. Değişmeyen sınırlar: anahtarsız public servisler, sürerken yazı girişi yok, eldivenle kullanım.
 
-Kalanlar:
-- **Haritada dönüş oku katmanı** (aşama 3).
-- **Şerit bilgisi** (aşama 3): önce public Valhalla'da `format=osrm` spike'ı.
-- **Debug "rotayı simüle et" modu** (aşama 0): `RouteSimulator` hazır ve testlerde kullanılıyor; uygulama içi tetikleyici yok.
-- **Çevrimdışı harita** (#1): OpenFreeMap karolarının toplu indirme şartları belirsiz; karar gerekiyor.
-
-## Kapsam dışı (bilinçli)
-- Canlı trafik: anahtarsız public kaynağı yok.
-- 3D binalar / Immersive görünüm (EKSIKLER #6); viraj ağırlıklı rota (EKSIKLER #8).
+Kapsam dışı (bilinçli): canlı trafik (anahtarsız kaynak yok), 3D binalar (EKSIKLER #6), viraj ağırlıklı rota (EKSIKLER #8), şerit okları (aşağıdaki ölçüm).

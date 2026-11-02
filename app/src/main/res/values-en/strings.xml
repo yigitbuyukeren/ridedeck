@@ -52,6 +52,14 @@
     <string name="search_failed">Search failed, check your internet connection</string>
     <string name="route_failed">Could not get a route</string>
     <string name="rerouting_voice">Recalculating route</string>
+    <string name="offline_title">Offline map</string>
+    <string name="offline_desc">Map without internet: download the area around you (about %1$d MB). Routing and search still need a connection.</string>
+    <string name="offline_download">Download area (%1$d km)</string>
+    <string name="offline_progress">Downloading… %1$d%%</string>
+    <string name="offline_delete">Delete</string>
+    <string name="offline_uncovered">You are offline and this area is not downloaded</string>
+    <string name="offline_no_gps">Waiting for GPS</string>
+    <string name="offline_area_fmt">Downloaded: %1$s · %2$d km</string>
     <string name="add_stop">Add stop</string>
     <string name="then_label">Then</string>
     <string name="roundabout_exit_fmt">Exit %d</string>

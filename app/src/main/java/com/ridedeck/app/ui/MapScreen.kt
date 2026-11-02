@@ -13,6 +13,7 @@ import com.ridedeck.app.data.CameraPlan
 import com.ridedeck.app.data.DebugSim
 import org.maplibre.android.style.layers.PropertyFactory.lineOpacity
 import com.ridedeck.app.data.PlaceKind
+import com.ridedeck.app.data.hasFreshFix
 import com.ridedeck.app.data.SavedPlace
 import android.content.Context
 import android.graphics.Bitmap
@@ -416,6 +417,12 @@ fun MapScreen(
                 )
             }
             if (ui.rerouting) Chip(stringResource(R.string.rerouting_chip), MotoColors.Orange)
+            val online = rememberOnline(LocalContext.current)
+            val offlineAreas by com.ridedeck.app.data.OfflineMaps.areas.collectAsStateWithLifecycle()
+            LaunchedEffect(Unit) { com.ridedeck.app.data.OfflineMaps.load(context) }
+            if (!online && me.hasFreshFix(System.currentTimeMillis()) && !com.ridedeck.app.data.OfflinePlan.covered(offlineAreas, GeoPoint(me.lat, me.lon))) {
+                Chip(stringResource(R.string.offline_uncovered), MotoColors.Orange)
+            }
         }
 
         if (ui.navigating) {

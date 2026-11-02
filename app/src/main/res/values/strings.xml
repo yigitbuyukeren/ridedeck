@@ -52,6 +52,14 @@
     <string name="search_failed">Arama başarısız, internet bağlantısını kontrol et</string>
     <string name="route_failed">Rota alınamadı</string>
     <string name="rerouting_voice">Rota yeniden hesaplanıyor</string>
+    <string name="offline_title">Çevrimdışı harita</string>
+    <string name="offline_desc">İnternet olmadan harita: bulunduğun yerin çevresini indir (yaklaşık %1$d MB). Rota ve arama yine internet ister.</string>
+    <string name="offline_download">Çevresini indir (%1$d km)</string>
+    <string name="offline_progress">İndiriliyor… %%%1$d</string>
+    <string name="offline_delete">Sil</string>
+    <string name="offline_uncovered">Çevrimdışısın ve bu bölgenin haritası indirilmedi</string>
+    <string name="offline_no_gps">GPS konumu bekleniyor</string>
+    <string name="offline_area_fmt">İndirilen: %1$s · %2$d km</string>
     <string name="add_stop">Durak ekle</string>
     <string name="then_label">Sonra</string>
     <string name="roundabout_exit_fmt">%d. çıkış</string>

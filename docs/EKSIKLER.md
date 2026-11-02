@@ -37,3 +37,5 @@ Durum sütunu: **Yapılabilir** = anahtarsız/ücretsiz ilkeye uyuyor. **Kısıt
 4. mph / mil birimi (#20): yapıldı
 5. Müzik kütüphanesi gezinme (#14): bilerek yapılmadı (üçüncü taraf bağlantısı büyük olasılıkla reddedilir, doğrulanamaz)
 6. Gerçek telefonda saha testi (#16): sürüyor, `docs/STATUS.md` "denenmedi" listeleri
+
+- Şerit okları: Valhalla `format=osrm` şerit verisi (`intersections[].lanes`) 2026-11-02 ölçümünde 3 rotada 51 adımın 6'sında var; bu kapsamla bant yapılmadı. Kapsam artarsa yeniden bakılabilir.

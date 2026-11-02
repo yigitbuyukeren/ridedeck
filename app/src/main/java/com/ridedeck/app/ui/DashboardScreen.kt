@@ -4,6 +4,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import com.ridedeck.app.data.DashCard
+import com.ridedeck.app.data.hasFreshFix
 import com.ridedeck.app.util.Units
 import android.content.Context
 import android.content.Intent
@@ -478,6 +479,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     ttsVoiceNames = ttsVoiceNames,
                     selectedTtsVoice = selectedTtsVoice,
                     onTtsVoice = vm::setTurkishTtsVoice,
+                    offlineCard = { OfflineMapsCard(locationState.takeIf { it.hasFreshFix(System.currentTimeMillis()) }?.let { com.ridedeck.app.data.GeoPoint(it.lat, it.lon) }) },
                     safetyCard = {
                         SosSettingsCard(
                             contacts = sosContacts,
