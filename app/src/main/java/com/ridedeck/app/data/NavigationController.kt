@@ -170,6 +170,13 @@ class NavigationController(
         routeJob = scope.launch { calculatePlaceRoute(place, request.first, request.second) }
     }
 
+    /** After a process kill: routes to the saved destination as a preview ("Start" resumes guidance); a saved fuel stop is not re-planned. */
+    fun restoreTrip(destination: Place, finalDestination: Place?) {
+        val target = finalDestination ?: destination
+        val request = preparePlaceRoute(target) ?: return
+        routeJob = scope.launch { calculatePlaceRoute(target, request.first, request.second) }
+    }
+
     private fun rememberChosen(place: Place) {
         if (place.name != text(R.string.selected_place)) onPlaceChosen(place)
     }

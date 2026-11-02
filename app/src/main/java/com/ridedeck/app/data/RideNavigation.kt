@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -58,6 +59,21 @@ class RideNavigation(context: Context, private val tracking: RideTracking) {
     )
 
     init {
+        // Keep the guided trip on disk; after a process kill the destination is offered again once GPS has a fix.
+        val saved = ActiveTrip.fromJson(Prefs.activeTrip(app))?.takeIf { it.fresh(System.currentTimeMillis()) }
+        if (saved == null) Prefs.setActiveTrip(app, null)
+        var wasGuiding = false
+        scope.launch {
+            nav.ui.map { Triple(it.navigating, it.destination, it.finalDestination) }.distinctUntilChanged().collect { (guiding, dest, final) ->
+                if (guiding && dest != null) Prefs.setActiveTrip(app, ActiveTrip(dest, final, System.currentTimeMillis()).toJson())
+                else if (wasGuiding) Prefs.setActiveTrip(app, null)
+                wasGuiding = guiding
+            }
+        }
+        if (saved != null) scope.launch {
+            tracking.location.state.first { it.hasFreshFix(System.currentTimeMillis()) }
+            if (nav.ui.value.destination == null && !nav.ui.value.navigating) nav.restoreTrip(saved.destination, saved.finalDestination)
+        }
         scope.launch { call.state.collect { if (it.phase == CallPhase.IDLE) CallBridge.callerName.value = null } }
     }
 

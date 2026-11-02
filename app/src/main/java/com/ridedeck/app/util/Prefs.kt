@@ -159,6 +159,14 @@ object Prefs {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(KEY_RECENT_PLACES, json).apply()
     }
 
+    /** JSON of the trip being guided (see ActiveTrip), null when none. */
+    fun activeTrip(context: Context): String? =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("active_trip", null)
+
+    fun setActiveTrip(context: Context, json: String?) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().apply { if (json == null) remove("active_trip") else putString("active_trip", json) }.apply()
+    }
+
     fun recentPlacesOn(context: Context): Boolean =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_RECENT_PLACES_ON, true)
 
