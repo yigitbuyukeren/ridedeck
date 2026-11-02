@@ -3,6 +3,7 @@ package com.ridedeck.app.data
 import android.util.Log
 import java.net.URLEncoder
 import java.util.Locale
+import kotlin.math.abs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -36,6 +37,10 @@ data class Route(
     val distanceM: Double,
     val durationS: Double,
 ) {
+    /** Practically the same road: same length within 1% and the same middle point. */
+    fun sameAs(other: Route): Boolean =
+        abs(distanceM - other.distanceM) < distanceM * 0.01 && Geo.distance(shape[shape.size / 2], other.shape[other.shape.size / 2]) < 50.0
+
     /**
      * Seconds still to ride when [travelledM] metres are done, from the manoeuvre times Valhalla gave (the share of the
      * current stretch left plus every later stretch); proportional to the distance when it gave none.

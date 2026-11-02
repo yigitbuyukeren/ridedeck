@@ -22,6 +22,8 @@ data class NavUi(
     /** Set while heading for a fuel stop: where the trip continues afterwards. */
     val finalDestination: Place? = null,
     val route: Route? = null,
+    /** While previewing: every route offered to this place (best first), including [route]; empty or one when there is no choice. */
+    val choices: List<Route> = emptyList(),
     val loading: Boolean = false,
     val error: String? = null,
     val navigating: Boolean = false,
@@ -208,7 +210,8 @@ class NavigationController(
         return result.fold(
             onSuccess = { route ->
                 if (generation != routeGeneration) return@fold false
-                _ui.update { it.copy(route = route, loading = false, error = null) }
+                _ui.update { it.copy(route = route, choices = emptyList(), loading = false, error = null) }
+                loadChoices(generation, from, place.point, route)
                 true
             },
             onFailure = {
@@ -237,6 +240,31 @@ class NavigationController(
         }
     }
 
+    /** Asks for alternative routes after the main one is already on screen; a late or failed reply changes nothing. */
+    private fun loadChoices(generation: Long, from: GeoPoint, to: GeoPoint, main: Route) {
+        scope.launch {
+            val options = _options.value
+            val found = try {
+                repo.alternatives(from, to, options).getOrNull()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
+            } ?: return@launch
+            val extra = found.filter { it.isUsable() && !it.sameAs(main) }.take(2)
+            if (generation != routeGeneration || extra.isEmpty()) return@launch
+            _ui.update { if (it.route === main && !it.navigating) it.copy(choices = listOf(main) + extra) else it }
+        }
+    }
+
+    /** Picks one of the previewed alternatives. */
+    fun chooseRoute(index: Int) {
+        _ui.update {
+            val picked = it.choices.getOrNull(index) ?: return@update it
+            if (it.navigating) it else it.copy(route = picked)
+        }
+    }
+
     private fun invalidateRoute(): Long {
         routeGeneration++
         routeJob?.cancel()
@@ -261,7 +289,10 @@ class NavigationController(
         routeJob = scope.launch {
             val result = routeResult(from, dest.point, options)
             if (generation != routeGeneration) return@launch
-            result?.onSuccess { route -> _ui.update { it.copy(route = route, loading = false) } }
+            result?.onSuccess { route ->
+                _ui.update { it.copy(route = route, choices = emptyList(), loading = false) }
+                loadChoices(generation, from, dest.point, route)
+            }
                 ?.onFailure { _ui.update { s -> s.copy(loading = false, error = text(R.string.route_failed)) } }
                 ?: _ui.update { it.copy(loading = false, error = text(R.string.route_failed)) }
         }
@@ -291,6 +322,7 @@ class NavigationController(
             _ui.update { it.copy(error = text(R.string.ride_start_error)) }
             return
         }
+        _ui.update { it.copy(choices = emptyList()) }
         begin(route, 0)
     }
 
