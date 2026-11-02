@@ -9,6 +9,8 @@ import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import com.ridedeck.app.util.Units
 import com.ridedeck.app.data.SpeedLimitMath
 import com.ridedeck.app.data.Geo
+import com.ridedeck.app.data.CameraPlan
+import org.maplibre.android.style.layers.PropertyFactory.lineOpacity
 import com.ridedeck.app.data.PlaceKind
 import com.ridedeck.app.data.SavedPlace
 import android.content.Context
@@ -54,6 +56,7 @@ import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material.icons.rounded.Work
 import androidx.compose.material.icons.rounded.MyLocation
+import androidx.compose.material.icons.rounded.ZoomOutMap
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.semantics.semantics
@@ -143,8 +146,10 @@ import org.maplibre.geojson.Point
 
 internal fun styleUrl(isDay: Boolean) =
     "https://tiles.openfreemap.org/styles/" + if (isDay) "bright" else "dark"
+internal const val OVERVIEW_MS = 8_000L
 internal const val SRC_ROUTE = "route"
 internal const val SRC_ROUTE_DONE = "route-done"
+internal const val SRC_ROUTE_ALT = "route-alt"
 internal const val SRC_DEST = "dest"
 internal const val SRC_ME = "me"
 internal const val SRC_FUEL = "fuel"
@@ -210,7 +215,18 @@ fun MapScreen(
     }
 
     // My position marker and the navigation chase camera are drawn per frame (see SmoothFollow).
-    SmoothFollow(map, mapView, styleReady, me, follow = ui.navigating, zoom = 17.0, tilt = 55.0, padTopFraction = 0.45, maxFps = if (lowPower) LOW_POWER_FPS else FULL_FPS)
+    var overview by remember { mutableStateOf(false) }
+    val pose = CameraPlan.pose(speedKmh, if (ui.navigating) ui.distToNextM else 0)
+    var camZoom by remember { mutableStateOf(pose.zoom) }
+    var camTilt by remember { mutableStateOf(pose.tilt) }
+    LaunchedEffect(pose) {
+        while (kotlin.math.abs(camZoom - pose.zoom) > 0.01 || kotlin.math.abs(camTilt - pose.tilt) > 0.1) {
+            camZoom = CameraPlan.ease(camZoom, pose.zoom)
+            camTilt = CameraPlan.ease(camTilt, pose.tilt)
+            kotlinx.coroutines.delay(100)
+        }
+    }
+    SmoothFollow(map, mapView, styleReady, me, follow = ui.navigating && !overview, zoom = camZoom, tilt = camTilt, padTopFraction = 0.45, maxFps = if (lowPower) LOW_POWER_FPS else FULL_FPS)
 
     LaunchedEffect(styleReady, me.fixAtMs, ui.navigating) {
         val m = map ?: return@LaunchedEffect
@@ -230,6 +246,28 @@ fun MapScreen(
         val style = map?.style?.takeIf { styleReady } ?: return@LaunchedEffect
         showRoute(style, ui.route, ui.progressIndex, ui.progressFraction)
     }
+
+    LaunchedEffect(styleReady, ui.choices, ui.route) {
+        val style = map?.style?.takeIf { styleReady } ?: return@LaunchedEffect
+        showAlternatives(style, if (ui.navigating) emptyList() else ui.choices, ui.route)
+    }
+
+    // Overview during guidance: the whole remaining route for a few seconds, then back to the chase camera.
+    LaunchedEffect(overview, ui.navigating) {
+        if (!overview) return@LaunchedEffect
+        val m = map
+        val route = ui.route
+        if (!ui.navigating || m == null || route == null) { overview = false; return@LaunchedEffect }
+        val bounds = LatLngBounds.Builder().apply {
+            include(LatLng(me.lat, me.lon))
+            route.shape.drop(ui.progressIndex).forEach { include(LatLng(it.lat, it.lon)) }
+        }.build()
+        val padding = if (portrait) intArrayOf(140, 300, 260, 200) else intArrayOf(120, 420, 120, 140)
+        m.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding[0], padding[1], padding[2], padding[3]), 700)
+        kotlinx.coroutines.delay(OVERVIEW_MS)
+        overview = false
+    }
+    LaunchedEffect(ui.navigating) { if (!ui.navigating) overview = false }
 
     // Destination pin and the overview camera.
     LaunchedEffect(styleReady, ui.route, ui.destination) {
@@ -324,7 +362,7 @@ fun MapScreen(
                 ui.route != null -> RouteCard(
                     ui, options, onOptions = nav::setOptions,
                     canOpenExternal = speedKmh < SEARCH_LOCK_KMH,
-                    onStart = onStartNavigation, onCancel = nav::stopNavigation,
+                    onStart = onStartNavigation, onCancel = nav::stopNavigation, onChoose = nav::chooseRoute,
                     saved = ui.destination?.let { d -> places.any { Geo.distance(it.place.point, d.point) < SAVED_SPOT_M } } == true,
                     onSave = { ui.destination?.let { saving = it } },
                 )
@@ -362,6 +400,9 @@ fun MapScreen(
             RoundIconButton(Icons.Rounded.Close, onClick = onClose)
             if (!ui.arrived) {
                 RoundIconButton(if (options.profile == VehicleProfile.BICYCLE) Icons.Rounded.PedalBike else Icons.Rounded.LocalGasStation, onClick = { if (fuel.visible) nav.closeFuel() else nav.findFuel() })
+            }
+            if (ui.navigating) {
+                RoundIconButton(Icons.Rounded.ZoomOutMap, onClick = { overview = !overview })
             }
             if (!ui.navigating) {
                 RoundIconButton(Icons.Rounded.MyLocation, onClick = {
@@ -405,7 +446,21 @@ internal fun showRoute(style: Style, route: Route?, progressIndex: Int, progress
     else done?.setGeoJson(FeatureCollection.fromFeatures(emptyList<Feature>()))
 }
 
+/** Draws the previewed alternatives (all but the chosen one) as thin grey lines under the route. */
+internal fun showAlternatives(style: Style, choices: List<Route>, chosen: Route?) {
+    val features = choices.filter { it !== chosen && it.shape.size >= 2 }.map { r ->
+        Feature.fromGeometry(LineString.fromLngLats(r.shape.map { Point.fromLngLat(it.lon, it.lat) }))
+    }
+    style.getSourceAs<GeoJsonSource>(SRC_ROUTE_ALT)?.setGeoJson(FeatureCollection.fromFeatures(features))
+}
+
 internal fun addMapLayers(style: Style) {
+    style.addSource(GeoJsonSource(SRC_ROUTE_ALT))
+    style.addLayer(
+        LineLayer("route-alt-line", SRC_ROUTE_ALT).withProperties(
+            lineColor("#8E8E93"), lineWidth(6f), lineOpacity(0.85f), lineCap(Property.LINE_CAP_ROUND), lineJoin(Property.LINE_JOIN_ROUND)
+        )
+    )
     style.addSource(GeoJsonSource(SRC_ROUTE_DONE))
     style.addLayer(
         LineLayer("route-done-casing", SRC_ROUTE_DONE).withProperties(
@@ -657,6 +712,7 @@ private fun RouteCard(
     onSave: () -> Unit,
     onStart: () -> Unit,
     onCancel: () -> Unit,
+    onChoose: (Int) -> Unit,
 ) {
     val route = ui.route ?: return
     val context = LocalContext.current
@@ -713,6 +769,18 @@ private fun RouteCard(
                 else "${formatDistance(route.distanceM.toInt())} · ${formatDuration(LocalContext.current, route.durationS.toInt())} · ${stringResource(R.string.arrival_fmt, eta)}",
                 fontSize = 16.sp, color = MotoColors.Gray,
             )
+            if (ui.choices.size > 1) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ui.choices.forEachIndexed { i, r ->
+                        val delta = (r.durationS - ui.choices.first().durationS).toInt() / 60
+                        OptionChip(
+                            "${formatDuration(context, r.durationS.toInt())} · ${formatDistance(r.distanceM.toInt())}" +
+                                if (i > 0 && delta != 0) " (${if (delta > 0) "+" else ""}$delta)" else "",
+                            r === route, { onChoose(i) }, Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (options.profile == VehicleProfile.BICYCLE) {
                     OptionChip(stringResource(R.string.opt_no_hills), options.avoidHills, { onOptions(options.copy(avoidHills = !options.avoidHills)) }, Modifier.weight(1f))
@@ -849,17 +917,43 @@ private fun FuelRow(station: FuelStation, guiding: Boolean, onGo: (Place) -> Uni
 private fun ManeuverBanner(ui: NavUi) {
     val route = ui.route ?: return
     val maneuver = route.maneuvers.getOrNull(ui.maneuverIndex) ?: return
-    Row(
+    val following = route.maneuvers.getOrNull(ui.maneuverIndex + 1)?.takeIf { it.type !in 4..7 && maneuver.lengthM < 400 }
+    val street = maneuver.streetNames.firstOrNull()
+    Column(
         modifier = Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
             .background(Brush.verticalGradient(listOf(Color(0xFF1B6FE0), Color(0xFF0B4FB3))))
             .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(maneuverIcon(maneuver.type), null, tint = Color.White, modifier = Modifier.size(64.dp))
-        Column(modifier = Modifier.padding(start = 14.dp)) {
-            Text(formatDistance(ui.distToNextM), fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            Text(maneuver.instruction, fontSize = 16.sp, color = Color(0xE6FFFFFF), maxLines = 3, overflow = TextOverflow.Ellipsis)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(maneuverIcon(maneuver.type), null, tint = Color.White, modifier = Modifier.size(64.dp))
+                if (maneuver.roundaboutExit > 0) {
+                    Text("${maneuver.roundaboutExit}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
+            Column(modifier = Modifier.padding(start = 14.dp)) {
+                Text(formatDistance(ui.distToNextM), fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(maneuver.instruction, fontSize = 16.sp, color = Color(0xE6FFFFFF), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (street != null && !maneuver.instruction.contains(street)) {
+                    Text(street, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                if (maneuver.roundaboutExit > 0) {
+                    Text(stringResource(R.string.roundabout_exit_fmt, maneuver.roundaboutExit), fontSize = 15.sp, color = Color(0xE6FFFFFF))
+                }
+            }
+        }
+        // Distance bar to the manoeuvre: fills up over the last 500 m.
+        Box(Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(3.dp)).background(Color(0x33FFFFFF))) {
+            Box(Modifier.fillMaxHeight().fillMaxWidth((1f - ui.distToNextM / 500f).coerceIn(0f, 1f)).background(Color.White))
+        }
+        if (following != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.then_label), fontSize = 14.sp, color = Color(0xB3FFFFFF))
+                Icon(maneuverIcon(following.type), null, tint = Color.White, modifier = Modifier.padding(horizontal = 8.dp).size(28.dp))
+                Text(following.instruction, fontSize = 14.sp, color = Color(0xE6FFFFFF), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }

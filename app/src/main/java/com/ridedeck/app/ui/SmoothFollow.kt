@@ -44,6 +44,8 @@ internal fun SmoothFollow(
 ) {
     val compass = rememberCompassHeading()
     val latestMe by rememberUpdatedState(me)
+    val latestZoom by rememberUpdatedState(zoom)
+    val latestTilt by rememberUpdatedState(tilt)
     val smoother = remember { PositionSmoother() }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
 
@@ -82,8 +84,8 @@ internal fun SmoothFollow(
 
                 val camera = CameraPosition.Builder()
                     .target(LatLng(f.lat, f.lon))
-                    .zoom(zoom)
-                    .tilt(tilt)
+                    .zoom(latestZoom)
+                    .tilt(latestTilt)
                     .bearing(f.bearing)
                     .padding(0.0, mapView.height * padTopFraction, 0.0, 0.0)
                     .build()
