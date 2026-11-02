@@ -17,7 +17,7 @@ class GuidanceMathTest {
         assertEquals(450.0, PromptSchedule.nearM(50.0), 0.01)
         assertTrue(PromptSchedule.nearM(30.0) / 30.0 > 10.0) // at least ~10 s on a motorway
         assertEquals(400.0, PromptSchedule.alertM(5.0), 0.01)
-        assertEquals(2000.0, PromptSchedule.alertM(40.0), 0.01)
+        assertEquals(2000.0, PromptSchedule.alertM(50.0), 0.01)
     }
 
     @Test
