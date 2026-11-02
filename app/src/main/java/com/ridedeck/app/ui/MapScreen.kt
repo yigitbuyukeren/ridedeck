@@ -10,6 +10,7 @@ import com.ridedeck.app.util.Units
 import com.ridedeck.app.data.SpeedLimitMath
 import com.ridedeck.app.data.Geo
 import com.ridedeck.app.data.CameraPlan
+import com.ridedeck.app.data.DebugSim
 import org.maplibre.android.style.layers.PropertyFactory.lineOpacity
 import com.ridedeck.app.data.PlaceKind
 import com.ridedeck.app.data.SavedPlace
@@ -150,6 +151,7 @@ internal const val OVERVIEW_MS = 8_000L
 internal const val SRC_ROUTE = "route"
 internal const val SRC_ROUTE_DONE = "route-done"
 internal const val SRC_ROUTE_ALT = "route-alt"
+internal const val SRC_TURN = "route-turn"
 internal const val SRC_DEST = "dest"
 internal const val SRC_ME = "me"
 internal const val SRC_FUEL = "fuel"
@@ -246,6 +248,20 @@ fun MapScreen(
     LaunchedEffect(styleReady, ui.route, ui.progressIndex, ui.progressFraction) {
         val style = map?.style?.takeIf { styleReady } ?: return@LaunchedEffect
         showRoute(style, ui.route, ui.progressIndex, ui.progressFraction)
+    }
+
+    // The stretch around the next manoeuvre, drawn bright over the route so the turn reads at a glance.
+    LaunchedEffect(styleReady, ui.route, ui.navigating, ui.maneuverIndex) {
+        val style = map?.style?.takeIf { styleReady } ?: return@LaunchedEffect
+        val route = ui.route
+        val m = route?.maneuvers?.getOrNull(ui.maneuverIndex)
+        val src = style.getSourceAs<GeoJsonSource>(SRC_TURN)
+        if (!ui.navigating || route == null || m == null || m.type in 4..7 || m.type == 1) {
+            src?.setGeoJson(FeatureCollection.fromFeatures(emptyList<Feature>()))
+        } else {
+            val part = Geo.slice(route.shape, route.cumulative, m.beginIndex, 60.0, 45.0)
+            src?.setGeoJson(Feature.fromGeometry(LineString.fromLngLats(part.map { Point.fromLngLat(it.lon, it.lat) })))
+        }
     }
 
     LaunchedEffect(styleReady, ui.choices, ui.route) {
@@ -501,6 +517,17 @@ internal fun addMapLayers(style: Style) {
             lineColor("#0A84FF"), lineWidth(7f), lineCap(Property.LINE_CAP_ROUND), lineJoin(Property.LINE_JOIN_ROUND)
         )
     )
+    style.addSource(GeoJsonSource(SRC_TURN))
+    style.addLayer(
+        LineLayer("route-turn-casing", SRC_TURN).withProperties(
+            lineColor("#0A2A5E"), lineWidth(15f), lineCap(Property.LINE_CAP_ROUND), lineJoin(Property.LINE_JOIN_ROUND)
+        )
+    )
+    style.addLayer(
+        LineLayer("route-turn-line", SRC_TURN).withProperties(
+            lineColor("#FFFFFF"), lineWidth(10f), lineCap(Property.LINE_CAP_ROUND), lineJoin(Property.LINE_JOIN_ROUND)
+        )
+    )
     style.addSource(GeoJsonSource(SRC_DEST))
     style.addLayer(
         CircleLayer("dest-pin", SRC_DEST).withProperties(
@@ -737,6 +764,7 @@ private fun RouteCard(
     val route = ui.route ?: return
     val context = LocalContext.current
     val externalApps = remember { context.installedNavApps() }
+    val debuggable = remember { (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0 }
     var menuOpen by remember { mutableStateOf(false) }
     val now by rememberNowMs()
     val eta = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(now + route.durationS.toLong() * 1000))
@@ -825,6 +853,7 @@ private fun RouteCard(
                     OptionChip(stringResource(R.string.opt_no_toll), options.avoidTolls, { onOptions(options.copy(avoidTolls = !options.avoidTolls)) }, Modifier.weight(1f))
                 }
             }
+            if (debuggable) OptionChip("Simüle et (x4)", false, { DebugSim.start(route, 4); onStart() }, Modifier.fillMaxWidth())
             if (ahead.size < 3 && canOpenExternal) OptionChip(stringResource(R.string.add_stop), false, onAddStop, Modifier.fillMaxWidth())
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PillButton(stringResource(R.string.start), MotoColors.Green, onStart, Modifier.weight(2f))

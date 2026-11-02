@@ -12,6 +12,13 @@ import android.os.SystemClock
 import android.util.Log
 import com.ridedeck.app.util.SpeedUtil
 import com.ridedeck.app.util.hasPermission
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -47,6 +54,39 @@ class LocationRepository(private val context: Context) {
 
     private var active = false
 
+    // Debug replay of a route in place of the GPS chip (see DebugSim); real fixes are ignored meanwhile.
+    private val simScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var simJob: Job? = null
+    @Volatile private var simulating = false
+
+    /** Replays [fixes] one per second divided by [multiplier] as if they came from the chip; the first is published at once. */
+    fun simulate(fixes: List<LocationState>, multiplier: Int) {
+        stopSimulation()
+        if (fixes.isEmpty()) return
+        simulating = true
+        fun publish(f: LocationState) {
+            _state.value = f.copy(
+                fixAtMs = System.currentTimeMillis(), elapsedRealtimeMs = SystemClock.elapsedRealtime(),
+                gpsProviderEnabled = true, locationPermissionGranted = true, hasSpeed = true,
+            )
+        }
+        publish(fixes.first())
+        simJob = simScope.launch {
+            for (f in fixes.drop(1)) {
+                delay(1000L / multiplier.coerceAtLeast(1))
+                if (!isActive) return@launch
+                publish(f)
+            }
+            simulating = false
+        }
+    }
+
+    fun stopSimulation() {
+        simJob?.cancel()
+        simJob = null
+        simulating = false
+    }
+
     /** Smoothed, extrapolated speed for the screen; the raw speed in [state] stays untouched. */
     private val speedFilter = SpeedFilter()
 
@@ -60,6 +100,7 @@ class LocationRepository(private val context: Context) {
     // would crash with AbstractMethodError the first time the GPS is switched off or on.
     private val listener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
+            if (simulating) return
             val hasSpeed = location.hasSpeed() && location.speed.isFinite() && location.speed >= 0f
             val kmh = if (hasSpeed) SpeedUtil.msToKmh(location.speed) else 0
             val nowReal = SystemClock.elapsedRealtime()

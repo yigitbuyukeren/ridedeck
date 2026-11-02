@@ -80,3 +80,15 @@ class GuidanceMathTest {
         assertEquals(125.0, flat.remainingTimeS(r.cumulative[10]), 3.0)
     }
 }
+
+class GeoSliceTest {
+    @Test
+    fun sliceCoversMetresAroundThePoint() {
+        val shape = (0..20).map { GeoPoint(41.0 + it * 0.0009, 29.0) } // ~100 m apart
+        val c = com.ridedeck.app.data.Route(shape, emptyList(), 1.0, 1.0).cumulative
+        val part = com.ridedeck.app.data.Geo.slice(shape, c, 10, 150.0, 120.0)
+        assertEquals(shape[9], part.first())
+        assertEquals(shape[11], part.last())
+        assertEquals(3, com.ridedeck.app.data.Geo.slice(shape, c, 10, 5.0, 5.0).size)
+    }
+}

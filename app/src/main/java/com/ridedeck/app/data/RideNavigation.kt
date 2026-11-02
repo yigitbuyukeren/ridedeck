@@ -63,10 +63,15 @@ class RideNavigation(context: Context, private val tracking: RideTracking) {
         val saved = ActiveTrip.fromJson(Prefs.activeTrip(app))?.takeIf { it.fresh(System.currentTimeMillis()) }
         if (saved == null) Prefs.setActiveTrip(app, null)
         var wasGuiding = false
+        DebugSim.hook = { route, multiplier ->
+            val speed = 16.0
+            tracking.location.simulate(RouteSimulator.fixes(route, RouteSimulator.Plan(speedMps = speed, noiseM = 4.0)), multiplier)
+        }
+        DebugSim.stopHook = { tracking.location.stopSimulation() }
         scope.launch {
             nav.ui.map { Triple(it.navigating, it.destination, it.finalDestination) }.distinctUntilChanged().collect { (guiding, dest, final) ->
                 if (guiding && dest != null) Prefs.setActiveTrip(app, ActiveTrip(dest, final, System.currentTimeMillis()).toJson())
-                else if (wasGuiding) Prefs.setActiveTrip(app, null)
+                else if (wasGuiding) { Prefs.setActiveTrip(app, null); tracking.location.stopSimulation() }
                 wasGuiding = guiding
             }
         }

@@ -80,6 +80,22 @@ object Geo {
         return (shape.subList(0, i + 1) + at) to (listOf(at) + shape.subList(i + 1, shape.size))
     }
 
+    /** The part of [shape] from [beforeM] metres before shape[[center]] to [afterM] metres after it (for the turn highlight). */
+    fun slice(shape: List<GeoPoint>, cumulative: DoubleArray, center: Int, beforeM: Double, afterM: Double): List<GeoPoint> {
+        if (shape.size < 2) return shape
+        val c = center.coerceIn(0, shape.lastIndex)
+        val from = cumulative[c] - beforeM
+        val to = cumulative[c] + afterM
+        val out = ArrayList<GeoPoint>()
+        for (i in shape.indices) if (cumulative[i] in from..to) out += shape[i]
+        if (out.size < 2) {
+            val a = (c - 1).coerceAtLeast(0)
+            val b = (c + 1).coerceAtMost(shape.lastIndex)
+            return shape.subList(a, b + 1)
+        }
+        return out
+    }
+
     fun bearing(a: GeoPoint, b: GeoPoint): Double {
         val dLon = Math.toRadians(b.lon - a.lon)
         val y = kotlin.math.sin(dLon) * cos(Math.toRadians(b.lat))
