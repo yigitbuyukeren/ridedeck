@@ -15,7 +15,6 @@ Başlangıç noktaları (araştırılacak, henüz karar yok): MapLibre offline r
 Aşama 0, 1, 2 (alternatif rota, genel bakış), 3 (dinamik kamera, zengin manevra bandı) ve aşama 4'ün rota geri önerme kısmı yapıldı; ayrıntı `docs/STATUS.md`. Değişmeyen sınırlar: anahtarsız public servisler, sürerken yazı girişi yok, eldivenle kullanım.
 
 Kalanlar:
-- **Çok noktalı rota** (aşama 2): `Route` birden çok `leg`, ara durak ekle/çıkar, yakıt molasının `finalDestination` yamasının yerine geçmesi. Valhalla `locations` dizisi destekliyor; `RouteRepository` ve `NavigationController` ciddi refactor ister.
 - **Haritada dönüş oku katmanı** (aşama 3).
 - **Şerit bilgisi** (aşama 3): önce public Valhalla'da `format=osrm` spike'ı.
 - **Debug "rotayı simüle et" modu** (aşama 0): `RouteSimulator` hazır ve testlerde kullanılıyor; uygulama içi tetikleyici yok.

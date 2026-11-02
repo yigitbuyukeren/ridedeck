@@ -216,6 +216,7 @@ fun MapScreen(
 
     // My position marker and the navigation chase camera are drawn per frame (see SmoothFollow).
     var overview by remember { mutableStateOf(false) }
+    var addingStop by remember { mutableStateOf(false) }
     val pose = CameraPlan.pose(speedKmh, if (ui.navigating) ui.distToNextM else 0)
     var camZoom by remember { mutableStateOf(pose.zoom) }
     var camTilt by remember { mutableStateOf(pose.tilt) }
@@ -270,14 +271,16 @@ fun MapScreen(
     LaunchedEffect(ui.navigating) { if (!ui.navigating) overview = false }
 
     // Destination pin and the overview camera.
-    LaunchedEffect(styleReady, ui.route, ui.destination) {
+    LaunchedEffect(styleReady, ui.route, ui.destination, ui.stops, ui.stopsPassed) {
         val m = map ?: return@LaunchedEffect
         if (!styleReady) return@LaunchedEffect
         val style = m.style ?: return@LaunchedEffect
         val route = ui.route
         val dest = ui.destination
         val destSource = style.getSourceAs<GeoJsonSource>(SRC_DEST)
-        if (dest != null) destSource?.setGeoJson(Feature.fromGeometry(Point.fromLngLat(dest.point.lon, dest.point.lat)))
+        if (dest != null) destSource?.setGeoJson(FeatureCollection.fromFeatures(
+            (ui.stops.drop(ui.stopsPassed).map { it.point } + dest.point).map { Feature.fromGeometry(Point.fromLngLat(it.lon, it.lat)) }
+        ))
         else destSource?.setGeoJson(FeatureCollection.fromFeatures(emptyList<Feature>()))
         if (route != null && !ui.navigating) {
             val bounds = LatLngBounds.Builder().apply {
@@ -349,7 +352,7 @@ fun MapScreen(
                     profile = options.profile,
                     guiding = ui.navigating,
                     onGo = nav::selectPlace,
-                    onAddStop = nav::detourVia,
+                    onAddStop = nav::addStop,
                     onRetry = nav::findFuel,
                     onClose = nav::closeFuel,
                 )
@@ -359,10 +362,25 @@ fun MapScreen(
                     onContinue = onContinueNavigation,
                     onDone = nav::stopNavigation,
                 )
+                addingStop && ui.route != null && !ui.navigating -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PillButton(stringResource(R.string.cancel), MotoColors.PanelHigh, { addingStop = false; typing = false }, Modifier.fillMaxWidth())
+                    SearchPanel(
+                        ui = ui, locked = speedKmh >= SEARCH_LOCK_KMH, typing = typing,
+                        onFocus = { typing = true },
+                        onSearch = { typing = false; nav.search() },
+                        places = places,
+                        onSelect = { nav.addStop(it); addingStop = false; typing = false },
+                        onSave = { saving = it },
+                        onRemovePlace = onRemovePlace, recents = recents, onClearRecents = onClearRecents,
+                        onSuggestion = { typing = false; nav.onQueryChange(it); nav.search() },
+                    )
+                }
                 ui.route != null -> RouteCard(
                     ui, options, onOptions = nav::setOptions,
                     canOpenExternal = speedKmh < SEARCH_LOCK_KMH,
                     onStart = onStartNavigation, onCancel = nav::stopNavigation, onChoose = nav::chooseRoute,
+                    onAddStop = { addingStop = true; nav.onQueryChange("") },
+                    onRemoveStop = nav::removeStop,
                     saved = ui.destination?.let { d -> places.any { Geo.distance(it.place.point, d.point) < SAVED_SPOT_M } } == true,
                     onSave = { ui.destination?.let { saving = it } },
                 )
@@ -713,6 +731,8 @@ private fun RouteCard(
     onStart: () -> Unit,
     onCancel: () -> Unit,
     onChoose: (Int) -> Unit,
+    onAddStop: () -> Unit,
+    onRemoveStop: (Int) -> Unit,
 ) {
     val route = ui.route ?: return
     val context = LocalContext.current
@@ -769,6 +789,21 @@ private fun RouteCard(
                 else "${formatDistance(route.distanceM.toInt())} · ${formatDuration(LocalContext.current, route.durationS.toInt())} · ${stringResource(R.string.arrival_fmt, eta)}",
                 fontSize = 16.sp, color = MotoColors.Gray,
             )
+            val ahead = ui.stops.drop(ui.stopsPassed)
+            if (ahead.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ahead.forEachIndexed { i, stop ->
+                        Row(
+                            Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(RoundedCornerShape(14.dp)).background(MotoColors.PanelHigh)
+                                .clickable { onRemoveStop(i) }.padding(horizontal = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("${i + 1}. ${stop.name}", fontSize = 17.sp, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                            Icon(Icons.Rounded.Close, null, tint = MotoColors.Gray, modifier = Modifier.size(24.dp))
+                        }
+                    }
+                }
+            }
             if (ui.choices.size > 1) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ui.choices.forEachIndexed { i, r ->
@@ -790,6 +825,7 @@ private fun RouteCard(
                     OptionChip(stringResource(R.string.opt_no_toll), options.avoidTolls, { onOptions(options.copy(avoidTolls = !options.avoidTolls)) }, Modifier.weight(1f))
                 }
             }
+            if (ahead.size < 3 && canOpenExternal) OptionChip(stringResource(R.string.add_stop), false, onAddStop, Modifier.fillMaxWidth())
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PillButton(stringResource(R.string.start), MotoColors.Green, onStart, Modifier.weight(2f))
                 PillButton(stringResource(R.string.cancel), MotoColors.PanelHigh, onCancel, Modifier.weight(1f), horizontalPadding = 8.dp)

@@ -29,6 +29,8 @@ data class Maneuver(
     val roundaboutExit: Int = 0,
     /** Spoken right after the manoeuvre ("Continue for 2 km"), may be empty. */
     val postVerbal: String = "",
+    /** The end of a leg before the last: reaching an intermediate stop, not the destination. */
+    val isStop: Boolean = false,
 )
 
 data class Route(
@@ -36,6 +38,8 @@ data class Route(
     val maneuvers: List<Maneuver>,
     val distanceM: Double,
     val durationS: Double,
+    /** Shape indices of the intermediate stops, in order (empty for a plain A-to-B route). */
+    val stopIndices: List<Int> = emptyList(),
 ) {
     /** Practically the same road: same length within 1% and the same middle point. */
     fun sameAs(other: Route): Boolean =
@@ -105,6 +109,9 @@ interface Routing {
     /** The address of a spot picked on the map; null when there is nothing worth naming. */
     suspend fun reverse(point: GeoPoint): Result<Place?> = Result.success(null)
 
+    /** One route through [points] (start, intermediate stops, destination); the default ignores the stops. */
+    suspend fun routeVia(points: List<GeoPoint>, options: RouteOptions): Result<Route> = route(points.first(), points.last(), options)
+
     /** Other routes to the same place (best first), for "another route"; empty when the service has none. */
     suspend fun alternatives(from: GeoPoint, to: GeoPoint, options: RouteOptions): Result<List<Route>> = Result.success(emptyList())
 }
@@ -143,6 +150,14 @@ class RouteRepository(
         }
     }
 
+    override suspend fun routeVia(points: List<GeoPoint>, options: RouteOptions): Result<Route> = withContext(Dispatchers.IO) {
+        safely("routeVia") {
+            val useMiles = miles()
+            val body = requestBody(points, options, useMiles, alternates = 0)
+            parseTrip(Http.postJson("https://valhalla1.openstreetmap.de/route", body.toString()), if (useMiles) METRES_PER_MILE else 1000.0)
+        }
+    }
+
     override suspend fun alternatives(from: GeoPoint, to: GeoPoint, options: RouteOptions): Result<List<Route>> = withContext(Dispatchers.IO) {
         safely("alternatives") {
             val useMiles = miles()
@@ -158,11 +173,12 @@ class RouteRepository(
         }
     }
 
-    private fun requestBody(from: GeoPoint, to: GeoPoint, options: RouteOptions, useMiles: Boolean, alternates: Int): JSONObject {
+    private fun requestBody(from: GeoPoint, to: GeoPoint, options: RouteOptions, useMiles: Boolean, alternates: Int): JSONObject =
+        requestBody(listOf(from, to), options, useMiles, alternates)
+
+    private fun requestBody(points: List<GeoPoint>, options: RouteOptions, useMiles: Boolean, alternates: Int): JSONObject {
         val body = JSONObject()
-            .put("locations", JSONArray()
-                .put(JSONObject().put("lat", from.lat).put("lon", from.lon))
-                .put(JSONObject().put("lat", to.lat).put("lon", to.lon)))
+            .put("locations", JSONArray().also { arr -> points.forEach { arr.put(JSONObject().put("lat", it.lat).put("lon", it.lon)) } })
             .put("costing", options.profile.config.costing)
             .put("directions_options", JSONObject().put("language", valhallaLanguage()).put("units", if (useMiles) "miles" else "kilometers"))
         if (alternates > 0) body.put("alternates", alternates)
@@ -173,33 +189,7 @@ class RouteRepository(
     /** Parses a Valhalla `route` or `trace_route` reply. */
     private fun parseTrip(reply: String, metresPerUnit: Double): Route = parseTripObject(JSONObject(reply).getJSONObject("trip"), metresPerUnit)
 
-    private fun parseTripObject(trip: JSONObject, metresPerUnit: Double): Route {
-        val leg = trip.getJSONArray("legs").getJSONObject(0)
-        val maneuvers = leg.getJSONArray("maneuvers").let { arr ->
-            (0 until arr.length()).map { i ->
-                val m = arr.getJSONObject(i)
-                Maneuver(
-                    type = m.getInt("type"),
-                    instruction = InstructionText.clean(m.optString("instruction")),
-                    alert = InstructionText.clean(m.optString("verbal_transition_alert_instruction")),
-                    verbal = InstructionText.clean(m.optString("verbal_pre_transition_instruction", m.optString("instruction"))),
-                    lengthM = m.getDouble("length") * metresPerUnit,
-                    beginIndex = m.getInt("begin_shape_index"),
-                    timeS = m.optDouble("time", 0.0).takeIf { it.isFinite() } ?: 0.0,
-                    streetNames = m.optJSONArray("street_names")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty(),
-                    roundaboutExit = m.optInt("roundabout_exit_count", 0),
-                    postVerbal = InstructionText.clean(m.optString("verbal_post_transition_instruction")),
-                )
-            }
-        }
-        val summary = trip.getJSONObject("summary")
-        return Route(
-            shape = Geo.decodePolyline(leg.getString("shape")),
-            maneuvers = maneuvers,
-            distanceM = summary.getDouble("length") * metresPerUnit,
-            durationS = summary.getDouble("time"),
-        )
-    }
+    private fun parseTripObject(trip: JSONObject, metresPerUnit: Double): Route = TripParser.parse(trip, metresPerUnit)
 
     override suspend fun reverse(point: GeoPoint): Result<Place?> = withContext(Dispatchers.IO) {
         safely("reverse") {
@@ -244,4 +234,43 @@ class RouteRepository(
 private fun valhallaLanguage(): String = when (Locale.getDefault().language) {
     "tr" -> "tr-TR"
     else -> "en-US"
+}
+
+/** Valhalla `trip` to a [Route]; the legs of a multi-stop trip are joined into one continuous shape. */
+internal object TripParser {
+    fun parse(trip: JSONObject, metresPerUnit: Double): Route {
+        val legs = trip.getJSONArray("legs")
+        val shape = ArrayList<GeoPoint>()
+        val maneuvers = ArrayList<Maneuver>()
+        val stops = ArrayList<Int>()
+        for (l in 0 until legs.length()) {
+            val leg = legs.getJSONObject(l)
+            val points = Geo.decodePolyline(leg.getString("shape"))
+            // Each leg starts where the last one ended: drop its duplicate first point.
+            val offset = if (l == 0) 0 else shape.size - 1
+            shape += if (l == 0) points else points.drop(1)
+            val arr = leg.getJSONArray("maneuvers")
+            val last = l == legs.length() - 1
+            for (i in 0 until arr.length()) {
+                val m = arr.getJSONObject(i)
+                val endOfLeg = i == arr.length() - 1
+                maneuvers += Maneuver(
+                    type = m.getInt("type"),
+                    instruction = InstructionText.clean(m.optString("instruction")),
+                    alert = InstructionText.clean(m.optString("verbal_transition_alert_instruction")),
+                    verbal = InstructionText.clean(m.optString("verbal_pre_transition_instruction", m.optString("instruction"))),
+                    lengthM = m.getDouble("length") * metresPerUnit,
+                    beginIndex = m.getInt("begin_shape_index") + offset,
+                    timeS = m.optDouble("time", 0.0).takeIf { it.isFinite() } ?: 0.0,
+                    streetNames = m.optJSONArray("street_names")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty(),
+                    roundaboutExit = m.optInt("roundabout_exit_count", 0),
+                    postVerbal = InstructionText.clean(m.optString("verbal_post_transition_instruction")),
+                    isStop = endOfLeg && !last,
+                )
+                if (endOfLeg && !last) stops += m.getInt("begin_shape_index") + offset
+            }
+        }
+        val summary = trip.getJSONObject("summary")
+        return Route(shape, maneuvers, summary.getDouble("length") * metresPerUnit, summary.getDouble("time"), stops)
+    }
 }

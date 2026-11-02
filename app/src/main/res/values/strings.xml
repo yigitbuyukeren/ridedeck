@@ -52,6 +52,7 @@
     <string name="search_failed">Arama başarısız, internet bağlantısını kontrol et</string>
     <string name="route_failed">Rota alınamadı</string>
     <string name="rerouting_voice">Rota yeniden hesaplanıyor</string>
+    <string name="add_stop">Durak ekle</string>
     <string name="then_label">Sonra</string>
     <string name="roundabout_exit_fmt">%d. çıkış</string>
     <string name="then_voice">ardından</string>

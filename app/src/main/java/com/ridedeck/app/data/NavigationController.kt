@@ -21,6 +21,9 @@ data class NavUi(
     val destination: Place? = null,
     /** Set while heading for a fuel stop: where the trip continues afterwards. */
     val finalDestination: Place? = null,
+    /** Intermediate stops in order, between the start and [destination]; the first [stopsPassed] are behind the rider. */
+    val stops: List<Place> = emptyList(),
+    val stopsPassed: Int = 0,
     val route: Route? = null,
     /** While previewing: every route offered to this place (best first), including [route]; empty or one when there is no choice. */
     val choices: List<Route> = emptyList(),
@@ -193,7 +196,7 @@ class NavigationController(
         trackJob?.cancel()
         voice.stop()
         _ui.update {
-            it.copy(destination = place, finalDestination = null, route = null, query = place.name,
+            it.copy(destination = place, finalDestination = null, stops = emptyList(), stopsPassed = 0, route = null, choices = emptyList(), query = place.name,
                 results = emptyList(), searching = false, loading = true, error = null,
                 navigating = false, rerouting = false, arrived = false, termination = NavigationTermination.NONE)
         }
@@ -234,9 +237,12 @@ class NavigationController(
         from: GeoPoint,
         to: GeoPoint,
         options: RouteOptions = _options.value,
+        stops: List<Place> = emptyList(),
     ): Result<Route>? = withTimeoutOrNull(routeTimeoutMs) {
         try {
-            repo.route(from, to, options).mapCatching { route ->
+            val trip = if (stops.isEmpty()) repo.route(from, to, options)
+            else repo.routeVia(listOf(from) + stops.map { it.point } + to, options)
+            trip.mapCatching { route ->
                 require(route.isUsable()) { "Invalid route geometry or maneuvers" }
                 route
             }
@@ -249,6 +255,7 @@ class NavigationController(
 
     /** Asks for alternative routes after the main one is already on screen; a late or failed reply changes nothing. */
     private fun loadChoices(generation: Long, from: GeoPoint, to: GeoPoint, main: Route) {
+        if (_ui.value.stops.isNotEmpty()) return
         scope.launch {
             val options = _options.value
             val found = try {
@@ -261,6 +268,63 @@ class NavigationController(
             val extra = found.filter { it.isUsable() && !it.sameAs(main) }.take(2)
             if (generation != routeGeneration || extra.isEmpty()) return@launch
             _ui.update { if (it.route === main && !it.navigating) it.copy(choices = listOf(main) + extra) else it }
+        }
+    }
+
+    /** Most intermediate stops one trip may have. */
+    private val maxStops = 3
+
+    /** Adds an intermediate stop before the destination, in the preview or while guiding (the route is re-planned from here). */
+    fun addStop(place: Place) {
+        val state = _ui.value
+        if (state.destination == null || state.stops.size - state.stopsPassed >= maxStops) return
+        closeFuel()
+        searchJob?.cancel()
+        applyStops(state.stops.drop(state.stopsPassed) + place)
+    }
+
+    /** Removes the [index]th stop still ahead. */
+    fun removeStop(index: Int) {
+        val ahead = _ui.value.stops.drop(_ui.value.stopsPassed)
+        if (index !in ahead.indices) return
+        applyStops(ahead.filterIndexed { i, _ -> i != index })
+    }
+
+    private fun applyStops(newStops: List<Place>) {
+        val state = _ui.value
+        val dest = state.destination ?: return
+        val from = here()
+        if (from == null) {
+            _ui.update { it.copy(error = text(R.string.gps_waiting)) }
+            return
+        }
+        val guiding = state.navigating
+        val previous = state
+        val generation = invalidateRoute()
+        _ui.update {
+            it.copy(stops = newStops, stopsPassed = 0, choices = emptyList(), error = null,
+                loading = !guiding, rerouting = guiding)
+        }
+        routeJob = scope.launch {
+            val result = try {
+                routeResult(from, dest.point, stops = newStops)
+            } catch (cancelled: CancellationException) {
+                if (generation == routeGeneration) _ui.update { it.copy(loading = false, rerouting = false) }
+                throw cancelled
+            }
+            if (generation != routeGeneration) return@launch
+            val route = result?.getOrNull()
+            if (route == null) {
+                // Keep the trip as it was.
+                _ui.update { it.copy(stops = previous.stops, stopsPassed = previous.stopsPassed, loading = false, rerouting = false, error = text(R.string.route_failed)) }
+                return@launch
+            }
+            if (guiding) {
+                progressIndex = 0
+                offRouteFixes = 0
+                spoken.clear()
+            }
+            _ui.update { it.copy(route = route, loading = false, rerouting = false, progressIndex = 0, progressFraction = 0.0) }
         }
     }
 
@@ -540,13 +604,16 @@ class NavigationController(
         if (distToNext < PromptSchedule.alertM(speedMps) && maneuver.alert.isNotBlank() && spoken.add(next * 10)) {
             if (PromptSchedule.alertWorthIt(distToNext, speedMps)) voice.speak(maneuver.alert)
         }
-        if (distToNext < PromptSchedule.nearM(speedMps) && spoken.add(next * 10 + 1)) voice.speak(withFollowUp(route, next))
+        if (distToNext < PromptSchedule.nearM(speedMps) && spoken.add(next * 10 + 1)) voice.speak(
+            if (maneuver.isStop) text(R.string.stop_arrived) else withFollowUp(route, next)
+        )
 
         _ui.update {
             it.copy(
                 maneuverIndex = next,
                 progressIndex = bestIdx,
                 progressFraction = best.fraction,
+                stopsPassed = it.stopsPassed.coerceAtLeast(route.stopIndices.count { s -> s <= bestIdx }),
                 distToNextM = distToNext.toInt(),
                 remainingM = remaining.toInt(),
                 remainingS = route.remainingTimeS(travelled).toInt(),
@@ -570,8 +637,9 @@ class NavigationController(
             voice.speak(text(R.string.rerouting_voice))
         }
         val generation = invalidateRoute()
+        val ahead = _ui.value.stops.drop(_ui.value.stopsPassed)
         routeJob = scope.launch {
-            val result = routeResult(from, dest.point)
+            val result = routeResult(from, dest.point, stops = ahead)
             if (generation != routeGeneration) return@launch
             (result ?: Result.failure(IllegalStateException("routing timeout")))
                 .onSuccess { route ->
@@ -579,7 +647,7 @@ class NavigationController(
                     offRouteFixes = 0
                     nextRerouteAtMs = 0L
                     spoken.clear()
-                    _ui.update { it.copy(route = route, rerouting = false, progressIndex = 0, progressFraction = 0.0) }
+                    _ui.update { it.copy(route = route, stops = ahead, stopsPassed = 0, rerouting = false, progressIndex = 0, progressFraction = 0.0) }
                 }
                 .onFailure {
                     offRouteFixes = 0
