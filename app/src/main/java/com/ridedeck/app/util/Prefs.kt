@@ -75,6 +75,12 @@ object Prefs {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(KEY_DASH_SLOTS, value).apply()
     }
 
+    fun markerShape(context: Context): String = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("marker_shape", "MODERN").orEmpty()
+    fun markerColor(context: Context): Int = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getInt("marker_color", 0)
+    fun setMarker(context: Context, shape: String, color: Int) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { putString("marker_shape", shape); putInt("marker_color", color) }
+    }
+
     fun voiceSpeechRate(context: Context): Float = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getFloat("voice_speech_rate", 1f).coerceIn(0.75f, 1.25f)
     fun setVoiceSpeechRate(context: Context, rate: Float) { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { putFloat("voice_speech_rate", rate.coerceIn(0.75f, 1.25f)) } }
     fun voiceTtsName(context: Context): String? = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("voice_tts_name", null)

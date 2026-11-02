@@ -38,6 +38,10 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -266,6 +270,7 @@ fun SettingsScreen(
                             }
                             items(toggles) { t -> ToggleRow(t) }
                             item { ThemeRow(themeMode, onThemeMode) }
+                            item { MarkerRow() }
                         }
                         SettingsTab.SAFETY -> item { safetyCard() }
                     }
@@ -393,6 +398,50 @@ fun ChoiceRow(title: String, description: String, choices: List<Pair<String, Boo
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MarkerRow() {
+    val palette = LocalMotoPalette.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val look by MarkerStyle.look.collectAsStateWithLifecycle()
+    Column(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(stringResource(R.string.marker_title), fontSize = 20.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.marker_desc), fontSize = 15.sp, color = palette.muted)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            listOf(
+                MarkerShape.MODERN to R.string.marker_modern,
+                MarkerShape.PUCK to R.string.marker_puck,
+                MarkerShape.CLASSIC to R.string.marker_classic,
+            ).forEach { (shape, label) ->
+                val picked = shape == look.shape
+                Column(
+                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(16.dp))
+                        .background(if (picked) MotoColors.Blue else palette.cardHigh)
+                        .clickable { MarkerStyle.set(context, look.copy(shape = shape)) }
+                        .padding(vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    val bmp = remember(shape, look.colorIndex) { markerBitmap(look.copy(shape = shape), 96).asImageBitmap() }
+                    androidx.compose.foundation.Image(bmp, null, Modifier.size(56.dp))
+                    Text(stringResource(label), fontSize = 15.sp, color = if (picked) Color.White else palette.text)
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            MARKER_COLORS.forEachIndexed { i, argb ->
+                Box(
+                    modifier = Modifier.size(46.dp).clip(CircleShape).background(Color(argb))
+                        .then(if (i == look.colorIndex) Modifier.border(4.dp, palette.text, CircleShape) else Modifier)
+                        .clickable { MarkerStyle.set(context, look.copy(colorIndex = i)) },
+                )
             }
         }
     }

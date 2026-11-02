@@ -196,6 +196,7 @@ fun MapScreen(
     LaunchedEffect(lowPower) { mapView.setMaximumFps(if (lowPower) LOW_POWER_FPS else FULL_FPS) }
 
     MapLifecycleEffect(mapView)
+    MarkerRefresh(map, styleReady)
 
 
     // (Re)load the style when the map is ready or the day/night theme flips; layers are re-added on each load.
@@ -440,11 +441,11 @@ internal fun addMapLayers(style: Style) {
         )
     )
     style.addSource(GeoJsonSource(SRC_ME))
-    style.addImage(ME_ARROW_IMAGE, meArrowBitmap(), false)
+    style.addImage(ME_ARROW_IMAGE, markerBitmap(MarkerStyle.look.value), false)
     style.addLayer(
         SymbolLayer("me-arrow", SRC_ME).withProperties(
             iconImage(ME_ARROW_IMAGE),
-            iconSize(0.6f),
+            iconSize(0.7f),
             iconRotate(get("bearing")),
             iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP),
             iconPitchAlignment(Property.ICON_PITCH_ALIGNMENT_MAP),
@@ -454,30 +455,7 @@ internal fun addMapLayers(style: Style) {
     )
 }
 
-private const val ME_ARROW_IMAGE = "me-arrow"
-
-/** The position marker: a light disc with a blue arrow pointing up (rotated to the heading by the symbol layer). */
-private fun meArrowBitmap(): Bitmap {
-    val size = 128
-    val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-    val c = Canvas(bmp)
-    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    val mid = size / 2f
-    paint.color = 0x55000000
-    c.drawCircle(mid, mid + 3f, mid - 6f, paint)
-    paint.color = 0xFFF2F2F7.toInt()
-    c.drawCircle(mid, mid, mid - 8f, paint)
-    val arrow = Path().apply {
-        moveTo(mid, 26f)
-        lineTo(mid + 25f, 92f)
-        lineTo(mid, 78f)
-        lineTo(mid - 25f, 92f)
-        close()
-    }
-    paint.color = 0xFF0A84FF.toInt()
-    c.drawPath(arrow, paint)
-    return bmp
-}
+internal const val ME_ARROW_IMAGE = "me-arrow"
 
 // ---- panel pieces -------------------------------------------------------------------------
 
@@ -936,4 +914,14 @@ fun formatDuration(context: Context, seconds: Int): String {
     val h = context.getString(R.string.unit_hour)
     val m = context.getString(R.string.unit_minute)
     return if (minutes >= 60) "${minutes / 60} $h ${"%02d".format(minutes % 60)} $m" else "${maxOf(minutes, 1)} $m"
+}
+
+/** Swaps the position marker image in place when the rider picks another look. */
+@Composable
+internal fun MarkerRefresh(map: MapLibreMap?, styleReady: Boolean) {
+    val look by MarkerStyle.look.collectAsStateWithLifecycle()
+    LaunchedEffect(map, styleReady, look) {
+        val style = map?.style?.takeIf { styleReady } ?: return@LaunchedEffect
+        style.addImage(ME_ARROW_IMAGE, markerBitmap(look), false)
+    }
 }

@@ -18,6 +18,7 @@ import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
@@ -57,6 +58,7 @@ fun MiniMap(
     LaunchedEffect(lowPower) { mapView.setMaximumFps(if (lowPower) MINI_LOW_POWER_FPS else MINI_FULL_FPS) }
 
     MapLifecycleEffect(mapView)
+    MarkerRefresh(map, styleReady)
 
 
     LaunchedEffect(map, isDay) {
