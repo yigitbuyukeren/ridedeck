@@ -23,7 +23,7 @@ LocationRepository (ham LocationManager, Play Services yok)
    ├─► SpeedFilter ─► hız göstergesi (yalnızca gösterim)
    ├─► NavigationController ─► Routing (Valhalla) / Speaker / FuelFinder
    ├─► CrashDetector + SosController ─► tek SMS
-   └─► TripRecorder ─► yolculuk geçmişi, park yeri
+   └─► TripRecorder ─► yolculuk geçmişi
 DashboardViewModel  = tüm repository'lerin tek bağlama noktası
 Data/Http.kt : bütün genel servis çağrılarının tek çıkışı
 ```

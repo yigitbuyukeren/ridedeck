@@ -157,8 +157,6 @@
     <string name="opt_no_highway">No highways</string>
     <string name="opt_no_toll">No tolls</string>
     <string name="route_updating">Updating route…</string>
-    <string name="saved_parked">Parked</string>
-    <string name="go_parked">Go to my bike</string>
     <string name="overlay_speed_fmt">%1$d km/h</string>
     <string name="overlay_speed_unknown">-- km/h</string>
     <string name="gps_lost">GPS signal lost</string>

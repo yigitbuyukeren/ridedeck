@@ -108,7 +108,7 @@ Her gün sonunda güncellenir (bkz. [WORKFLOW.md](WORKFLOW.md)).
 ## İkinci tur: rakip ve benzer projelerden eklenenler
 Bakılanlar: DMD2, Calimoto, Kurviger, Scenic, REVER, RISER, Motolog, AndrOBD, OpenDash, Headunit Revived / Open Launcher. Çıkan ortak beklentiler ve kararlar:
 - **Eklendi, rota seçenekleri**: otoyolsuz ve ücretsiz yol (Valhalla `use_highways` / `use_tolls`), rota kartında iki düğme, seçim kalıcı.
-- **Eklendi, park yeri**: yolculuk bitince son hareketli nokta otomatik "Park" karosu olur.
+- **Eklendi, park yeri** (2026-11-02'de kaldırıldı): yolculuk bitince son hareketli nokta otomatik "Park" karosu olurdu. Eski kayıtlı `PARKED` girişleri açılışta yok sayılır.
 - **Düzeltildi (lint)**: Android 8–9'da mesaj okuma çökebilirdi (API 28/30 çağrıları, artık androidx uyumluluk sınıfı), hız şeridi İngilizcede de "km/sa" yazıyordu, manifest GPX filtresinde host eksikti, kullanılmayan 4 string silindi. CI artık `lintDebug` de çalıştırıyor.
 - **Eklenmedi**: viraj ağırlıklı rota (Calimoto/Kurviger'in asıl farkı; Valhalla'da anahtarsız karşılığı yok), radar uyarısı (veri ve yasal durum belirsiz), grup takibi ve canlı konum (sunucu gerekir), mph/mil birimi (hız limiti tabelaları ve her yerde sabit km varsayımı; ayrı iş olarak değerlendirilebilir), yakıt günlüğü (sayı girişi gerekir, sürerken olmaz), TPMS ve gidon kumandası (donanım).
 

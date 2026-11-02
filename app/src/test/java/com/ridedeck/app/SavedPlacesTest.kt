@@ -64,18 +64,14 @@ class SavedPlacesTest {
     }
 
     @Test
-    fun theParkedSpotIsASingleSlotBetweenWorkAndFavorites() {
-        var list = emptyList<SavedPlace>()
-        list = SavedPlaces.put(list, saved(PlaceKind.FAVORITE, "Fav", 40.0))
-        list = SavedPlaces.put(list, saved(PlaceKind.PARKED, "Park 1", 40.1))
-        list = SavedPlaces.put(list, saved(PlaceKind.HOME, "Home", 40.2))
-        list = SavedPlaces.put(list, saved(PlaceKind.PARKED, "Park 2", 40.3))
-        assertEquals(listOf("Home", "Park 2", "Fav"), list.map { it.place.name })
-    }
-
-    @Test
     fun savedDataFromBeforeTheParkedKindStillLoads() {
         val old = """[{"kind":"HOME","name":"Ev","detail":"","lat":41.0,"lon":29.0},{"kind":"FAVORITE","name":"Kafe","detail":"","lat":40.5,"lon":28.5}]"""
         assertEquals(listOf("Ev", "Kafe"), SavedPlaces.fromJson(old).map { it.place.name })
+    }
+
+    @Test
+    fun aSavedParkedPlaceFromAnOlderVersionIsDropped() {
+        val old = """[{"kind":"PARKED","name":"Park","detail":"17:30","lat":41.0,"lon":29.0},{"kind":"HOME","name":"Ev","detail":"","lat":41.0,"lon":29.0}]"""
+        assertEquals(listOf("Ev"), SavedPlaces.fromJson(old).map { it.place.name })
     }
 }

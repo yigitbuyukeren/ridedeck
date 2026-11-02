@@ -26,13 +26,7 @@ class RideTracking(private val context: Context) {
     private var automaticAllowed = true
     var navigating = false
     var closeService: (() -> Unit)? = null
-    val trips = TripRecorder(TripStore(context), scope, location.state, recordingEnabled, onParked = { stop ->
-        val pattern = if (android.text.format.DateUtils.isToday(stop.t)) "HH:mm" else "d MMM HH:mm"
-        val time = java.text.SimpleDateFormat(pattern, java.util.Locale.getDefault()).format(java.util.Date(stop.t))
-        val place = Place(context.getString(R.string.saved_parked), time, GeoPoint(stop.lat, stop.lon))
-        places.value = SavedPlaces.put(places.value, SavedPlace(PlaceKind.PARKED, place))
-        Prefs.setSavedPlaces(context, SavedPlaces.toJson(places.value))
-    })
+    val trips = TripRecorder(TripStore(context), scope, location.state, recordingEnabled)
     val session = RideSessionController(
         scope, ::prerequisiteFailure,
         launchService = { RideTrackingService.launch(context, it) },

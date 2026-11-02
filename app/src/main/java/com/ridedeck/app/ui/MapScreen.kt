@@ -50,7 +50,6 @@ import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LocalGasStation
 import androidx.compose.material.icons.rounded.PedalBike
-import androidx.compose.material.icons.rounded.LocalParking
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material.icons.rounded.Work
@@ -628,7 +627,6 @@ private fun SavedTiles(places: List<SavedPlace>, onGo: (Place) -> Unit, onRemove
                     when (sp.kind) {
                         PlaceKind.HOME -> Icons.Rounded.Home
                         PlaceKind.WORK -> Icons.Rounded.Work
-                        PlaceKind.PARKED -> Icons.Rounded.LocalParking
                         PlaceKind.FAVORITE -> Icons.Rounded.Star
                     },
                     null, tint = Color.White, modifier = Modifier.size(26.dp),
@@ -638,8 +636,8 @@ private fun SavedTiles(places: List<SavedPlace>, onGo: (Place) -> Unit, onRemove
                         if (pending) stringResource(R.string.saved_delete_confirm) else savedLabel(sp),
                         fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
-                    // Home/Work show their address, the parked bike shows when it was left.
-                    val sub = when (sp.kind) { PlaceKind.HOME, PlaceKind.WORK -> sp.place.name; PlaceKind.PARKED -> sp.place.detail; PlaceKind.FAVORITE -> "" }
+                    // Home/Work show their address.
+                    val sub = when (sp.kind) { PlaceKind.HOME, PlaceKind.WORK -> sp.place.name; PlaceKind.FAVORITE -> "" }
                     if (!pending && sub.isNotBlank()) {
                         Text(sub, fontSize = 12.sp, color = Color(0xB3FFFFFF), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
@@ -653,7 +651,6 @@ private fun SavedTiles(places: List<SavedPlace>, onGo: (Place) -> Unit, onRemove
 private fun savedLabel(sp: SavedPlace): String = when (sp.kind) {
     PlaceKind.HOME -> stringResource(R.string.saved_home)
     PlaceKind.WORK -> stringResource(R.string.saved_work)
-    PlaceKind.PARKED -> stringResource(R.string.saved_parked)
     PlaceKind.FAVORITE -> sp.place.name
 }
 

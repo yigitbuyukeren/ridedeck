@@ -126,11 +126,7 @@ fun NavCard(
                         places.filter { it.kind != PlaceKind.FAVORITE }.forEach { sp ->
                             PillButton(
                                 stringResource(
-                                    when (sp.kind) {
-                                        PlaceKind.HOME -> R.string.go_home
-                                        PlaceKind.WORK -> R.string.go_work
-                                        else -> R.string.go_parked
-                                    }
+                                    if (sp.kind == PlaceKind.HOME) R.string.go_home else R.string.go_work
                                 ),
                                 Color(0x33FFFFFF), { onGoTo(sp.place) },
                                 horizontalPadding = 16.dp,

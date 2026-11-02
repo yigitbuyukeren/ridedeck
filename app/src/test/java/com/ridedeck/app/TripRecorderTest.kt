@@ -39,8 +39,7 @@ class TripRecorderTest {
     private class Ride(scope: TestScope, val store: MemoryTrips = MemoryTrips()) {
         val location = MutableStateFlow(LocationState())
         val enabled = MutableStateFlow(true)
-        val parked = mutableListOf<TripPoint>()
-        val recorder = TripRecorder(store, scope.backgroundScope, location, enabled, StandardTestDispatcher(scope.testScheduler), parked::add)
+        val recorder = TripRecorder(store, scope.backgroundScope, location, enabled, StandardTestDispatcher(scope.testScheduler))
     }
 
     private fun TestScope.drive(ride: Ride, seconds: IntRange) {
@@ -59,7 +58,6 @@ class TripRecorderTest {
         runCurrent()
         assertFalse(ride.recorder.recording.value)
         assertEquals(1, ride.store.trips().size)
-        assertEquals(75_000L, ride.parked.single().t)
         assertEquals(73, ride.store.points(1).size)
     }
 
@@ -134,6 +132,5 @@ class TripRecorderTest {
         val version = ride.recorder.version.value
         assertTrue(ride.recorder.finishCurrent())
         assertEquals(version, ride.recorder.version.value)
-        assertEquals(1, ride.parked.size)
     }
 }
