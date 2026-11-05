@@ -69,7 +69,7 @@ fun SpeedCard(
     lowPower: Boolean = false,
     onClick: () -> Unit = {},
 ) {
-    // The dial and the number follow the filtered speed once per frame (no spring on top of the filter's own smoothing).
+    // One short display transition follows each measured target; recovery starts at the new speed.
     val smoother = remember { SpeedSmoother() }
     var fraction by remember { mutableFloatStateOf(0f) }
     var digit by remember { mutableIntStateOf(0) }
@@ -87,11 +87,11 @@ fun SpeedCard(
                 val dt = if (last == 0L) 0.0 else (now - last) / 1_000_000_000.0
                 last = now
                 val shown = if (currentGps.hasFix) currentProvider() else null
-                smoother.step(shown ?: 0.0, dt)
-                fraction = (smoother.value / maxKmh).toFloat().coerceIn(0f, 1f)
+                val displayed = smoother.update(shown, dt)
+                fraction = if (displayed == null) 0f else (displayed / maxKmh).toFloat().coerceIn(0f, 1f)
                 digit = smoother.digit()
                 if (shown != null) hadSpeed = true
-                unknown = shown == null
+                unknown = displayed == null
             }
         }
     }

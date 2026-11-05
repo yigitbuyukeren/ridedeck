@@ -55,19 +55,26 @@ class LocationRepository(private val context: Context) {
     private var active = false
 
     // Debug replay of a route in place of the GPS chip (see DebugSim); real fixes are ignored meanwhile.
-    private val simScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val simScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var simJob: Job? = null
-    @Volatile private var simulating = false
+    private var simulating = false
+    private var usingSimulatedFix = false
 
     /** Replays [fixes] one per second divided by [multiplier] as if they came from the chip; the first is published at once. */
     fun simulate(fixes: List<LocationState>, multiplier: Int) {
         stopSimulation()
         if (fixes.isEmpty()) return
         simulating = true
+        speedFilter.reset()
         fun publish(f: LocationState) {
+            val measuredAt = SystemClock.elapsedRealtime()
+            usingSimulatedFix = true
+            val validSpeed = f.hasSpeed && f.speedMps.isFinite() && f.speedMps >= 0f
+            if (validSpeed) speedFilter.onFix(measuredAt, f.speedMps, f.speedAccuracyMps) else speedFilter.reset()
             _state.value = f.copy(
-                fixAtMs = System.currentTimeMillis(), elapsedRealtimeMs = SystemClock.elapsedRealtime(),
-                gpsProviderEnabled = true, locationPermissionGranted = true, hasSpeed = true,
+                fixAtMs = System.currentTimeMillis(), elapsedRealtimeMs = measuredAt,
+                speedKmh = if (validSpeed) SpeedUtil.msToKmh(f.speedMps) else 0,
+                gpsProviderEnabled = true, locationPermissionGranted = true, hasSpeed = validSpeed,
             )
         }
         publish(fixes.first())
@@ -78,19 +85,23 @@ class LocationRepository(private val context: Context) {
                 publish(f)
             }
             simulating = false
+            simJob = null
         }
     }
 
     fun stopSimulation() {
+        val wasSimulating = simulating || usingSimulatedFix
         simJob?.cancel()
         simJob = null
         simulating = false
+        usingSimulatedFix = false
+        if (wasSimulating) invalidateFix()
     }
 
-    /** Smoothed, extrapolated speed for the screen; the raw speed in [state] stays untouched. */
+    /** Smoothed speed for the screen; the raw speed in [state] stays untouched. */
     private val speedFilter = SpeedFilter()
 
-    /** The speed to draw right now, in km/h (filtered and projected forward from the last fix); null when it is unknown (no fix for a while). */
+    /** The speed to draw right now, in km/h (filtered from the last measurement); null when it is unknown (no fix for a while). */
     fun displayKmh(): Double? {
         val elapsed = SystemClock.elapsedRealtime()
         return if (_state.value.hasSpeed && _state.value.hasFreshFix(System.currentTimeMillis(), elapsed)) speedFilter.speedKmhOrNull(elapsed) else null
@@ -107,6 +118,10 @@ class LocationRepository(private val context: Context) {
             val measuredAt = location.elapsedRealtimeNanos / 1_000_000L
             val fixTime = if (measuredAt > 0L) measuredAt else nowReal
             if (!LocationFixPolicy.accepts(fixTime, _state.value.elapsedRealtimeMs, nowReal, location.latitude, location.longitude)) return
+            if (usingSimulatedFix) {
+                speedFilter.reset()
+                usingSimulatedFix = false
+            }
             val speedAcc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && location.hasSpeedAccuracy()) location.speedAccuracyMetersPerSecond.takeIf { it.isFinite() && it >= 0f } else null
             val previous = _state.value
             val speedMps = if (hasSpeed) location.speed else 0f
@@ -180,6 +195,7 @@ class LocationRepository(private val context: Context) {
     }
 
     fun stop() {
+        stopSimulation()
         if (active) runCatching { manager.removeUpdates(listener) }
         active = false
         invalidateFix()

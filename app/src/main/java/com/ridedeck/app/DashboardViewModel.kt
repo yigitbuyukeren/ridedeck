@@ -74,7 +74,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     private val location = rideTracking.location
     val openTrips = MutableStateFlow(false)
 
-    /** The speed the gauge draws, in km/h, smoothed and projected forward between fixes; null while the speed is unknown. */
+    /** The speed the gauge draws, in km/h, smoothed from the latest measurements; null while the speed is unknown. */
     fun displaySpeedKmh(): Double? = location.displayKmh()
     val battery = BatteryRepository(app)
     private val navigation = (app as RideDeckApplication).rideNavigation

@@ -30,13 +30,13 @@ class SpeedFilterTest {
     }
 
     @Test
-    fun rampIsLeadByTheExtrapolation() {
+    fun accelerationNeverExceedsTheMeasuredSpeed() {
         val f = SpeedFilter()
-        // 2 m/s per second from 10 m/s: the estimate half a second after a fix is ahead of that fix's raw speed.
         val ramp = List(8) { 10f + 2f * it }
         feed(f, ramp)
         val raw = ramp.last().toDouble()
-        assertTrue(f.speedMps(1000L + 7000L + 500L) > f.speedMps(1000L + 7000L) + 0.3)
+        assertEquals(raw, f.speedMps(8000L), 0.5)
+        assertEquals(f.speedMps(8000L), f.speedMps(8500L), 0.0)
     }
 
     @Test
