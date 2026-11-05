@@ -32,6 +32,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
@@ -434,7 +436,7 @@ fun MapScreen(
 
         // The keyboard covers the lower right of an upright screen: the round buttons wait until it is closed.
         if (!(typing && portrait)) Column(
-            modifier = Modifier.align(Alignment.CenterEnd).padding(12.dp),
+            modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.End,
         ) {
@@ -453,6 +455,13 @@ fun MapScreen(
                     }
                 })
             }
+        }
+        // Speed readout sits at the bottom, clear of the map credit, with the limit sign beside it.
+        if (!(typing && portrait)) Row(
+            modifier = Modifier.align(Alignment.BottomEnd).padding(start = 12.dp, end = 12.dp, bottom = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             if (speedLimit != null) SpeedLimitSign(speedLimit, size = 64.dp)
             SpeedChip(speedShown, over = SpeedLimitMath.isOver(speedKmh, speedLimit))
         }
@@ -777,6 +786,8 @@ private fun RouteCard(
     val eta = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(now + route.durationS.toLong() * 1000))
     GlassPanel(Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+          // Everything but Start / Cancel scrolls, so the primary actions stay reachable on a short screen.
+          Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(ui.destination?.name.orEmpty(), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 if (externalApps.isNotEmpty() && canOpenExternal) {
@@ -862,6 +873,7 @@ private fun RouteCard(
             }
             if (debuggable) OptionChip("Simüle et (x4)", false, { DebugSim.start(route, 4); onStart() }, Modifier.fillMaxWidth())
             if (ahead.size < 3 && canOpenExternal) OptionChip(stringResource(R.string.add_stop), false, onAddStop, Modifier.fillMaxWidth())
+          }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PillButton(stringResource(R.string.start), MotoColors.Green, onStart, Modifier.weight(2f))
                 PillButton(stringResource(R.string.cancel), MotoColors.PanelHigh, onCancel, Modifier.weight(1f), horizontalPadding = 8.dp)

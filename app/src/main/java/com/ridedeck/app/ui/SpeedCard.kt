@@ -29,6 +29,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
@@ -107,11 +109,26 @@ fun SpeedCard(
         labels.map { textMeasurer.measure(it.text, TextStyle(fontSize = labelSize, color = tickColor, fontWeight = FontWeight.Medium)) }
     }
     var showDebug by remember { mutableStateOf(false) }
-    Box(modifier = modifier.card().clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+    // The upright phone leaves a short, wide card: slimmer ring and margin give the labels and the number more room.
+    val narrow = isNarrowScreen()
+    val ringPad = if (narrow) 12.dp else 20.dp
+    val ringStroke = if (narrow) 22.dp else 26.dp
+    BoxWithConstraints(modifier = modifier.card().clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+        val density = LocalDensity.current
+        val effScale = density.fontScale.coerceAtMost(1.15f)
+        val labelHeightDp = with(density) { (labelLayouts.firstOrNull()?.size?.height ?: 0).toDp().value }
+        val speedText = if (unknown) "--" else Units.speed(digit).toString()
+        val needsPill = !gps.hasFix && !locationGranted
+        val fit = GaugeFit.fit(
+            cardHeight = maxHeight.value, cardWidth = maxWidth.value,
+            padding = ringPad.value, stroke = ringStroke.value, labelHeight = labelHeightDp,
+            fontScale = effScale, digits = speedText.length,
+            belowNominal = if (needsPill) 100f else if (unknown) 58f else 68f, baseSp = 92f,
+        )
         Canvas(
-            modifier = Modifier.fillMaxHeight().aspectRatio(1f).padding(20.dp)
+            modifier = Modifier.fillMaxHeight().aspectRatio(1f).padding(ringPad)
         ) {
-            val stroke = 26.dp.toPx()
+            val stroke = ringStroke.toPx()
             val inset = stroke / 2
             val arcSize = Size(size.width - stroke, size.height - stroke)
             val topLeft = Offset(inset, inset)
@@ -141,10 +158,14 @@ fun SpeedCard(
                 }
             }
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // Centred like before when it fits; otherwise it starts right below the scale labels and shrinks to fit.
+        val columnModifier = if (fit.topFromCentre == null) Modifier else
+            Modifier.align(Alignment.TopCenter).padding(top = (maxHeight.value / 2 + fit.topFromCentre).coerceAtLeast(0f).dp)
+        Column(columnModifier, horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                if (unknown) "--" else Units.speed(digit).toString(),
-                fontSize = cappedSp(92f),
+                speedText,
+                fontSize = cappedSp(fit.sp),
+                lineHeight = (fit.sp * GaugeFit.LINE).let { if (fit.sp < 92f) cappedSp(it) else androidx.compose.ui.unit.TextUnit.Unspecified },
                 fontWeight = FontWeight.Bold,
                 color = if (unknown) LocalMotoPalette.current.muted else if (SpeedLimitMath.isOver(gps.speedKmh, limit)) MotoColors.Red else LocalMotoPalette.current.text,
             )

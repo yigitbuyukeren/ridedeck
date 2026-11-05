@@ -363,7 +363,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     if (portrait) {
                         // Upright phone: speed on top, the chosen cards below.
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            speedCard(Modifier.weight(1.1f).fillMaxWidth())
+                            speedCard(Modifier.weight(1.4f).fillMaxWidth())
                             shownSlots.forEach { card ->
                                 slotCard(card, Modifier.weight(when (card) { DashCard.NAV -> 1.3f; DashCard.MEDIA -> 0.9f; else -> 0.6f }).fillMaxWidth())
                             }
@@ -387,8 +387,52 @@ fun DashboardScreen(vm: DashboardViewModel) {
                 }
                 }
             }
+            val shownMessage = message?.takeIf { it.id != dismissedMessageId && callState.phase == CallPhase.IDLE }
+            // Not over the map: there the top left holds the route or manoeuvre card, and rain, ice and heat are also spoken.
+            val alert: (@Composable (Modifier) -> Unit)? = if (!showSettings && !showMap && !showPhone && callState.phase == CallPhase.IDLE && shownMessage == null) {
+                val w = weather
+                val rainIn = w?.rainInMin
+                when {
+                    thermal.warn && !heatDismissed -> { m ->
+                        AlertStrip(
+                            text = stringResource(R.string.thermal_banner),
+                            accent = MotoColors.Red,
+                            onDismiss = { heatDismissed = true },
+                            modifier = m,
+                        )
+                    }
+                    weatherOn && w != null && rainIn != null && !rainDismissed -> { m ->
+                        AlertStrip(
+                            text = if (rainIn > 0) stringResource(R.string.rain_banner_fmt, rainIn) else stringResource(R.string.rain_banner_now),
+                            accent = MotoColors.Blue,
+                            onDismiss = { rainDismissed = true },
+                            modifier = m,
+                        )
+                    }
+                    weatherOn && w != null && w.iceRisk && !iceDismissed -> { m ->
+                        AlertStrip(
+                            text = stringResource(R.string.ice_banner_fmt, w.tempC),
+                            accent = MotoColors.Cyan,
+                            onDismiss = { iceDismissed = true },
+                            modifier = m,
+                        )
+                    }
+                    weatherOn && w != null && windy && !windDismissed -> { m ->
+                        AlertStrip(
+                            text = stringResource(if (Units.miles) R.string.wind_banner_fmt_mph else R.string.wind_banner_fmt, Units.speed(w.windKmh)),
+                            accent = MotoColors.Orange,
+                            onDismiss = { windDismissed = true },
+                            modifier = m,
+                        )
+                    }
+                    else -> null
+                }
+            } else null
+
             if (portrait) {
                 Column(modifier = Modifier.fillMaxSize().padding(start = 12.dp, end = 12.dp, top = 8.dp)) {
+                    // Upright: the alert takes its own row above the cards, so it never covers the speed card.
+                    alert?.invoke(Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp))
                     content(Modifier.weight(1f).fillMaxWidth())
                     dock()
                 }
@@ -397,9 +441,9 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     dock()
                     content(Modifier.weight(1f).fillMaxSize())
                 }
+                alert?.invoke(Modifier.align(Alignment.TopCenter).padding(top = 12.dp))
             }
 
-            val shownMessage = message?.takeIf { it.id != dismissedMessageId && callState.phase == CallPhase.IDLE }
             if (shownMessage != null && !showSettings) {
                 MessageBanner(
                     message = shownMessage,
@@ -407,38 +451,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     onDismiss = { dismissedMessageId = shownMessage.id },
                     modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
                 )
-            }
-
-            // Not over the map: there the top left holds the route or manoeuvre card, and rain, ice and heat are also spoken.
-            if (!showSettings && !showMap && !showPhone && callState.phase == CallPhase.IDLE && shownMessage == null) {
-                val w = weather
-                val rainIn = w?.rainInMin
-                when {
-                    thermal.warn && !heatDismissed -> AlertStrip(
-                        text = stringResource(R.string.thermal_banner),
-                        accent = MotoColors.Red,
-                        onDismiss = { heatDismissed = true },
-                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
-                    )
-                    weatherOn && w != null && rainIn != null && !rainDismissed -> AlertStrip(
-                        text = if (rainIn > 0) stringResource(R.string.rain_banner_fmt, rainIn) else stringResource(R.string.rain_banner_now),
-                        accent = MotoColors.Blue,
-                        onDismiss = { rainDismissed = true },
-                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
-                    )
-                    weatherOn && w != null && w.iceRisk && !iceDismissed -> AlertStrip(
-                        text = stringResource(R.string.ice_banner_fmt, w.tempC),
-                        accent = MotoColors.Cyan,
-                        onDismiss = { iceDismissed = true },
-                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
-                    )
-                    weatherOn && w != null && windy && !windDismissed -> AlertStrip(
-                        text = stringResource(if (Units.miles) R.string.wind_banner_fmt_mph else R.string.wind_banner_fmt, Units.speed(w.windKmh)),
-                        accent = MotoColors.Orange,
-                        onDismiss = { windDismissed = true },
-                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
-                    )
-                }
             }
 
         }
