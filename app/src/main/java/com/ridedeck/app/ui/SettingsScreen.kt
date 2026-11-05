@@ -78,9 +78,6 @@ data class SettingItem(
 fun locationGranted(c: Context) = c.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
 fun phoneGranted(c: Context) =
     c.hasPermission(Manifest.permission.READ_PHONE_STATE) && c.hasPermission(Manifest.permission.ANSWER_PHONE_CALLS)
-fun isDefaultAssistant(c: Context): Boolean =
-    android.os.Build.VERSION.SDK_INT >= 29 &&
-        c.getSystemService(android.app.role.RoleManager::class.java)?.isRoleHeld(android.app.role.RoleManager.ROLE_ASSISTANT) == true
 
 fun isDefaultDialer(c: Context) =
     c.getSystemService(android.telecom.TelecomManager::class.java)?.defaultDialerPackage == c.packageName

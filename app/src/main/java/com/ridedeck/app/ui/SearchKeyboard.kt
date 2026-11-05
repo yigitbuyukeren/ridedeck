@@ -81,7 +81,7 @@ fun SearchKeyboard(
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().height(KEY_HEIGHT)) {
                 if (index == 2 && !symbols) {
                     Key(Modifier.weight(1.5f), onClick = { shiftOverride = !shift }, highlight = shift) {
-                        Icon(Icons.Rounded.KeyboardArrowUp, null, tint = Color.White, modifier = Modifier.size(34.dp))
+                        Icon(Icons.Rounded.KeyboardArrowUp, stringResource(R.string.key_shift), tint = Color.White, modifier = Modifier.size(34.dp))
                     }
                 }
                 row.forEach { c ->
@@ -90,7 +90,7 @@ fun SearchKeyboard(
                 if (index == 2) {
                     // Tap erases one character, a long press the whole text.
                     Key(Modifier.weight(1.5f), onClick = { onQuery(KeyboardLayout.backspace(query)); shiftOverride = null }, onLongClick = { onQuery("") }) {
-                        Icon(Icons.AutoMirrored.Rounded.Backspace, null, tint = Color.White, modifier = Modifier.size(28.dp))
+                        Icon(Icons.AutoMirrored.Rounded.Backspace, stringResource(R.string.key_backspace), tint = Color.White, modifier = Modifier.size(28.dp))
                     }
                 }
             }
@@ -98,7 +98,7 @@ fun SearchKeyboard(
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().height(KEY_HEIGHT)) {
             Key(Modifier.weight(1.4f), onClick = { symbols = !symbols }) { KeyLabel(if (symbols) "ABC" else "123", size = 20) }
             Key(Modifier.weight(1f), onClick = onClose) {
-                Icon(Icons.Rounded.KeyboardArrowDown, null, tint = Color.White, modifier = Modifier.size(34.dp))
+                Icon(Icons.Rounded.KeyboardArrowDown, stringResource(R.string.key_hide), tint = Color.White, modifier = Modifier.size(34.dp))
             }
             Key(Modifier.weight(3.4f), onClick = { type(" ") }) { Box(Modifier.fillMaxWidth(0.5f).height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x66FFFFFF))) }
             Key(Modifier.weight(2.2f), onClick = onSearch, color = MotoColors.Blue) {

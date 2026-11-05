@@ -438,15 +438,15 @@ fun MapScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.End,
         ) {
-            RoundIconButton(Icons.Rounded.Close, onClick = onClose)
+            RoundIconButton(Icons.Rounded.Close, stringResource(R.string.message_dismiss), onClick = onClose)
             if (!ui.arrived) {
-                RoundIconButton(if (options.profile == VehicleProfile.BICYCLE) Icons.Rounded.PedalBike else Icons.Rounded.LocalGasStation, onClick = { if (fuel.visible) nav.closeFuel() else nav.findFuel() })
+                RoundIconButton(if (options.profile == VehicleProfile.BICYCLE) Icons.Rounded.PedalBike else Icons.Rounded.LocalGasStation, stringResource(if (options.profile == VehicleProfile.BICYCLE) R.string.map_stops else R.string.fuel_title), onClick = { if (fuel.visible) nav.closeFuel() else nav.findFuel() })
             }
             if (ui.navigating) {
-                RoundIconButton(Icons.Rounded.ZoomOutMap, onClick = { overview = !overview })
+                RoundIconButton(Icons.Rounded.ZoomOutMap, stringResource(R.string.map_overview), onClick = { overview = !overview })
             }
             if (!ui.navigating) {
-                RoundIconButton(Icons.Rounded.MyLocation, onClick = {
+                RoundIconButton(Icons.Rounded.MyLocation, stringResource(R.string.map_recenter), onClick = {
                     val m = map
                     if (m != null && me.fixAtMs > 0) {
                         m.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(me.lat, me.lon), 16.0), 600)
@@ -834,7 +834,7 @@ private fun RouteCard(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text("${i + 1}. ${stop.name}", fontSize = 17.sp, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                            Icon(Icons.Rounded.Close, null, tint = MotoColors.Gray, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Rounded.Close, stringResource(R.string.apps_remove), tint = MotoColors.Gray, modifier = Modifier.size(24.dp))
                         }
                     }
                 }
@@ -939,7 +939,7 @@ private fun FuelPanel(
                     )
                 }
                 Box(Modifier.size(68.dp).clickable(onClick = onClose), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.Close, null, tint = Color.White, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Rounded.Close, stringResource(R.string.message_dismiss), tint = Color.White, modifier = Modifier.size(28.dp))
                 }
             }
             when {
@@ -1053,12 +1053,12 @@ private fun Chip(text: String, color: Color) {
 }
 
 @Composable
-private fun RoundIconButton(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+private fun RoundIconButton(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier.size(68.dp).clip(CircleShape).background(Color(0xE6101114))
             .border(1.dp, Color(0x26FFFFFF), CircleShape).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Icon(icon, null, tint = Color.White, modifier = Modifier.size(28.dp)) }
+    ) { Icon(icon, description, tint = Color.White, modifier = Modifier.size(28.dp)) }
 }
 
 @Composable

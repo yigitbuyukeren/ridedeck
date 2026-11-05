@@ -24,9 +24,6 @@ data class WeatherSnapshot(
     val iceRisk: Boolean get() = WeatherMath.iceRisk(tempC)
 }
 
-/** A few hours of the hourly forecast boiled down for a spoken answer ("yarın hava nasıl"). */
-data class WeatherOutlook(val minC: Int, val maxC: Int, val rainPercent: Int, val code: Int)
-
 enum class WeatherAlert { RAIN, ICE, WIND }
 
 object WeatherMath {
@@ -78,41 +75,6 @@ object WeatherMath {
         )
     }
 
-    fun outlookUrl(lat: Double, lon: Double): String =
-        "https://api.open-meteo.com/v1/forecast?latitude=${"%.2f".format(Locale.US, lat)}&longitude=${"%.2f".format(Locale.US, lon)}" +
-            "&hourly=temperature_2m,precipitation_probability,weather_code&forecast_days=2&timezone=auto"
-
-    /**
-     * From an hourly reply (`time` as local "2026-10-24T14:00"), the hours [fromHour]..[toHour] of the day [dayOffset] days
-     * after the first date in the reply: coldest and warmest temperature, the highest rain chance and the code at that hour.
-     */
-    fun parseOutlook(json: String, dayOffset: Int, fromHour: Int, toHour: Int): WeatherOutlook? {
-        val hourly = JSONObject(json).optJSONObject("hourly") ?: return null
-        val times = hourly.optJSONArray("time") ?: return null
-        val temps = hourly.optJSONArray("temperature_2m") ?: return null
-        val pops = hourly.optJSONArray("precipitation_probability")
-        val codes = hourly.optJSONArray("weather_code")
-        val dates = (0 until times.length()).map { times.getString(it).substringBefore('T') }.distinct()
-        val day = dates.getOrNull(dayOffset) ?: return null
-        var min = Double.MAX_VALUE
-        var max = -Double.MAX_VALUE
-        var pop = -1
-        var code = 0
-        for (i in 0 until times.length()) {
-            val t = times.getString(i)
-            if (t.substringBefore('T') != day) continue
-            val hour = t.substringAfter('T').substringBefore(':').toIntOrNull() ?: continue
-            if (hour !in fromHour..toHour || temps.isNull(i)) continue
-            val temp = temps.getDouble(i)
-            if (temp < min) min = temp
-            if (temp > max) max = temp
-            val p = pops?.optInt(i, 0) ?: 0
-            if (p > pop) { pop = p; code = codes?.optInt(i, 0) ?: 0 }
-        }
-        if (min == Double.MAX_VALUE) return null
-        return WeatherOutlook(Math.round(min).toInt(), Math.round(max).toInt(), pop.coerceAtLeast(0), code)
-    }
-
     /** WMO weather code to an emoji the dashboard can draw anywhere. */
     fun emoji(code: Int): String = when (code) {
         0 -> "☀️"
@@ -142,15 +104,6 @@ class WeatherRepository {
             }
         }
 }
-
-/** One-off forecast for a later part of the day, asked for by voice. */
-suspend fun WeatherRepository.outlook(at: GeoPoint, dayOffset: Int, fromHour: Int, toHour: Int): Result<WeatherOutlook> =
-    withContext(Dispatchers.IO) {
-        safely("weather-outlook") {
-            WeatherMath.parseOutlook(Http.get(WeatherMath.outlookUrl(at.lat, at.lon), connectMs = 8_000, readMs = 10_000), dayOffset, fromHour, toHour)
-                ?: error("no hourly forecast in reply")
-        }
-    }
 
 /**
  * Keeps [snapshot] fresh while [enabled]: a new forecast every [REFRESH_MS] or after moving

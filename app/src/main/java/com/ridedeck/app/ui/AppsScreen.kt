@@ -104,7 +104,7 @@ fun AppsScreen(
                     modifier = Modifier.size(72.dp).clip(CircleShape).background(palette.cardHigh)
                         .clickable { if (adding) adding = false else onClose() },
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Rounded.Close, null, tint = palette.text, modifier = Modifier.size(32.dp)) }
+                ) { Icon(Icons.Rounded.Close, stringResource(R.string.message_dismiss), tint = palette.text, modifier = Modifier.size(32.dp)) }
             }
             if (narrow) {
                 title(Modifier.fillMaxWidth())

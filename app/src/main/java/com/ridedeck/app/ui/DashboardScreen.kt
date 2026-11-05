@@ -478,7 +478,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     onSpeechRate = vm::setVoiceSpeechRate,
                     ttsVoiceNames = ttsVoiceNames,
                     selectedTtsVoice = selectedTtsVoice,
-                    onTtsVoice = vm::setTurkishTtsVoice,
+                    onTtsVoice = vm::setTtsVoice,
                     offlineCard = { OfflineMapsCard(locationState.takeIf { it.hasFreshFix(System.currentTimeMillis()) }?.let { com.ridedeck.app.data.GeoPoint(it.lat, it.lon) }) },
                     safetyCard = {
                         SosSettingsCard(

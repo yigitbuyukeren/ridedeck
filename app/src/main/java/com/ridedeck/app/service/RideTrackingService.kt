@@ -78,7 +78,7 @@ class RideTrackingService : Service() {
             Intent(this, RideTrackingService::class.java).setAction(ACTION_STOP).putExtra(EXTRA_REQUEST, token),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         return NotificationCompat.Builder(this, CHANNEL)
-            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setSmallIcon(R.drawable.ic_stat_ridedeck)
             .setContentTitle(getString(R.string.ride_active))
             .setContentText(getString(R.string.ride_notification))
             .setContentIntent(open)

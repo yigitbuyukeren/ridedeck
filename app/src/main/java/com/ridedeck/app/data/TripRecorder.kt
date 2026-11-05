@@ -157,7 +157,7 @@ class TripRecorder(
         result
     }
 
-    private companion object {
+    companion object {
         const val START_KMH = 8
         const val START_FIXES = 3
         const val MOVING_KMH = 2

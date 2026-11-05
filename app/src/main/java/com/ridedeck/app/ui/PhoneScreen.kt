@@ -256,11 +256,12 @@ private fun PagedList(content: androidx.compose.foundation.lazy.LazyListScope.(L
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.width(if (isNarrowScreen()) 44.dp else 56.dp)) {
                     listOf(Icons.Rounded.KeyboardArrowUp to -1, Icons.Rounded.KeyboardArrowDown to 1).forEach { (icon, dir) ->
+                        val description = stringResource(if (dir < 0) R.string.list_page_up else R.string.list_page_down)
                         Box(
                             modifier = Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(palette.card)
                                 .pressClickable { scope.launch { state.animateScrollBy(dir * pagePx) } },
                             contentAlignment = Alignment.Center,
-                        ) { Icon(icon, null, tint = palette.text, modifier = Modifier.size(34.dp)) }
+                        ) { Icon(icon, description, tint = palette.text, modifier = Modifier.size(34.dp)) }
                     }
                 }
             }

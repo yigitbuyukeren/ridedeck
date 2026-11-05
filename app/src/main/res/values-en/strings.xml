@@ -44,7 +44,6 @@
     <string name="media_grant_prompt">Grant notification access for music control</string>
     <string name="grant_access">Grant access</string>
     <string name="media_not_playing">Nothing playing</string>
-    <string name="open_music_app">Open music app</string>
     <string name="unknown_track">Unknown track</string>
     <string name="overlay_channel">Speed strip</string>
     <string name="overlay_notification">Speed strip is on</string>
@@ -79,7 +78,8 @@
     <string name="msg_auto_desc">Reads incoming messages automatically. When off, the card shows a Read button.</string>
     <string name="trips_title">Trip history</string>
     <string name="trips_desc">Distance, time, average and top speed</string>
-    <string name="trips_empty">No trips yet. Recording starts automatically when you ride faster than 8 km/h.</string>
+    <string name="trips_empty">No trips yet. Recording starts automatically when you ride faster than %1$s.</string>
+    <string name="battery_percent_fmt">%1$d%%</string>
     <string name="trip_recording">Recording</string>
     <string name="trip_storage_error">Storage error: recording stopped. Check free space and restart the app.</string>
     <string name="stat_distance">Distance</string>
@@ -156,7 +156,7 @@
     <string name="sos_voice_auto">Crash detected. Are you OK? If you do not answer within %1$d seconds your location will be sent to your emergency contacts.</string>
     <string name="sos_voice_manual">Emergency call. The message will be sent in %1$d seconds unless you cancel.</string>
     <string name="sos_voice_test">SOS test. No message will be sent.</string>
-    <string name="sos_sms_auto">EMERGENCY (RideDeck): A %1$s crash was detected and there was no answer.</string>
+    <string name="sos_sms_auto">EMERGENCY (RideDeck): %1$s crash detected, rider not responding.</string>
     <string name="sos_sms_manual">EMERGENCY (RideDeck): I need help.</string>
     <string name="sos_loc">Location: %1$s</string>
     <string name="sos_loc_stale">Last known location: %1$s</string>
@@ -262,14 +262,13 @@
     <string name="dash_apps">Apps</string>
     <string name="dash_none">Empty</string>
     <string name="apps_card_empty">Add apps</string>
-    <string name="action_delete">Delete</string>
     <string name="vehicle_continue">Continue</string>
     <string name="perm_intro_title">A few permissions are needed</string>
     <string name="perm_intro_sub">You can skip this; they all stay in Settings > Setup.</string>
     <string name="perm_intro_later">Later</string>
     <string name="perm_intro_done">Done</string>
     <string name="perm_sms">SMS</string>
-    <string name="perm_sms_desc">For SOS alerts and for new messages by voice</string>
+    <string name="perm_sms_desc">For SOS alerts</string>
     <string name="perm_granted">Granted</string>
     <string name="speed_location_needed">Location permission needed</string>
     <string name="state_on">On</string>
@@ -279,12 +278,12 @@
     <string name="save_place_saved">Saved</string>
     <string name="dock_settings_hint">hold</string>
     <string name="dock_long_press_settings">Open settings</string>
-    <string name="perm_intro_settings_hint">Settings: press and hold the Apps tile, or say \"open settings\".</string>
+    <string name="perm_intro_settings_hint">Settings: press and hold the Apps tile.</string>
     <string name="gps_debug_fmt">age %1$s ms · interval %2$s s · speed accuracy %3$s m/s</string>
-    <string name="voice_tts_title">Turkish voice</string>
+    <string name="voice_tts_title">Guidance voice</string>
     <string name="voice_tts_desc">Choose an installed system voice</string>
     <string name="voice_tts_default">Default</string>
-    <string name="voice_tts_missing">No selectable Turkish TTS voice is installed.</string>
+    <string name="voice_tts_missing">No selectable text-to-speech voice found on this device.</string>
     <string name="voice_speech_rate">Speech rate: %1$d%%</string>
     <string name="voice_navigation_tracking_failed">Navigation guidance stopped because the location stream failed.</string>
     <string name="voice_navigation_location_disabled">Navigation guidance stopped because GPS was turned off. Enable location and restart the route.</string>
@@ -320,4 +319,18 @@
     <string name="marker_modern">Modern</string>
     <string name="marker_puck">Dot</string>
     <string name="marker_classic">Classic</string>
+    <string name="dock_music">Music</string>
+    <string name="media_previous">Previous track</string>
+    <string name="media_next">Next track</string>
+    <string name="media_pause">Pause</string>
+    <string name="volume_down">Volume down</string>
+    <string name="volume_up">Volume up</string>
+    <string name="map_stops">Stops</string>
+    <string name="map_overview">Show whole route</string>
+    <string name="map_recenter">Back to my location</string>
+    <string name="key_shift">Shift</string>
+    <string name="key_backspace">Delete</string>
+    <string name="key_hide">Hide keyboard</string>
+    <string name="list_page_up">Scroll up</string>
+    <string name="list_page_down">Scroll down</string>
 </resources>

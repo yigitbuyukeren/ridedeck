@@ -6,7 +6,6 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
-import java.util.Locale
 import android.os.Handler
 import android.os.Looper
 import android.content.BroadcastReceiver
@@ -23,26 +22,27 @@ interface Speaker {
     fun shutdown()
 }
 
-data class TurkishTtsVoice(val name: String, val language: String, val requiresNetwork: Boolean)
-data class TurkishTtsStartupPlan(val ready: Boolean, val voices: List<TurkishTtsVoice>, val selected: TurkishTtsVoice?)
+data class TtsVoice(val name: String, val language: String, val requiresNetwork: Boolean)
+data class TtsStartupPlan(val ready: Boolean, val voices: List<TtsVoice>, val selected: TtsVoice?)
 
-object TurkishTtsVoicePolicy {
-    fun choose(preferredName: String?, voices: List<TurkishTtsVoice>): TurkishTtsVoice? {
-        val turkish = voices.filter { it.language.equals("tr", ignoreCase = true) }
-        return turkish.firstOrNull { it.name == preferredName }
-            ?: turkish.firstOrNull { !it.requiresNetwork }
-            ?: turkish.firstOrNull()
+object TtsVoicePolicy {
+    /** A saved voice of another language is ignored, so a phone language change falls back to the policy. */
+    fun choose(preferredName: String?, voices: List<TtsVoice>, language: String): TtsVoice? {
+        val matching = voices.filter { it.language.equals(language, ignoreCase = true) }
+        return matching.firstOrNull { it.name == preferredName }
+            ?: matching.firstOrNull { !it.requiresNetwork }
+            ?: matching.firstOrNull()
     }
 
-    fun startupPlan(initialized: Boolean, preferredName: String?, voices: List<TurkishTtsVoice>): TurkishTtsStartupPlan {
-        if (!initialized) return TurkishTtsStartupPlan(ready = false, voices = emptyList(), selected = null)
-        val available = voices.filter { it.language.equals("tr", ignoreCase = true) }.distinctBy { it.name }.sortedBy { it.name }
-        return TurkishTtsStartupPlan(ready = true, voices = available, selected = choose(preferredName, available))
+    fun startupPlan(initialized: Boolean, preferredName: String?, voices: List<TtsVoice>, language: String): TtsStartupPlan {
+        if (!initialized) return TtsStartupPlan(ready = false, voices = emptyList(), selected = null)
+        val available = voices.filter { it.language.equals(language, ignoreCase = true) }.distinctBy { it.name }.sortedBy { it.name }
+        return TtsStartupPlan(ready = true, voices = available, selected = choose(preferredName, available, language))
     }
 }
 
 /** Turn-by-turn announcements that duck the music while speaking. */
-class Voice(context: Context, private val onTurkishVoices: (List<String>) -> Unit = {}) : Speaker {
+class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {}) : Speaker {
     private val appContext = context.applicationContext
     private var noisyRegistered = false
     private val noisy = object : BroadcastReceiver() {
@@ -72,7 +72,7 @@ class Voice(context: Context, private val onTurkishVoices: (List<String>) -> Uni
         if (closed) return@synchronized
         if (status != TextToSpeech.SUCCESS) {
             ready = false
-            runCatching { onTurkishVoices(emptyList()) }
+            runCatching { onVoices(emptyList()) }
             return@synchronized
         }
         runCatching { tts.setAudioAttributes(attributes) }
@@ -86,10 +86,10 @@ class Voice(context: Context, private val onTurkishVoices: (List<String>) -> Uni
         }
         if (runCatching { tts.setOnUtteranceProgressListener(progressListener); true }.getOrDefault(false).not()) {
             ready = false
-            runCatching { onTurkishVoices(emptyList()) }
+            runCatching { onVoices(emptyList()) }
             return@synchronized
         }
-        val languageReady = runCatching { tts.setLanguage(Locale.forLanguageTag("tr-TR")) >= TextToSpeech.LANG_AVAILABLE }.getOrDefault(false)
+        val languageReady = runCatching { tts.setLanguage(GuidanceLanguage.currentLocale()) >= TextToSpeech.LANG_AVAILABLE }.getOrDefault(false)
         runCatching { tts.setSpeechRate(Prefs.voiceSpeechRate(context)) }
 
         // Android exposes the voice list only after a successful init. Publish readiness before
@@ -97,27 +97,27 @@ class Voice(context: Context, private val onTurkishVoices: (List<String>) -> Uni
         ready = true
         val platformVoices = runCatching { tts.voices.orEmpty() }.getOrDefault(emptyList())
         val voiceOptions = platformVoices.map {
-            TurkishTtsVoice(it.name, it.locale.language, it.isNetworkConnectionRequired)
+            TtsVoice(it.name, it.locale.language, it.isNetworkConnectionRequired)
         }
-        val plan = TurkishTtsVoicePolicy.startupPlan(true, Prefs.voiceTtsName(context), voiceOptions)
+        val plan = TtsVoicePolicy.startupPlan(true, Prefs.voiceTtsName(context), voiceOptions, GuidanceLanguage.currentLocale().language)
         val chosen = plan.selected
         val selected = chosen?.let { option -> platformVoices.firstOrNull { it.name == option.name } }
         val voiceReady = selected != null && runCatching { tts.setVoice(selected) == TextToSpeech.SUCCESS }.getOrDefault(false)
         ready = voiceReady || languageReady
         if (voiceReady) Prefs.setVoiceTtsName(context, chosen?.name)
-        runCatching { onTurkishVoices(if (ready) plan.voices.map { it.name } else emptyList()) }
+        runCatching { onVoices(if (ready) plan.voices.map { it.name } else emptyList()) }
     }
 
     override fun setSpeechRate(rate: Float) { if (ready && !closed) runCatching { tts.setSpeechRate(rate.coerceIn(0.75f, 1.25f)) } }
 
-    fun availableTurkishVoices(): List<String> = if (!ready || closed) emptyList() else runCatching {
-        tts.voices.orEmpty().filter { it.locale.language.equals("tr", ignoreCase = true) }.map { it.name }.distinct().sorted()
+    fun availableVoices(): List<String> = if (!ready || closed) emptyList() else runCatching {
+        tts.voices.orEmpty().filter { it.locale.language.equals(GuidanceLanguage.currentLocale().language, ignoreCase = true) }.map { it.name }.distinct().sorted()
     }.getOrDefault(emptyList())
 
-    fun selectTurkishVoice(name: String?): Boolean {
+    fun selectVoice(name: String?): Boolean {
         if (!ready || closed) return false
-        if (name == null) return runCatching { tts.setLanguage(Locale.forLanguageTag("tr-TR")) >= TextToSpeech.LANG_AVAILABLE }.getOrDefault(false)
-        val voice = runCatching { tts.voices.orEmpty().firstOrNull { it.name == name && it.locale.language.equals("tr", true) } }.getOrNull() ?: return false
+        if (name == null) return runCatching { tts.setLanguage(GuidanceLanguage.currentLocale()) >= TextToSpeech.LANG_AVAILABLE }.getOrDefault(false)
+        val voice = runCatching { tts.voices.orEmpty().firstOrNull { it.name == name && it.locale.language.equals(GuidanceLanguage.currentLocale().language, true) } }.getOrNull() ?: return false
         return runCatching { tts.setVoice(voice) == TextToSpeech.SUCCESS }.getOrDefault(false)
     }
 

@@ -1,43 +1,63 @@
 package com.ridedeck.app
 
-import com.ridedeck.app.data.TurkishTtsVoice
-import com.ridedeck.app.data.TurkishTtsVoicePolicy
+import com.ridedeck.app.data.GuidanceLanguage
+import com.ridedeck.app.data.TtsVoice
+import com.ridedeck.app.data.TtsVoicePolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-class TurkishTtsVoicePolicyTest {
-    private val offline = TurkishTtsVoice("tr-local", "tr", requiresNetwork = false)
-    private val online = TurkishTtsVoice("tr-cloud", "tr", requiresNetwork = true)
-    private val english = TurkishTtsVoice("en-local", "en", requiresNetwork = false)
+class TtsVoicePolicyTest {
+    private val offline = TtsVoice("tr-local", "tr", requiresNetwork = false)
+    private val online = TtsVoice("tr-cloud", "tr", requiresNetwork = true)
+    private val english = TtsVoice("en-local", "en", requiresNetwork = false)
+    private val englishOnline = TtsVoice("en-cloud", "en", requiresNetwork = true)
 
-    @Test fun restoresSavedTurkishVoiceWhenItIsInstalled() {
-        assertEquals(online, TurkishTtsVoicePolicy.choose("tr-cloud", listOf(offline, online)))
+    @Test fun restoresSavedVoiceWhenItIsInstalled() {
+        assertEquals(online, TtsVoicePolicy.choose("tr-cloud", listOf(offline, online), "tr"))
     }
 
-    @Test fun missingSavedVoiceFallsBackToAnOfflineTurkishVoice() {
-        assertEquals(offline, TurkishTtsVoicePolicy.choose("removed-voice", listOf(online, english, offline)))
+    @Test fun missingSavedVoiceFallsBackToAnOfflineVoice() {
+        assertEquals(offline, TtsVoicePolicy.choose("removed-voice", listOf(online, english, offline), "tr"))
     }
 
-    @Test fun onlineTurkishVoiceIsFallbackOnlyWhenNoOfflineVoiceExists() {
-        assertEquals(online, TurkishTtsVoicePolicy.choose(null, listOf(english, online)))
+    @Test fun onlineVoiceIsFallbackOnlyWhenNoOfflineVoiceExists() {
+        assertEquals(online, TtsVoicePolicy.choose(null, listOf(english, online), "tr"))
     }
 
-    @Test fun noTurkishVoiceLeavesLocaleFallbackToTheTtsEngine() {
-        assertNull(TurkishTtsVoicePolicy.choose("en-local", listOf(english)))
+    @Test fun noVoiceOfTheLanguageLeavesLocaleFallbackToTheTtsEngine() {
+        assertNull(TtsVoicePolicy.choose("en-local", listOf(english), "tr"))
+    }
+
+    @Test fun savedVoiceOfAnotherLanguageIsIgnored() {
+        assertEquals(english, TtsVoicePolicy.choose("tr-local", listOf(offline, englishOnline, english), "en"))
+        assertEquals(offline, TtsVoicePolicy.choose("en-local", listOf(offline, english), "tr"))
     }
 
     @Test fun successfulInitializationPublishesVoicesAndRestoresPreferenceInItsStartupPlan() {
-        val plan = TurkishTtsVoicePolicy.startupPlan(true, "tr-cloud", listOf(english, offline, online))
+        val plan = TtsVoicePolicy.startupPlan(true, "tr-cloud", listOf(english, offline, online), "tr")
         assertEquals(true, plan.ready)
         assertEquals(listOf(online, offline), plan.voices)
         assertEquals(online, plan.selected)
     }
 
+    @Test fun englishPhoneOnlyOffersEnglishVoices() {
+        val plan = TtsVoicePolicy.startupPlan(true, "tr-cloud", listOf(online, offline, englishOnline, english), "en")
+        assertEquals(listOf(englishOnline, english), plan.voices)
+        assertEquals(english, plan.selected)
+    }
+
     @Test fun failedInitializationNeverPublishesUnusableVoiceChoices() {
-        val plan = TurkishTtsVoicePolicy.startupPlan(false, "tr-cloud", listOf(offline, online))
+        val plan = TtsVoicePolicy.startupPlan(false, "tr-cloud", listOf(offline, online), "tr")
         assertEquals(false, plan.ready)
-        assertEquals(emptyList<TurkishTtsVoice>(), plan.voices)
+        assertEquals(emptyList<TtsVoice>(), plan.voices)
         assertNull(plan.selected)
+    }
+
+    @Test fun guidanceLanguageIsTurkishOnlyForTurkishPhones() {
+        assertEquals("tr-TR", GuidanceLanguage.tag("tr"))
+        assertEquals("en-US", GuidanceLanguage.tag("en"))
+        assertEquals("en-US", GuidanceLanguage.tag("de"))
+        assertEquals("en-US", GuidanceLanguage.tag(""))
     }
 }

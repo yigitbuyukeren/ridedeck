@@ -4,7 +4,6 @@ import android.Manifest
 import com.ridedeck.app.data.AndroidSmsSender
 import com.ridedeck.app.data.AndroidSosAlarm
 import com.ridedeck.app.data.CrashSensor
-import com.ridedeck.app.data.outlook
 import com.ridedeck.app.data.WeatherRepository
 import com.ridedeck.app.data.Place
 import com.ridedeck.app.data.DialOutcome
@@ -88,8 +87,8 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val selectedTtsVoice = navigation.selectedTtsVoice
     private val announcer = navigation.voice
 
-    fun setTurkishTtsVoice(name: String?) {
-        if (announcer.selectTurkishVoice(name)) {
+    fun setTtsVoice(name: String?) {
+        if (announcer.selectVoice(name)) {
             Prefs.setVoiceTtsName(getApplication(), name)
             selectedTtsVoice.value = name
         }
@@ -322,12 +321,12 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 app.getString(R.string.sos_sms_auto, app.getString(noun))
             } else app.getString(R.string.sos_sms_manual)
-            val where = when {
-                link == null -> app.getString(R.string.sos_loc_none)
-                stale -> app.getString(R.string.sos_loc_stale, link)
-                else -> app.getString(R.string.sos_loc, link)
-            }
-            "$head $where"
+            SosMath.compose(
+                head, link, stale,
+                none = app.getString(R.string.sos_loc_none),
+                staleFmt = app.getString(R.string.sos_loc_stale),
+                fmt = app.getString(R.string.sos_loc),
+            )
         },
     )
     private val crashSensor = CrashSensor(app, speedKmh = {

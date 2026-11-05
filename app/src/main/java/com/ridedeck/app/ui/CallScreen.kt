@@ -227,19 +227,19 @@ private fun routeLabel(route: Int): Int? = when (route) {
 @Composable
 private fun VolumeRow(onDown: () -> Unit, onUp: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        VolumeButton(Icons.Rounded.Remove, onDown)
+        VolumeButton(Icons.Rounded.Remove, stringResource(R.string.volume_down), onDown)
         Icon(Icons.AutoMirrored.Rounded.VolumeUp, null, tint = MotoColors.Gray, modifier = Modifier.size(26.dp))
         Text(stringResource(R.string.call_volume), fontSize = 17.sp, color = MotoColors.Gray)
-        VolumeButton(Icons.Rounded.Add, onUp)
+        VolumeButton(Icons.Rounded.Add, stringResource(R.string.volume_up), onUp)
     }
 }
 
 @Composable
-private fun VolumeButton(icon: ImageVector, onClick: () -> Unit) {
+private fun VolumeButton(icon: ImageVector, description: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier.size(64.dp).clip(CircleShape).background(Color(0x33FFFFFF)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Icon(icon, null, tint = Color.White, modifier = Modifier.size(32.dp)) }
+    ) { Icon(icon, description, tint = Color.White, modifier = Modifier.size(32.dp)) }
 }
 
 /** Digits for voice menus ("press 1"); sent down the line as tones. */

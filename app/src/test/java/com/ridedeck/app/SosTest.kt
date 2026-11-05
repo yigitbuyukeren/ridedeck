@@ -53,7 +53,7 @@ class SosMathTest {
     @Test
     fun locationLinkUsesFivePlacesAndADotDecimal() {
         assertEquals(
-            "https://www.openstreetmap.org/?mlat=41.01234&mlon=28.97654#map=17/41.01234/28.97654",
+            "https://www.openstreetmap.org/?mlat=41.01234&mlon=28.97654",
             SosMath.locationLink(41.012344, 28.976543),
         )
     }
@@ -175,7 +175,7 @@ class SosControllerTest {
         assertEquals(listOf("Anne", "Ali"), c.ui.value.sentTo)
         val (numbers, text) = sms.sent.single()
         assertEquals(listOf("+905321112233", "+905331112233"), numbers)
-        assertEquals("AUTO|https://www.openstreetmap.org/?mlat=41.01234&mlon=28.97654#map=17/41.01234/28.97654|false", text)
+        assertEquals("AUTO|https://www.openstreetmap.org/?mlat=41.01234&mlon=28.97654|false", text)
         assertEquals(listOf(SosReason.AUTO to 30), spoken)
         assertEquals(30, alarm.beeps) // once at the start and on each of the 29 following seconds
         assertTrue(alarm.stopped >= 1)

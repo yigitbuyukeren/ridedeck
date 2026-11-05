@@ -16,6 +16,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.ridedeck.app.R
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -41,7 +43,7 @@ fun AlertStrip(text: String, accent: Color, onDismiss: () -> Unit, modifier: Mod
             maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false).padding(vertical = 12.dp),
         )
         Box(Modifier.size(64.dp).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.Close, null, tint = Color.White, modifier = Modifier.size(28.dp))
+            Icon(Icons.Rounded.Close, stringResource(R.string.message_dismiss), tint = Color.White, modifier = Modifier.size(28.dp))
         }
     }
 }

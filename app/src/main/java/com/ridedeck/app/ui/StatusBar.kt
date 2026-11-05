@@ -14,9 +14,11 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ridedeck.app.R
 import com.ridedeck.app.data.BatteryState
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -57,7 +59,7 @@ fun DockStatus(battery: BatteryState) {
                 tint = if (battery.charging) MotoColors.Green else LocalMotoPalette.current.text.copy(alpha = 0.85f),
                 modifier = Modifier.size(20.dp),
             )
-            Text("%${battery.percent}", fontSize = cappedSp(17f), color = LocalMotoPalette.current.text.copy(alpha = 0.85f), fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
+            Text(stringResource(R.string.battery_percent_fmt, battery.percent), fontSize = cappedSp(17f), color = LocalMotoPalette.current.text.copy(alpha = 0.85f), fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
         }
         Text("${battery.tempC.toInt()}°C", fontSize = cappedSp(17f), color = tempColor, fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
     }

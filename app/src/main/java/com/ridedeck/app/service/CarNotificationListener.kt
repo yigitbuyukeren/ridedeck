@@ -20,26 +20,7 @@ data class IncomingMessage(
     val sender: String,
     val text: String,
     val postedAtMs: Long,
-    /** The notification's "reply" button, kept in memory only so a spoken answer can be sent through it. */
-    val replyAction: Notification.Action? = null,
-) {
-    val canReply: Boolean get() = replyAction?.remoteInputs?.isNotEmpty() == true
-
-    /** Sends [body] as the answer through the notification's own reply action; false when that is not possible. */
-    fun sendReply(context: android.content.Context, body: String): Boolean {
-        val action = replyAction ?: return false
-        val input = action.remoteInputs?.firstOrNull() ?: return false
-        val results = android.os.Bundle().apply { putCharSequence(input.resultKey, body) }
-        val intent = android.content.Intent()
-        android.app.RemoteInput.addResultsToIntent(arrayOf(input), intent, results)
-        return try {
-            action.actionIntent.send(context, 0, intent)
-            true
-        } catch (_: android.app.PendingIntent.CanceledException) {
-            false
-        }
-    }
-}
+)
 
 /** Latest chat message seen in the notification shade. Kept in memory only, never persisted. */
 object MessageBridge {
@@ -85,7 +66,6 @@ class CarNotificationListener : NotificationListenerService() {
             sender = sender,
             text = text,
             postedAtMs = sbn.postTime,
-            replyAction = n.actions?.firstOrNull { it.remoteInputs?.isNotEmpty() == true },
         )
     }
 

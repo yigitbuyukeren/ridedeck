@@ -18,13 +18,13 @@ object UnitMath {
         if (!miles) {
             return when {
                 meters < 1000 -> "${(meters / 10 * 10).coerceAtLeast(10)} m"
-                else -> "%.1f km".format(Locale.US, meters / 1000.0)
+                else -> "%.1f km".format(Locale.getDefault(), meters / 1000.0)
             }
         }
         val feet = meters * FEET_PER_METRE
         return when {
             feet < 500 -> "${((feet / 10).toInt() * 10).coerceAtLeast(10)} ft"
-            else -> "%.1f mi".format(Locale.US, meters / 1000.0 / KM_PER_MILE)
+            else -> "%.1f mi".format(Locale.getDefault(), meters / 1000.0 / KM_PER_MILE)
         }
     }
 }

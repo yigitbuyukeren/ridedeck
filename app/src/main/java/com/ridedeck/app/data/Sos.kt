@@ -69,7 +69,20 @@ object SosMath {
     fun locationLink(lat: Double, lon: Double): String {
         val la = "%.5f".format(Locale.US, lat)
         val lo = "%.5f".format(Locale.US, lon)
-        return "https://www.openstreetmap.org/?mlat=$la&mlon=$lo#map=17/$la/$lo"
+        return "https://www.openstreetmap.org/?mlat=$la&mlon=$lo"
+    }
+
+    /**
+     * Head plus location line. The Turkish strings are ASCII-only on purpose: any non-GSM-7 character
+     * switches the SMS to UCS-2 (70 characters, 67 per part), while the worst case here fits one 160-character GSM-7 SMS.
+     */
+    fun compose(head: String, link: String?, stale: Boolean, none: String, staleFmt: String, fmt: String): String {
+        val where = when {
+            link == null -> none
+            stale -> String.format(Locale.US, staleFmt, link)
+            else -> String.format(Locale.US, fmt, link)
+        }
+        return "$head $where"
     }
 
     fun toJson(list: List<SosContact>): String = JSONArray().also { arr ->

@@ -180,7 +180,7 @@ class RouteRepository(
         val body = JSONObject()
             .put("locations", JSONArray().also { arr -> points.forEach { arr.put(JSONObject().put("lat", it.lat).put("lon", it.lon)) } })
             .put("costing", options.profile.config.costing)
-            .put("directions_options", JSONObject().put("language", valhallaLanguage()).put("units", if (useMiles) "miles" else "kilometers"))
+            .put("directions_options", JSONObject().put("language", GuidanceLanguage.current()).put("units", if (useMiles) "miles" else "kilometers"))
         if (alternates > 0) body.put("alternates", alternates)
         options.costingOptions()?.let { body.put("costing_options", it) }
         return body
@@ -228,12 +228,6 @@ class RouteRepository(
     private companion object {
         const val SEARCH_GAP_MS = 1_000L
     }
-}
-
-/** Valhalla only ships a fixed set of instruction languages; fall back to English. */
-private fun valhallaLanguage(): String = when (Locale.getDefault().language) {
-    "tr" -> "tr-TR"
-    else -> "en-US"
 }
 
 /** Valhalla `trip` to a [Route]; the legs of a multi-stop trip are joined into one continuous shape. */

@@ -87,7 +87,7 @@ class MotoInCallService : InCallService() {
             nm.createNotificationChannel(NotificationChannel(CHANNEL, getString(R.string.call_incoming), NotificationManager.IMPORTANCE_HIGH))
             val pi = PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             nm.notify(NOTIFICATION_ID, NotificationCompat.Builder(this, CHANNEL)
-                .setSmallIcon(android.R.drawable.sym_call_incoming)
+                .setSmallIcon(R.drawable.ic_stat_call)
                 .setContentTitle(getString(R.string.call_incoming))
                 .setContentText(CallBridge.callerName.value ?: getString(R.string.phone_unknown))
                 .setCategory(NotificationCompat.CATEGORY_CALL)

@@ -82,7 +82,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                 Box(
                     modifier = Modifier.size(72.dp).clip(CircleShape).background(palette.cardHigh).clickable(onClick = onClose),
                     contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Rounded.Close, null, tint = palette.text, modifier = Modifier.size(32.dp)) }
+                ) { Icon(Icons.Rounded.Close, stringResource(R.string.message_dismiss), tint = palette.text, modifier = Modifier.size(32.dp)) }
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 PillButton(
@@ -105,7 +105,8 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
             }
             if (list.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.trips_empty), fontSize = 18.sp, color = palette.muted)
+                    val threshold = "${Units.speed(TripRecorder.START_KMH)} ${stringResource(if (Units.miles) R.string.speed_unit_mph else R.string.speed_unit)}"
+                    Text(stringResource(R.string.trips_empty, threshold), fontSize = 18.sp, color = palette.muted)
                 }
             } else {
                 SplitPane(

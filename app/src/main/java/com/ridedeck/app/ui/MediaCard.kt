@@ -117,14 +117,14 @@ fun MediaCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    ControlButton(Icons.AutoMirrored.Rounded.VolumeDown, 52, soft = true, onClick = media::volumeDown)
-                    ControlButton(Icons.Rounded.SkipPrevious, 60, onClick = { media.previous() })
+                    ControlButton(Icons.AutoMirrored.Rounded.VolumeDown, stringResource(R.string.volume_down), 52, soft = true, onClick = media::volumeDown)
+                    ControlButton(Icons.Rounded.SkipPrevious, stringResource(R.string.media_previous), 60, onClick = { media.previous() })
                     ControlButton(
                         if (state.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        76, filled = true, onClick = media::togglePlay,
+                        stringResource(if (state.playing) R.string.media_pause else R.string.play), 76, filled = true, onClick = media::togglePlay,
                     )
-                    ControlButton(Icons.Rounded.SkipNext, 60, onClick = { media.next() })
-                    ControlButton(Icons.AutoMirrored.Rounded.VolumeUp, 52, soft = true, onClick = media::volumeUp)
+                    ControlButton(Icons.Rounded.SkipNext, stringResource(R.string.media_next), 60, onClick = { media.next() })
+                    ControlButton(Icons.AutoMirrored.Rounded.VolumeUp, stringResource(R.string.volume_up), 52, soft = true, onClick = media::volumeUp)
                 }
             }
         }
@@ -132,7 +132,7 @@ fun MediaCard(
 }
 
 @Composable
-private fun ControlButton(icon: ImageVector, size: Int, filled: Boolean = false, soft: Boolean = false, onClick: () -> Unit) {
+private fun ControlButton(icon: ImageVector, description: String, size: Int, filled: Boolean = false, soft: Boolean = false, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .pressClickable(onClick = onClick)
@@ -142,7 +142,7 @@ private fun ControlButton(icon: ImageVector, size: Int, filled: Boolean = false,
         contentAlignment = Alignment.Center,
     ) {
         Crossfade(icon, animationSpec = tween(200), label = "icon") { shown ->
-            Icon(shown, null, tint = if (filled) LocalMotoPalette.current.onStrong else LocalMotoPalette.current.text, modifier = Modifier.size((size * 0.62f).dp))
+            Icon(shown, description, tint = if (filled) LocalMotoPalette.current.onStrong else LocalMotoPalette.current.text, modifier = Modifier.size((size * 0.62f).dp))
         }
     }
 }

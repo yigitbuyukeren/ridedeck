@@ -47,7 +47,7 @@ class OverlayService : Service() {
     private val tick = object : Runnable {
         override fun run() {
             if (!Settings.canDrawOverlays(this@OverlayService) || !hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-                stopSelf()
+                shutDown()
                 return
             }
             val loc = location.state.value
@@ -65,24 +65,39 @@ class OverlayService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // startForegroundService() obliges us to call startForeground() even when we are about to stop,
+        // otherwise Android 12+ raises ForegroundServiceDidNotStartInTimeException. So promote first and decide after.
         // A location foreground service may only start with the location permission (Android 14+ throws otherwise).
-        if (!Settings.canDrawOverlays(this) || !hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-            stopSelf()
+        val promoted = try {
+            startForegroundCompat()
+            true
+        } catch (failure: RuntimeException) {
+            Log.w("RideDeck", "Overlay foreground start failed (${failure.javaClass.simpleName})")
+            false
+        }
+        if (!promoted || !Settings.canDrawOverlays(this) || !hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+            shutDown()
             return START_NOT_STICKY
         }
         try {
-            startForegroundCompat()
             if (bar == null) addBar()
             location.start()
             handler.removeCallbacks(tick)
             handler.post(tick)
         } catch (failure: RuntimeException) {
-            // Permissions can be revoked between the check and WindowManager/foreground-service calls.
+            // Permissions can be revoked between the check and WindowManager/location calls.
             Log.w("RideDeck", "Overlay unavailable (${failure.javaClass.simpleName})")
-            stopSelf()
+            shutDown()
             return START_NOT_STICKY
         }
-        return START_STICKY
+        // Not sticky: after a process kill the system would restart us in the background, where a location
+        // foreground service is not allowed; DashboardViewModel.onResume() starts the overlay again.
+        return START_NOT_STICKY
+    }
+
+    private fun shutDown() {
+        runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
+        stopSelf()
     }
 
     override fun onCreate() {
@@ -107,7 +122,7 @@ class OverlayService : Service() {
             this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE
         )
         val notification = Notification.Builder(this, channelId)
-            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setSmallIcon(R.drawable.ic_stat_ridedeck)
             .setContentTitle("RideDeck")
             .setContentText(getString(R.string.overlay_notification))
             .setContentIntent(open)

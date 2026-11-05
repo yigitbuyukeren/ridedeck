@@ -69,10 +69,10 @@ fun Dock(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                DockTile(Icons.Rounded.Navigation, MotoColors.Blue, tile, onNavigation, active == DockTab.NAV)
-                DockTile(Icons.Rounded.MusicNote, MotoColors.Red, tile, onMusic, active == DockTab.MUSIC)
-                DockTile(Icons.Rounded.Call, Color(0xFF34C759), tile, onPhone, active == DockTab.PHONE)
-                DockTile(Icons.Rounded.Apps, MotoColors.Gray, tile, onApps, active == DockTab.APPS, onSettings, if (settingsHint) stringResource(R.string.dock_settings_hint) else null)
+                DockTile(Icons.Rounded.Navigation, MotoColors.Blue, tile, onNavigation, active == DockTab.NAV, label = stringResource(R.string.nav_title))
+                DockTile(Icons.Rounded.MusicNote, MotoColors.Red, tile, onMusic, active == DockTab.MUSIC, label = stringResource(R.string.dock_music))
+                DockTile(Icons.Rounded.Call, Color(0xFF34C759), tile, onPhone, active == DockTab.PHONE, label = stringResource(R.string.perm_phone))
+                DockTile(Icons.Rounded.Apps, MotoColors.Gray, tile, onApps, active == DockTab.APPS, onSettings, if (settingsHint) stringResource(R.string.dock_settings_hint) else null, label = stringResource(R.string.apps_title))
                 Box(Modifier.width(statusWidth), contentAlignment = Alignment.Center) { DockStatus(battery) }
             }
         }
@@ -88,10 +88,10 @@ fun Dock(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(gap), horizontalAlignment = Alignment.CenterHorizontally) {
-                DockTile(Icons.Rounded.Navigation, MotoColors.Blue, tile, onNavigation, active == DockTab.NAV)
-                DockTile(Icons.Rounded.MusicNote, MotoColors.Red, tile, onMusic, active == DockTab.MUSIC)
-                DockTile(Icons.Rounded.Call, Color(0xFF34C759), tile, onPhone, active == DockTab.PHONE)
-                DockTile(Icons.Rounded.Apps, MotoColors.Gray, tile, onApps, active == DockTab.APPS, onSettings, if (settingsHint) stringResource(R.string.dock_settings_hint) else null)
+                DockTile(Icons.Rounded.Navigation, MotoColors.Blue, tile, onNavigation, active == DockTab.NAV, label = stringResource(R.string.nav_title))
+                DockTile(Icons.Rounded.MusicNote, MotoColors.Red, tile, onMusic, active == DockTab.MUSIC, label = stringResource(R.string.dock_music))
+                DockTile(Icons.Rounded.Call, Color(0xFF34C759), tile, onPhone, active == DockTab.PHONE, label = stringResource(R.string.perm_phone))
+                DockTile(Icons.Rounded.Apps, MotoColors.Gray, tile, onApps, active == DockTab.APPS, onSettings, if (settingsHint) stringResource(R.string.dock_settings_hint) else null, label = stringResource(R.string.apps_title))
             }
             DockStatus(battery)
         }
@@ -104,7 +104,7 @@ private val STATUS_HEIGHT = 92.dp
 @Composable
 private fun DockTile(
     icon: ImageVector, color: Color, tile: Dp, onClick: () -> Unit, active: Boolean = false,
-    onLongClick: (() -> Unit)? = null, caption: String? = null,
+    onLongClick: (() -> Unit)? = null, caption: String? = null, label: String? = null,
 ) {
     val longLabel = if (onLongClick != null) stringResource(R.string.dock_long_press_settings) else null
     val ring by animateColorAsState(if (active) Color.White else Color.Transparent, tween(150), label = "dockRing")
@@ -118,7 +118,7 @@ private fun DockTile(
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            icon, contentDescription = null, tint = Color.White,
+            icon, contentDescription = label, tint = Color.White,
             modifier = Modifier.size(tile * 0.55f).offset(y = if (caption != null) -(tile * 0.08f) else 0.dp),
         )
         if (caption != null) {
