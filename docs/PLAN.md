@@ -141,7 +141,7 @@ Boyutlar gerçek indirme ölçümü değildir. 60 km hesaplanan karo sayısıyla
 
 Son yayın v0.4.0 (2026-10-22); inceleme tabanına kadar 51 yeni commit var, sürüm o tarihte `0.4.0 / 4` idi.
 
-**2026-11-05:** README çelişkileri giderildi (çevrimdışı harita, süreç ölümü sonrası hedef önerisi, konuşma tanıma) ve sürüm `0.5.0 / 5` yapıldı. Saha kanıtı ve yayın hâlâ açık.
+**2026-11-05:** README çelişkileri giderildi (çevrimdışı harita, süreç ölümü sonrası hedef önerisi, konuşma tanıma) ve sürüm `0.5.0 / 5` yapıldı. Beta 0.5.0 GitHub'da yayınlandı (v0.5.0, `RideDeck-0.5.0.apk`, 2026-11-05); saha kanıtı hâlâ açık.
 
 - README TR/EN, STATUS, EKSIKLER ve yayın hazırlığı belgelerinde mevcut/bekleyen/sahada doğrulanmayan ayrımını koru; tarihsel kayıtları güncel durum gibi sunma.
 - Sonraki beta için farklı `versionName/versionCode`, kaynak commit'i ve test kapsamı belirle. APK yayını/etiket oluşturma ayrıca açık istek gerektirir.
