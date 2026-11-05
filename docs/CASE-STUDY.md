@@ -88,7 +88,7 @@ Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sür�
 | Sahte 0 yok, `--` var | Sinyal kaybında yanlış güven vermemek. |
 | Sürerken yazı girişi/ayar kilidi (5 km/sa üstü) | Güvenlik; kendi Türkçe klavyesi park halinde arama içindir. |
 | Sesli asistan kaldırıldı | Güvenilir uyandırma ve tanıma sağlanamadı; çalışmayan özelliği göstermek yerine kaldırıldı. |
-| Çevrimdışı harita yok (issue kapatıldı) | Büyük iş, doğrulanamaz; rotanın canlı hizmete bağlı olduğu açıkça yazıldı. |
+| Çevrimdışı rota yok; harita yalnızca bölge olarak indirilir | Rota ve arama canlı hizmete bağlı kalır; çevrimdışı rota hesabı büyük iş ve doğrulanamaz olduğu için bırakıldı. |
 | OBD, bakım takibi, eğim, GPX çıkarıldı | Sürerken kullanılamayan veya doğrulanamayan özelliklerden kaçınmak; odak sürüş panelinde. |
 
 ## Gerçek cihaz doğrulamaları

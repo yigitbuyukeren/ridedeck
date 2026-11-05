@@ -55,7 +55,7 @@ The app once had a Turkish voice assistant (command parser, multi-turn dialogue,
 | `--` instead of a fake 0 | No false confidence when the signal is lost. |
 | Lock text entry and settings above 5 km/h | Riding safety. |
 | Voice assistant removed | Reliable wake and recognition could not be achieved; removed rather than shown broken. |
-| OBD, maintenance log, GPX, offline maps dropped | Unusable while riding or unverifiable. |
+| OBD, maintenance log, GPX dropped; offline routing not built | Unusable while riding or unverifiable. Map areas can be downloaded for offline display; routing and search stay online. |
 
 ## Verification status
 

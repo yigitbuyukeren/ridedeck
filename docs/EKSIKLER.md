@@ -12,7 +12,7 @@ Durum sütunu: **Yapılabilir** = anahtarsız/ücretsiz ilkeye uyuyor. **Kısıt
 | 2 | Mesajlara sesle cevap | Okuma ve sesle cevap, WhatsApp/Signal dahil | Mesajı sesli okur; sesle cevap asistanla birlikte kaldırıldı | Yalnız okuma |
 | 3 | Üçüncü taraf uygulama ekosistemi | Onaylı navigasyon, müzik, mesaj, şarj, park, hava uygulamaları | Yalnızca kendi modülleri; başka uygulama gömülemez | Yapılmaz |
 | 4 | Canlı trafik ve olay bildirimi | Google Maps / Waze: trafik, kaza, polis, yol çalışması | Yok | Yapılmaz (sunucu/veri) |
-| 5 | Çevrimdışı harita ve rota | Google Maps çevrimdışı haritalar | Yok (PLAN.md #1, öncelikli, 2026-10-28) | Kısıtlı, büyük iş |
+| 5 | Çevrimdışı harita ve rota | Google Maps çevrimdışı haritalar | Harita bölgesi Ayarlar'dan indirilebilir (2026-11); çevrimdışı rota ve arama yok (PLAN.md #3–4 saha kabulü bekliyor) | Kısıtlı, büyük iş |
 | 6 | 3D bina ve zengin harita (Immersive Navigation) | Google Maps'te 3D binalar, yükseltili yollar, arazi | 2D vektör harita, 55° eğim | Yapılmaz |
 | 7 | Şerit bilgisi ve kavşak görünümü | Şerit yönlendirme, kavşak görseli | Dönüş ikonu ve metin | Kısıtlı (Valhalla verisine bağlı) |
 | 8 | Viraj ağırlıklı / manzaralı rota | Calimoto, Kurviger gibi uygulamalarda var; AA/CarPlay'de yok | Yok | Yapılmaz (anahtarsız karşılığı yok) |
