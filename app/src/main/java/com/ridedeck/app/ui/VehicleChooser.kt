@@ -107,7 +107,7 @@ private fun VehicleCard(icon: ImageVector, title: Int, desc: Int, selected: Bool
         modifier = modifier.clip(shape)
             .background(if (selected) MotoColors.Blue.copy(alpha = 0.22f) else palette.cardHigh)
             .border(3.dp, if (selected) MotoColors.Blue else Color.Transparent, shape)
-            .clickable(onClick = onClick).padding(14.dp),
+            .hapticClickable(haptic = RideHaptic.Select, onClick = onClick).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

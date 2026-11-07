@@ -616,7 +616,7 @@ private fun SearchPanel(
             // The query is typed on the app's own keyboard; this box just shows it and opens the keyboard.
             Row(
                 modifier = Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(16.dp)).background(MotoColors.PanelHigh)
-                    .clickable(enabled = !locked, onClick = onFocus).padding(horizontal = 14.dp),
+                    .hapticClickable(enabled = !locked, onClick = onFocus).padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(Icons.Rounded.Search, null, tint = MotoColors.Gray, modifier = Modifier.size(26.dp))
@@ -667,14 +667,14 @@ private fun SearchPanel(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(
                                 modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
-                                    .clickable { onSelect(place) }.padding(horizontal = 8.dp, vertical = 10.dp)
+                                    .hapticClickable(haptic = RideHaptic.Select) { onSelect(place) }.padding(horizontal = 8.dp, vertical = 10.dp)
                             ) {
                                 Text(place.name, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 if (place.detail.isNotBlank()) {
                                     Text(place.detail, fontSize = 14.sp, color = MotoColors.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
-                            Box(Modifier.size(68.dp).clickable { onSave(place) }, contentAlignment = Alignment.Center) {
+                            Box(Modifier.size(68.dp).hapticClickable { onSave(place) }, contentAlignment = Alignment.Center) {
                                 Icon(
                                     if (saved) Icons.Rounded.Star else Icons.Rounded.StarBorder, null,
                                     tint = if (saved) MotoColors.Orange else MotoColors.Gray, modifier = Modifier.size(28.dp),
@@ -713,6 +713,7 @@ private fun RecentTiles(recents: List<Place>, onGo: (Place) -> Unit, onClear: ()
 @Composable
 private fun SavedTiles(places: List<SavedPlace>, onGo: (Place) -> Unit, onRemove: (SavedPlace) -> Unit) {
     var confirm by remember { mutableStateOf<SavedPlace?>(null) }
+    val haptics = rememberRideHaptics()
     LaunchedEffect(confirm) { if (confirm != null) { delay(3000); confirm = null } }
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(places) { sp ->
@@ -721,8 +722,17 @@ private fun SavedTiles(places: List<SavedPlace>, onGo: (Place) -> Unit, onRemove
                 modifier = Modifier.height(68.dp).clip(RoundedCornerShape(16.dp))
                     .background(if (pending) MotoColors.Red else MotoColors.PanelHigh)
                     .combinedClickable(
-                        onClick = { if (pending) { onRemove(sp); confirm = null } else onGo(sp.place) },
-                        onLongClick = { confirm = sp },
+                        // hapticsEnabled=false: skip Compose's own long-press pulse, the explicit
+                        // RideHaptic calls below already respect the haptics settings.
+                        hapticFeedbackEnabled = false,
+                        onClick = {
+                            haptics.perform(if (pending) RideHaptic.Reject else RideHaptic.Confirm)
+                            if (pending) { onRemove(sp); confirm = null } else onGo(sp.place)
+                        },
+                        onLongClick = {
+                            haptics.perform(RideHaptic.LongPress)
+                            confirm = sp
+                        },
                     )
                     .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -802,8 +812,8 @@ private fun RouteCard(
                 Text(ui.destination?.name.orEmpty(), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 if (externalApps.isNotEmpty() && canOpenExternal) {
                     Box(
-                        Modifier.size(width = 76.dp, height = 68.dp).clickable {
-                            val dest = ui.destination ?: return@clickable
+                        Modifier.size(width = 76.dp, height = 68.dp).hapticClickable {
+                            val dest = ui.destination ?: return@hapticClickable
                             if (externalApps.size == 1) context.startExternalNav(externalApps[0], dest.point.lat, dest.point.lon, options.profile)
                             else menuOpen = true
                         },
@@ -827,7 +837,7 @@ private fun RouteCard(
                         }
                     }
                 }
-                Box(Modifier.size(width = 76.dp, height = 68.dp).clickable(onClick = onSave), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(width = 76.dp, height = 68.dp).hapticClickable(onClick = onSave), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
                             if (saved) Icons.Rounded.Star else Icons.Rounded.StarBorder, null,
@@ -851,7 +861,7 @@ private fun RouteCard(
                     ahead.forEachIndexed { i, stop ->
                         Row(
                             Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(RoundedCornerShape(14.dp)).background(MotoColors.PanelHigh)
-                                .clickable { onRemoveStop(i) }.padding(horizontal = 14.dp),
+                                .hapticClickable(haptic = RideHaptic.Reject) { onRemoveStop(i) }.padding(horizontal = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text("${i + 1}. ${stop.name}", fontSize = 17.sp, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
@@ -901,7 +911,7 @@ private fun OptionChip(label: String, selected: Boolean, onClick: () -> Unit, mo
             .background(if (selected) MotoColors.Blue else MotoColors.PanelHigh)
             .border(1.dp, if (selected) Color.White else Color(0x26FFFFFF), RoundedCornerShape(28.dp))
             .semantics { role = Role.Switch; stateDescription = state }
-            .clickable(onClick = onClick).padding(horizontal = 8.dp),
+            .hapticClickable(haptic = RideHaptic.Select, onClick = onClick).padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -960,7 +970,7 @@ private fun FuelPanel(
                         fontSize = 14.sp, color = MotoColors.Gray,
                     )
                 }
-                Box(Modifier.size(68.dp).clickable(onClick = onClose), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(68.dp).hapticClickable(onClick = onClose), contentAlignment = Alignment.Center) {
                     Icon(Icons.Rounded.Close, stringResource(R.string.message_dismiss), tint = Color.White, modifier = Modifier.size(28.dp))
                 }
             }
@@ -1078,7 +1088,7 @@ private fun Chip(text: String, color: Color) {
 private fun RoundIconButton(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier.size(68.dp).clip(CircleShape).background(Color(0xE6101114))
-            .border(1.dp, Color(0x26FFFFFF), CircleShape).clickable(onClick = onClick),
+            .border(1.dp, Color(0x26FFFFFF), CircleShape).hapticClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Icon(icon, description, tint = Color.White, modifier = Modifier.size(28.dp)) }
 }

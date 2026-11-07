@@ -19,6 +19,7 @@ import androidx.compose.ui.semantics.Role
 @OptIn(ExperimentalFoundationApi::class)
 fun Modifier.pressClickable(
     enabled: Boolean = true,
+    haptic: RideHaptic = RideHaptic.Tap,
     onLongClick: (() -> Unit)? = null,
     onLongClickLabel: String? = null,
     role: Role? = Role.Button,
@@ -26,14 +27,28 @@ fun Modifier.pressClickable(
 ): Modifier = composed {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
+    val haptics = rememberRideHaptics()
     val scale by animateFloatAsState(
         if (pressed) 0.92f else 1f,
         spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "press",
     )
+    // hapticFeedbackEnabled=false: Compose's own long-press pulse ignores the in-app switch; the
+    // single RideHaptic.LongPress below already respects Prefs plus system and view haptics.
     this.graphicsLayer { scaleX = scale; scaleY = scale }.combinedClickable(
+        hapticFeedbackEnabled = false,
         interactionSource = source, indication = null, enabled = enabled, role = role,
-        onClick = onClick, onLongClick = onLongClick, onLongClickLabel = onLongClickLabel,
+        onClick = {
+            haptics.perform(haptic)
+            onClick()
+        },
+        onLongClick = if (onLongClick != null) {
+            {
+                haptics.perform(RideHaptic.LongPress)
+                onLongClick()
+            }
+        } else null,
+        onLongClickLabel = onLongClickLabel,
     )
 }
 
@@ -42,8 +57,38 @@ fun Modifier.pressClickable(
 internal fun Modifier.pressKey(enabled: Boolean, onClick: () -> Unit, onLongClick: (() -> Unit)?): Modifier = composed {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
+    val haptics = rememberRideHaptics()
     val scale by animateFloatAsState(if (pressed) 0.94f else 1f, label = "key")
     this.graphicsLayer { scaleX = scale; scaleY = scale }
-        .combinedClickable(interactionSource = source, indication = null, enabled = enabled, onClick = onClick, onLongClick = onLongClick)
+        .combinedClickable(
+            hapticFeedbackEnabled = false,
+            interactionSource = source, indication = null, enabled = enabled,
+            onClick = {
+                haptics.perform(RideHaptic.Tap)
+                onClick()
+            },
+            onLongClick = if (onLongClick != null) {
+                {
+                    haptics.perform(RideHaptic.LongPress)
+                    onLongClick()
+                }
+            } else null,
+        )
 }
 
+/**
+ * A plain [clickable] with the same ripple as before, plus a short haptic. Use it for rows and cards
+ * where the squeeze animation of [pressClickable] would move too much content.
+ */
+fun Modifier.hapticClickable(
+    enabled: Boolean = true,
+    role: Role? = null,
+    haptic: RideHaptic = RideHaptic.Tap,
+    onClick: () -> Unit,
+): Modifier = composed {
+    val haptics = rememberRideHaptics()
+    this.clickable(enabled = enabled, role = role) {
+        haptics.perform(haptic)
+        onClick()
+    }
+}

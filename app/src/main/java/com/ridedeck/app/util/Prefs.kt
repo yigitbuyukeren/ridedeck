@@ -36,6 +36,7 @@ object Prefs {
     private const val KEY_SETTINGS_HINT = "settings_hint_count"
     private const val KEY_MESSAGE_APPS_SEEN = "message_apps_seen"
     private const val KEY_MESSAGE_APPS_MUTED = "message_apps_muted"
+    private const val KEY_HAPTICS = "haptics_enabled"
 
     /** How many launches showed the "hold for Settings" hint; -1 once the rider has used the long press. */
     fun settingsHintCount(context: Context): Int =
@@ -85,6 +86,14 @@ object Prefs {
     fun setVoiceSpeechRate(context: Context, rate: Float) { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { putFloat("voice_speech_rate", rate.coerceIn(0.75f, 1.25f)) } }
     fun voiceTtsName(context: Context): String? = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("voice_tts_name", null)
     fun setVoiceTtsName(context: Context, name: String?) { context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit { if (name == null) remove("voice_tts_name") else putString("voice_tts_name", name) } }
+
+    /** A light tick on buttons; the Android touch-vibration setting still has the final say. */
+    fun hapticsEnabled(context: Context): Boolean =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_HAPTICS, true)
+
+    fun setHapticsEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_HAPTICS, enabled).apply()
+    }
 
     fun milesUnit(context: Context): Boolean =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_MILES, false)

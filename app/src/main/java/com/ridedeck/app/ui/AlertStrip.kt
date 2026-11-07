@@ -2,7 +2,6 @@ package com.ridedeck.app.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -42,7 +41,7 @@ fun AlertStrip(text: String, accent: Color, onDismiss: () -> Unit, modifier: Mod
             text, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White,
             maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false).padding(vertical = 12.dp),
         )
-        Box(Modifier.size(64.dp).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(64.dp).hapticClickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
             Icon(Icons.Rounded.Close, stringResource(R.string.message_dismiss), tint = Color.White, modifier = Modifier.size(28.dp))
         }
     }

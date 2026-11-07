@@ -119,7 +119,8 @@ fun NowPlayingScreen(
                 RoundButton(Icons.Rounded.SkipPrevious, (68 * k).toInt(), Color.Transparent, enabled = state.hasSession) { media.previous() }
                 RoundButton(
                     if (state.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    (84 * k).toInt(), palette.strong, dark = true, onClick = media::togglePlay,
+                    (84 * k).toInt(), palette.strong, dark = true,
+                    haptic = if (state.playing) RideHaptic.ToggleOff else RideHaptic.ToggleOn, onClick = media::togglePlay,
                 )
                 RoundButton(Icons.Rounded.SkipNext, (68 * k).toInt(), Color.Transparent, enabled = state.hasSession) { media.next() }
                 RoundButton(Icons.AutoMirrored.Rounded.VolumeUp, (60 * k).toInt(), palette.track, onClick = media::volumeUp)
@@ -164,6 +165,7 @@ fun NowPlayingScreen(
 @Composable
 private fun Cover(state: MediaState, direction: () -> Int, onNext: () -> Unit, onPrevious: () -> Unit) {
     val palette = LocalMotoPalette.current
+    val haptics = rememberRideHaptics()
     var drag by remember { mutableFloatStateOf(0f) }
     val offset by animateFloatAsState(drag, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium), label = "swipe")
     val scale by animateFloatAsState(if (state.playing) 1f else 0.93f, spring(stiffness = Spring.StiffnessLow), label = "cover")
@@ -177,7 +179,9 @@ private fun Cover(state: MediaState, direction: () -> Int, onNext: () -> Unit, o
             .background(MotoColors.CardHigh)
             .pointerInput(state.hasSession) {
                 if (!state.hasSession) return@pointerInput
+                var crossed = false
                 detectHorizontalDragGestures(
+                    onDragStart = { crossed = false },
                     onDragEnd = {
                         when {
                             drag <= -threshold -> onNext()
@@ -186,7 +190,14 @@ private fun Cover(state: MediaState, direction: () -> Int, onNext: () -> Unit, o
                         drag = 0f
                     },
                     onDragCancel = { drag = 0f },
-                ) { _, delta -> drag = (drag + delta).coerceIn(-threshold * 1.5f, threshold * 1.5f) }
+                ) { _, delta ->
+                    drag = (drag + delta).coerceIn(-threshold * 1.5f, threshold * 1.5f)
+                    // One light tick when the swipe is far enough to change track; no buzzing while dragging.
+                    if (!crossed && kotlin.math.abs(drag) >= threshold) {
+                        crossed = true
+                        haptics.perform(RideHaptic.Select)
+                    }
+                }
             },
         contentAlignment = Alignment.Center,
     ) {
@@ -313,11 +324,12 @@ private fun RoundButton(
     background: Color,
     dark: Boolean = false,
     enabled: Boolean = true,
+    haptic: RideHaptic = RideHaptic.Tap,
     onClick: () -> Unit,
 ) {
     Box(
         modifier = Modifier
-            .pressClickable(enabled = enabled, onClick = onClick)
+            .pressClickable(enabled = enabled, haptic = haptic, onClick = onClick)
             .size(size.dp)
             .clip(CircleShape)
             .background(background),

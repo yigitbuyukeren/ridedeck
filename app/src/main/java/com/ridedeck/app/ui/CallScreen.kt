@@ -134,8 +134,8 @@ fun CallScreen(
                 ) {
                     when {
                         ringing -> {
-                            ActionPill(Icons.Rounded.Call, stringResource(R.string.call_answer), MotoColors.Green, onAnswer)
-                            ActionPill(Icons.Rounded.CallEnd, stringResource(R.string.call_decline), MotoColors.Red, onHangUp)
+                            ActionPill(Icons.Rounded.Call, stringResource(R.string.call_answer), MotoColors.Green, onAnswer, RideHaptic.Confirm)
+                            ActionPill(Icons.Rounded.CallEnd, stringResource(R.string.call_decline), MotoColors.Red, onHangUp, RideHaptic.Reject)
                         }
                         keys && call.phase == CallPhase.ACTIVE -> {
                             // What has been sent so far, so a long menu ("press 1, then 3") can be followed.
@@ -152,7 +152,7 @@ fun CallScreen(
                                 RoutePicker(call.route, call.routes, onRoute)
                             }
                             if (call.routeError) Text(stringResource(R.string.call_route_failed), color = MotoColors.Red, fontSize = 16.sp)
-                            ActionPill(Icons.Rounded.CallEnd, stringResource(R.string.call_hangup), MotoColors.Red, onHangUp)
+                            ActionPill(Icons.Rounded.CallEnd, stringResource(R.string.call_hangup), MotoColors.Red, onHangUp, RideHaptic.Reject)
                         }
                     }
                 } },
@@ -237,7 +237,7 @@ private fun VolumeRow(onDown: () -> Unit, onUp: () -> Unit) {
 @Composable
 private fun VolumeButton(icon: ImageVector, description: String, onClick: () -> Unit) {
     Box(
-        modifier = Modifier.size(64.dp).clip(CircleShape).background(Color(0x33FFFFFF)).clickable(onClick = onClick),
+        modifier = Modifier.size(64.dp).clip(CircleShape).background(Color(0x33FFFFFF)).hapticClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Icon(icon, description, tint = Color.White, modifier = Modifier.size(32.dp)) }
 }
@@ -251,7 +251,7 @@ private fun InCallKeypad(onDigit: (Char) -> Unit, modifier: Modifier = Modifier)
                 row.forEach { key ->
                     Box(
                         modifier = Modifier.weight(1f).fillMaxHeight().defaultMinSize(minHeight = 56.dp).clip(RoundedCornerShape(18.dp))
-                            .background(Color(0x26FFFFFF)).clickable { onDigit(key) },
+                            .background(Color(0x26FFFFFF)).hapticClickable { onDigit(key) },
                         contentAlignment = Alignment.Center,
                     ) { Text(key.toString(), fontSize = 30.sp, fontWeight = FontWeight.SemiBold, color = Color.White) }
                 }
@@ -284,10 +284,17 @@ private fun Avatar(initial: String?, pulsing: Boolean) {
 }
 
 @Composable
-private fun ActionPill(icon: ImageVector, label: String, color: Color, onClick: () -> Unit) {
+private fun ActionPill(
+    icon: ImageVector,
+    label: String,
+    color: Color,
+    onClick: () -> Unit,
+    haptic: RideHaptic = RideHaptic.Tap,
+) {
     Row(
         modifier = Modifier
-            .fillMaxWidth().height(80.dp).clip(RoundedCornerShape(40.dp)).background(color).clickable(onClick = onClick),
+            .fillMaxWidth().height(80.dp).clip(RoundedCornerShape(40.dp)).background(color)
+            .pressClickable(haptic = haptic, onClick = onClick),
         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -300,7 +307,8 @@ private fun ActionPill(icon: ImageVector, label: String, color: Color, onClick: 
 private fun ToggleAction(icon: ImageVector, label: String, on: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.height(64.dp).clip(RoundedCornerShape(20.dp))
-            .background(if (on) Color.White else Color(0x26FFFFFF)).clickable(onClick = onClick),
+            .background(if (on) Color.White else Color(0x26FFFFFF))
+            .hapticClickable(haptic = if (on) RideHaptic.ToggleOff else RideHaptic.ToggleOn, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {

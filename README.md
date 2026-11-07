@@ -107,6 +107,7 @@ Ayrıntılar için başlıklara dokun.
 - Ana ekran kartları ayarlanır (Ayarlar > Sürüş): harita, müzik, uygulama kartı (sabitlediğin uygulamalar tek sırada) veya boş
 - Rota kartında "Navigasyon uygulamasında aç" (Google Haritalar, Waze, Yandex Navi derin bağlantıları, yalnızca dururken); rota hâlâ RideDeck'te hesaplanır, canlı trafik isteyen bu uygulamalara geçer
 - Mil ve mph ayarı (Ayarlar > Sürüş): hız, mesafe, hız limiti ve rota sesleri
+- Düğmelere basınca hafif dokunma titremesi (Ayarlar > Sürüş'ten kapatılır); telefonun "dokunma geri bildirimi" ayarı kapalıysa yine de titremez
 - Mesaj uygulamalarını tek tek sessize alma (Ayarlar'da görülen uygulamalar için anahtar)
 
 </details>

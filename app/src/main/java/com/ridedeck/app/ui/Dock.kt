@@ -110,7 +110,7 @@ private fun DockTile(
     val ring by animateColorAsState(if (active) Color.White else Color.Transparent, tween(150), label = "dockRing")
     Box(
         modifier = Modifier
-            .pressClickable(onLongClick = onLongClick, onLongClickLabel = longLabel, onClick = onClick)
+            .pressClickable(haptic = RideHaptic.Select, onLongClick = onLongClick, onLongClickLabel = longLabel, onClick = onClick)
             .size(tile)
             .clip(RoundedCornerShape(18.dp))
             .border(3.dp, ring, RoundedCornerShape(18.dp))

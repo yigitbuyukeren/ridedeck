@@ -106,6 +106,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
     }
     val dashSlots by vm.dashSlots.collectAsStateWithLifecycle()
     var recentsOn by remember { mutableStateOf(Prefs.recentPlacesOn(context)) }
+    var hapticsOn by remember { mutableStateOf(Prefs.hapticsEnabled(context)) }
     val recentPlaces by vm.recents.collectAsStateWithLifecycle()
     val voiceSpeechRate by vm.voiceSpeechRate.collectAsStateWithLifecycle()
     val ttsVoiceNames by vm.voiceTtsNames.collectAsStateWithLifecycle()
@@ -468,6 +469,9 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     ToggleItem(stringResource(R.string.speed_limit_title), stringResource(R.string.speed_limit_desc), speedLimitOn, onChange = vm::setSpeedLimitEnabled),
                     ToggleItem(stringResource(R.string.recents_title), stringResource(R.string.recents_desc), recentsOn) { recentsOn = it; vm.setRecentsOn(it) },
                     ToggleItem(stringResource(R.string.units_title), stringResource(R.string.units_desc), Units.miles) { Units.set(context, it) },
+                    ToggleItem(stringResource(R.string.haptics_title), stringResource(R.string.haptics_desc), hapticsOn) { on ->
+                        hapticsOn = on; Prefs.setHapticsEnabled(context, on)
+                    },
                     ToggleItem(stringResource(R.string.record_trips_title), stringResource(R.string.record_trips_desc), recordTrips, onChange = vm::setRecordTrips),
                     ToggleItem(stringResource(R.string.overlay_title), stringResource(R.string.overlay_desc), overlayEnabled) { enabled ->
                         overlayEnabled = toggleOverlay(context, enabled)

@@ -96,13 +96,13 @@ fun AppsScreen(
                         horizontalPadding = 20.dp, singleLine = true,
                     )
                     Box(
-                        modifier = Modifier.size(72.dp).clip(CircleShape).background(palette.cardHigh).clickable(onClick = onSettings),
+                        modifier = Modifier.size(72.dp).clip(CircleShape).background(palette.cardHigh).hapticClickable(onClick = onSettings),
                         contentAlignment = Alignment.Center,
                     ) { Icon(Icons.Rounded.Settings, stringResource(R.string.apps_settings), tint = palette.text, modifier = Modifier.size(32.dp)) }
                 }
                 Box(
                     modifier = Modifier.size(72.dp).clip(CircleShape).background(palette.cardHigh)
-                        .clickable { if (adding) adding = false else onClose() },
+                        .hapticClickable { if (adding) adding = false else onClose() },
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Rounded.Close, stringResource(R.string.message_dismiss), tint = palette.text, modifier = Modifier.size(32.dp)) }
             }
@@ -163,7 +163,7 @@ private fun Shelf(
             val label = remember(pkg) { runCatching { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg) }
             AppTile(
                 pkg, label,
-                modifier = Modifier.clickable(enabled = !editing) { context.launchPackage(pkg) },
+                modifier = Modifier.hapticClickable(enabled = !editing, haptic = RideHaptic.Select) { context.launchPackage(pkg) },
             ) {
                 if (editing) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {
@@ -177,7 +177,7 @@ private fun Shelf(
         if (editing) {
             item {
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(132.dp).clip(RoundedCornerShape(20.dp)).background(MotoColors.Blue).clickable(onClick = onAdd),
+                    modifier = Modifier.fillMaxWidth().height(132.dp).clip(RoundedCornerShape(20.dp)).background(MotoColors.Blue).hapticClickable(onClick = onAdd),
                     contentAlignment = Alignment.Center,
                 ) { Text("+ " + stringResource(R.string.apps_add), fontSize = 20.sp, color = Color.White, fontWeight = FontWeight.SemiBold) }
             }
@@ -191,7 +191,7 @@ private fun EditChip(text: String, description: String, color: Color = Color.Uns
     Box(
         modifier = Modifier.size(width = 44.dp, height = 44.dp).clip(RoundedCornerShape(12.dp))
             .background(if (color == Color.Unspecified) palette.cardHigh else color)
-            .clickable(onClick = onClick),
+            .hapticClickable(haptic = RideHaptic.Select, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Text(text, fontSize = 18.sp, color = if (color == Color.Unspecified) palette.text else Color.White) }
 }
@@ -243,7 +243,7 @@ private fun AppPicker(pinned: List<String>, onPick: (String) -> Unit) {
         items(apps, key = { it.pkg }) { app ->
             Row(
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card)
-                    .clickable { onPick(app.pkg) }.padding(12.dp),
+                    .hapticClickable(haptic = RideHaptic.Select) { onPick(app.pkg) }.padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {

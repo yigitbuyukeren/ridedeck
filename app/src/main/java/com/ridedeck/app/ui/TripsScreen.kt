@@ -80,7 +80,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                     if (storageError) Text(stringResource(R.string.trip_storage_error), fontSize = 16.sp, color = MotoColors.Red)
                 }
                 Box(
-                    modifier = Modifier.size(72.dp).clip(CircleShape).background(palette.cardHigh).clickable(onClick = onClose),
+                    modifier = Modifier.size(72.dp).clip(CircleShape).background(palette.cardHigh).hapticClickable(onClick = onClose),
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Rounded.Close, stringResource(R.string.message_dismiss), tint = palette.text, modifier = Modifier.size(32.dp)) }
             }
@@ -121,7 +121,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                                 modifier = Modifier.fillMaxWidth()
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(if (isSelected) MotoColors.Blue else MotoColors.Card)
-                                    .clickable { selectedId = trip.id }
+                                    .hapticClickable(haptic = RideHaptic.Select) { selectedId = trip.id }
                                     .padding(16.dp),
                             ) {
                                 val fg = if (isSelected) Color.White else palette.text

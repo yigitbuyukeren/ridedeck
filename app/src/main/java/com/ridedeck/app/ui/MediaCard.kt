@@ -121,7 +121,8 @@ fun MediaCard(
                     ControlButton(Icons.Rounded.SkipPrevious, stringResource(R.string.media_previous), 60, onClick = { media.previous() })
                     ControlButton(
                         if (state.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        stringResource(if (state.playing) R.string.media_pause else R.string.play), 76, filled = true, onClick = media::togglePlay,
+                        stringResource(if (state.playing) R.string.media_pause else R.string.play), 76, filled = true,
+                        haptic = if (state.playing) RideHaptic.ToggleOff else RideHaptic.ToggleOn, onClick = media::togglePlay,
                     )
                     ControlButton(Icons.Rounded.SkipNext, stringResource(R.string.media_next), 60, onClick = { media.next() })
                     ControlButton(Icons.AutoMirrored.Rounded.VolumeUp, stringResource(R.string.volume_up), 52, soft = true, onClick = media::volumeUp)
@@ -132,10 +133,18 @@ fun MediaCard(
 }
 
 @Composable
-private fun ControlButton(icon: ImageVector, description: String, size: Int, filled: Boolean = false, soft: Boolean = false, onClick: () -> Unit) {
+private fun ControlButton(
+    icon: ImageVector,
+    description: String,
+    size: Int,
+    filled: Boolean = false,
+    soft: Boolean = false,
+    haptic: RideHaptic = RideHaptic.Tap,
+    onClick: () -> Unit,
+) {
     Box(
         modifier = Modifier
-            .pressClickable(onClick = onClick)
+            .pressClickable(haptic = haptic, onClick = onClick)
             .size(size.dp)
             .clip(CircleShape)
             .background(if (filled) LocalMotoPalette.current.strong else if (soft) LocalMotoPalette.current.track else Color.Transparent),

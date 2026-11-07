@@ -237,6 +237,8 @@
     <string name="sos_noun_bike">Bisiklet</string>
     <string name="perm_location_precise">Hız göstergesi için GPS. Yalnızca yaklaşık konum verilmiş; Ayarlar\'dan "Tam konum"a izin ver.</string>
     <string name="speed_unit_mph">mil/sa</string>
+    <string name="haptics_title">Dokunma titremesi</string>
+    <string name="haptics_desc">Düğmelere basınca hafif titreşim. Telefonun "dokunma geri bildirimi" ayarı kapalıysa yine de titremez.</string>
     <string name="units_title">Mil ve mph</string>
     <string name="units_desc">Hızı mph, mesafeyi mil/fit olarak göster. Rota sesleri de mil kullanır.</string>
     <string name="wind_banner_fmt_mph">Sert rüzgâr: saatte %1$d mil</string>

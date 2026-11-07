@@ -15,7 +15,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -107,7 +106,7 @@ fun PhoneScreen(
                     modifier = Modifier
                         .weight(1f).height(TAP).clip(RoundedCornerShape(TAP / 2))
                         .background(if (selected) MotoColors.Green else palette.card)
-                        .clickable { tab = t },
+                        .hapticClickable(haptic = RideHaptic.Select) { tab = t },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -286,7 +285,7 @@ private fun ContactRow(
     Row(
         modifier = Modifier
             .fillMaxWidth().height(rowHeight).clip(RoundedCornerShape(20.dp)).background(palette.card)
-            .clickable(onClick = onClick).padding(horizontal = if (compact) 10.dp else 14.dp),
+            .hapticClickable(onClick = onClick).padding(horizontal = if (compact) 10.dp else 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 14.dp),
     ) {
@@ -316,6 +315,7 @@ private fun Keypad(
     var number by remember(initial) { mutableStateOf(PhoneMath.dialable(initial)) }
     var name by remember(initial) { mutableStateOf<String?>(null) }
     val palette = LocalMotoPalette.current
+    val haptics = rememberRideHaptics()
     val suggestions = remember(number, contacts, recents) { PhoneMath.matches(number, contacts, recents) }
     val canCall = !locked && PhoneMath.dialable(number).isNotEmpty()
     val portrait = isNarrowScreen()
@@ -362,9 +362,18 @@ private fun Keypad(
                     modifier = Modifier
                         .size(deleteSize).clip(CircleShape).background(palette.card)
                         .combinedClickable(
+                            // No built-in long-press pulse: the RideHaptic calls here already go
+                            // through the in-app switch and system haptic settings.
+                            hapticFeedbackEnabled = false,
                             enabled = canDelete,
-                            onClick = { number = PhoneMath.backspace(number); name = null },
-                            onLongClick = { number = ""; name = null },
+                            onClick = {
+                                haptics.perform(RideHaptic.Tap)
+                                number = PhoneMath.backspace(number); name = null
+                            },
+                            onLongClick = {
+                                haptics.perform(RideHaptic.LongPress)
+                                number = ""; name = null
+                            },
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -377,7 +386,7 @@ private fun Keypad(
                     modifier = Modifier
                         .weight(1f).height(72.dp).clip(RoundedCornerShape(36.dp))
                         .background(if (canCall) MotoColors.Green else palette.track)
-                        .pressClickable(enabled = canCall) { onDial(number, name) },
+                        .pressClickable(enabled = canCall, haptic = RideHaptic.Confirm) { onDial(number, name) },
                     horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

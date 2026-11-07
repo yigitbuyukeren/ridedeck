@@ -237,6 +237,8 @@
     <string name="sos_noun_bike">bicycle</string>
     <string name="perm_location_precise">GPS for the speedometer. Only approximate location is allowed; allow "Precise location" in Settings.</string>
     <string name="speed_unit_mph">mph</string>
+    <string name="haptics_title">Touch vibration</string>
+    <string name="haptics_desc">A light tick when a button is pressed. Does not vibrate if the phone\'s "touch feedback" setting is off.</string>
     <string name="units_title">Miles and mph</string>
     <string name="units_desc">Show speed in mph and distance in miles/feet. Route voice prompts use miles too.</string>
     <string name="wind_banner_fmt_mph">Strong wind: %1$d mph</string>

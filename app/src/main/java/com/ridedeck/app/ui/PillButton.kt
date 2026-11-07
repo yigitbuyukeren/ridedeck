@@ -1,7 +1,6 @@
 package com.ridedeck.app.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
@@ -30,13 +29,14 @@ fun PillButton(
     minHeight: Dp = 72.dp,
     fontSize: TextUnit = 20.sp,
     singleLine: Boolean = false,
+    haptic: RideHaptic = RideHaptic.Tap,
 ) {
     Box(
         modifier = modifier
             .defaultMinSize(minHeight = minHeight)
             .clip(RoundedCornerShape(36.dp))
             .background(color)
-            .clickable(onClick = onClick)
+            .pressClickable(haptic = haptic, onClick = onClick)
             .padding(horizontal = horizontalPadding),
         contentAlignment = Alignment.Center,
     ) {

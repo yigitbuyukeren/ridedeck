@@ -186,7 +186,7 @@ fun SettingsScreen(
                     modifier = Modifier.weight(1f).padding(end = 12.dp),
                 )
                 Box(
-                    modifier = Modifier.size(72.dp).clip(CircleShape).background(MotoColors.CardHigh).clickable(onClick = onClose),
+                    modifier = Modifier.size(72.dp).clip(CircleShape).background(MotoColors.CardHigh).hapticClickable(onClick = onClose),
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Rounded.Close, null, tint = palette.text, modifier = Modifier.size(32.dp)) }
             }
@@ -204,6 +204,7 @@ fun SettingsScreen(
                         // Three tabs across an upright phone: one line each, a little smaller.
                         fontSize = if (portrait) 16.sp else 20.sp,
                         singleLine = portrait,
+                        haptic = RideHaptic.Select,
                     )
                 }
             }
@@ -304,16 +305,27 @@ fun SettingsScreen(
 @Composable
 private fun ToggleRow(t: ToggleItem) {
     // The whole row toggles, not just the small switch: much easier to hit with gloves.
+    val haptics = rememberRideHaptics()
     Row(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card)
-            .clickable(enabled = t.enabled) { t.onChange(!t.checked) }.padding(horizontal = 16.dp, vertical = 20.dp),
+            .hapticClickable(enabled = t.enabled, haptic = if (t.checked) RideHaptic.ToggleOff else RideHaptic.ToggleOn) {
+                t.onChange(!t.checked)
+            }
+            .padding(horizontal = 16.dp, vertical = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(t.title, fontSize = 20.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
             Text(t.description, fontSize = 15.sp, color = LocalMotoPalette.current.muted)
         }
-        Switch(checked = t.checked, onCheckedChange = t.onChange, enabled = t.enabled)
+        Switch(
+            checked = t.checked,
+            onCheckedChange = {
+                if (t.enabled) haptics.perform(if (it) RideHaptic.ToggleOn else RideHaptic.ToggleOff)
+                t.onChange(it)
+            },
+            enabled = t.enabled,
+        )
     }
 }
 
@@ -363,6 +375,7 @@ private fun ThemeRow(mode: ThemeMode, onSelect: (ThemeMode) -> Unit) {
                     { onSelect(m) },
                     Modifier.weight(1f),
                     textColor = if (m == mode) Color.White else palette.text,
+                    haptic = RideHaptic.Select,
                 )
             }
         }
@@ -388,7 +401,7 @@ fun ChoiceRow(title: String, description: String, choices: List<Pair<String, Boo
                     Box(
                         modifier = Modifier.weight(1f).height(64.dp).clip(RoundedCornerShape(32.dp))
                             .background(if (selected) MotoColors.Blue else palette.cardHigh)
-                            .clickable { onSelect(i) }.padding(horizontal = 4.dp),
+                            .hapticClickable(haptic = RideHaptic.Select) { onSelect(i) }.padding(horizontal = 4.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -423,7 +436,7 @@ private fun MarkerRow() {
                 Column(
                     modifier = Modifier.weight(1f).clip(RoundedCornerShape(16.dp))
                         .background(if (picked) MotoColors.Blue else palette.cardHigh)
-                        .clickable { MarkerStyle.set(context, look.copy(shape = shape)) }
+                        .hapticClickable(haptic = RideHaptic.Select) { MarkerStyle.set(context, look.copy(shape = shape)) }
                         .padding(vertical = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -439,7 +452,7 @@ private fun MarkerRow() {
                 Box(
                     modifier = Modifier.size(46.dp).clip(CircleShape).background(Color(argb))
                         .then(if (i == look.colorIndex) Modifier.border(4.dp, palette.text, CircleShape) else Modifier)
-                        .clickable { MarkerStyle.set(context, look.copy(colorIndex = i)) },
+                        .hapticClickable(haptic = RideHaptic.Select) { MarkerStyle.set(context, look.copy(colorIndex = i)) },
                 )
             }
         }
