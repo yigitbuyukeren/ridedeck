@@ -82,7 +82,17 @@ fun MiniMap(
         else destSource?.setGeoJson(FeatureCollection.fromFeatures(emptyList<Feature>()))
     }
 
-    SmoothFollow(map, mapView, styleReady, me, follow = true, zoom = 16.0, tilt = 50.0, padTopFraction = 0.3, maxFps = if (lowPower) MINI_LOW_POWER_FPS else MINI_FULL_FPS)
+    SmoothFollow(
+        map, mapView, styleReady, me,
+        follow = true,
+        zoom = 16.0,
+        tilt = 50.0,
+        padTopFraction = 0.3,
+        maxFps = if (lowPower) MINI_LOW_POWER_FPS else MINI_FULL_FPS,
+        route = route,
+        progressIndex = progressIndex,
+        progressFraction = progressFraction,
+    )
 
     AndroidView(
         modifier = modifier.fillMaxSize(),

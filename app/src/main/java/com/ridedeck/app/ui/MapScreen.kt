@@ -232,7 +232,17 @@ fun MapScreen(
             kotlinx.coroutines.delay(100)
         }
     }
-    SmoothFollow(map, mapView, styleReady, me, follow = ui.navigating && !overview, zoom = camZoom, tilt = camTilt, padTopFraction = 0.45, maxFps = if (lowPower) LOW_POWER_FPS else FULL_FPS)
+    SmoothFollow(
+        map, mapView, styleReady, me,
+        follow = ui.navigating && !overview,
+        zoom = camZoom,
+        tilt = camTilt,
+        padTopFraction = 0.45,
+        maxFps = if (lowPower) LOW_POWER_FPS else FULL_FPS,
+        route = ui.route.takeIf { ui.navigating },
+        progressIndex = ui.progressIndex,
+        progressFraction = ui.progressFraction,
+    )
 
     LaunchedEffect(styleReady, me.fixAtMs, ui.navigating) {
         val m = map ?: return@LaunchedEffect
