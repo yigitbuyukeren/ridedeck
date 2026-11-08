@@ -80,6 +80,10 @@
     <string name="trips_desc">Mesafe, süre, ortalama ve en yüksek hız</string>
     <string name="trips_empty">Henüz kayıtlı yolculuk yok. %1$s üzerinde sürmeye başlayınca otomatik kaydedilir.</string>
     <string name="battery_percent_fmt">%%%1$d</string>
+    <string name="battery_status_fmt">Pil %%%1$d</string>
+    <string name="battery_status_charging_fmt">Pil %%%1$d, şarj oluyor</string>
+    <string name="battery_status_low_fmt">Pil %%%1$d, kritik seviye</string>
+    <string name="battery_status_low_charging_fmt">Pil %%%1$d, kritik seviye, şarj oluyor</string>
     <string name="trip_recording">Kayıt sürüyor</string>
     <string name="trip_storage_error">Depolama hatası: kayıt durdu. Boş alanı kontrol edip uygulamayı yeniden başlat.</string>
     <string name="stat_distance">Mesafe</string>
@@ -103,7 +107,7 @@
     <string name="weather_title">Hava durumu</string>
     <string name="weather_desc">Dashboard\'da sıcaklık ve yağmur beklentisi. Yaklaşık konumun (1 km hassasiyetle) Open-Meteo sunucusuna gönderilir.</string>
     <string name="rain_voice_title">Sesli hava uyarısı</string>
-    <string name="rain_voice_desc">Yağmur yaklaşırken, hava 3 derece ve altına inince veya (bisiklette) rüzgâr sertleşince bir kez söyler.</string>
+    <string name="rain_voice_desc">Yağmur yaklaşırken veya hava 3 derece ve altına inince bir kez söyler.</string>
     <string name="rain_banner_fmt">%1$d dk içinde yağmur bekleniyor</string>
     <string name="rain_banner_now">Yağmur başlıyor</string>
     <string name="rain_voice_fmt">Yaklaşık %1$d dakika içinde yağmur başlıyor</string>
@@ -121,7 +125,7 @@
     <string name="fuel_add_stop">Ara durak</string>
     <string name="fuel_go">Git</string>
     <string name="thermal_title">Isınma koruması</string>
-    <string name="thermal_desc">Telefon 42°C\'yi aşınca ekran kısılır ve harita yavaşlar; araç bir dakika durursa ekran kararır, hareket edince geri açılır. Normal sıcaklıkta hiçbir şey değişmez.</string>
+    <string name="thermal_desc">Telefon 42°C\'yi aşınca ekran kısılır ve harita yavaşlar; motosiklet bir dakika durursa ekran kararır, hareket edince geri açılır. Normal sıcaklıkta hiçbir şey değişmez.</string>
     <string name="thermal_banner">Telefon ısınıyor, şarjı kesmeyi düşün</string>
     <string name="thermal_voice">Telefon çok ısındı</string>
     <string name="sos_title">Acil durum (SOS)</string>
@@ -133,7 +137,7 @@
     <string name="sos_perm_title">SMS izni</string>
     <string name="sos_perm_desc">Mesajı göndermek için</string>
     <string name="sos_crash_title">Otomatik kaza algılama</string>
-    <string name="sos_crash_desc">Sert darbe ve ardından hareketsizlik olursa geri sayım başlar. Telefon araca sabitken kullan.</string>
+    <string name="sos_crash_desc">Sert darbe ve ardından hareketsizlik olursa geri sayım başlar. Telefon motosiklete sabitken kullan.</string>
     <string name="sos_button_title">SOS düğmesi</string>
     <string name="sos_button_desc">Hız göstergesinin köşesindeki düğmeye 1,5 saniye basılı tut.</string>
     <string name="sos_test">Test et (SMS gitmez)</string>
@@ -162,9 +166,14 @@
     <string name="sos_loc_stale">Son bilinen konum: %1$s</string>
     <string name="sos_loc_none">Konum alinamadi.</string>
     <string name="retry">Tekrar dene</string>
-    <string name="settings_tab_setup">Kurulum</string>
-    <string name="settings_tab_ride">Sürüş</string>
+    <string name="settings_tab_general">Genel</string>
+    <string name="settings_tab_appearance">Görünüm</string>
+    <string name="settings_tab_map">Harita</string>
+    <string name="settings_tab_sound">Ses ve bildirimler</string>
     <string name="settings_tab_safety">Güvenlik</string>
+    <string name="settings_tab_system">İzinler ve sistem</string>
+    <string name="settings_group_messages">Mesaj uygulamaları</string>
+    <string name="settings_group_messages_desc">Kapattığın uygulamanın mesajları ana ekranda görünmez ve okunmaz.</string>
     <string name="fuel_nearby">Yakınında</string>
     <string name="opt_no_highway">Otoyolsuz</string>
     <string name="opt_no_toll">Ücretsiz yol</string>
@@ -206,52 +215,15 @@
     <string name="gps_fair">GPS orta</string>
     <string name="gps_poor">GPS zayıf</string>
 
-    <!-- Vehicle profile -->
-    <string name="vehicle_title">Neyle çıkıyorsun?</string>
-    <string name="vehicle_sub">Rota, uyarılar ve düzen buna göre ayarlanır. Sonra Ayarlar\'dan değiştirebilirsin.</string>
-    <string name="vehicle_moto">Motosiklet</string>
-    <string name="vehicle_moto_desc">Motosiklet rotası, eldivene uygun düğmeler, kaza algılama</string>
-    <string name="vehicle_car">Araba</string>
-    <string name="vehicle_car_desc">Araba rotası, benzinlik ve şarj noktaları</string>
-    <string name="vehicle_bike">Bisiklet</string>
-    <string name="vehicle_bike_desc">Bisiklet rotası, tamir ve su noktaları, dik ekran</string>
-    <string name="vehicle_setting_title">Araç</string>
-    <string name="vehicle_setting_desc">Rota, uyarılar ve düzen seçtiğin araca göre ayarlanır.</string>
-    <string name="stops_title_car">Benzin ve şarj</string>
-    <string name="stops_title_bike">Mola noktaları</string>
-    <string name="stop_unnamed_charge">Şarj istasyonu</string>
-    <string name="stop_unnamed_repair">Bisiklet tamir noktası</string>
-    <string name="stop_unnamed_shop">Bisiklet dükkânı</string>
-    <string name="stop_unnamed_water">İçme suyu</string>
-    <string name="opt_no_hills">Yokuşsuz</string>
-    <string name="opt_no_bad_surface">Düz zemin</string>
-    <string name="bike_type_title">Bisiklet tipi</string>
-    <string name="bike_type_desc">Yol bisikleti ince lastikle asfalt, dağ bisikleti ise toprak yolları da kullanır.</string>
-    <string name="bike_road">Yol</string>
-    <string name="bike_city">Şehir</string>
-    <string name="bike_mountain">Dağ</string>
-    <string name="wind_banner_fmt">Sert rüzgâr: saatte %1$d km</string>
-    <string name="wind_voice_fmt">Rüzgâr saatte %1$d kilometreye çıkıyor, dikkat</string>
+    <!-- Motorcycle profile -->
     <string name="sos_noun_moto">Motosiklet</string>
-    <string name="sos_noun_car">Araba</string>
-    <string name="sos_noun_bike">Bisiklet</string>
     <string name="perm_location_precise">Hız göstergesi için GPS. Yalnızca yaklaşık konum verilmiş; Ayarlar\'dan "Tam konum"a izin ver.</string>
     <string name="speed_unit_mph">mil/sa</string>
     <string name="haptics_title">Dokunma titremesi</string>
     <string name="haptics_desc">Düğmelere basınca hafif titreşim. Telefonun "dokunma geri bildirimi" ayarı kapalıysa yine de titremez.</string>
     <string name="units_title">Mil ve mph</string>
     <string name="units_desc">Hızı mph, mesafeyi mil/fit olarak göster. Rota sesleri de mil kullanır.</string>
-    <string name="wind_banner_fmt_mph">Sert rüzgâr: saatte %1$d mil</string>
-    <string name="apps_title">Uygulamalar</string>
-    <string name="apps_empty">Henüz sabitlenmiş uygulama yok. "Düzenle"ye basıp ekle.</string>
-    <string name="apps_edit">Düzenle</string>
-    <string name="apps_done">Bitti</string>
-    <string name="apps_add">Ekle</string>
-    <string name="apps_add_title">Uygulama ekle</string>
-    <string name="apps_move_up">Yukarı taşı</string>
-    <string name="apps_move_down">Aşağı taşı</string>
     <string name="apps_remove">Kaldır</string>
-    <string name="apps_locked">Sürerken uygulama eklenemez ve düzenlenemez.</string>
     <string name="apps_settings">Ayarlar</string>
     <string name="open_external_nav">Navigasyon uygulamasında aç</string>
     <string name="msg_app_title_fmt">%1$s mesajları</string>
@@ -263,8 +235,7 @@
     <string name="dash_media">Müzik</string>
     <string name="dash_apps">Uygulama</string>
     <string name="dash_none">Boş</string>
-    <string name="apps_card_empty">Uygulama ekle</string>
-    <string name="vehicle_continue">Devam et</string>
+
     <string name="perm_intro_title">Birkaç izin gerekiyor</string>
     <string name="perm_intro_sub">Şimdi vermesen de olur; hepsi Ayarlar > Kurulum\'da durur.</string>
     <string name="perm_intro_later">Sonra</string>
@@ -278,9 +249,7 @@
     <string name="open_external_label">Başka uygulamada</string>
     <string name="save_place_label">Kaydet</string>
     <string name="save_place_saved">Kayıtlı</string>
-    <string name="dock_settings_hint">basılı tut</string>
-    <string name="dock_long_press_settings">Ayarları aç</string>
-    <string name="perm_intro_settings_hint">Ayarlar: Uygulamalar karosuna uzun bas.</string>
+    <string name="perm_intro_settings_hint">Ayarlar: alt dock\'taki dişli karosuna dokun.</string>
     <string name="gps_debug_fmt">yaş %1$s ms · aralık %2$s sn · hız doğruluğu %3$s m/s</string>
     <string name="voice_tts_title">Sesli yönlendirme sesi</string>
     <string name="voice_tts_desc">Cihazda yüklü bir sistem sesi seç</string>
@@ -327,7 +296,6 @@
     <string name="media_pause">Duraklat</string>
     <string name="volume_down">Sesi kıs</string>
     <string name="volume_up">Sesi aç</string>
-    <string name="map_stops">Duraklar</string>
     <string name="map_overview">Tüm rotayı göster</string>
     <string name="map_recenter">Konumuma dön</string>
     <string name="key_shift">Büyük harf</string>

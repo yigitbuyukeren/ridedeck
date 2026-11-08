@@ -24,7 +24,7 @@ data class WeatherSnapshot(
     val iceRisk: Boolean get() = WeatherMath.iceRisk(tempC)
 }
 
-enum class WeatherAlert { RAIN, ICE, WIND }
+enum class WeatherAlert { RAIN, ICE }
 
 object WeatherMath {
     private const val SLOT_MIN = 15
@@ -114,8 +114,6 @@ class WeatherController(
     private val location: StateFlow<LocationState>,
     private val enabled: StateFlow<Boolean>,
     private val repo: WeatherRepository = WeatherRepository(),
-    /** Gust speed (km/h) from which the wind is worth a warning for this vehicle; null for none. */
-    private val windAlertKmh: () -> Int? = { null },
     private val onAlert: (WeatherAlert, WeatherSnapshot) -> Unit,
 ) {
     private val _snapshot = MutableStateFlow<WeatherSnapshot?>(null)
@@ -125,7 +123,6 @@ class WeatherController(
     private var lastFetchPoint: GeoPoint? = null
     private var rainAnnounced = false
     private var iceAnnounced = false
-    private var windAnnounced = false
 
     fun start() {
         scope.launch {
@@ -158,16 +155,11 @@ class WeatherController(
         // A failed fetch keeps the old snapshot and tries again on the next tick.
     }
 
-    /** True when the gusts reach this vehicle's threshold. */
-    fun windy(s: WeatherSnapshot): Boolean = windAlertKmh()?.let { s.windKmh >= it } == true
-
     private fun announce(s: WeatherSnapshot) {
         if (s.rainInMin == null) rainAnnounced = false
         else if (!rainAnnounced) { rainAnnounced = true; onAlert(WeatherAlert.RAIN, s) }
         if (!s.iceRisk) iceAnnounced = false
         else if (!iceAnnounced) { iceAnnounced = true; onAlert(WeatherAlert.ICE, s) }
-        if (!windy(s)) windAnnounced = false
-        else if (!windAnnounced) { windAnnounced = true; onAlert(WeatherAlert.WIND, s) }
     }
 
     private companion object {

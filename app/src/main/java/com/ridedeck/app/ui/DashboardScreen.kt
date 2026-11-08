@@ -76,10 +76,8 @@ fun DashboardScreen(vm: DashboardViewModel) {
     val callState by vm.call.state.collectAsStateWithLifecycle()
     val callerName by vm.callerName.collectAsStateWithLifecycle()
     val resume by vm.resumeTick.collectAsStateWithLifecycle()
-    val profile by vm.profile.collectAsStateWithLifecycle()
-    val vehicleChosen by vm.vehicleChosen.collectAsStateWithLifecycle()
     val routeOptions by vm.nav.options.collectAsStateWithLifecycle()
-    val cfg = profile.config
+    val cfg = com.ridedeck.app.data.VehicleProfile.MOTORCYCLE.config
     val portrait = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
 
     val speedLimitOn by vm.speedLimitEnabled.collectAsStateWithLifecycle()
@@ -97,13 +95,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
     var showMap by remember { mutableStateOf(false) }
     var showNowPlaying by remember { mutableStateOf(false) }
     var showPhone by remember { mutableStateOf(false) }
-    var showApps by remember { mutableStateOf(false) }
-    // The "hold for Settings" caption shows for the first few launches, until the long press has been used.
-    var settingsHint by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        val n = Prefs.settingsHintCount(context)
-        if (n in 0 until 5) { settingsHint = true; Prefs.setSettingsHintCount(context, n + 1) }
-    }
     val dashSlots by vm.dashSlots.collectAsStateWithLifecycle()
     var recentsOn by remember { mutableStateOf(Prefs.recentPlacesOn(context)) }
     var hapticsOn by remember { mutableStateOf(Prefs.hapticsEnabled(context)) }
@@ -120,8 +111,8 @@ fun DashboardScreen(vm: DashboardViewModel) {
     val navUi by vm.nav.ui.collectAsStateWithLifecycle()
     val places by vm.places.collectAsStateWithLifecycle()
     val thermal by vm.thermal.state.collectAsStateWithLifecycle()
-    // Without a charger a low battery is treated like a hot phone: the maps drop their frame rate.
-    val lowPower = thermal.lowPower || (cfg.assumesNoCharger && !battery.charging && battery.percent in 1..LOW_BATTERY_PERCENT)
+    // A hot phone slows the maps down; the guard lives in ThermalGuard.
+    val lowPower = thermal.lowPower
     val thermalOn by vm.thermalEnabled.collectAsStateWithLifecycle()
     var heatDismissed by remember { mutableStateOf(false) }
     LaunchedEffect(thermal.warn) { if (!thermal.warn) heatDismissed = false }
@@ -134,14 +125,11 @@ fun DashboardScreen(vm: DashboardViewModel) {
     val rainVoice by vm.rainVoice.collectAsStateWithLifecycle()
     var rainDismissed by remember { mutableStateOf(false) }
     var iceDismissed by remember { mutableStateOf(false) }
-    var windDismissed by remember { mutableStateOf(false) }
-    val windy = weather?.let { w -> cfg.windAlertKmh?.let { w.windKmh >= it } } == true
-    LaunchedEffect(windy) { if (!windy) windDismissed = false }
     val raining = weather?.rainInMin != null
     val icy = weather?.iceRisk == true
     LaunchedEffect(raining) { if (!raining) rainDismissed = false }
     LaunchedEffect(icy) { if (!icy) iceDismissed = false }
-    // Settings no longer open by themselves; a short permission page follows the vehicle question instead.
+    // Settings no longer open by themselves; first launch shows the short permission page instead.
     var showSettings by remember { mutableStateOf(false) }
     var showPermIntro by rememberSaveable { mutableStateOf(!locationGranted(context)) }
     LaunchedEffect(dialRequest) {
@@ -235,19 +223,17 @@ fun DashboardScreen(vm: DashboardViewModel) {
     val tellSettingsLocked = { android.widget.Toast.makeText(context, R.string.settings_locked, android.widget.Toast.LENGTH_SHORT).show() }
     LaunchedEffect(settingsLocked) { if (settingsLocked && showSettings) { showSettings = false; tellSettingsLocked() } }
 
-    BackHandler(enabled = showMap || showNowPlaying || showPhone || showTrips || showApps) {
-        showApps = false
+    BackHandler(enabled = showMap || showNowPlaying || showPhone || showTrips) {
         showTrips = false
         showPhone = false
         showMap = false
         showNowPlaying = false
     }
 
-    // Back closes the settings page; it must not drop out of the app. The first-launch question cannot be skipped
-    // and an SOS countdown cannot be cancelled by accident (only its own button does that).
+    // Back closes the settings page; it must not drop out of the app. The first-launch permission page
+    // and an SOS countdown cannot be cancelled by accident (only their own buttons do that).
     BackHandler(enabled = showSettings) { showSettings = false }
-    BackHandler(enabled = vehicleChosen == null) {}
-    BackHandler(enabled = vehicleChosen != null && showPermIntro) { showPermIntro = false }
+    BackHandler(enabled = showPermIntro) { showPermIntro = false }
     BackHandler(enabled = sosUi.phase != SosPhase.IDLE) { if (sosUi.phase != SosPhase.COUNTDOWN) vm.sos.dismiss() }
 
     Surface(color = Color.Transparent, modifier = Modifier.fillMaxSize().background(LocalMotoPalette.current.wallpaper)) {
@@ -259,18 +245,14 @@ fun DashboardScreen(vm: DashboardViewModel) {
             val dock: @Composable () -> Unit = {
                 Dock(
                     battery = battery,
-                    onNavigation = { showMap = !showMap; showNowPlaying = false; showPhone = false; showSettings = false; showApps = false },
-                    onMusic = { showNowPlaying = !showNowPlaying; showMap = false; showPhone = false; showSettings = false; showApps = false },
-                    onPhone = { vm.dialRequest.value = null; showPhone = !showPhone; showMap = false; showNowPlaying = false; showSettings = false; showApps = false },
-                    onApps = { showApps = !showApps; showMap = false; showNowPlaying = false; showPhone = false; showSettings = false },
+                    onNavigation = { showMap = !showMap; showNowPlaying = false; showPhone = false; showSettings = false },
+                    onMusic = { showNowPlaying = !showNowPlaying; showMap = false; showPhone = false; showSettings = false },
+                    onPhone = { vm.dialRequest.value = null; showPhone = !showPhone; showMap = false; showNowPlaying = false; showSettings = false },
                     onSettings = {
-                        if (settingsLocked) tellSettingsLocked() else {
-                            Prefs.setSettingsHintCount(context, -1); settingsHint = false
-                            showSettings = true; showMap = false; showNowPlaying = false; showPhone = false; showApps = false
-                        }
+                        if (settingsLocked) tellSettingsLocked()
+                        else { showSettings = true; showMap = false; showNowPlaying = false; showPhone = false }
                     },
-                    settingsHint = settingsHint,
-                    active = when { showMap -> DockTab.NAV; showNowPlaying -> DockTab.MUSIC; showPhone -> DockTab.PHONE; showApps -> DockTab.APPS; else -> DockTab.NONE },
+                    active = when { showMap -> DockTab.NAV; showNowPlaying -> DockTab.MUSIC; showPhone -> DockTab.PHONE; showSettings -> DockTab.SETTINGS; else -> DockTab.NONE },
                     horizontal = portrait,
                 )
             }
@@ -349,7 +331,14 @@ fun DashboardScreen(vm: DashboardViewModel) {
                         )
                     }
                     val appsCard: @Composable (Modifier) -> Unit = { mod ->
-                        AppsCard(pinnedApps, onOpenShelf = { showApps = true }, modifier = mod)
+                        AppsCard(
+                            pinnedApps,
+                            onSettings = {
+                                if (settingsLocked) tellSettingsLocked()
+                                else { showSettings = true; showMap = false; showNowPlaying = false; showPhone = false }
+                            },
+                            modifier = mod,
+                        )
                     }
                     // The speed card is fixed; the other two slots show what the rider chose in Settings.
                     val slotCard: @Composable (DashCard, Modifier) -> Unit = { card, mod ->
@@ -418,14 +407,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
                             modifier = m,
                         )
                     }
-                    weatherOn && w != null && windy && !windDismissed -> { m ->
-                        AlertStrip(
-                            text = stringResource(if (Units.miles) R.string.wind_banner_fmt_mph else R.string.wind_banner_fmt, Units.speed(w.windKmh)),
-                            accent = MotoColors.Orange,
-                            onDismiss = { windDismissed = true },
-                            modifier = m,
-                        )
-                    }
                     else -> null
                 }
             } else null
@@ -458,66 +439,155 @@ fun DashboardScreen(vm: DashboardViewModel) {
 
         // Settings and trips cover the whole screen, cutout strip included; they pad their own content.
             AnimatedVisibility(visible = showSettings, enter = overlayEnter, exit = overlayExit) {
-                val toggles = listOf(
-                    ToggleItem(stringResource(R.string.msg_auto_title), stringResource(R.string.msg_auto_desc), autoRead, onChange = vm::setReadMessagesAloud),
-                    ) + messageApps.map { row ->
-                        ToggleItem(stringResource(R.string.msg_app_title_fmt, row.label), stringResource(R.string.msg_app_desc), !row.muted) { on -> vm.setMessageAppMuted(row.pkg, !on) }
-                    } + listOf(
-                    ToggleItem(stringResource(R.string.weather_title), stringResource(R.string.weather_desc), weatherOn, onChange = vm::setWeatherEnabled),
-                    ToggleItem(stringResource(R.string.rain_voice_title), stringResource(R.string.rain_voice_desc), rainVoice, onChange = vm::setRainVoice),
-                    ToggleItem(stringResource(R.string.thermal_title), stringResource(R.string.thermal_desc), thermalOn, onChange = vm::setThermalEnabled),
-                    ToggleItem(stringResource(R.string.speed_limit_title), stringResource(R.string.speed_limit_desc), speedLimitOn, onChange = vm::setSpeedLimitEnabled),
-                    ToggleItem(stringResource(R.string.recents_title), stringResource(R.string.recents_desc), recentsOn) { recentsOn = it; vm.setRecentsOn(it) },
-                    ToggleItem(stringResource(R.string.units_title), stringResource(R.string.units_desc), Units.miles) { Units.set(context, it) },
-                    ToggleItem(stringResource(R.string.haptics_title), stringResource(R.string.haptics_desc), hapticsOn) { on ->
-                        hapticsOn = on; Prefs.setHapticsEnabled(context, on)
-                    },
-                    ToggleItem(stringResource(R.string.record_trips_title), stringResource(R.string.record_trips_desc), recordTrips, onChange = vm::setRecordTrips),
-                    ToggleItem(stringResource(R.string.overlay_title), stringResource(R.string.overlay_desc), overlayEnabled) { enabled ->
-                        overlayEnabled = toggleOverlay(context, enabled)
-                    },
+                val dashOrder = listOf(DashCard.NAV, DashCard.MEDIA, DashCard.APPS, DashCard.NONE)
+                @Composable
+                fun slotRow(index: Int, title: Int) = ChoiceRow(
+                    stringResource(title), stringResource(R.string.dash_slot_desc),
+                    listOf(
+                        stringResource(R.string.dash_nav), stringResource(R.string.dash_media),
+                        stringResource(R.string.dash_apps), stringResource(R.string.dash_none),
+                    ).mapIndexed { i, label -> label to (dashSlots.getOrNull(index) == dashOrder[i]) },
+                ) { vm.setDashSlot(index, dashOrder[it]) }
+                val messageToggles = messageApps.map { row ->
+                    ToggleItem(
+                        stringResource(R.string.msg_app_title_fmt, row.label), "",
+                        !row.muted,
+                    ) { on -> vm.setMessageAppMuted(row.pkg, !on) }
+                }
+                val systemRows = mutableListOf<@Composable () -> Unit>()
+                settingItems.forEach { item -> systemRows.add { SettingRow(item) } }
+                systemRows.add {
+                    ToggleRow(
+                        ToggleItem(stringResource(R.string.thermal_title), stringResource(R.string.thermal_desc), thermalOn, onChange = vm::setThermalEnabled),
+                    )
+                }
+                systemRows.add {
+                    ToggleRow(
+                        ToggleItem(stringResource(R.string.overlay_title), stringResource(R.string.overlay_desc), overlayEnabled) { enabled ->
+                            overlayEnabled = toggleOverlay(context, enabled)
+                        },
+                    )
+                }
+                val pages = listOf(
+                    SettingsPage(
+                        SettingsCategory.GENERAL,
+                        listOf(
+                            {
+                                ToggleRow(
+                                    ToggleItem(stringResource(R.string.units_title), stringResource(R.string.units_desc), Units.miles) { Units.set(context, it) },
+                                )
+                            },
+                            {
+                                ToggleRow(
+                                    ToggleItem(stringResource(R.string.recents_title), stringResource(R.string.recents_desc), recentsOn) {
+                                        recentsOn = it; vm.setRecentsOn(it)
+                                    },
+                                )
+                            },
+                            {
+                                ToggleRow(
+                                    ToggleItem(stringResource(R.string.record_trips_title), stringResource(R.string.record_trips_desc), recordTrips, onChange = vm::setRecordTrips),
+                                )
+                            },
+                            {
+                                ToggleRow(
+                                    ToggleItem(stringResource(R.string.haptics_title), stringResource(R.string.haptics_desc), hapticsOn) { on ->
+                                        hapticsOn = on; Prefs.setHapticsEnabled(context, on)
+                                    },
+                                )
+                            },
+                            {
+                                SettingRow(
+                                    SettingItem(
+                                        stringResource(R.string.trips_title), stringResource(R.string.trips_desc), false,
+                                        stringResource(R.string.action_open),
+                                    ) { showSettings = false; showTrips = true },
+                                )
+                            },
+                        ),
+                    ),
+                    SettingsPage(
+                        SettingsCategory.APPEARANCE,
+                        listOf(
+                            { ThemeRow(themeMode, vm.theme::setMode) },
+                            { slotRow(0, R.string.dash_slot_one) },
+                            { slotRow(1, R.string.dash_slot_two) },
+                        ),
+                    ),
+                    SettingsPage(
+                        SettingsCategory.MAP,
+                        listOf(
+                            { MarkerRow() },
+                            {
+                                ToggleRow(
+                                    ToggleItem(stringResource(R.string.speed_limit_title), stringResource(R.string.speed_limit_desc), speedLimitOn, onChange = vm::setSpeedLimitEnabled),
+                                )
+                            },
+                            {
+                                ToggleRow(
+                                    ToggleItem(stringResource(R.string.weather_title), stringResource(R.string.weather_desc), weatherOn, onChange = vm::setWeatherEnabled),
+                                )
+                            },
+                            {
+                                OfflineMapsCard(
+                                    locationState.takeIf { it.hasFreshFix(System.currentTimeMillis()) }
+                                        ?.let { com.ridedeck.app.data.GeoPoint(it.lat, it.lon) },
+                                )
+                            },
+                        ),
+                    ),
+                    SettingsPage(
+                        SettingsCategory.SOUND,
+                        listOf(
+                            {
+                                VoiceControlsRow(
+                                    voiceSpeechRate, vm::setVoiceSpeechRate,
+                                    ttsVoiceNames, selectedTtsVoice, vm::setTtsVoice,
+                                )
+                            },
+                            {
+                                ToggleRow(
+                                    ToggleItem(stringResource(R.string.msg_auto_title), stringResource(R.string.msg_auto_desc), autoRead, onChange = vm::setReadMessagesAloud),
+                                )
+                            },
+                            {
+                                ToggleGroupRow(
+                                    stringResource(R.string.settings_group_messages),
+                                    stringResource(R.string.settings_group_messages_desc),
+                                    messageToggles,
+                                )
+                            },
+                            {
+                                ToggleRow(
+                                    ToggleItem(stringResource(R.string.rain_voice_title), stringResource(R.string.rain_voice_desc), rainVoice, onChange = vm::setRainVoice),
+                                )
+                            },
+                        ),
+                    ),
+                    SettingsPage(
+                        SettingsCategory.SAFETY,
+                        fullWidth = true,
+                        rows = listOf(
+                            {
+                                SosSettingsCard(
+                                    contacts = sosContacts,
+                                    onAdd = vm::addSosContact,
+                                    onRemove = vm::removeSosContact,
+                                    crashEnabled = sosCrash,
+                                    onCrashEnabled = vm::setSosCrashEnabled,
+                                    buttonEnabled = sosButton,
+                                    onButtonEnabled = vm::setSosButtonEnabled,
+                                    onTest = { vm.sos.trigger(SosReason.TEST) },
+                                )
+                            },
+                        ),
+                    ),
+                    SettingsPage(SettingsCategory.SYSTEM, systemRows),
                 )
                 SettingsScreen(
-                    items = settingItems,
-                    toggles = toggles,
-                    onOpenTrips = { showSettings = false; showTrips = true },
-                    themeMode = themeMode,
-                    onThemeMode = vm.theme::setMode,
+                    pages = pages,
                     onClose = { showSettings = false },
-                    vehicle = profile,
-                    onVehicle = vm::setVehicle,
-                    dashSlots = dashSlots,
-                    onDashSlot = vm::setDashSlot,
-                    bikeType = routeOptions.bikeType,
-                    onBikeType = { vm.nav.setOptions(routeOptions.copy(bikeType = it)) },
-                    speechRate = voiceSpeechRate,
-                    onSpeechRate = vm::setVoiceSpeechRate,
-                    ttsVoiceNames = ttsVoiceNames,
-                    selectedTtsVoice = selectedTtsVoice,
-                    onTtsVoice = vm::setTtsVoice,
-                    offlineCard = { OfflineMapsCard(locationState.takeIf { it.hasFreshFix(System.currentTimeMillis()) }?.let { com.ridedeck.app.data.GeoPoint(it.lat, it.lon) }) },
-                    safetyCard = {
-                        SosSettingsCard(
-                            contacts = sosContacts,
-                            onAdd = vm::addSosContact,
-                            onRemove = vm::removeSosContact,
-                            crashEnabled = sosCrash,
-                            onCrashEnabled = vm::setSosCrashEnabled,
-                            buttonEnabled = sosButton,
-                            onButtonEnabled = vm::setSosButtonEnabled,
-                            onTest = { vm.sos.trigger(SosReason.TEST) },
-                        )
-                    },
-                )
-            }
-
-            AnimatedVisibility(visible = showApps, enter = overlayEnter, exit = overlayExit) {
-                AppsScreen(
-                    pinned = pinnedApps,
-                    locked = gps.speedKmh >= PHONE_LOCK_KMH,
-                    onPin = vm::pinApp, onUnpin = vm::unpinApp, onMove = vm::moveApp,
-                    onSettings = { if (settingsLocked) tellSettingsLocked() else { showApps = false; showSettings = true } },
-                    onClose = { showApps = false },
+                    initialCategory = if (settingItems.any { it.required && !it.granted }) SettingsCategory.SYSTEM else SettingsCategory.GENERAL,
                 )
             }
 
@@ -536,18 +606,14 @@ fun DashboardScreen(vm: DashboardViewModel) {
             )
         }
 
-        // The first-launch question sits above everything but the SOS countdown.
-        if (vehicleChosen == null) VehicleChooser(onChoose = vm::setVehicle)
-        else if (showPermIntro) PermissionIntro(introRows, onClose = { showPermIntro = false })
+        // The first-launch permission page sits above everything but the SOS countdown.
+        if (showPermIntro) PermissionIntro(introRows, onClose = { showPermIntro = false })
 
         // Last, so nothing can cover an SOS countdown.
         SosScreen(sosUi, sosContacts.map { it.name }, onCancel = vm.sos::cancel, onDismiss = vm.sos::dismiss)
         }
     }
 }
-
-/** Below this charge, a phone with no charger on board saves power. */
-private const val LOW_BATTERY_PERCENT = 30
 
 /** No number entry while riding, same limit as the map search box. */
 private const val PHONE_LOCK_KMH = 5

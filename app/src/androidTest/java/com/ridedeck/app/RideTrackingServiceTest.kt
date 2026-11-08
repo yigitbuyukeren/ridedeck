@@ -276,7 +276,8 @@ class RideTrackingServiceTest {
             main {
                 assertTrue(said.isNotEmpty())
                 pending = CompletableDeferred()
-                nav.setProfile(VehicleProfile.CAR) // A reroute is now suspended in the fake routing backend.
+                // A detour reroute is now suspended in the fake routing backend.
+                nav.detourVia(Place("Synthetic stop", "", GeoPoint(41.0026, 29.0001)))
             }
             assertTrue(nav.ui.value.rerouting)
             val notification = context.getSystemService(NotificationManager::class.java).activeNotifications.single { it.id == RideTrackingService.NOTIFICATION_ID }

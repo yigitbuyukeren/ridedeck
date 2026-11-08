@@ -110,27 +110,9 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     val locationState: StateFlow<LocationState> = location.state
 
-    /** Null until the first-launch chooser has been answered. */
-    val vehicleChosen = MutableStateFlow(Prefs.vehicle(app))
-    private val profileNow: VehicleProfile get() = vehicleChosen.value ?: VehicleProfile.MOTORCYCLE
-    val profile: StateFlow<VehicleProfile> = vehicleChosen.map { it ?: VehicleProfile.MOTORCYCLE }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, profileNow)
+    private val profileNow: VehicleProfile get() = VehicleProfile.MOTORCYCLE
 
     val nav = navigation.nav
-
-    /**
-     * First-launch choice or a change in Settings. Settings the user set themselves stay as they are;
-     * only what they never touched (the speed-limit display) follows the new vehicle.
-     */
-    fun setVehicle(profile: VehicleProfile) {
-        val app = getApplication<Application>()
-        Prefs.setVehicle(app, profile)
-        vehicleChosen.value = profile
-        nav.setProfile(profile)
-        crashSensor.stop()
-        if (onScreen && sosCrashEnabled.value) crashSensor.start()
-        if (!Prefs.speedLimitChosen(app)) speedLimitEnabled.value = profile.config.speedLimitDefault
-    }
 
     /** Chat apps seen in notifications, each with whether the rider silenced it. */
     data class MessageAppRow(val pkg: String, val label: String, val muted: Boolean)
@@ -172,18 +154,6 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     val pinnedApps = MutableStateFlow(PinnedApps.fromJson(Prefs.pinnedApps(app)))
-
-    private fun updatePinned(list: List<String>) {
-        pinnedApps.value = list
-        Prefs.setPinnedApps(getApplication(), PinnedApps.toJson(list))
-    }
-
-    fun pinApp(pkg: String) = updatePinned(PinnedApps.add(pinnedApps.value, pkg))
-
-    fun unpinApp(pkg: String) = updatePinned(PinnedApps.remove(pinnedApps.value, pkg))
-
-    fun moveApp(pkg: String, delta: Int) = updatePinned(PinnedApps.move(pinnedApps.value, pkg, delta))
-
     val places = rideTracking.places
 
     /** Destinations the rider chose lately (this phone only); empty and not recorded while the history is off. */
@@ -210,14 +180,13 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     val weatherEnabled = MutableStateFlow(Prefs.weatherEnabled(app))
     val rainVoice = MutableStateFlow(Prefs.rainVoice(app))
-    val weather = WeatherController(viewModelScope, location.state, weatherEnabled, windAlertKmh = { profileNow.config.windAlertKmh }) { alert, snapshot ->
+    val weather = WeatherController(viewModelScope, location.state, weatherEnabled) { alert, snapshot ->
         if (!rainVoice.value || call.state.value.phase != CallPhase.IDLE) return@WeatherController
         announcer.speak(
             when (alert) {
                 WeatherAlert.RAIN -> snapshot.rainInMin?.takeIf { it > 0 }
                     ?.let { app.getString(R.string.rain_voice_fmt, it) } ?: app.getString(R.string.rain_voice_now)
                 WeatherAlert.ICE -> app.getString(R.string.ice_voice_fmt, snapshot.tempC)
-                WeatherAlert.WIND -> app.getString(R.string.wind_voice_fmt, snapshot.windKmh)
             }
         )
     }
@@ -235,7 +204,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     /** A number handed over by another app's dial link; the phone screen shows it on the keypad. */
     val dialRequest = MutableStateFlow<String?>(null)
 
-    val speedLimitEnabled = MutableStateFlow(Prefs.speedLimit(app, profileNow))
+    val speedLimitEnabled = MutableStateFlow(Prefs.speedLimit(app))
     private val guiding: Flow<Boolean> = nav.ui.map { ui: NavUi -> ui.navigating }.distinctUntilChanged()
     private val limitActive: StateFlow<Boolean> =
         combine(speedLimitEnabled, guiding) { on: Boolean, navigating: Boolean -> on && navigating }
@@ -314,12 +283,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         },
         message = { reason, link, stale ->
             val head = if (reason == SosReason.AUTO) {
-                val noun = when (profileNow) {
-                    VehicleProfile.MOTORCYCLE -> R.string.sos_noun_moto
-                    VehicleProfile.CAR -> R.string.sos_noun_car
-                    VehicleProfile.BICYCLE -> R.string.sos_noun_bike
-                }
-                app.getString(R.string.sos_sms_auto, app.getString(noun))
+                app.getString(R.string.sos_sms_auto, app.getString(R.string.sos_noun_moto))
             } else app.getString(R.string.sos_sms_manual)
             SosMath.compose(
                 head, link, stale,

@@ -31,7 +31,7 @@ class RideNavigation(context: Context, private val tracking: RideTracking) {
     val nav = NavigationController(
         app::getString, scope, tracking.location.state, voice,
         repo = RouteRepository(miles = { Units.miles }),
-        initialOptions = Prefs.routeOptions(app, Prefs.vehicle(app) ?: VehicleProfile.MOTORCYCLE),
+        initialOptions = Prefs.routeOptions(app),
         onOptionsChanged = { Prefs.setRouteOptions(app, it) },
         knownPlaces = { tracking.places.value.map { it.place } + recents.value },
         onPlaceChosen = { place ->

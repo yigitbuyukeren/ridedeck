@@ -3,7 +3,6 @@ package com.ridedeck.app
 import com.ridedeck.app.data.FuelFinder
 import com.ridedeck.app.data.StopKind
 import com.ridedeck.app.data.StopSource
-import com.ridedeck.app.data.VehicleProfile
 import com.ridedeck.app.data.FuelStation
 import com.ridedeck.app.data.GeoPoint
 import com.ridedeck.app.data.LocationState
@@ -322,36 +321,9 @@ class NavigationControllerTest {
     }
 
     @Test
-    fun theStopSearchFollowsTheVehicle() {
+    fun theStopSearchLooksForFuel() {
         nav.findFuel()
         assertEquals(listOf(StopKind.FUEL), fuel.sourcesSeen.map { it.kind })
-        nav.setProfile(VehicleProfile.CAR)
-        nav.findFuel()
-        assertEquals(listOf(StopKind.FUEL, StopKind.CHARGE), fuel.sourcesSeen.map { it.kind })
-        nav.setProfile(VehicleProfile.BICYCLE)
-        nav.findFuel()
-        assertTrue(StopKind.WATER in fuel.sourcesSeen.map { it.kind })
-    }
-
-    @Test
-    fun changingTheVehicleInThePreviewRoutesAgainForIt() {
-        nav.selectPlace(dest)
-        nav.setProfile(VehicleProfile.BICYCLE)
-        assertEquals(2, routing.requests.size)
-        assertEquals(VehicleProfile.BICYCLE, routing.optionsSeen.last().profile)
-        nav.setProfile(VehicleProfile.BICYCLE) // same vehicle, nothing to redo
-        assertEquals(2, routing.requests.size)
-    }
-
-    @Test
-    fun changingTheVehicleWhileGuidingPlansTheRestOfTheTripForIt() {
-        startGuidance()
-        drive(3)
-        val before = routing.requests.size
-        nav.setProfile(VehicleProfile.CAR)
-        assertEquals(before + 1, routing.requests.size)
-        assertEquals(VehicleProfile.CAR, routing.optionsSeen.last().profile)
-        assertTrue(nav.ui.value.navigating)
     }
 
     @Test
@@ -557,18 +529,17 @@ class NavigationControllerTest {
         assertEquals("t${R.string.gps_waiting}", nav.ui.value.error)
     }
 
-    @Test fun vehicleChangeWhileLoadingReplacesThePendingRouteRequest() = runBlocking {
+    @Test fun optionChangeWhileLoadingReplacesThePendingRouteRequest() = runBlocking {
         val first = CompletableDeferred<Result<Route>>()
         routing.routeHandler = { _, _ -> first.await() }
         nav.selectPlace(dest)
         routing.routeHandler = { from, _ -> Result.success(straightRoute(from)) }
-        nav.setProfile(VehicleProfile.BICYCLE)
-        assertEquals(VehicleProfile.BICYCLE, routing.optionsSeen.last().profile)
+        nav.setOptions(RouteOptions(avoidTolls = true))
         assertEquals(2, routing.requests.size)
         assertFalse(nav.ui.value.loading)
         assertNotNull(nav.ui.value.route)
         first.complete(Result.success(straightRoute()))
-        assertEquals(VehicleProfile.BICYCLE, nav.options.value.profile)
+        assertTrue(nav.options.value.avoidTolls)
     }
 
     @Test fun failedOptionChangeCannotStartTheOldRouteWithDifferentOptions() {

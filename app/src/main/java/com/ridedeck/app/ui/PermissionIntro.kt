@@ -36,7 +36,7 @@ import com.ridedeck.app.R
 data class PermissionRow(val title: String, val description: String, val granted: Boolean, val onAllow: () -> Unit)
 
 /**
- * Shown once after the vehicle question instead of the full settings page: the few permissions the app is
+ * Shown on first launch instead of the full settings page: the few permissions the app is
  * built around, each with its own button. "Later" skips; whatever is skipped stays in Settings > Setup.
  */
 @Composable

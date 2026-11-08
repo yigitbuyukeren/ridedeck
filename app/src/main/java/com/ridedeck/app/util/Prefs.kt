@@ -2,7 +2,6 @@ package com.ridedeck.app.util
 
 import android.content.Context
 import androidx.core.content.edit
-import com.ridedeck.app.data.BikeType
 import com.ridedeck.app.data.RouteOptions
 import com.ridedeck.app.data.ThemeMode
 import com.ridedeck.app.data.VehicleProfile
@@ -19,9 +18,6 @@ object Prefs {
     private const val KEY_RECENT_PLACES_ON = "recent_places_on"
     private const val KEY_AVOID_HIGHWAYS = "route_avoid_highways"
     private const val KEY_AVOID_TOLLS = "route_avoid_tolls"
-    private const val KEY_AVOID_HILLS = "route_avoid_hills"
-    private const val KEY_AVOID_BAD_SURFACES = "route_avoid_bad_surfaces"
-    private const val KEY_BIKE_TYPE = "route_bike_type"
     private const val KEY_VEHICLE = "vehicle_profile"
     private const val KEY_SOS_ALARM_VOLUME = "sos_saved_alarm_volume"
     private const val KEY_SOS_CONTACTS = "sos_contacts"
@@ -33,18 +29,9 @@ object Prefs {
     private const val KEY_MILES = "units_miles"
     private const val KEY_PINNED_APPS = "pinned_apps"
     private const val KEY_DASH_SLOTS = "dash_slots"
-    private const val KEY_SETTINGS_HINT = "settings_hint_count"
+    private const val KEY_HAPTICS = "haptics_enabled"
     private const val KEY_MESSAGE_APPS_SEEN = "message_apps_seen"
     private const val KEY_MESSAGE_APPS_MUTED = "message_apps_muted"
-    private const val KEY_HAPTICS = "haptics_enabled"
-
-    /** How many launches showed the "hold for Settings" hint; -1 once the rider has used the long press. */
-    fun settingsHintCount(context: Context): Int =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getInt(KEY_SETTINGS_HINT, 0)
-
-    fun setSettingsHintCount(context: Context, n: Int) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putInt(KEY_SETTINGS_HINT, n).apply()
-    }
 
     fun pinnedApps(context: Context): String? =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_PINNED_APPS, null)
@@ -123,14 +110,9 @@ object Prefs {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_RECORD_TRIPS, enabled).apply()
     }
 
-    /** Until the user flips it themselves, the vehicle decides: on for motorcycle and car, off for a bicycle. */
-    fun speedLimit(context: Context, profile: VehicleProfile): Boolean {
-        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-        return if (prefs.contains(KEY_SPEED_LIMIT)) prefs.getBoolean(KEY_SPEED_LIMIT, true) else profile.config.speedLimitDefault
-    }
-
-    fun speedLimitChosen(context: Context): Boolean =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).contains(KEY_SPEED_LIMIT)
+    /** On by default; a rider who has flipped it keeps their choice. */
+    fun speedLimit(context: Context): Boolean =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_SPEED_LIMIT, true)
 
     fun setSpeedLimit(context: Context, enabled: Boolean) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_SPEED_LIMIT, enabled).apply()
@@ -247,31 +229,28 @@ object Prefs {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putInt(KEY_SOS_ALARM_VOLUME, volume).apply()
     }
 
-    /** The vehicle chosen at first launch; null until then. */
-    fun vehicle(context: Context): VehicleProfile? =
-        VehicleProfile.fromName(context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_VEHICLE, null))
-
-    fun setVehicle(context: Context, profile: VehicleProfile) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(KEY_VEHICLE, profile.name).apply()
+    /**
+     * RideDeck is motorcycle-only. Older builds saved a car or bicycle choice; rewrite it once
+     * to motorcycle so no stale profile survives an upgrade.
+     */
+    fun migrateVehicleToMotorcycle(context: Context) {
+        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        if (prefs.getString(KEY_VEHICLE, null) != VehicleProfile.MOTORCYCLE.name) {
+            prefs.edit().putString(KEY_VEHICLE, VehicleProfile.MOTORCYCLE.name).apply()
+        }
     }
 
-    fun routeOptions(context: Context, profile: VehicleProfile): RouteOptions {
+    fun routeOptions(context: Context): RouteOptions {
         val p = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
         return RouteOptions(
             avoidHighways = p.getBoolean(KEY_AVOID_HIGHWAYS, false),
             avoidTolls = p.getBoolean(KEY_AVOID_TOLLS, false),
-            profile = profile,
-            avoidHills = p.getBoolean(KEY_AVOID_HILLS, false),
-            avoidBadSurfaces = p.getBoolean(KEY_AVOID_BAD_SURFACES, false),
-            bikeType = BikeType.entries.firstOrNull { it.name == p.getString(KEY_BIKE_TYPE, null) } ?: BikeType.CITY,
         )
     }
 
     fun setRouteOptions(context: Context, options: RouteOptions) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
-            .putBoolean(KEY_AVOID_HIGHWAYS, options.avoidHighways).putBoolean(KEY_AVOID_TOLLS, options.avoidTolls)
-            .putBoolean(KEY_AVOID_HILLS, options.avoidHills).putBoolean(KEY_AVOID_BAD_SURFACES, options.avoidBadSurfaces)
-            .putString(KEY_BIKE_TYPE, options.bikeType.name).apply()
+            .putBoolean(KEY_AVOID_HIGHWAYS, options.avoidHighways).putBoolean(KEY_AVOID_TOLLS, options.avoidTolls).apply()
     }
 
     /** Older builds had a voice assistant; forget everything it stored (transcripts, nicknames, routines, switches). */

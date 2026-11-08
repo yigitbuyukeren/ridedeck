@@ -49,13 +49,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-        // Only the bicycle may stand upright on the handlebar; the others keep the landscape dashboard.
-        lifecycleScope.launch {
-            viewModel.profile.collect { profile ->
-                requestedOrientation = if (profile.config.allowsPortrait) ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
-                else ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            }
-        }
+        // The motorcycle dashboard is made for a landscape handlebar mount.
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         setContent {
             val isDay by viewModel.theme.isDay.collectAsStateWithLifecycle()
             MotoTheme(isDay) { DashboardScreen(viewModel) }

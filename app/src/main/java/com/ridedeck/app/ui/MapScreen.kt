@@ -55,7 +55,6 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LocalGasStation
-import androidx.compose.material.icons.rounded.PedalBike
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material.icons.rounded.Work
@@ -106,8 +105,6 @@ import com.ridedeck.app.data.NavigationController
 import com.ridedeck.app.data.Place
 import com.ridedeck.app.data.Route
 import com.ridedeck.app.data.RouteOptions
-import com.ridedeck.app.data.StopKind
-import com.ridedeck.app.data.VehicleProfile
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -378,7 +375,6 @@ fun MapScreen(
                 )
                 fuel.visible -> FuelPanel(
                     fuel = fuel,
-                    profile = options.profile,
                     guiding = ui.navigating,
                     onGo = nav::selectPlace,
                     onAddStop = nav::addStop,
@@ -452,7 +448,7 @@ fun MapScreen(
         ) {
             RoundIconButton(Icons.Rounded.Close, stringResource(R.string.message_dismiss), onClick = onClose)
             if (!ui.arrived) {
-                RoundIconButton(if (options.profile == VehicleProfile.BICYCLE) Icons.Rounded.PedalBike else Icons.Rounded.LocalGasStation, stringResource(if (options.profile == VehicleProfile.BICYCLE) R.string.map_stops else R.string.fuel_title), onClick = { if (fuel.visible) nav.closeFuel() else nav.findFuel() })
+                RoundIconButton(Icons.Rounded.LocalGasStation, stringResource(R.string.fuel_title), onClick = { if (fuel.visible) nav.closeFuel() else nav.findFuel() })
             }
             if (ui.navigating) {
                 RoundIconButton(Icons.Rounded.ZoomOutMap, stringResource(R.string.map_overview), onClick = { overview = !overview })
@@ -814,7 +810,7 @@ private fun RouteCard(
                     Box(
                         Modifier.size(width = 76.dp, height = 68.dp).hapticClickable {
                             val dest = ui.destination ?: return@hapticClickable
-                            if (externalApps.size == 1) context.startExternalNav(externalApps[0], dest.point.lat, dest.point.lon, options.profile)
+                            if (externalApps.size == 1) context.startExternalNav(externalApps[0], dest.point.lat, dest.point.lon)
                             else menuOpen = true
                         },
                         contentAlignment = Alignment.Center,
@@ -830,7 +826,7 @@ private fun RouteCard(
                                     modifier = Modifier.heightIn(min = 64.dp),
                                     onClick = {
                                         menuOpen = false
-                                        ui.destination?.let { context.startExternalNav(app, it.point.lat, it.point.lon, options.profile) }
+                                        ui.destination?.let { context.startExternalNav(app, it.point.lat, it.point.lon) }
                                     },
                                 )
                             }
@@ -883,13 +879,8 @@ private fun RouteCard(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (options.profile == VehicleProfile.BICYCLE) {
-                    OptionChip(stringResource(R.string.opt_no_hills), options.avoidHills, { onOptions(options.copy(avoidHills = !options.avoidHills)) }, Modifier.weight(1f))
-                    OptionChip(stringResource(R.string.opt_no_bad_surface), options.avoidBadSurfaces, { onOptions(options.copy(avoidBadSurfaces = !options.avoidBadSurfaces)) }, Modifier.weight(1f))
-                } else {
-                    OptionChip(stringResource(R.string.opt_no_highway), options.avoidHighways, { onOptions(options.copy(avoidHighways = !options.avoidHighways)) }, Modifier.weight(1f))
-                    OptionChip(stringResource(R.string.opt_no_toll), options.avoidTolls, { onOptions(options.copy(avoidTolls = !options.avoidTolls)) }, Modifier.weight(1f))
-                }
+                OptionChip(stringResource(R.string.opt_no_highway), options.avoidHighways, { onOptions(options.copy(avoidHighways = !options.avoidHighways)) }, Modifier.weight(1f))
+                OptionChip(stringResource(R.string.opt_no_toll), options.avoidTolls, { onOptions(options.copy(avoidTolls = !options.avoidTolls)) }, Modifier.weight(1f))
             }
             if (debuggable) OptionChip("Simüle et (x4)", false, { DebugSim.start(route, 4); onStart() }, Modifier.fillMaxWidth())
             if (ahead.size < 3 && canOpenExternal) OptionChip(stringResource(R.string.add_stop), false, onAddStop, Modifier.fillMaxWidth())
@@ -946,7 +937,6 @@ private fun ArrivedCard(next: Place?, onContinue: () -> Unit, onDone: () -> Unit
 @Composable
 private fun FuelPanel(
     fuel: FuelUi,
-    profile: VehicleProfile,
     guiding: Boolean,
     onGo: (Place) -> Unit,
     onAddStop: (Place) -> Unit,
@@ -958,11 +948,7 @@ private fun FuelPanel(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        stringResource(when (profile) {
-                            VehicleProfile.MOTORCYCLE -> R.string.fuel_title
-                            VehicleProfile.CAR -> R.string.stops_title_car
-                            VehicleProfile.BICYCLE -> R.string.stops_title_bike
-                        }),
+                        stringResource(R.string.fuel_title),
                         fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White,
                     )
                     Text(
@@ -990,15 +976,7 @@ private fun FuelPanel(
 
 @Composable
 private fun FuelRow(station: FuelStation, guiding: Boolean, onGo: (Place) -> Unit, onAddStop: (Place) -> Unit) {
-    val name = station.place.name.ifBlank {
-        stringResource(when (station.kind) {
-            StopKind.FUEL -> R.string.fuel_unnamed
-            StopKind.CHARGE -> R.string.stop_unnamed_charge
-            StopKind.BIKE_REPAIR -> R.string.stop_unnamed_repair
-            StopKind.BIKE_SHOP -> R.string.stop_unnamed_shop
-            StopKind.WATER -> R.string.stop_unnamed_water
-        })
-    }
+    val name = station.place.name.ifBlank { stringResource(R.string.fuel_unnamed) }
     val place = station.place.copy(name = name)
     val detail = listOf(station.place.detail, formatDistance(station.distanceM)).filter { it.isNotBlank() }.joinToString(" · ")
     Row(

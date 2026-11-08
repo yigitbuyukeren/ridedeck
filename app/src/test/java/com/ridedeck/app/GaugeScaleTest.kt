@@ -11,12 +11,6 @@ class GaugeScaleTest {
     fun motorcycleDialRunsInFifties() = assertEquals(listOf("0", "50", "100", "150", "200"), texts(200f, false))
 
     @Test
-    fun carDialRunsInForties() = assertEquals(listOf("0", "40", "80", "120", "160", "200", "240"), texts(240f, false))
-
-    @Test
-    fun bicycleDialRunsInTens() = assertEquals(listOf("0", "10", "20", "30", "40", "50", "60"), texts(60f, false))
-
-    @Test
     fun milesLabelsAreConvertedAndSitAtTheirKmhPosition() {
         val labels = GaugeScale.labels(200f, true)
         assertEquals("0", labels.first().text)

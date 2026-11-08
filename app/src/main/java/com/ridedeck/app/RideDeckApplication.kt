@@ -11,6 +11,7 @@ class RideDeckApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Prefs.removeVoiceAssistantData(this)
+        Prefs.migrateVehicleToMotorcycle(this)
         if (!LegacyVoskDataMigration.removeArtifacts(filesDir, cacheDir)) {
             Log.w("RideDeck", "Could not remove all retired speech model files; will retry next launch")
         }

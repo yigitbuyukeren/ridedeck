@@ -105,9 +105,9 @@ object SosMath {
 }
 
 /**
- * Decides from accelerometer samples and GPS speed whether a rider has crashed (thresholds per vehicle):
- * a hard impact while riding, followed by the phone staying still and the vehicle not moving. A pothole
- * (impact but the bike rolls on), a hard stop (no impact) and a bike knocked over in a car park (never
+ * Decides from accelerometer samples and GPS speed whether a rider has crashed:
+ * a hard impact while riding, followed by the phone staying still and the motorcycle not moving. A pothole
+ * (impact but the motorcycle rolls on), a hard stop (no impact) and a motorcycle knocked over while parked (never
  * riding) all stay quiet. A pothole followed by a red light looks the same by speed and shaking alone, so
  * on two wheels the alarm also needs the phone to have tipped over ([needsTilt]) or the impact to have been
  * twice the threshold; the tilt is read from the gravity direction when the caller supplies it.

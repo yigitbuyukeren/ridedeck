@@ -13,7 +13,6 @@ import com.ridedeck.app.data.Route
 import com.ridedeck.app.data.RouteOptions
 import com.ridedeck.app.data.Routing
 import com.ridedeck.app.data.Speaker
-import com.ridedeck.app.data.StopKind
 import com.ridedeck.app.data.StopSource
 import com.ridedeck.app.data.TripMath
 import com.ridedeck.app.data.TripPoint
@@ -166,22 +165,6 @@ class BugFixTest {
     }
 
     @Test
-    fun aCarDoesNotNeedTheTilt() {
-        val car = VehicleProfile.CAR.config
-        val detector = CrashDetector({ car.crashImpactG }, { car.crashMovingKmh }, { car.crashNeedsTilt })
-        // Same story at car speeds: a hard hit, a stop, stillness; the cabin phone does not turn over.
-        val up = Triple(0f, 0f, 1f)
-        var t = 0L
-        var fired = false
-        fun feed(g: Float, kmh: Int) { if (detector.onSample(t, g, kmh, up.first, up.second, up.third)) fired = true; t += 100 }
-        repeat(30) { feed(1f, 60) }
-        feed(6f, 60)
-        repeat(15) { feed(1f, 10) }
-        repeat(120) { feed(1f, 0) }
-        assertTrue(fired)
-    }
-
-    @Test
     fun missingTiltEvidenceDoesNotConfirmAnOrdinaryTwoWheelImpact() {
         val d = twoWheels()
         var t = 0L
@@ -207,28 +190,14 @@ class BugFixTest {
     }
 
     @Test
-    fun eachKindOfStopGetsItsOwnCapInTheOverpassQuery() {
-        val here = GeoPoint(41.0, 29.0)
-        val many = FuelMath.nearQuery(here, VehicleProfile.BICYCLE.config.stops)
-        assertEquals(3, Regex("out center 40;").findAll(many).count())
-        assertEquals(1, Regex("out center 80;").findAll(FuelMath.nearQuery(here)).count())
+    fun theFuelSearchUsesOneCappedOverpassStatement() {
+        val many = FuelMath.nearQuery(GeoPoint(41.0, 29.0))
+        assertEquals(1, Regex("out center 80;").findAll(many).count())
+        assertEquals(0, Regex("out center 40;").findAll(many).count())
     }
 
     @Test
-    fun anOverpassAnswerAddsTheKindsNominatimLeftOut() {
-        val here = GeoPoint(41.0, 29.0)
-        val water = (1..12).map { FuelStation(Place("w$it", "", GeoPoint(41.0 + it * 0.0001, 29.0)), it * 10, StopKind.WATER) }
-        val shop = FuelStation(Place("shop", "", GeoPoint(41.01, 29.0)), 1100, StopKind.BIKE_SHOP)
-        val merged = FuelMath.combine(water, listOf(shop, water.first()))
-        assertTrue(merged.any { it.kind == StopKind.BIKE_SHOP })
-        assertEquals(1, merged.count { it.place.name == "w1" })
-        assertTrue(merged.count { it.kind == StopKind.WATER } <= 8)
-    }
-
-    @Test
-    fun theCarDoesNotNeedAFallToCountACrashButTwoWheelsDo() {
-        assertFalse(VehicleProfile.CAR.config.crashNeedsTilt)
+    fun theMotorcycleNeedsAFallToCountACrash() {
         assertTrue(VehicleProfile.MOTORCYCLE.config.crashNeedsTilt)
-        assertTrue(VehicleProfile.BICYCLE.config.crashNeedsTilt)
     }
 }

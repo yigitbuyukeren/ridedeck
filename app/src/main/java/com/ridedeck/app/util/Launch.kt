@@ -16,25 +16,18 @@ val NAV_APPS = listOf(
 
 /** Deep link that starts guidance to a point in an external navigation app; null when the app has no known link. */
 object ExternalNav {
-    fun uri(packageName: String, lat: Double, lon: Double, profile: com.ridedeck.app.data.VehicleProfile): String? = when (packageName) {
+    fun uri(packageName: String, lat: Double, lon: Double): String? = when (packageName) {
         "com.waze" -> "waze://?ll=%.6f,%.6f&navigate=yes".format(java.util.Locale.US, lat, lon)
-        "com.google.android.apps.maps" -> {
-            val mode = when (profile) {
-                com.ridedeck.app.data.VehicleProfile.MOTORCYCLE -> "l"
-                com.ridedeck.app.data.VehicleProfile.CAR -> "d"
-                com.ridedeck.app.data.VehicleProfile.BICYCLE -> "b"
-            }
-            "google.navigation:q=%.6f,%.6f&mode=%s".format(java.util.Locale.US, lat, lon, mode)
-        }
+        "com.google.android.apps.maps" -> "google.navigation:q=%.6f,%.6f&mode=l".format(java.util.Locale.US, lat, lon)
         "ru.yandex.yandexnavi" -> "yandexnavi://build_route_on_map?lat_to=%.6f&lon_to=%.6f".format(java.util.Locale.US, lat, lon)
         else -> null
     }
 }
 
-fun Context.installedNavApps(): List<NavApp> = NAV_APPS.filter { isInstalled(it.packageName) && ExternalNav.uri(it.packageName, 0.0, 0.0, com.ridedeck.app.data.VehicleProfile.CAR) != null }
+fun Context.installedNavApps(): List<NavApp> = NAV_APPS.filter { isInstalled(it.packageName) && ExternalNav.uri(it.packageName, 0.0, 0.0) != null }
 
-fun Context.startExternalNav(app: NavApp, lat: Double, lon: Double, profile: com.ridedeck.app.data.VehicleProfile): Boolean {
-    val uri = ExternalNav.uri(app.packageName, lat, lon, profile) ?: return false
+fun Context.startExternalNav(app: NavApp, lat: Double, lon: Double): Boolean {
+    val uri = ExternalNav.uri(app.packageName, lat, lon) ?: return false
     val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(uri)).setPackage(app.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     return try { startActivity(intent); true } catch (_: android.content.ActivityNotFoundException) { false }
 }

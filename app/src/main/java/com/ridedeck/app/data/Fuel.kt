@@ -24,17 +24,14 @@ object FuelMath {
     const val MAX_ROUTE_POINTS = 40
     private const val MIN_SPACING_M = 1500.0
     private const val LIMIT = 25
-    private const val PER_KIND = 8
 
     private fun around(radiusM: Int, points: List<GeoPoint>): String =
         "(around:$radiusM," + points.joinToString(",") { "%.5f,%.5f".format(Locale.US, it.lat, it.lon) } + ")"
 
-    /** What the motorcycle profile looks for; the default wherever no vehicle is given. */
+    /** What the motorcycle profile looks for; the default wherever no source is given. */
     val FUEL_ONLY: List<StopSource> = VehicleProfile.MOTORCYCLE.config.stops
 
     // Nodes and ways only: relations make the public servers scan far more for no gain here.
-    // One statement (and one cap) per kind: a single shared cap let a plentiful kind such as drinking water
-    // use up all the slots and push repair stations and charging points off the answer.
     private fun query(around: String, sources: List<StopSource>): String {
         val cap = if (sources.size == 1) 80 else 40
         val parts = sources.joinToString("") {
@@ -47,14 +44,8 @@ object FuelMath {
 
     fun routeQuery(points: List<GeoPoint>, sources: List<StopSource> = FUEL_ONLY): String = query(around(ROUTE_RADIUS_M, points), sources)
 
-    /** Which kind of stop an OSM element is, from its tags; fuel when it says nothing clearer. */
-    fun kindOf(tags: JSONObject): StopKind = when {
-        tags.optString("amenity") == "charging_station" -> StopKind.CHARGE
-        tags.optString("amenity") == "bicycle_repair_station" -> StopKind.BIKE_REPAIR
-        tags.optString("shop") == "bicycle" -> StopKind.BIKE_SHOP
-        tags.optString("amenity") == "drinking_water" -> StopKind.WATER
-        else -> StopKind.FUEL
-    }
+    /** RideDeck only searches for fuel, so every parsed stop belongs to that kind. */
+    fun kindOf(tags: JSONObject): StopKind = StopKind.FUEL
 
     /**
      * Thins the rest of a route down to a handful of points, no closer than [MIN_SPACING_M] and never
@@ -99,19 +90,11 @@ object FuelMath {
         return mix(found.sortedBy { it.distanceM }.distinctBy { it.place.point.lat to it.place.point.lon }).take(LIMIT)
     }
 
-    /**
-     * With several kinds of stop on one list (car: fuel and charging, bicycle: repair, shop, water) a plentiful
-     * kind such as drinking water must not push the rare ones off it: each kind keeps its [PER_KIND] nearest.
-     */
-    /** Two answers about the same area, merged: nearest first, one entry per spot, a plentiful kind kept in check. */
+    /** Two answers about the same area, merged: nearest first, one entry per spot. */
     fun combine(a: List<FuelStation>, b: List<FuelStation>): List<FuelStation> =
         mix((a + b).sortedBy { it.distanceM }.distinctBy { it.place.point.lat to it.place.point.lon }).take(LIMIT)
 
-    fun mix(sorted: List<FuelStation>): List<FuelStation> {
-        if (sorted.map { it.kind }.distinct().size < 2) return sorted
-        val seen = HashMap<StopKind, Int>()
-        return sorted.filter { seen.merge(it.kind, 1, Int::plus)!! <= PER_KIND }
-    }
+    fun mix(sorted: List<FuelStation>): List<FuelStation> = sorted
 
     /** South, west, north, east. */
     data class Box(val south: Double, val west: Double, val north: Double, val east: Double)
@@ -173,8 +156,8 @@ class FuelRepository : FuelFinder {
                 Log.w("RideDeck", "nominatim fuel failed (${e.javaClass.simpleName})")
                 emptyList()
             }
-            // Nominatim may know only some of the kinds (it found drinking water but no repair station): the
-            // Overpass servers are asked for the kinds it left out and the two answers are merged.
+            // Nominatim may miss some fuel stations: the Overpass servers are asked for what it left out
+            // and the two answers are merged.
             val found = viaNominatim.map { it.kind }.toSet()
             val missing = sources.filter { it.kind !in found }
             if (missing.isEmpty()) return@safely viaNominatim

@@ -1,73 +1,86 @@
 package com.ridedeck.app.ui
 
-import com.ridedeck.app.data.DashCard
-import com.ridedeck.app.data.DashLayout
 import android.Manifest
 import android.content.Context
-import android.content.res.Configuration
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.foundation.border
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ridedeck.app.R
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.testTag
-import com.ridedeck.app.data.BikeType
 import com.ridedeck.app.data.ThemeMode
-import com.ridedeck.app.data.VehicleProfile
 import com.ridedeck.app.util.hasPermission
+import kotlinx.coroutines.launch
 
 data class SettingItem(
     val title: String,
     val description: String,
     val granted: Boolean,
     val action: String,
-    /** Without it the app does not work at all; only such rows send the settings page to the Setup tab. */
+    /** Without it the app does not work at all; only such rows send the settings page to Permissions. */
     val required: Boolean = false,
     val progress: Float? = null,
     val progressLabel: String? = null,
@@ -138,164 +151,127 @@ data class ToggleItem(
     val onChange: (Boolean) -> Unit,
 )
 
-private enum class SettingsTab(val label: Int) {
-    SETUP(R.string.settings_tab_setup),
-    RIDE(R.string.settings_tab_ride),
-    SAFETY(R.string.settings_tab_safety),
+/** The six pages of the settings screen; the order here is the order of the category rail. */
+enum class SettingsCategory(val label: Int, val icon: ImageVector) {
+    GENERAL(R.string.settings_tab_general, Icons.Rounded.Tune),
+    APPEARANCE(R.string.settings_tab_appearance, Icons.Rounded.Palette),
+    MAP(R.string.settings_tab_map, Icons.Rounded.Map),
+    SOUND(R.string.settings_tab_sound, Icons.Rounded.VolumeUp),
+    SAFETY(R.string.settings_tab_safety, Icons.Rounded.Shield),
+    SYSTEM(R.string.settings_tab_system, Icons.Rounded.Settings),
 }
 
 /**
- * Settings in three tabs down the left side, so each page is a short list even on a 360dp-high phone:
- * permissions, ride options, and safety (SOS).
+ * One settings page. Rows stay separate composables so a wide screen can place them in two
+ * columns without nesting cards; a narrow screen keeps a single column.
+ */
+class SettingsPage(
+    val category: SettingsCategory,
+    val rows: List<@Composable () -> Unit>,
+    /** A page with one long card (SOS) reads better across the full width. */
+    val fullWidth: Boolean = false,
+)
+
+/**
+ * Six categories on a horizontal rail, content in an adaptive grid. Landscape phones get two
+ * columns, upright phones one; the rail scrolls sideways instead of squeezing six labels.
  */
 @Composable
 fun SettingsScreen(
-    items: List<SettingItem>,
-    toggles: List<ToggleItem>,
-    onOpenTrips: () -> Unit,
-    themeMode: ThemeMode,
-    onThemeMode: (ThemeMode) -> Unit,
+    pages: List<SettingsPage>,
     onClose: () -> Unit,
-    vehicle: VehicleProfile = VehicleProfile.MOTORCYCLE,
-    onVehicle: (VehicleProfile) -> Unit = {},
-    dashSlots: List<DashCard> = DashLayout.DEFAULT,
-    onDashSlot: (Int, DashCard) -> Unit = { _, _ -> },
-    bikeType: BikeType = BikeType.CITY,
-    onBikeType: (BikeType) -> Unit = {},
-    safetyCard: @Composable () -> Unit = {},
-    offlineCard: @Composable () -> Unit = {},
-    speechRate: Float = 1f,
-    onSpeechRate: (Float) -> Unit = {},
-    ttsVoiceNames: List<String> = emptyList(),
-    selectedTtsVoice: String? = null,
-    onTtsVoice: (String?) -> Unit = {},
+    initialCategory: SettingsCategory = SettingsCategory.GENERAL,
 ) {
     val palette = LocalMotoPalette.current
-    // Start on the setup page while a permission is missing, otherwise on the everyday options.
-    var tab by rememberSaveable { mutableStateOf(if (items.any { it.required && !it.granted }) SettingsTab.SETUP else SettingsTab.RIDE) }
+    var selectedOrdinal by rememberSaveable { mutableStateOf(initialCategory.ordinal) }
+    val current = SettingsCategory.entries.firstOrNull { it.ordinal == selectedOrdinal } ?: SettingsCategory.GENERAL
+    val page = pages.firstOrNull { it.category == current } ?: pages.firstOrNull()
+    val gridState = rememberLazyGridState()
+    val railState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(current) { railState.animateScrollToItem(current.ordinal) }
+
     Box(modifier = Modifier.fillMaxSize().background(palette.scrim).clickable(enabled = false) {}) {
-        Column(modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 32.dp, vertical = 16.dp)) {
+        Column(
+            modifier = Modifier.fillMaxSize().safeDrawingPadding()
+                .padding(horizontal = if (isNarrowScreen()) 16.dp else 24.dp, vertical = 12.dp),
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    stringResource(R.string.settings_title), fontSize = if (isNarrowScreen()) 24.sp else 30.sp,
-                    fontWeight = FontWeight.Bold, color = palette.text, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    stringResource(R.string.settings_title),
+                    fontSize = if (isNarrowScreen()) 24.sp else 30.sp,
+                    fontWeight = FontWeight.Bold, color = palette.text, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).padding(end = 12.dp),
                 )
                 Box(
-                    modifier = Modifier.size(72.dp).clip(CircleShape).background(MotoColors.CardHigh).hapticClickable(onClick = onClose),
+                    modifier = Modifier.size(72.dp).clip(CircleShape).background(MotoColors.CardHigh)
+                        .hapticClickable(onClick = onClose),
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Rounded.Close, null, tint = palette.text, modifier = Modifier.size(32.dp)) }
             }
-            val portrait = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
-            val tabs: @Composable (Modifier) -> Unit = { modifier ->
-                SettingsTab.entries.forEach { t ->
-                    PillButton(
-                        stringResource(t.label),
-                        if (t == tab) MotoColors.Blue else palette.cardHigh,
-                        { tab = t },
-                        modifier,
-                        textColor = if (t == tab) Color.White else palette.text,
-                        horizontalPadding = 8.dp,
-                        minHeight = 64.dp,
-                        // Three tabs across an upright phone: one line each, a little smaller.
-                        fontSize = if (portrait) 16.sp else 20.sp,
-                        singleLine = portrait,
-                        haptic = RideHaptic.Select,
-                    )
-                }
-            }
-            val list: @Composable (Modifier) -> Unit = { modifier ->
-                val listState = rememberLazyListState()
-                Box(modifier) {
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize().testTag("settings-list"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    when (tab) {
-                        SettingsTab.SETUP -> {
-                            item {
-                                ChoiceRow(
-                                    stringResource(R.string.vehicle_setting_title), stringResource(R.string.vehicle_setting_desc),
-                                    listOf(
-                                        stringResource(R.string.vehicle_moto) to (vehicle == VehicleProfile.MOTORCYCLE),
-                                        stringResource(R.string.vehicle_car) to (vehicle == VehicleProfile.CAR),
-                                        stringResource(R.string.vehicle_bike) to (vehicle == VehicleProfile.BICYCLE),
-                                    ),
-                                ) { onVehicle(VehicleProfile.entries[it]) }
+
+            // The rail is the only navigation; one line of 64 dp targets, scrollable on any width.
+            LazyRow(
+                state = railState,
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp).testTag("settings-tabs"),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(end = 4.dp),
+            ) {
+                items(SettingsCategory.entries) { category ->
+                    val active = category == current
+                    Row(
+                        modifier = Modifier.height(64.dp).clip(RoundedCornerShape(32.dp))
+                            .background(if (active) MotoColors.Blue else palette.cardHigh)
+                            .semantics { selected = active }
+                            .hapticClickable(haptic = RideHaptic.Select) {
+                                selectedOrdinal = category.ordinal
+                                scope.launch { gridState.scrollToItem(0) }
                             }
-                            items(items) { item -> SettingRow(item) }
-                            item { offlineCard() }
-                        }
-                        SettingsTab.RIDE -> {
-                            item {
-                                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(14.dp)) {
-                                    Text(stringResource(R.string.voice_speech_rate, (speechRate * 100).toInt()), color = LocalMotoPalette.current.text)
-                                    Slider(speechRate, onSpeechRate, valueRange = 0.75f..1.25f)
-                                    if (ttsVoiceNames.isEmpty()) Text(stringResource(R.string.voice_tts_missing), color = LocalMotoPalette.current.muted)
-                                    else ChoiceRow(stringResource(R.string.voice_tts_title), stringResource(R.string.voice_tts_desc), listOf(stringResource(R.string.voice_tts_default) to (selectedTtsVoice == null)) + ttsVoiceNames.map { it to (it == selectedTtsVoice) }) { index -> onTtsVoice(ttsVoiceNames.getOrNull(index - 1)) }
-                                }
-                            }
-                            if (vehicle == VehicleProfile.BICYCLE) {
-                                item {
-                                    ChoiceRow(
-                                        stringResource(R.string.bike_type_title), stringResource(R.string.bike_type_desc),
-                                        listOf(
-                                            stringResource(R.string.bike_road) to (bikeType == BikeType.ROAD),
-                                            stringResource(R.string.bike_city) to (bikeType == BikeType.CITY),
-                                            stringResource(R.string.bike_mountain) to (bikeType == BikeType.MOUNTAIN),
-                                        ),
-                                    ) { onBikeType(BikeType.entries[it]) }
-                                }
-                            }
-                            item {
-                                SettingRow(
-                                    SettingItem(
-                                        stringResource(R.string.trips_title), stringResource(R.string.trips_desc), false,
-                                        stringResource(R.string.action_open), onClick = onOpenTrips,
-                                    )
-                                )
-                            }
-                            listOf(R.string.dash_slot_one to 0, R.string.dash_slot_two to 1).forEach { (title, index) ->
-                                item {
-                                    val order = listOf(DashCard.NAV, DashCard.MEDIA, DashCard.APPS, DashCard.NONE)
-                                    ChoiceRow(
-                                        stringResource(title), stringResource(R.string.dash_slot_desc),
-                                        listOf(
-                                            stringResource(R.string.dash_nav), stringResource(R.string.dash_media),
-                                            stringResource(R.string.dash_apps), stringResource(R.string.dash_none),
-                                        ).mapIndexed { i, label -> label to (dashSlots.getOrNull(index) == order[i]) },
-                                    ) { onDashSlot(index, order[it]) }
-                                }
-                            }
-                            items(toggles) { t -> ToggleRow(t) }
-                            item { ThemeRow(themeMode, onThemeMode) }
-                            item { MarkerRow() }
-                        }
-                        SettingsTab.SAFETY -> item { safetyCard() }
+                            .padding(horizontal = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            category.icon, null,
+                            tint = if (active) Color.White else palette.text,
+                            modifier = Modifier.size(22.dp),
+                        )
+                        Text(
+                            stringResource(category.label),
+                            fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                            color = if (active) Color.White else palette.text,
+                        )
                     }
                 }
-                // A soft fade at the bottom says there is more below; it is gone when the list fits or ends.
-                if (listState.canScrollForward) {
+            }
+
+            if (page == null) return@Column
+            Box(modifier = Modifier.fillMaxSize().padding(top = 10.dp)) {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 340.dp),
+                    state = gridState,
+                    modifier = Modifier.fillMaxSize().testTag("settings-list"),
+                    contentPadding = PaddingValues(bottom = 44.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    itemsIndexed(
+                        page.rows,
+                        span = { _, _ -> if (page.fullWidth) GridItemSpan(maxLineSpan) else GridItemSpan(1) },
+                    ) { _, row -> row() }
+                }
+                // A soft fade at the bottom says there is more below; it is gone when the page ends.
+                if (gridState.canScrollForward) {
                     Box(
-                        Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(40.dp)
-                            .background(Brush.verticalGradient(listOf(Color.Transparent, palette.scrim)))
+                        Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(44.dp)
+                            .background(Brush.verticalGradient(listOf(Color.Transparent, palette.scrim))),
                     )
-                }
-                }
-            }
-            if (portrait) {
-                // An upright phone has no room for a side column: the tabs sit on top.
-                Column(modifier = Modifier.fillMaxSize().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { tabs(Modifier.weight(1f)) }
-                    list(Modifier.weight(1f))
-                }
-            } else {
-                Row(modifier = Modifier.fillMaxSize().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                    Column(modifier = Modifier.width(190.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        tabs(Modifier.fillMaxWidth())
-                    }
-                    list(Modifier.weight(1f))
                 }
             }
         }
@@ -303,7 +279,7 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun ToggleRow(t: ToggleItem) {
+fun ToggleRow(t: ToggleItem) {
     // The whole row toggles, not just the small switch: much easier to hit with gloves.
     val haptics = rememberRideHaptics()
     Row(
@@ -311,12 +287,12 @@ private fun ToggleRow(t: ToggleItem) {
             .hapticClickable(enabled = t.enabled, haptic = if (t.checked) RideHaptic.ToggleOff else RideHaptic.ToggleOn) {
                 t.onChange(!t.checked)
             }
-            .padding(horizontal = 16.dp, vertical = 20.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(t.title, fontSize = 20.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
-            Text(t.description, fontSize = 15.sp, color = LocalMotoPalette.current.muted)
+        Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
+            Text(t.title, fontSize = 19.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
+            Text(t.description, fontSize = 14.sp, color = LocalMotoPalette.current.muted)
         }
         Switch(
             checked = t.checked,
@@ -329,15 +305,57 @@ private fun ToggleRow(t: ToggleItem) {
     }
 }
 
+/**
+ * A card with one switch per row. Used for the variable-length message app list: the shared
+ * explanation sits once at the top, so a long list stays compact and still scrolls.
+ */
 @Composable
-private fun SettingRow(item: SettingItem) {
+fun ToggleGroupRow(title: String, description: String, toggles: List<ToggleItem>) {
+    if (toggles.isEmpty()) return
+    val palette = LocalMotoPalette.current
+    val haptics = rememberRideHaptics()
+    Column(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(title, fontSize = 19.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
+        Text(description, fontSize = 14.sp, color = palette.muted)
+        toggles.forEach { t ->
+            Box(Modifier.fillMaxWidth().height(1.dp).background(palette.track))
+            Row(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)
+                    .hapticClickable(haptic = if (t.checked) RideHaptic.ToggleOff else RideHaptic.ToggleOn) {
+                        t.onChange(!t.checked)
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    t.title, fontSize = 18.sp, color = palette.text, fontWeight = FontWeight.SemiBold,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).padding(end = 10.dp),
+                )
+                Switch(
+                    checked = t.checked,
+                    onCheckedChange = { on ->
+                        haptics.perform(if (on) RideHaptic.ToggleOn else RideHaptic.ToggleOff)
+                        t.onChange(on)
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingRow(item: SettingItem) {
     Row(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(item.title, fontSize = 20.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
-            Text(item.description, fontSize = 15.sp, color = LocalMotoPalette.current.muted)
+            Text(item.title, fontSize = 19.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
+            Text(item.description, fontSize = 14.sp, color = LocalMotoPalette.current.muted)
             item.progress?.let { progress ->
                 if (progress < 0f) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
                 else LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
@@ -355,14 +373,14 @@ private fun SettingRow(item: SettingItem) {
 }
 
 @Composable
-private fun ThemeRow(mode: ThemeMode, onSelect: (ThemeMode) -> Unit) {
+fun ThemeRow(mode: ThemeMode, onSelect: (ThemeMode) -> Unit) {
     val palette = LocalMotoPalette.current
     Column(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(stringResource(R.string.theme_title), fontSize = 20.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
-        Text(stringResource(R.string.theme_desc), fontSize = 15.sp, color = palette.muted)
+        Text(stringResource(R.string.theme_title), fontSize = 19.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.theme_desc), fontSize = 14.sp, color = palette.muted)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             listOf(
                 ThemeMode.AUTO to R.string.theme_auto,
@@ -375,6 +393,9 @@ private fun ThemeRow(mode: ThemeMode, onSelect: (ThemeMode) -> Unit) {
                     { onSelect(m) },
                     Modifier.weight(1f),
                     textColor = if (m == mode) Color.White else palette.text,
+                    horizontalPadding = 8.dp,
+                    fontSize = 16.sp,
+                    singleLine = true,
                     haptic = RideHaptic.Select,
                 )
             }
@@ -390,8 +411,8 @@ fun ChoiceRow(title: String, description: String, choices: List<Pair<String, Boo
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(title, fontSize = 20.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
-        Text(description, fontSize = 15.sp, color = palette.muted)
+        Text(title, fontSize = 19.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
+        Text(description, fontSize = 14.sp, color = palette.muted)
         // At most three buttons per line (four go two by two), so every name stays on one line even on a narrow phone.
         choices.withIndex().chunked(if (choices.size == 4) 2 else 3).forEach { rowItems ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -415,8 +436,55 @@ fun ChoiceRow(title: String, description: String, choices: List<Pair<String, Boo
     }
 }
 
+/** Speech rate and installed voices in one card: both belong to the same spoken guidance. */
 @Composable
-private fun MarkerRow() {
+fun VoiceControlsRow(
+    speechRate: Float,
+    onSpeechRate: (Float) -> Unit,
+    ttsVoiceNames: List<String>,
+    selectedTtsVoice: String?,
+    onTtsVoice: (String?) -> Unit,
+) {
+    val palette = LocalMotoPalette.current
+    Column(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(stringResource(R.string.voice_speech_rate, (speechRate * 100).toInt()), fontSize = 19.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
+        Slider(speechRate, onSpeechRate, valueRange = 0.75f..1.25f)
+        Text(stringResource(R.string.voice_tts_title), fontSize = 18.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.voice_tts_desc), fontSize = 14.sp, color = palette.muted)
+        if (ttsVoiceNames.isEmpty()) {
+            Text(stringResource(R.string.voice_tts_missing), fontSize = 14.sp, color = palette.muted)
+        } else {
+            val choices = listOf(stringResource(R.string.voice_tts_default) to (selectedTtsVoice == null)) +
+                ttsVoiceNames.map { it to (it == selectedTtsVoice) }
+            choices.withIndex().chunked(2).forEach { rowItems ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    rowItems.forEach { (i, choice) ->
+                        val (label, selected) = choice
+                        Box(
+                            modifier = Modifier.weight(1f).height(64.dp).clip(RoundedCornerShape(32.dp))
+                                .background(if (selected) MotoColors.Blue else palette.cardHigh)
+                                .hapticClickable(haptic = RideHaptic.Select) { onTtsVoice(ttsVoiceNames.getOrNull(i - 1)) }
+                                .padding(horizontal = 8.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = if (selected) Color.White else palette.text,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MarkerRow() {
     val palette = LocalMotoPalette.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val look by MarkerStyle.look.collectAsStateWithLifecycle()
@@ -424,8 +492,8 @@ private fun MarkerRow() {
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(stringResource(R.string.marker_title), fontSize = 20.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
-        Text(stringResource(R.string.marker_desc), fontSize = 15.sp, color = palette.muted)
+        Text(stringResource(R.string.marker_title), fontSize = 19.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.marker_desc), fontSize = 14.sp, color = palette.muted)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             listOf(
                 MarkerShape.MODERN to R.string.marker_modern,
@@ -442,18 +510,27 @@ private fun MarkerRow() {
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     val bmp = remember(shape, look.colorIndex) { markerBitmap(look.copy(shape = shape), 96).asImageBitmap() }
-                    androidx.compose.foundation.Image(bmp, null, Modifier.size(56.dp))
+                    Image(bmp, null, Modifier.size(56.dp))
                     Text(stringResource(label), fontSize = 15.sp, color = if (picked) Color.White else palette.text)
                 }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            MARKER_COLORS.forEachIndexed { i, argb ->
-                Box(
-                    modifier = Modifier.size(46.dp).clip(CircleShape).background(Color(argb))
-                        .then(if (i == look.colorIndex) Modifier.border(4.dp, palette.text, CircleShape) else Modifier)
-                        .hapticClickable(haptic = RideHaptic.Select) { MarkerStyle.set(context, look.copy(colorIndex = i)) },
-                )
+        // Six colours in two rows of three: every 46 dp swatch keeps a 64 dp touch target even
+        // on a narrow portrait card, where one row of six would overflow.
+        MARKER_COLORS.withIndex().chunked(3).forEach { rowItems ->
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                rowItems.forEach { (i, argb) ->
+                    Box(
+                        modifier = Modifier.size(64.dp).clip(CircleShape)
+                            .hapticClickable(haptic = RideHaptic.Select) { MarkerStyle.set(context, look.copy(colorIndex = i)) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(
+                            modifier = Modifier.size(46.dp).clip(CircleShape).background(Color(argb))
+                                .then(if (i == look.colorIndex) Modifier.border(4.dp, palette.text, CircleShape) else Modifier),
+                        )
+                    }
+                }
             }
         }
     }

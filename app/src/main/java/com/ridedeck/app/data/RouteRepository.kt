@@ -70,35 +70,20 @@ data class Route(
         distanceM.isFinite() && distanceM > 0 && durationS.isFinite() && durationS >= 0 && cumulative.last() > 0
 }
 
-/** Valhalla `bicycle_type`: how much road bike the cyclist is on. */
-enum class BikeType(val valhalla: String) { ROAD("Road"), CITY("Hybrid"), MOUNTAIN("Mountain") }
-
 /**
- * Who is travelling and what they want to avoid. Everything off leaves Valhalla's own defaults for the
- * vehicle untouched (a bicycle always names its [bikeType]).
+ * What the rider wants to avoid. Everything off leaves Valhalla's own motorcycle defaults untouched.
  */
 data class RouteOptions(
     val avoidHighways: Boolean = false,
     val avoidTolls: Boolean = false,
-    val profile: VehicleProfile = VehicleProfile.MOTORCYCLE,
-    val avoidHills: Boolean = false,
-    val avoidBadSurfaces: Boolean = false,
-    val bikeType: BikeType = BikeType.CITY,
 ) {
     /** Valhalla `costing_options`, or null when there is nothing to change. */
     fun costingOptions(): JSONObject? {
-        val costing = profile.config.costing
         val options = JSONObject()
-        if (profile == VehicleProfile.BICYCLE) {
-            options.put("bicycle_type", bikeType.valhalla)
-            if (avoidHills) options.put("use_hills", 0)
-            if (avoidBadSurfaces) options.put("avoid_bad_surfaces", 1)
-        } else {
-            if (avoidHighways) options.put("use_highways", 0)
-            if (avoidTolls) options.put("use_tolls", 0)
-        }
+        if (avoidHighways) options.put("use_highways", 0)
+        if (avoidTolls) options.put("use_tolls", 0)
         if (options.length() == 0) return null
-        return JSONObject().put(costing, options)
+        return JSONObject().put(VehicleProfile.MOTORCYCLE.config.costing, options)
     }
 }
 
@@ -137,7 +122,7 @@ object PlaceNames {
 
 private const val METRES_PER_MILE = 1609.344
 
-/** Valhalla (OSM) routing for the chosen vehicle and Nominatim geocoding, both public no-key services. */
+/** Valhalla (OSM) motorcycle routing and Nominatim geocoding, both public no-key services. */
 class RouteRepository(
     /** Spoken and written route texts follow the rider's unit choice; lengths are converted back to metres. */
     private val miles: () -> Boolean = { false },
@@ -179,7 +164,7 @@ class RouteRepository(
     private fun requestBody(points: List<GeoPoint>, options: RouteOptions, useMiles: Boolean, alternates: Int): JSONObject {
         val body = JSONObject()
             .put("locations", JSONArray().also { arr -> points.forEach { arr.put(JSONObject().put("lat", it.lat).put("lon", it.lon)) } })
-            .put("costing", options.profile.config.costing)
+            .put("costing", VehicleProfile.MOTORCYCLE.config.costing)
             .put("directions_options", JSONObject().put("language", GuidanceLanguage.current()).put("units", if (useMiles) "miles" else "kilometers"))
         if (alternates > 0) body.put("alternates", alternates)
         options.costingOptions()?.let { body.put("costing_options", it) }

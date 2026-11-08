@@ -21,13 +21,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Navigation
-import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 import com.ridedeck.app.R
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -42,7 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.ridedeck.app.data.BatteryState
 
 /** Which dock tile belongs to the screen that is open; it gets a light ring. */
-enum class DockTab { NONE, NAV, MUSIC, PHONE, APPS }
+enum class DockTab { NONE, NAV, MUSIC, PHONE, SETTINGS }
 
 @Composable
 fun Dock(
@@ -50,11 +46,8 @@ fun Dock(
     onNavigation: () -> Unit,
     onMusic: () -> Unit,
     onPhone: () -> Unit,
-    onApps: () -> Unit,
-    /** Long press on the apps tile opens Settings. */
+    /** Short press on the Settings tile opens Settings directly. */
     onSettings: () -> Unit = {},
-    /** Shows a short "hold for Settings" caption on the apps tile until the rider has found it. */
-    settingsHint: Boolean = false,
     active: DockTab = DockTab.NONE,
     /** A bar along the bottom for an upright phone; the default is the column down the left side. */
     horizontal: Boolean = false,
@@ -72,7 +65,7 @@ fun Dock(
                 DockTile(Icons.Rounded.Navigation, MotoColors.Blue, tile, onNavigation, active == DockTab.NAV, label = stringResource(R.string.nav_title))
                 DockTile(Icons.Rounded.MusicNote, MotoColors.Red, tile, onMusic, active == DockTab.MUSIC, label = stringResource(R.string.dock_music))
                 DockTile(Icons.Rounded.Call, Color(0xFF34C759), tile, onPhone, active == DockTab.PHONE, label = stringResource(R.string.perm_phone))
-                DockTile(Icons.Rounded.Apps, MotoColors.Gray, tile, onApps, active == DockTab.APPS, onSettings, if (settingsHint) stringResource(R.string.dock_settings_hint) else null, label = stringResource(R.string.apps_title))
+                DockTile(Icons.Rounded.Settings, MotoColors.Gray, tile, onSettings, active == DockTab.SETTINGS, label = stringResource(R.string.apps_settings))
                 Box(Modifier.width(statusWidth), contentAlignment = Alignment.Center) { DockStatus(battery) }
             }
         }
@@ -91,7 +84,7 @@ fun Dock(
                 DockTile(Icons.Rounded.Navigation, MotoColors.Blue, tile, onNavigation, active == DockTab.NAV, label = stringResource(R.string.nav_title))
                 DockTile(Icons.Rounded.MusicNote, MotoColors.Red, tile, onMusic, active == DockTab.MUSIC, label = stringResource(R.string.dock_music))
                 DockTile(Icons.Rounded.Call, Color(0xFF34C759), tile, onPhone, active == DockTab.PHONE, label = stringResource(R.string.perm_phone))
-                DockTile(Icons.Rounded.Apps, MotoColors.Gray, tile, onApps, active == DockTab.APPS, onSettings, if (settingsHint) stringResource(R.string.dock_settings_hint) else null, label = stringResource(R.string.apps_title))
+                DockTile(Icons.Rounded.Settings, MotoColors.Gray, tile, onSettings, active == DockTab.SETTINGS, label = stringResource(R.string.apps_settings))
             }
             DockStatus(battery)
         }
@@ -104,13 +97,12 @@ private val STATUS_HEIGHT = 92.dp
 @Composable
 private fun DockTile(
     icon: ImageVector, color: Color, tile: Dp, onClick: () -> Unit, active: Boolean = false,
-    onLongClick: (() -> Unit)? = null, caption: String? = null, label: String? = null,
+    label: String? = null,
 ) {
-    val longLabel = if (onLongClick != null) stringResource(R.string.dock_long_press_settings) else null
     val ring by animateColorAsState(if (active) Color.White else Color.Transparent, tween(150), label = "dockRing")
     Box(
         modifier = Modifier
-            .pressClickable(haptic = RideHaptic.Select, onLongClick = onLongClick, onLongClickLabel = longLabel, onClick = onClick)
+            .pressClickable(haptic = RideHaptic.Select, onClick = onClick)
             .size(tile)
             .clip(RoundedCornerShape(18.dp))
             .border(3.dp, ring, RoundedCornerShape(18.dp))
@@ -119,13 +111,7 @@ private fun DockTile(
     ) {
         Icon(
             icon, contentDescription = label, tint = Color.White,
-            modifier = Modifier.size(tile * 0.55f).offset(y = if (caption != null) -(tile * 0.08f) else 0.dp),
+            modifier = Modifier.size(tile * 0.55f),
         )
-        if (caption != null) {
-            Text(
-                caption, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 3.dp),
-            )
-        }
     }
 }
