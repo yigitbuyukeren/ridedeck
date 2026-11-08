@@ -20,28 +20,28 @@
 
 </div>
 
-<p align="center"><img src="docs/screenshots/demo.gif" width="800" alt="RideDeck demosu: araç seçimi, ana panel, rota, sesli navigasyon, benzinlikler ve SOS geri sayımı ekranları sırayla"><br><sub>Emülatörde, sahte GPS ile alınmış ekran görüntülerinin geçişi; ekran kaydı veya gerçek cihaz testi değildir.</sub></p>
+<p align="center"><img src="docs/screenshots/demo.gif" width="800" alt="RideDeck demosu: ana panel, rota, sesli navigasyon, benzinlikler ve SOS geri sayımı ekranları sırayla"><br><sub>Emülatörde, sahte GPS ile alınmış ekran görüntülerinin geçişi; ekran kaydı veya gerçek cihaz testi değildir. GIF, araç seçiminin kaldırılmasından önce çekilmiştir.</sub></p>
 
 <details open>
 <summary><h2>🇹🇷 Türkçe</h2></summary>
 
-Telefonu gidona veya torpido üstüne takınca **hız, harita, müzik ve telefon tek ekranda** toplanır. İlk açılışta aracını seçersin (Ayarlar'dan değişir); rota, uyarılar ve düzen ona göre ayarlanır. Tüm arayüz eldivenle kullanılacak büyüklükte, sürerken yazı girişi yoktur.
+Telefonu gidona veya motosiklet üstüne takınca **hız, harita, müzik ve telefon tek ekranda** toplanır. RideDeck yalnız motosiklet için tasarlanmıştır; rota, uyarılar ve düzen motosiklete göre ayarlanır. Tüm arayüz eldivenle kullanılacak büyüklükte, sürerken yazı girişi yoktur.
 
 ### ✨ Öne çıkanlar
 
 | 🧭 **Sesli yönlendirme** | 📞 **Telefon ve müzik** | 🆘 **SOS ve kaza algılama** |
 |:---:|:---:|:---:|
-| OpenStreetMap haritası, motosiklet / araba / bisiklet rotası, ara durak, benzinlik ve şarj | Uygulama içi telefon (son aramalar, rehber, tuş takımı), müzik kontrolü, mesajları sesli okuma | Sert darbe ve hareketsizlikte geri sayım, sonra konum linkli tek SMS |
+| OpenStreetMap haritası, motosiklet rotası, ara durak ve benzinlik | Uygulama içi telefon (son aramalar, rehber, tuş takımı), müzik kontrolü, mesajları sesli okuma | Sert darbe ve hareketsizlikte geri sayım, sonra konum linkli tek SMS |
 | 🗺️ **Çevrimdışı harita** | 🌦️ **Uyarılar** | 🔒 **Gizlilik** |
-| Ayarlar'dan çevredeki haritayı indir; rota, arama ve hava durumu yine internet ister | Yağmur, buzlanma ve rüzgâr uyarısı; telefon ısınınca ekran kısılır | Veriler telefonda kalır; yalnızca harita/yer sorguları çıkar, sesli yönlendirme Android'in metin okuma motoruyla yapılır |
+| Ayarlar'dan çevredeki haritayı indir; rota, arama ve hava durumu yine internet ister | Yağmur ve buzlanma uyarısı; telefon ısınınca ekran kısılır | Veriler telefonda kalır; yalnızca harita/yer sorguları çıkar, sesli yönlendirme Android'in metin okuma motoruyla yapılır |
 
 ### 📸 Ekran görüntüleri
 
 Aşağıdakiler Android emülatöründen (Türkçe arayüz) alınmıştır.
 
-| İlk açılışta araç seçimi | Rota |
-|---|---|
-| ![Araç seçimi](docs/screenshots/vehicle.png) | ![Rota](docs/screenshots/route.png) |
+| Rota |
+|---|
+| ![Rota](docs/screenshots/route.png) |
 
 | Navigasyon | Benzinlikler |
 |---|---|
@@ -51,27 +51,24 @@ Aşağıdakiler Android emülatöründen (Türkçe arayüz) alınmıştır.
 |---|---|
 | ![SOS](docs/screenshots/sos.png) | ![Güvenlik ayarları](docs/screenshots/settings-safety.png) |
 
-Bisiklet profilinde telefon dik de durabilir:
-
-<img src="docs/screenshots/bicycle-portrait.png" alt="Dik bisiklet ana ekranı" width="240">
-
 ### 📲 Kurulum
 
 1. [Son sürümün](https://github.com/yigitbuyukeren/ridedeck/releases/latest) APK'sını indir ve kur (bilinmeyen kaynaklardan kuruluma izin ver).
-2. İlk açılışta aracını seç; istersen RideDeck'i ana ekran (HOME) uygulaması yap.
-3. Müzik ve mesaj okuma için Ayarlar > Kurulum'dan bildirim erişimini ver.
+2. İlk açılışta izin sayfasını gör; istersen RideDeck'i ana ekran (HOME) uygulaması yap.
+3. Müzik ve mesaj okuma için Ayarlar > İzinler ve sistem'den bildirim erişimini ver.
 
 ### 🧭 Özellikler
 
 Ayrıntılar için başlıklara dokun.
 
 <details>
-<summary><b>Araç profilleri</b></summary>
+<summary><b>Motosiklet profili</b></summary>
 
-- İlk açılışta Motosiklet / Araba / Bisiklet seçimi; Ayarlar > Kurulum'dan değişir, kendi ayarların korunur
-- Rota araca göre: Valhalla `motorcycle`, `auto` veya `bicycle`; bisiklette yokuşsuz, düz zemin ve bisiklet tipi (yol / şehir / dağ)
-- ⛽ düğmesi: motosiklette benzinlik, arabada benzinlik ve şarj istasyonu, bisiklette tamir noktası, bisiklet dükkânı ve içme suyu
-- Kaza algılama eşikleri ve hız göstergesi ölçeği araca göre; bisiklette rüzgâr uyarısı ve dik ekran desteği (ana ekran, müzik, telefon, ayarlar dikey de çalışır)
+- Uygulama yalnız motosiklet içindir; araç seçim ekranı ve Ayarlar'daki araç seçimi kaldırıldı
+- Rota her zaman Valhalla `motorcycle` costing'i ile hesaplanır; otoyolsuz ve ücretsiz yol seçenekleri hatırlanır
+- ⛽ düğmesi benzinlik arar; benzinlik, ara durak ve rota üzerindeki duraklar motosiklet akışında çalışır
+- Kaza algılama eşikleri ve 200 km/s hız göstergesi motosiklete sabittir; arayüz yatay gidon düzenindedir
+- Eski sürümlerde Araba veya Bisiklet seçmiş kullanıcıların kaydı açılışta motosiklete çevrilir; geçmiş, kayıtlı yerler, SOS kişileri ve diğer veriler korunur
 
 </details>
 
@@ -88,13 +85,13 @@ Ayrıntılar için başlıklara dokun.
 <details>
 <summary><b>Navigasyon</b></summary>
 
-- Gömülü harita ve sesli yönlendirme: MapLibre + OpenStreetMap (OpenFreeMap), Nominatim arama, Valhalla araç rotası, rota dışına çıkınca yeniden hesaplama
-- Rota seçenekleri: otoyolsuz ve ücretsiz yol (bisiklette yokuşsuz ve düz zemin), seçim hatırlanır
+- Gömülü harita ve sesli yönlendirme: MapLibre + OpenStreetMap (OpenFreeMap), Nominatim arama, Valhalla motosiklet rotası, rota dışına çıkınca yeniden hesaplama
+- Rota seçenekleri: otoyolsuz ve ücretsiz yol, seçim hatırlanır
 - Kayıtlı yerler: Ev, İş ve favoriler; büyük karolarla tek dokunuşla rota, dashboard'da "Eve git"
-- Duraklar (benzinlik, şarj, tamirci, su): yakınında veya rotanın üzerinde; navigasyon sırasında tek dokunuşla **ara durak** ekle, varınca "Yola devam"
+- Benzinlikler: yakınında veya rotanın üzerinde; navigasyon sırasında tek dokunuşla **ara durak** ekle, varınca "Yola devam"
 - Yolun hız limiti ve aşınca sesli uyarı
 - Sürerken arama kutusu ve Ayarlar kilitlenir (sürüş kuralı: hareket halindeyken yazı girişi ve ayar değişikliği yok); hedefi kayıtlı yerlerden veya haritaya uzun basarak seç
-- Yazım hatası toleransı: sonuç çıkmazsa düzeltilmiş yazımlar (Türkçe harfler, eksik veya yer değiştirmiş harf) en çok üç kez, saniyede en fazla bir istekle denenir; yine bulunamazsa "Bunu mu demek istedin?" önerisi gelir. Önerilen yer sormadan rotaya girmez. Seçtiğin son hedefler yalnızca telefonda tutulur (Ayarlar > Sürüş'ten kapatılır, "Geçmişi sil" ile silinir)
+- Yazım hatası toleransı: sonuç çıkmazsa düzeltilmiş yazımlar (Türkçe harfler, eksik veya yer değiştirmiş harf) en çok üç kez, saniyede en fazla bir istekle denenir; yine bulunamazsa "Bunu mu demek istedin?" önerisi gelir. Önerilen yer sormadan rotaya girmez. Seçtiğin son hedefler yalnızca telefonda tutulur (Ayarlar > Genel'den kapatılır, "Geçmişi sil" ile silinir)
 - Navigasyon sürerken ana ekranda canlı mini harita, sıradaki dönüş, kalan mesafe ve varış saati
 - Arama kutusu için uygulamanın kendi Türkçe klavyesi
 
@@ -103,20 +100,21 @@ Ayrıntılar için başlıklara dokun.
 <details>
 <summary><b>Uygulamalar, kartlar ve ses</b></summary>
 
-- Uygulama rafı (dock'taki son karo): mesajlaşma, video veya istediğin uygulamayı sabitle, büyük karolarla tek dokunuşla başlat; ekleme ve sıralama sürerken kilitli; Ayarlar rafın sağ üstündeki dişli düğmesinden açılır
-- Ana ekran kartları ayarlanır (Ayarlar > Sürüş): harita, müzik, uygulama kartı (sabitlediğin uygulamalar tek sırada) veya boş
+- Dock'taki dişli düğmesi Ayarlar'ı açar; sürüş sırasında ayarlar kilitlenir.
+- Ayarlar altı bölüme ayrıldı: Genel, Görünüm, Harita, Ses ve bildirimler, Güvenlik, İzinler ve sistem. Üstteki bölüm şeridi yatay kayar; geniş ekranda (yatay telefon) satırlar iki sütuna yayılır, dik ekranda tek sütun kalır.
+- Ana ekran kartları ayarlanır (Ayarlar > Görünüm): harita, müzik, uygulama kartı veya boş. Önceden sabitlenmiş uygulamalar kartta kalır; yeni uygulama ekleme kaldırılmıştır.
 - Rota kartında "Navigasyon uygulamasında aç" (Google Haritalar, Waze, Yandex Navi derin bağlantıları, yalnızca dururken); rota hâlâ RideDeck'te hesaplanır, canlı trafik isteyen bu uygulamalara geçer
-- Mil ve mph ayarı (Ayarlar > Sürüş): hız, mesafe, hız limiti ve rota sesleri
-- Düğmelere basınca hafif dokunma titremesi (Ayarlar > Sürüş'ten kapatılır); telefonun "dokunma geri bildirimi" ayarı kapalıysa yine de titremez
-- Mesaj uygulamalarını tek tek sessize alma (Ayarlar'da görülen uygulamalar için anahtar)
+- Mil ve mph ayarı (Ayarlar > Genel): hız, mesafe, hız limiti ve rota sesleri
+- Düğmelere basınca hafif dokunma titremesi (Ayarlar > Genel'den kapatılır); telefonun "dokunma geri bildirimi" ayarı kapalıysa yine de titremez
+- Mesaj uygulamalarını tek tek sessize alma (Ayarlar > Ses ve bildirimler'deki uygulama listesi)
 
 </details>
 
 <details>
 <summary><b>Güvenlik</b></summary>
 
-- Hava durumu: sıcaklık, 1 saat içinde yağmur ve buzlanma uyarısı, bisiklette sert rüzgâr (şerit + sesli)
-- Isınma koruması: telefon 42°C'yi aşınca ekran kısılır ve harita yavaşlar, araç durunca ekran kararır
+- Hava durumu: sıcaklık, 1 saat içinde yağmur ve buzlanma uyarısı
+- Isınma koruması: telefon 42°C'yi aşınca ekran kısılır ve harita yavaşlar, motosiklet durunca ekran kararır
 - SOS (varsayılan kapalı): otomatik kaza algılama (sert darbe + hareketsizlik; iki tekerlekte yön değişimi veya çok yüksek darbe aranır) veya uzun basmalı düğme. Çukur/kırmızı ışık kaynaklı yanlış alarmları azaltan filtreler var; bilinmeyen GPS hızı duruş sayılmaz. Geri sayımdan sonra en fazla 3 kişiye konum linkli bir mesaj gönderimi denenir; arama ve otomatik tekrar gönderim yok. Onaylanan, başarısız ve belirsiz sonuçlar kişi bazında ayrılır; alıcıya teslim garantisi verilmez.
 
 </details>
@@ -194,10 +192,10 @@ Issue ve PR'lar açık; RideDeck'i denediysen [geri bildirim formunu](https://gi
 
 | 🧭 **Voice guidance** | 📞 **Phone and music** | 🆘 **SOS and crash detection** |
 |:---:|:---:|:---:|
-| OpenStreetMap, motorcycle / car / bicycle routing, waypoints, fuel and charging stops | In-app phone (recents, contacts, keypad), music control, messages read aloud | Countdown after a hard impact and no movement, then a single SMS with your location |
+| OpenStreetMap, motorcycle routing, waypoints and fuel stops | In-app phone (recents, contacts, keypad), music control, messages read aloud | Countdown after a hard impact and no movement, then a single SMS with your location |
 | 🗺️ **Offline map** | 🌦️ **Alerts** | 🔒 **Privacy** |
-| Download the map around you in Settings; routing, search and weather still need internet | Rain, ice and wind alerts; the screen dims when the phone overheats | Data stays on the phone; public map queries leave it; spoken guidance uses Android text-to-speech |
+| Download the map around you in Settings; routing, search and weather still need internet | Rain and ice alerts; the screen dims when the phone overheats | Data stays on the phone; public map queries leave it; spoken guidance uses Android text-to-speech |
 
-RideDeck is a free, open-source Android app (Kotlin, Jetpack Compose, minSdk 26) that turns a phone into a CarPlay-style landscape dashboard for motorcycles, cars and bicycles: GPS speedometer, voice-guided OpenStreetMap navigation, fuel/charging/repair stops, weather alerts, music, an in-app phone and crash-detecting SOS. No accounts, API keys or RideDeck backend; navigation queries use free public map services. The UI has Turkish and English; spoken guidance follows the phone language (Turkish or English). Build with `./gradlew assembleDebug` (JDK 17). Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md). Technical write-up: [case study](docs/CASE-STUDY.en.md). Known limits: crash-detection thresholds and real SMS sending are not field-tested; screenshots and the demo GIF come from an emulator with simulated GPS; navigation, search and weather need a network connection (the map can be downloaded for offline use around you, but routing does not work offline); explicitly started rides use a location foreground service to keep GPS and recording active with the screen off, independently of the overlay; location permission and GPS must be enabled, and system-stopped rides do not automatically restart; SMS send results distinguish confirmed, failed and unknown recipients; recipient delivery is not confirmed and there are no automatic retries. Speech pauses during calls and music does not automatically resume after a headset disconnects. SOS is an aid, not a safety guarantee.
+RideDeck is a free, open-source Android app (Kotlin, Jetpack Compose, minSdk 26) that turns a phone into a CarPlay-style landscape dashboard for motorcycles: GPS speedometer, voice-guided OpenStreetMap navigation, fuel stops, weather alerts, music, an in-app phone and crash-detecting SOS. It is motorcycle-only; older saved car or bicycle choices are migrated to motorcycle on launch without touching trips, saved places or SOS contacts. No accounts, API keys or RideDeck backend; navigation queries use free public map services. The UI has Turkish and English; spoken guidance follows the phone language (Turkish or English). Settings are grouped into six pages (General, Appearance, Map, Sound and alerts, Safety, Permissions and system) with a scrollable category rail and a two-column grid in landscape. Build with `./gradlew assembleDebug` (JDK 17). Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md). Technical write-up: [case study](docs/CASE-STUDY.en.md). Known limits: crash-detection thresholds and real SMS sending are not field-tested; screenshots and the demo GIF come from an emulator with simulated GPS; navigation, search and weather need a network connection (the map can be downloaded for offline use around you, but routing does not work offline); explicitly started rides use a location foreground service to keep GPS and recording active with the screen off, independently of the overlay; location permission and GPS must be enabled, and system-stopped rides do not automatically restart; SMS send results distinguish confirmed, failed and unknown recipients; recipient delivery is not confirmed and there are no automatic retries. Speech pauses during calls and music does not automatically resume after a headset disconnects. SOS is an aid, not a safety guarantee.
 
 </details>

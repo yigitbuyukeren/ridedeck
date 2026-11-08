@@ -1,0 +1,11 @@
+# RideDeck
+- Android Kotlin/Compose sürüş paneli; kaynak kod ve `docs/STATUS.md` güncel gerçekliktir.
+- Gradle wrapper ve JDK 17 kullan. Kontroller: `./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease`.
+- Sürüş güvenliği, SOS, GPS ve navigasyon davranışlarını değiştirmeden önce ilgili testleri doğrula. Gerçek cihazda denenmeyen özellikleri doğrulanmış gösterme.
+- Navigasyon servislerinde mevcut anahtarsız yapıyı ve merkezi HTTP katmanını koru.
+- Canlı dağıtım veya sürüm yayınlama açık talimat gerektirir.
+- Görevle ilgili belgeleri gerektiğinde oku: güncel durum `docs/STATUS.md`, bekleyen işler `docs/PLAN.md`, saha/yayın kapıları `docs/RELEASE_READINESS.md`. Eski test sonuçları tarihsel kanıttır.
+- Mevcut dalı ve kullanıcı değişikliklerini koru; otomatik `switch`, `pull`, sürüm artırma, etiket veya release oluşturma. Test başarısızken commit/push yapma; yalnızca ilgili dosyaları stage et.
+- Plan maddelerini kullanıcı uygulama istemeden başlatma. Tamamlananları STATUS'a taşı; özellik/mimari değişince ilgili README bölümünü güncelle.
+- Sürüşte yazı girişi ekleme; dokunma alanları 64–84dp ve yüksek kontrast korunsun. Yeni arayüz metinlerini `values/strings.xml` ve `values-en/strings.xml` içinde birlikte güncelle.
+- Arayüz değişince emülatör doğrulaması yap; fiziksel cihaz ve gerçek sürüş doğrulamasını ayrı bildir. Emülatör örneği: `$ANDROID_HOME/emulator/emulator -avd moto -no-snapshot`.
