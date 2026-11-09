@@ -52,7 +52,8 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
                     SosReason.AUTO -> app.getString(R.string.sos_voice_auto, seconds)
                     SosReason.MANUAL -> app.getString(R.string.sos_voice_manual, seconds)
                     SosReason.TEST -> app.getString(R.string.sos_voice_test)
-                }
+                },
+                SpeechPriority.SOS,
             )
         },
         message = { reason, link, stale ->

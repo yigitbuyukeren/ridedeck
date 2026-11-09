@@ -82,6 +82,8 @@ class NavigationController(
     private val searchGapMs: Long = SEARCH_GAP_MS,
     private val nowMs: () -> Long = System::currentTimeMillis,
     private val beforeStart: () -> Boolean = { true },
+    /** Spoken distances follow the rider's unit choice. */
+    private val miles: () -> Boolean = { false },
 ) {
     private val _options = MutableStateFlow(initialOptions)
     val options: StateFlow<RouteOptions> = _options
@@ -107,9 +109,30 @@ class NavigationController(
     /** When and how fast the last on-route match was, so a long GPS gap widens the next search (N3). */
     private var lastMatchAtMs = 0L
     private var lastMatchSpeedMps = 0.0
+    /** The manoeuvre that was next on the previous fix (to notice one was just passed) and when the full instruction was spoken. */
+    private var lastNext = -1
+    private var lastNearAtMs = 0L
 
     private fun here(): GeoPoint? =
         location.value.takeIf { it.hasFreshFix(nowMs()) }?.let { GeoPoint(it.lat, it.lon) }
+
+    /** The direction of travel for a route request, or null when standing still (then the heading is noise). */
+    private fun heading(): Double? {
+        val fix = location.value
+        if (!fix.hasFreshFix(nowMs()) || fix.speedKmh / 3.6 < RouteMatcher.MIN_HEADING_SPEED) return null
+        return fix.bearing?.toDouble()?.takeIf { it.isFinite() }
+    }
+
+    /**
+     * Where the bike will be when the routing reply arrives: the fix moved along the heading by [REROUTE_LEAD_S]
+     * seconds of travel, so the new route does not begin behind the rider.
+     */
+    private fun leadPoint(p: GeoPoint, fix: LocationState): GeoPoint {
+        val speedMps = fix.speedKmh / 3.6
+        val bearing = fix.bearing?.toDouble()?.takeIf { it.isFinite() } ?: return p
+        if (speedMps < RouteMatcher.MIN_HEADING_SPEED) return p
+        return Geo.offset(p, bearing, speedMps * REROUTE_LEAD_S)
+    }
 
     fun onQueryChange(query: String) {
         searchJob?.cancel()
@@ -248,8 +271,9 @@ class NavigationController(
         stops: List<Place> = emptyList(),
     ): Result<Route>? = withTimeoutOrNull(routeTimeoutMs) {
         try {
-            val trip = if (stops.isEmpty()) repo.route(from, to, options)
-            else repo.routeVia(listOf(from) + stops.map { it.point } + to, options)
+            val heading = heading()
+            val trip = if (stops.isEmpty()) repo.route(from, to, options, heading)
+            else repo.routeVia(listOf(from) + stops.map { it.point } + to, options, heading)
             trip.mapCatching { route ->
                 require(route.isUsable()) { "Invalid route geometry or maneuvers" }
                 route
@@ -333,6 +357,7 @@ class NavigationController(
                 progressIndex = 0
                 offRouteFixes = 0
                 spoken.clear()
+                lastNext = -1
             }
             _ui.update { it.copy(route = route, loading = false, rerouting = false, progressIndex = 0, progressFraction = 0.0) }
         }
@@ -410,7 +435,12 @@ class NavigationController(
                 remainingM = remaining.toInt(), remainingS = remainingS,
                 termination = NavigationTermination.NONE)
         }
-        if (startIndex == 0) route.maneuvers.firstOrNull()?.let { voice.speak(it.verbal) }
+        if (startIndex == 0) route.maneuvers.firstOrNull()?.let { first ->
+            val post = first.postVerbal.takeIf { first.lengthM >= PromptSchedule.POST_MIN_M && route.maneuvers.size > 1 }.orEmpty()
+            voice.speak(listOf(first.verbal, post).filter { it.isNotBlank() }.joinToString(" "), SpeechPriority.NAVIGATION)
+        }
+        lastNext = -1
+        lastNearAtMs = 0L
         trackJob?.cancel()
         trackJob = scope.launch {
             try {
@@ -517,7 +547,8 @@ class NavigationController(
                 maneuverIndex = 1.coerceAtMost(route.maneuvers.lastIndex),
                 remainingM = route.distanceM.toInt(), remainingS = route.durationS.toInt())
         }
-        route.maneuvers.firstOrNull()?.let { voice.speak(it.verbal) }
+        lastNext = -1
+        route.maneuvers.firstOrNull()?.let { voice.speak(it.verbal, SpeechPriority.NAVIGATION) }
         return true
     }
 
@@ -597,7 +628,7 @@ class NavigationController(
         val remaining = (route.distanceM - travelled).coerceAtLeast(0.0)
 
         if (remaining <= ARRIVAL_M) {
-            voice.speak(text(if (state.finalDestination != null) R.string.stop_arrived else R.string.arrived))
+            voice.speak(text(if (state.finalDestination != null) R.string.stop_arrived else R.string.arrived), SpeechPriority.NAVIGATION)
             trackJob?.cancel()
             invalidateRoute()
             _ui.update { it.copy(navigating = false, arrived = true, remainingM = 0, remainingS = 0, distToNextM = 0, termination = NavigationTermination.ARRIVED) }
@@ -610,14 +641,34 @@ class NavigationController(
         val distToNext = (route.cumulative[maneuver.beginIndex.coerceAtMost(route.shape.lastIndex)] - travelled)
             .coerceAtLeast(0.0)
 
-        if (distToNext < PromptSchedule.alertM(speedMps) && maneuver.alert.isNotBlank() && spoken.add(next * 10)) {
-            if (PromptSchedule.alertWorthIt(distToNext, speedMps)) voice.speak(maneuver.alert)
+        // A manoeuvre was just passed: on a long stretch say how far the road goes on ("continue for 2 km").
+        if (lastNext in 1 until next) {
+            val done = route.maneuvers[lastNext]
+            if (done.postVerbal.isNotBlank() && done.lengthM >= PromptSchedule.POST_MIN_M && distToNext > PromptSchedule.nearM(speedMps) + 50 && spoken.add(lastNext * 10 + 4)) {
+                voice.speak(done.postVerbal, SpeechPriority.NAVIGATION)
+            }
         }
-        if (distToNext < PromptSchedule.nearM(speedMps) && spoken.add(next * 10 + 1)) voice.speak(
-            if (maneuver.isStop) text(R.string.stop_approaching) else withFollowUp(route, next)
-        )
+        lastNext = next
+
+        // Far warning with the distance ("in 800 metres, turn right"); skipped when it would land on the full instruction.
+        if (distToNext < PromptSchedule.alertM(speedMps) && maneuver.alert.isNotBlank() && spoken.add(next * 10)) {
+            if (PromptSchedule.alertWorthIt(distToNext, speedMps)) {
+                val dist = SpokenDistance.text(distToNext, miles(), text)
+                voice.speak(String.format(java.util.Locale.getDefault(), text(R.string.alert_distance_fmt), dist, maneuver.alert), SpeechPriority.NAVIGATION)
+            }
+        }
+        // The full instruction about 11 s out.
+        if (distToNext < PromptSchedule.nearM(speedMps) && spoken.add(next * 10 + 1)) {
+            lastNearAtMs = fix.fixAtMs
+            voice.speak(if (maneuver.isStop) text(R.string.stop_approaching) else withFollowUp(route, next), SpeechPriority.NAVIGATION)
+        }
+        // The short "now" cue at the turn itself; not for arrivals and stops, and not right on top of the full instruction.
+        if (!maneuver.isStop && maneuver.type !in ARRIVE_TYPES && distToNext <= PromptSchedule.nowM(speedMps) &&
+            fix.fixAtMs - lastNearAtMs >= PromptSchedule.NOW_MIN_GAP_MS && spoken.add(next * 10 + 3)) {
+            voice.speak(maneuver.alert.ifBlank { maneuver.verbal }, SpeechPriority.NAVIGATION)
+        }
         // "Reached" only at the stop itself, not hundreds of metres before it.
-        if (maneuver.isStop && distToNext <= ARRIVAL_M && spoken.add(next * 10 + 2)) voice.speak(text(R.string.stop_arrived))
+        if (maneuver.isStop && distToNext <= ARRIVAL_M && spoken.add(next * 10 + 2)) voice.speak(text(R.string.stop_arrived), SpeechPriority.NAVIGATION)
 
         _ui.update {
             it.copy(
@@ -640,12 +691,14 @@ class NavigationController(
         return "${m.verbal.trimEnd('.', ' ')}, ${text(R.string.then_voice)} ${following.verbal.trimEnd('.', ' ')}"
     }
 
-    private fun reroute(from: GeoPoint) {
+    private fun reroute(at: GeoPoint) {
         val dest = _ui.value.destination ?: return
+        // Ask from where the bike will be when the answer comes, not where it was when it left the road.
+        val from = leadPoint(at, location.value)
         _ui.update { it.copy(rerouting = true) }
         if (!rerouteSpoken) {
             rerouteSpoken = true
-            voice.speak(text(R.string.rerouting_voice))
+            voice.speak(text(R.string.rerouting_voice), SpeechPriority.NAVIGATION)
         }
         val generation = invalidateRoute()
         val detour = _ui.value.finalDestination != null
@@ -660,6 +713,7 @@ class NavigationController(
                     offRouteFixes = 0
                     nextRerouteAtMs = 0L
                     spoken.clear()
+                    lastNext = -1
                     _ui.update { it.copy(route = route, stops = ahead, stopsPassed = 0, rerouting = false, progressIndex = 0, progressFraction = 0.0) }
                 }
                 .onFailure {
@@ -687,5 +741,7 @@ class NavigationController(
         const val THEN_M = 250.0
         private val ARRIVE_TYPES = 4..7
         const val REROUTE_RETRY_MS = 10_000L
+        /** Seconds of travel the re-route start is moved ahead, roughly the routing round trip. */
+        const val REROUTE_LEAD_S = 1.5
     }
 }

@@ -114,6 +114,11 @@
     <string name="ice_voice_fmt">It is %1$d degrees, the road may be icy</string>
     <string name="stop_arrived">You have reached your stop</string>
     <string name="stop_approaching">Your stop is coming up</string>
+    <string name="alert_distance_fmt">In %1$s, %2$s</string>
+    <string name="spoken_m">%1$d metres</string>
+    <string name="spoken_km">%1$s kilometres</string>
+    <string name="spoken_ft">%1$d feet</string>
+    <string name="spoken_mi">%1$s miles</string>
     <string name="continue_trip">Continue</string>
     <string name="fuel_title">Fuel stations</string>
     <string name="fuel_searching">Looking for stops…</string>

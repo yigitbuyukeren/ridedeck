@@ -5,6 +5,7 @@ import com.ridedeck.app.data.StopKind
 import com.ridedeck.app.data.StopSource
 import com.ridedeck.app.data.FuelStation
 import com.ridedeck.app.data.GeoPoint
+import com.ridedeck.app.data.Geo
 import com.ridedeck.app.data.LocationState
 import com.ridedeck.app.data.Maneuver
 import com.ridedeck.app.data.NavigationController
@@ -236,7 +237,68 @@ class NavigationControllerTest {
         // Turn at point 15 = 1500 m. Point 9 is 600 m away, point 14 is 100 m away.
         for (i in 1..14) drive(i)
         repeat(3) { drive(14) } // more fixes in the same spot must not repeat anything
-        assertEquals(listOf("Turn right ahead", "Turn right now"), speaker.said)
+        // The far warning is the distance template (the test text provider returns the id), the full instruction unchanged.
+        assertEquals(listOf("t${R.string.alert_distance_fmt}", "Turn right now"), speaker.said)
+    }
+
+    @Test
+    fun theNowCueComesAtTheTurnAndContinueAfterALongStretch() {
+        val route = straightRoute().let { r ->
+            r.copy(maneuvers = listOf(
+                Maneuver(1, "Depart", "", "Head north", 1500.0, 0, postVerbal = "Continue for 1.5 km"),
+                Maneuver(10, "Turn right", "Turn right ahead", "Turn right now", 500.0, 15, postVerbal = "Continue for 500 m"),
+                Maneuver(4, "Arrive", "", "You have arrived", 0.0, 20),
+            ))
+        }
+        routing.routeHandler = { _, _ -> Result.success(route) }
+        startGuidance()
+        // A long first stretch: the departure says how far it goes.
+        assertEquals(listOf("Head north Continue for 1.5 km"), speaker.said)
+        speaker.said.clear()
+        for (i in 1..14) drive(i)
+        clock += 6_000 // the full instruction was a while ago: the "now" cue is allowed
+        location.value = fixAt(GeoPoint(start.lat + 15 * STEP - 0.0002, start.lon)) // ~22 m before the turn
+        assertEquals("Turn right ahead", speaker.said.last())
+        // Past the turn, on a 500 m stretch: "continue for 500 m" once.
+        drive(16)
+        assertTrue(speaker.said.toString(), speaker.said.contains("Continue for 500 m"))
+        drive(17)
+        assertEquals(1, speaker.said.count { it == "Continue for 500 m" })
+    }
+
+    @Test
+    fun routeRequestsCarryTheHeadingOnlyWhileMoving() {
+        val headings = mutableListOf<Double?>()
+        val routing = object : Routing {
+            override suspend fun route(from: GeoPoint, to: GeoPoint, options: RouteOptions) = route(from, to, options, null)
+            override suspend fun route(from: GeoPoint, to: GeoPoint, options: RouteOptions, headingDeg: Double?): Result<Route> {
+                headings += headingDeg; return Result.success(straightRoute(from))
+            }
+            override suspend fun search(query: String, near: GeoPoint?) = Result.success(emptyList<Place>())
+        }
+        val nav = NavigationController(text, scope, location, speaker, routing, fuel, nowMs = { clock })
+        location.value = LocationState(speedKmh = 50, fixAtMs = ++clock, lat = start.lat, lon = start.lon, bearing = 12f)
+        nav.selectPlace(dest)
+        assertEquals(12.0, headings.last()!!, 0.01)
+        location.value = LocationState(speedKmh = 0, fixAtMs = ++clock, lat = start.lat, lon = start.lon, bearing = 12f)
+        nav.selectPlace(dest)
+        assertNull(headings.last())
+        nav.shutdown()
+    }
+
+    @Test
+    fun aRerouteStartsAheadOfTheRiderAlongTheHeading() {
+        startGuidance()
+        val before = routing.requests.size
+        // 300 m east of the road, heading north at 72 km/h (20 m/s): four fixes off the route.
+        val off = GeoPoint(start.lat + 5 * STEP, start.lon + 0.0036)
+        repeat(4) { location.value = LocationState(speedKmh = 72, fixAtMs = ++clock, lat = off.lat, lon = off.lon, bearing = 0f) }
+        assertEquals(before + 1, routing.requests.size)
+        val from = routing.requests.last().first
+        // 20 m/s × 1.5 s = 30 m further north, same longitude.
+        assertEquals(30.0, Geo.distance(off, from), 2.0)
+        assertTrue(from.lat > off.lat)
+        assertEquals(off.lon, from.lon, 1e-9)
     }
 
     @Test

@@ -89,6 +89,9 @@ data class RouteOptions(
 
 interface Routing {
     suspend fun route(from: GeoPoint, to: GeoPoint, options: RouteOptions): Result<Route>
+
+    /** Like [route], telling the service which way the rider is already heading so the route does not begin with a U-turn. */
+    suspend fun route(from: GeoPoint, to: GeoPoint, options: RouteOptions, headingDeg: Double?): Result<Route> = route(from, to, options)
     suspend fun search(query: String, near: GeoPoint?): Result<List<Place>>
 
     /** The address of a spot picked on the map; null when there is nothing worth naming. */
@@ -96,6 +99,9 @@ interface Routing {
 
     /** One route through [points] (start, intermediate stops, destination); the default ignores the stops. */
     suspend fun routeVia(points: List<GeoPoint>, options: RouteOptions): Result<Route> = route(points.first(), points.last(), options)
+
+    /** [routeVia] with the rider's heading at the start. */
+    suspend fun routeVia(points: List<GeoPoint>, options: RouteOptions, headingDeg: Double?): Result<Route> = routeVia(points, options)
 
     /** Other routes to the same place (best first), for "another route"; empty when the service has none. */
     suspend fun alternatives(from: GeoPoint, to: GeoPoint, options: RouteOptions): Result<List<Route>> = Result.success(emptyList())
@@ -127,18 +133,22 @@ class RouteRepository(
     /** Spoken and written route texts follow the rider's unit choice; lengths are converted back to metres. */
     private val miles: () -> Boolean = { false },
 ) : Routing {
-    override suspend fun route(from: GeoPoint, to: GeoPoint, options: RouteOptions): Result<Route> = withContext(Dispatchers.IO) {
+    override suspend fun route(from: GeoPoint, to: GeoPoint, options: RouteOptions): Result<Route> = route(from, to, options, null)
+
+    override suspend fun route(from: GeoPoint, to: GeoPoint, options: RouteOptions, headingDeg: Double?): Result<Route> = withContext(Dispatchers.IO) {
         safely("route") {
             val useMiles = miles()
-            val body = requestBody(from, to, options, useMiles, alternates = 0)
+            val body = requestBody(listOf(from, to), options, useMiles, alternates = 0, headingDeg = headingDeg)
             parseTrip(Http.postJson("https://valhalla1.openstreetmap.de/route", body.toString()), if (useMiles) METRES_PER_MILE else 1000.0)
         }
     }
 
-    override suspend fun routeVia(points: List<GeoPoint>, options: RouteOptions): Result<Route> = withContext(Dispatchers.IO) {
+    override suspend fun routeVia(points: List<GeoPoint>, options: RouteOptions): Result<Route> = routeVia(points, options, null)
+
+    override suspend fun routeVia(points: List<GeoPoint>, options: RouteOptions, headingDeg: Double?): Result<Route> = withContext(Dispatchers.IO) {
         safely("routeVia") {
             val useMiles = miles()
-            val body = requestBody(points, options, useMiles, alternates = 0)
+            val body = requestBody(points, options, useMiles, alternates = 0, headingDeg = headingDeg)
             parseTrip(Http.postJson("https://valhalla1.openstreetmap.de/route", body.toString()), if (useMiles) METRES_PER_MILE else 1000.0)
         }
     }
@@ -159,11 +169,20 @@ class RouteRepository(
     }
 
     private fun requestBody(from: GeoPoint, to: GeoPoint, options: RouteOptions, useMiles: Boolean, alternates: Int): JSONObject =
-        requestBody(listOf(from, to), options, useMiles, alternates)
+        requestBody(listOf(from, to), options, useMiles, alternates, null)
 
-    private fun requestBody(points: List<GeoPoint>, options: RouteOptions, useMiles: Boolean, alternates: Int): JSONObject {
+    /** The start carries the rider's heading (±[HEADING_TOLERANCE_DEG]) when known, so the first instruction is not a U-turn. */
+    internal fun requestBody(points: List<GeoPoint>, options: RouteOptions, useMiles: Boolean, alternates: Int, headingDeg: Double?): JSONObject {
         val body = JSONObject()
-            .put("locations", JSONArray().also { arr -> points.forEach { arr.put(JSONObject().put("lat", it.lat).put("lon", it.lon)) } })
+            .put("locations", JSONArray().also { arr ->
+                points.forEachIndexed { i, p ->
+                    val loc = JSONObject().put("lat", p.lat).put("lon", p.lon)
+                    if (i == 0 && headingDeg != null && headingDeg.isFinite()) {
+                        loc.put("heading", ((headingDeg % 360 + 360) % 360).toInt()).put("heading_tolerance", HEADING_TOLERANCE_DEG)
+                    }
+                    arr.put(loc)
+                }
+            })
             .put("costing", VehicleProfile.MOTORCYCLE.config.costing)
             .put("directions_options", JSONObject().put("language", GuidanceLanguage.current()).put("units", if (useMiles) "miles" else "kilometers"))
         if (alternates > 0) body.put("alternates", alternates)
@@ -210,8 +229,9 @@ class RouteRepository(
         }
     }
 
-    private companion object {
-        const val SEARCH_GAP_MS = 1_000L
+    companion object {
+        private const val SEARCH_GAP_MS = 1_000L
+        const val HEADING_TOLERANCE_DEG = 45
     }
 }
 

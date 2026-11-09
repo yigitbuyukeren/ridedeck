@@ -14,10 +14,18 @@ import android.content.IntentFilter
 import androidx.core.content.ContextCompat
 import com.ridedeck.app.util.Prefs
 
+/**
+ * What may interrupt what. A lower priority never cuts into a higher one: it waits (briefly) or is dropped;
+ * a higher one flushes whatever is playing. Equal priorities replace each other (a newer turn prompt supersedes).
+ */
+enum class SpeechPriority { MESSAGE, WEATHER, SPEED_LIMIT, NAVIGATION, SOS }
+
 /** Anything that can say a sentence out loud; lets the navigation logic run in plain unit tests. */
 interface Speaker {
     fun setSpeechRate(rate: Float) {}
     fun speak(text: String)
+    /** Same as [speak]; implementations that queue use the priority, plain test doubles may ignore it. */
+    fun speak(text: String, priority: SpeechPriority) = speak(text)
     fun stop()
     fun shutdown()
 }
@@ -152,11 +160,13 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
         if (Looper.myLooper() == Looper.getMainLooper()) block() else mainHandler.post { block() }
     }
 
-    override fun speak(text: String) {
-        if (Looper.myLooper() != Looper.getMainLooper()) { mainHandler.post { speak(text) }; return }
+    override fun speak(text: String) = speak(text, SpeechPriority.NAVIGATION)
+
+    override fun speak(text: String, priority: SpeechPriority) {
+        if (Looper.myLooper() != Looper.getMainLooper()) { mainHandler.post { speak(text, priority) }; return }
         if (!ready || closed || text.isBlank()) return
         if (audio.mode == AudioManager.MODE_IN_CALL || audio.mode == AudioManager.MODE_IN_COMMUNICATION || audio.mode == AudioManager.MODE_RINGTONE) return
-        session.announce(text)
+        session.announce(text, priority)
     }
 
     private fun finished(id: String?) {

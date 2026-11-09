@@ -14,6 +14,51 @@ object PromptSchedule {
 
     /** The far warning is skipped when it would land on top of the full instruction. */
     fun alertWorthIt(distToNextM: Double, speedMps: Double): Boolean = distToNextM > nearM(speedMps) + 50
+
+    /** The short "now" cue: about 3 s out, between 20 m and 60 m. */
+    fun nowM(speedMps: Double): Double = (speedMps * 3).coerceIn(20.0, 60.0)
+
+    /** The "now" cue is dropped when the full instruction was spoken this recently; it would only stutter. */
+    const val NOW_MIN_GAP_MS = 5_000L
+
+    /** After a turn, "continue for 2 km" is only worth saying on a stretch at least this long. */
+    const val POST_MIN_M = 400.0
+}
+
+/** Distances the way a person says them: rounded so the number is believable at riding speed. */
+object SpokenDistance {
+    /** 1 km and more to 100 m, 200 m and more to 50 m, under that to 10 m. */
+    fun roundMetres(meters: Double): Int {
+        val m = meters.coerceAtLeast(0.0)
+        val step = when {
+            m >= 1000 -> 100
+            m >= 200 -> 50
+            else -> 10
+        }
+        return (Math.round(m / step) * step).toInt().coerceAtLeast(step)
+    }
+
+    /**
+     * @param text string lookup for the unit templates (metre, kilometre, feet, mile), each with one placeholder.
+     */
+    fun text(meters: Double, miles: Boolean, text: (Int) -> String): String {
+        if (!miles) {
+            val m = roundMetres(meters)
+            return if (m >= 1000) String.format(java.util.Locale.getDefault(), text(com.ridedeck.app.R.string.spoken_km), decimal(m / 1000.0))
+            else String.format(java.util.Locale.getDefault(), text(com.ridedeck.app.R.string.spoken_m), m)
+        }
+        val feet = meters * 3.28084
+        if (feet < 1000) {
+            val f = (Math.round(feet / 50.0) * 50).toInt().coerceAtLeast(50)
+            return String.format(java.util.Locale.getDefault(), text(com.ridedeck.app.R.string.spoken_ft), f)
+        }
+        val mi = Math.round(meters / 1609.344 * 10) / 10.0
+        return String.format(java.util.Locale.getDefault(), text(com.ridedeck.app.R.string.spoken_mi), decimal(mi))
+    }
+
+    /** "2" for a whole number, "1,5" / "1.5" (locale) otherwise. */
+    private fun decimal(v: Double): String =
+        if (v == Math.floor(v)) v.toInt().toString() else String.format(java.util.Locale.getDefault(), "%.1f", v)
 }
 
 /** Matching a GPS fix onto the route, and deciding when the rider has really left it. */

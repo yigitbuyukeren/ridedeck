@@ -181,7 +181,8 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                 WeatherAlert.RAIN -> snapshot.rainInMin?.takeIf { it > 0 }
                     ?.let { app.getString(R.string.rain_voice_fmt, it) } ?: app.getString(R.string.rain_voice_now)
                 WeatherAlert.ICE -> app.getString(R.string.ice_voice_fmt, snapshot.tempC)
-            }
+            },
+            com.ridedeck.app.data.SpeechPriority.WEATHER,
         )
     }
 
@@ -208,7 +209,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         repo = com.ridedeck.app.data.SpeedLimitRepository { profileNow.config.costing },
     ) { limit ->
         if (call.state.value.phase == CallPhase.IDLE) {
-            announcer.speak(app.getString(R.string.speed_limit_warning, limit))
+            announcer.speak(app.getString(R.string.speed_limit_warning, limit), com.ridedeck.app.data.SpeechPriority.SPEED_LIMIT)
         }
     }
 
@@ -255,7 +256,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         gps.map { if (it.hasFix) it.speedKmh else null }.stateIn(viewModelScope, SharingStarted.Eagerly, null),
         thermalEnabled,
     ) {
-        if (call.state.value.phase == CallPhase.IDLE) announcer.speak(app.getString(R.string.thermal_voice))
+        if (call.state.value.phase == CallPhase.IDLE) announcer.speak(app.getString(R.string.thermal_voice), com.ridedeck.app.data.SpeechPriority.WEATHER)
     }
 
     fun setThermalEnabled(enabled: Boolean) {
@@ -307,7 +308,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         val ctx = getApplication<Application>()
         val body = simplifyMessage(message.text, ctx.getString(R.string.message_link))
         val sender = message.sender.trim()
-        announcer.speak(if (sender.isEmpty()) body else ctx.getString(R.string.message_speak_fmt, sender, body))
+        announcer.speak(if (sender.isEmpty()) body else ctx.getString(R.string.message_speak_fmt, sender, body), com.ridedeck.app.data.SpeechPriority.MESSAGE)
     }
 
     fun onPause() {

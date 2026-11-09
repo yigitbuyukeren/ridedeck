@@ -43,6 +43,7 @@ class RideNavigation(context: Context, private val tracking: RideTracking) {
             }
         },
         beforeStart = { tracking.requestStart(screens.isNotEmpty()) },
+        miles = { Units.miles },
     )
     private val lifecycle = NavigationRideLifecycle(scope, nav, tracking.session) { guiding ->
         tracking.navigating = guiding

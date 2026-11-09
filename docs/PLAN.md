@@ -26,9 +26,9 @@ Mevcut özellikler: çok noktalı rota (en fazla üç ara durak), alternatif rot
 | 2 — bağlantı ve kalıcı durum | #3–4 çevrimdışı indirme, #6 sağlayıcı erişimi, #7–10 kurtarma/ağ/veri tazeliği | İptal, yeniden açılış, silme ve geç cevaplar doğru yönetilir; sağlayıcı koşulları uygulanır. |
 | 3 — cihaz ve yayın hazırlığı | #11 çağrı erişimi, #12 belge/sürüm tutarlılığı, saha matrisi | Sürümlü beta için cihaz sonuçları kaydedilir; belgeler mevcut davranışı açıklar. Yayın ayrıca açık istek gerektirir. |
 | Sonraki ürün değerlendirmesi | #13–15 | İlk üç aşamanın sonuçlarına göre kapsam seçilir. |
-| N — kusursuz navigasyon | #N5–N12 (aşağıda); N1–N4 2026-11-10'da kodda tamamlandı (STATUS) | Aşama 1 ile birlikte yürür. Her madde birim testi ve en az bir gerçek sürüşle kapanır; N1–N4'ün saha doğrulaması N12'de. |
+| N — kusursuz navigasyon | #N7–N12 (aşağıda); N1–N6 2026-11-10'da kodda tamamlandı (STATUS) | Aşama 1 ile birlikte yürür. Her madde birim testi ve en az bir gerçek sürüşle kapanır; N1–N4'ün saha doğrulaması N12'de. |
 
-#1 ve #2 N1/N2 ile birlikte kodda kapandı (saha doğrulaması bekler); sıradaki #5 ile N5, ardından N6. Bu sıralama uygulamaya başlama onayı değildir.
+#1, #2 ve #5 N1/N2/N5 ile birlikte kodda kapandı (saha doğrulaması bekler); sıradaki N7 ve N8. Bu sıralama uygulamaya başlama onayı değildir.
 
 ## 1. Ara durakları yeniden hesaplamada koru — kodda tamamlandı 2026-11-10 (saha doğrulaması N12)
 
@@ -77,7 +77,7 @@ Boyutlar gerçek indirme ölçümü değildir. 60 km hesaplanan karo sayısıyla
 - **Kabul:** İnternet kesilmesi, gündüz tamam/gece yarım, süreç ölümü, tekrar denemede eski callback, silme hatası ve yeniden açılış. Uçak modunda indirilmiş bölgede iki stil çizilir, GPS/hız çalışır; alan dışında uyarı görünür.
 - **Kaynak:** [OfflineMaps.kt](../app/src/main/java/com/ridedeck/app/data/OfflineMaps.kt), [OfflineMapsCard.kt](../app/src/main/java/com/ridedeck/app/ui/OfflineMapsCard.kt).
 
-## 5. Sesli anonslara öncelik ve erteleme ekle — yüksek öncelik
+## 5. Sesli anonslara öncelik ve erteleme ekle — kodda tamamlandı 2026-11-10 (`SpeechPriority`, `SpeechSession` kuyruğu; saha doğrulaması N12)
 
 **Kodda görülen davranış:** Navigasyon, mesaj, hava ve ısı aynı `Speaker` üzerinden gider. `SpeechSession.announce()` önceki konuşmayı durdurur; TTS `QUEUE_FLUSH` kullanır. Mesaj dönüş talimatını kesebilir; anonsun söylenmiş olarak işaretlenmesi yarıda kalan talimatın tekrarını garanti etmez.
 
@@ -192,19 +192,7 @@ Kaynak: `NavigationController.kt`, `GuidanceMath.kt`, `RouteSnap.kt`, `RouteRepo
 
 
 
-### N5. Anonslar mesafe söylemiyor, birbirini kesiyor, "şimdi" yok — yüksek öncelik, tasarım
-**Kodda görülen tutarsızlık:** Uzak uyarı (`alert`, ~45 sn) Valhalla'nın "Sağa dönün" metnidir, mesafe içermez; sürücü ne kadar sonra olduğunu yalnız ekrandan anlar. Manevra anında üçüncü bir anons yok. `postVerbal` ("2 km düz devam") ayrıştırılır ama hiç okunmaz. `Voice` yalnız `QUEUE_FLUSH` kullanır: mesaj okuma, yağmur, ısı veya hız limiti uyarısı yakın dönüş talimatını yarıda keser (`#5` bunun öncelik tarafıdır).
-- Üç kademe: uzak (hıza göre 45 sn, metinde yuvarlanmış mesafe: "800 metre sonra sağa dön, Atatürk Caddesi"), yakın (11 sn, tam talimat + "ardından" zinciri mevcut), **şimdi** (manevraya 30 m / 3 sn kala kısa: "Sağa dön"). Dönüşten sonra 400 m'den uzun düz yolda bir kez `postVerbal`.
-- Anons öncelik kuyruğu: navigasyon > SOS/kaza > hız limiti > hava/ısı > mesaj. Düşük öncelikli metin yakın/şimdi anonsunu kesemez, sonra okunur veya düşer; aynı önceliktekiler sıraya girer (`QUEUE_ADD`), eski navigasyon anonsu yeni manevraya yetişemezse atlanır.
-- Mesafe yuvarlama: 1 km üstü 100 m'ye, 1 km altı 50 m'ye, 200 m altı 10 m'ye; mil modunda eşdeğeri.
-- **Kabul:** Simüle rotada her manevra için 3 anons, sırası ve mesafesi doğru; mesaj okunurken yakın dönüş gelirse mesaj kesilir ve dönüş okunur, tersi olmaz. Uzak ve yakın anons çakışırsa yalnız yakın okunur (mevcut `alertWorthIt`).
-- **Kaynak:** `GuidanceMath.PromptSchedule`, `NavigationController.onFix/withFollowUp`, `Voice.kt`, `SpeechSession.kt`, `TripParser` (`postVerbal`).
 
-### N6. Rota isteği yön bilgisi taşımıyor: başlangıçta ve yeniden hesaplamada U dönüşü — yüksek öncelik, tasarım
-**Kodda görülen tutarsızlık:** `requestBody()` konumları yalnız `lat/lon` olarak gönderir; Valhalla `heading` ve `heading_tolerance` alanları kullanılmaz. Hareket halinde seçilen hedef veya rotadan çıkınca yapılan yeniden hesaplama, ters yönden başlayan (ilk talimatı "geri dönün" olan) rota üretebilir. Ayrıca yeniden hesaplama `from` olarak istek anındaki fix'i gönderir; 90 km/sa'de cevap gelince sürücü 75 m ileridedir.
-- Hız ≥ 2,5 m/s iken başlangıç konumuna `heading` (fix bearing) ve `heading_tolerance: 45` ekle; yeniden hesaplamada `from`'u son hız × tahmini gecikme (1,5 sn) kadar ileri tahmin et veya Valhalla `radius`/`street_side` ile daralt.
-- **Kabul:** Simülasyonda ters yönde seyreden sürücüye önce "U dönüşü" değil ileride uygun dönüş verilir; durakta (hız 0) heading gönderilmez.
-- **Kaynak:** `RouteRepository.requestBody`, `NavigationController.reroute/here()`.
 
 ### N7. Çevrimdışıyken rehberlik sessizce bozuluyor — orta öncelik, tasarım
 **Kodda görülen tutarsızlık:** Rotadan çıkınca `reroute()` başarısız olursa 10 sn sonra sessizce tekrar denenir; sürücüye "rota hesaplanamıyor" denmez, banner değişmez. İndirilen çevrimdışı harita varken bile rota/arama internet ister (`#15` kapsam önerisi).

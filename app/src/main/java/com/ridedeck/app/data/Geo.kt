@@ -3,6 +3,7 @@ package com.ridedeck.app.data
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
@@ -94,6 +95,14 @@ object Geo {
             return shape.subList(a, b + 1)
         }
         return out
+    }
+
+    /** The point [metres] away from [p] along [bearingDeg] (flat-earth, fine for a few hundred metres). */
+    fun offset(p: GeoPoint, bearingDeg: Double, metres: Double): GeoPoint {
+        val rad = Math.toRadians(bearingDeg)
+        val dLat = Math.toDegrees(metres * cos(rad) / EARTH_RADIUS_M)
+        val dLon = Math.toDegrees(metres * sin(rad) / (EARTH_RADIUS_M * cos(Math.toRadians(p.lat))))
+        return GeoPoint(p.lat + dLat, p.lon + dLon)
     }
 
     fun bearing(a: GeoPoint, b: GeoPoint): Double {

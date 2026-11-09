@@ -114,6 +114,11 @@
     <string name="ice_voice_fmt">Hava %1$d derece, yol buzlanabilir</string>
     <string name="stop_arrived">Ara durağa ulaştınız</string>
     <string name="stop_approaching">Ara durak yaklaşıyor</string>
+    <string name="alert_distance_fmt">%1$s sonra %2$s</string>
+    <string name="spoken_m">%1$d metre</string>
+    <string name="spoken_km">%1$s kilometre</string>
+    <string name="spoken_ft">%1$d fit</string>
+    <string name="spoken_mi">%1$s mil</string>
     <string name="continue_trip">Yola devam</string>
     <string name="fuel_title">Benzinlikler</string>
     <string name="fuel_searching">Yakındaki duraklar aranıyor…</string>

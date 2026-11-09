@@ -38,6 +38,49 @@ class SpeechSessionTest {
         val said = mutableListOf<Pair<String, String>>()
         val speech = SpeechSession({ focus }, { abandoned++ }, { text, id -> said += text to id; accepted }, { stopped++ })
     }
+    @Test fun aLowerPriorityWaitsForTheCurrentPromptAndAHigherOneCutsIn() {
+        val r = Rig()
+        r.speech.announce("turn right", SpeechPriority.NAVIGATION)
+        r.speech.announce("message from Ali", SpeechPriority.MESSAGE)
+        // The message did not interrupt the turn.
+        assertEquals(listOf("turn right"), r.said.map { it.first })
+        assertEquals(0, r.stopped)
+        r.speech.complete(r.said.last().second)
+        // ... and is read once the turn is done.
+        assertEquals(listOf("turn right", "message from Ali"), r.said.map { it.first })
+        // A turn prompt cuts into the message.
+        r.speech.announce("turn left", SpeechPriority.NAVIGATION)
+        assertEquals("turn left", r.said.last().first)
+        assertEquals(1, r.stopped)
+    }
+    @Test fun onlyTheNewestWaitingPromptOfAPrioritySurvivesAndStaleOnesAreDropped() {
+        var now = 0L
+        val said = mutableListOf<String>()
+        val speech = SpeechSession({ true }, {}, { text, _ -> said += text; true }, {}, now = { now })
+        speech.announce("turn", SpeechPriority.NAVIGATION)
+        speech.announce("rain in 10", SpeechPriority.WEATHER)
+        speech.announce("rain in 5", SpeechPriority.WEATHER)
+        speech.announce("limit 50", SpeechPriority.SPEED_LIMIT)
+        now = 5_000
+        speech.announce("msg", SpeechPriority.MESSAGE)
+        speech.complete("speech-1")
+        // The highest waiting one first, then the newest weather text (the older rain prompt was replaced).
+        assertEquals(listOf("turn", "limit 50"), said)
+        speech.complete("speech-2")
+        assertEquals(listOf("turn", "limit 50", "rain in 5"), said)
+        now = 30_000
+        speech.complete("speech-3")
+        // The message waited 25 s: no longer worth reading.
+        assertEquals(3, said.size)
+    }
+    @Test fun stopSilencesWhatIsWaitingToo() {
+        val r = Rig()
+        r.speech.announce("turn", SpeechPriority.NAVIGATION)
+        r.speech.announce("msg", SpeechPriority.MESSAGE)
+        r.speech.stop()
+        r.speech.complete(r.said.last().second)
+        assertEquals(1, r.said.size)
+    }
     @Test fun deniedFocusNeverStartsSpeech() {
         val r = Rig(); r.focus = false
         r.speech.announce("turn")
