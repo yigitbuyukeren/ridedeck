@@ -33,6 +33,8 @@ data class NavUi(
     val rerouting: Boolean = false,
     /** Re-routing has failed repeatedly (offline, server down): the old route is still shown and guidance goes on along it. */
     val guidanceDegraded: Boolean = false,
+    /** The arrival time differs from the plan by more than a fifth: the ride is much slower or faster than planned. */
+    val etaDrift: Boolean = false,
     val arrived: Boolean = false,
     val maneuverIndex: Int = 0,
     /** Matched position on [route]: segment index and fraction along it; the map greys out what lies behind. */
@@ -86,6 +88,9 @@ class NavigationController(
     private val beforeStart: () -> Boolean = { true },
     /** Spoken distances follow the rider's unit choice. */
     private val miles: () -> Boolean = { false },
+    /** A phone call is on: spoken prompts are replaced by a vibration cue and read once the call ends (N10). */
+    private val inCall: () -> Boolean = { false },
+    private val cue: () -> Unit = {},
 ) {
     private val _options = MutableStateFlow(initialOptions)
     val options: StateFlow<RouteOptions> = _options
@@ -122,6 +127,9 @@ class NavigationController(
     private var lastNearEndM = Double.MAX_VALUE
     /** Stops the rider actually came close to (index into `route.stopIndices`). */
     private val visitedStops = HashSet<Int>()
+    private val eta = EtaEstimator()
+    /** The manoeuvre whose instruction a call swallowed; read once the call ends, if it is still ahead. */
+    private var missedPrompt = -1
 
     private fun here(): GeoPoint? =
         location.value.takeIf { it.hasFreshFix(nowMs()) }?.let { GeoPoint(it.lat, it.lon) }
@@ -160,16 +168,22 @@ class NavigationController(
      */
     private suspend fun resolve(query: String): SearchOutcome {
         val first = repo.search(query, here())
-        val firstPlaces = first.getOrElse { return SearchOutcome(emptyList(), failed = true) }
+        val firstPlaces = nearestFirst(first.getOrElse { return SearchOutcome(emptyList(), failed = true) })
         if (firstPlaces.isNotEmpty()) return SearchOutcome(firstPlaces)
         val local = PlaceQuery.strongLocal(query, knownPlaces())
         for (candidate in PlaceQuery.candidates(query, knownNames()).take(3)) {
             delay(searchGapMs)
-            val places = repo.search(candidate, here()).getOrElse { return SearchOutcome(local, failed = local.isEmpty()) }
+            val places = nearestFirst(repo.search(candidate, here()).getOrElse { return SearchOutcome(local, failed = local.isEmpty()) })
             if (places.isNotEmpty()) return SearchOutcome(local + places, resultsFor = candidate)
         }
         val suggestion = PlaceQuery.suggest(query, knownNames()).firstOrNull()?.name
         return SearchOutcome(local, suggestion = suggestion.takeIf { local.isEmpty() })
+    }
+
+    /** Results from near to far when the rider's position is known; the service's own order otherwise. */
+    private fun nearestFirst(places: List<Place>): List<Place> {
+        val from = here() ?: return places
+        return places.sortedBy { Geo.distance(from, it.point) }
     }
 
     /** Runs on explicit submit only: Nominatim's usage policy forbids search-as-you-type. */
@@ -198,7 +212,10 @@ class NavigationController(
         scope.launch {
             repo.reverse(point).onSuccess { named ->
                 if (named == null) return@onSuccess
-                _ui.update { if (it.destination?.point == point) it.copy(destination = named, query = named.name) else it }
+                var stillChosen = false
+                _ui.update { if (it.destination?.point == point) { stillChosen = true; it.copy(destination = named, query = named.name) } else it }
+                // Now that it has a name it is worth remembering.
+                if (stillChosen) onPlaceChosen(named)
             }
         }
     }
@@ -452,6 +469,8 @@ class NavigationController(
         lastNext = -1
         lastNearAtMs = 0L
         rerouteFailures = 0
+        eta.reset()
+        missedPrompt = -1
         stillSinceMs = 0L
         lastFixAtMs = 0L
         lastNearEndM = Double.MAX_VALUE
@@ -659,6 +678,8 @@ class NavigationController(
         val travelled = route.cumulative[bestIdx] +
             best.fraction * (route.cumulative[bestIdx + 1] - route.cumulative[bestIdx])
         val remaining = (route.distanceM - travelled).coerceAtLeast(0.0)
+        eta.onFix(fix.fixAtMs, speedMps)
+        val plannedS = route.remainingTimeS(travelled)
 
         if (remaining <= ARRIVAL_M) {
             arrive(state, route)
@@ -695,15 +716,22 @@ class NavigationController(
                 voice.speak(String.format(java.util.Locale.getDefault(), text(R.string.alert_distance_fmt), dist, maneuver.alert), SpeechPriority.NAVIGATION)
             }
         }
-        // The full instruction about 11 s out.
+        // A call swallowed this manoeuvre's instruction earlier: read it once the line is free, while it is still ahead.
+        if (missedPrompt != next) missedPrompt = -1
+        if (missedPrompt == next && !inCall() && spoken.add(next * 10 + 5)) {
+            missedPrompt = -1
+            voice.speak(withFollowUp(route, next), SpeechPriority.NAVIGATION)
+        }
+        // The full instruction about 11 s out. On a call: a vibration cue instead, the words wait for the call to end.
         if (distToNext < PromptSchedule.nearM(speedMps) && spoken.add(next * 10 + 1)) {
             lastNearAtMs = fix.fixAtMs
-            voice.speak(if (maneuver.isStop) text(R.string.stop_approaching) else withFollowUp(route, next), SpeechPriority.NAVIGATION)
+            if (inCall()) { cue(); missedPrompt = next }
+            else voice.speak(if (maneuver.isStop) text(R.string.stop_approaching) else withFollowUp(route, next), SpeechPriority.NAVIGATION)
         }
         // The short "now" cue at the turn itself; not for arrivals and stops, and not right on top of the full instruction.
         if (!maneuver.isStop && maneuver.type !in ARRIVE_TYPES && distToNext <= PromptSchedule.nowM(speedMps) &&
             fix.fixAtMs - lastNearAtMs >= PromptSchedule.NOW_MIN_GAP_MS && spoken.add(next * 10 + 3)) {
-            voice.speak(maneuver.alert.ifBlank { maneuver.verbal }, SpeechPriority.NAVIGATION)
+            if (inCall()) cue() else voice.speak(maneuver.alert.ifBlank { maneuver.verbal }, SpeechPriority.NAVIGATION)
         }
         // "Reached" only at the stop itself, not hundreds of metres before it.
         if (maneuver.isStop && distToNext <= ARRIVAL_M && spoken.add(next * 10 + 2)) voice.speak(text(R.string.stop_arrived), SpeechPriority.NAVIGATION)
@@ -720,7 +748,8 @@ class NavigationController(
                 }),
                 distToNextM = distToNext.toInt(),
                 remainingM = remaining.toInt(),
-                remainingS = route.remainingTimeS(travelled).toInt(),
+                remainingS = eta.remainingS(remaining, plannedS),
+                etaDrift = eta.drifts(remaining, plannedS),
             )
         }
     }

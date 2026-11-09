@@ -67,6 +67,25 @@ class GuidanceMathTest {
     }
 
     @Test
+    fun etaFollowsTheRiddenSpeedAfterAMinuteAndFreezesAtStops() {
+        val eta = com.ridedeck.app.data.EtaEstimator()
+        // Plan: 10 km in 600 s (16.7 m/s). Nothing observed yet: the plan.
+        assertEquals(600, eta.remainingS(10_000.0, 600.0))
+        var t = 0L
+        // Riding at half the planned speed for 90 s.
+        repeat(90) { t += 1000; eta.onFix(t, 8.33) }
+        val slow = eta.remainingS(10_000.0, 600.0)
+        assertTrue("$slow", slow in 740..760) // 0.6×16.7 + 0.4×8.33 = 13.3 m/s → 750 s
+        assertTrue(eta.drifts(10_000.0, 600.0))
+        // A two-minute red light changes nothing.
+        repeat(120) { t += 1000; eta.onFix(t, 0.0) }
+        assertEquals(slow, eta.remainingS(10_000.0, 600.0))
+        // Back at the planned pace the estimate converges within a couple of minutes.
+        repeat(180) { t += 1000; eta.onFix(t, 16.7) }
+        assertTrue(!eta.drifts(10_000.0, 600.0))
+    }
+
+    @Test
     fun offRouteLimitWidensWithSpeedAndPoorFix() {
         assertEquals(45.0, RouteMatcher.offRouteM(5.0, 5), 0.01)
         assertEquals(90.0, RouteMatcher.offRouteM(30.0, 5), 0.01)

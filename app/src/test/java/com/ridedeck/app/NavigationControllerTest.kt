@@ -333,6 +333,56 @@ class NavigationControllerTest {
     }
 
     @Test
+    fun duringACallTheInstructionBecomesACueAndIsReadWhenTheCallEnds() {
+        var onCall = false
+        var cues = 0
+        val nav = NavigationController(text, scope, location, speaker, routing, fuel, nowMs = { clock }, inCall = { onCall }, cue = { cues++ })
+        nav.selectPlace(dest); nav.startNavigation()
+        speaker.said.clear()
+        onCall = true
+        for (i in 1..14) drive(i) // past the far warning (600 m) and the full instruction (100 m)
+        assertEquals(1, cues)
+        assertTrue(speaker.said.toString(), speaker.said.none { it == "Turn right now" })
+        onCall = false
+        location.value = fixAt(GeoPoint(start.lat + 14.3 * STEP, start.lon))
+        assertEquals(listOf("Turn right now"), speaker.said.filter { it == "Turn right now" })
+        location.value = fixAt(GeoPoint(start.lat + 14.5 * STEP, start.lon))
+        assertEquals(1, speaker.said.count { it == "Turn right now" })
+        nav.shutdown()
+    }
+
+    @Test
+    fun aMapPickJoinsTheRecentsOnceItHasAName() {
+        val chosen = mutableListOf<Place>()
+        val named = Place("Bağdat Caddesi 12", "Kadıköy", GeoPoint(start.lat + 0.01, start.lon))
+        val routing = object : Routing {
+            override suspend fun route(from: GeoPoint, to: GeoPoint, options: RouteOptions) = Result.success(straightRoute(from))
+            override suspend fun search(query: String, near: GeoPoint?) = Result.success(emptyList<Place>())
+            override suspend fun reverse(point: GeoPoint): Result<Place?> = Result.success(named)
+        }
+        val nav = NavigationController(text, scope, location, speaker, routing, fuel, nowMs = { clock }, onPlaceChosen = { chosen += it })
+        nav.selectPoint(named.point)
+        assertEquals(listOf(named), chosen)
+        assertEquals(named, nav.ui.value.destination)
+        nav.shutdown()
+    }
+
+    @Test
+    fun searchResultsComeNearestFirst() {
+        val far = Place("Far", "", GeoPoint(start.lat + 0.5, start.lon))
+        val close = Place("Near", "", GeoPoint(start.lat + 0.01, start.lon))
+        val mid = Place("Mid", "", GeoPoint(start.lat + 0.1, start.lon))
+        val routing = object : Routing {
+            override suspend fun route(from: GeoPoint, to: GeoPoint, options: RouteOptions) = Result.success(straightRoute(from))
+            override suspend fun search(query: String, near: GeoPoint?): Result<List<Place>> = Result.success(listOf(far, close, mid))
+        }
+        val nav = NavigationController(text, scope, location, speaker, routing, fuel, nowMs = { clock })
+        nav.onQueryChange("kafe"); nav.search()
+        assertEquals(listOf("Near", "Mid", "Far"), nav.ui.value.results.map { it.name })
+        nav.shutdown()
+    }
+
+    @Test
     fun aRerouteStartsAheadOfTheRiderAlongTheHeading() {
         startGuidance()
         val before = routing.requests.size

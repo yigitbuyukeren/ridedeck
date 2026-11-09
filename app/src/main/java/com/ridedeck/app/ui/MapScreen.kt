@@ -183,6 +183,7 @@ fun MapScreen(
     val fuel by nav.fuel.collectAsStateWithLifecycle()
     val options by nav.options.collectAsStateWithLifecycle()
     val me by locationState.collectAsStateWithLifecycle()
+    val herePoint = me.takeIf { it.hasFreshFix(System.currentTimeMillis()) }?.let { GeoPoint(it.lat, it.lon) }
     val context = LocalContext.current
 
     val mapView = remember {
@@ -389,6 +390,7 @@ fun MapScreen(
                         onSave = { saving = it },
                         onRemovePlace = onRemovePlace, recents = recents, onClearRecents = onClearRecents,
                         onSuggestion = { typing = false; nav.onQueryChange(it); nav.search() },
+                        here = herePoint,
                     )
                 }
                 ui.route != null -> RouteCard(
@@ -401,6 +403,7 @@ fun MapScreen(
                     onSave = { ui.destination?.let { saving = it } },
                 )
                 else -> SearchPanel(
+                    here = herePoint,
                     ui = ui,
                     locked = inputLocked,
                     typing = typing,
@@ -596,6 +599,8 @@ private fun SearchPanel(
     recents: List<Place>,
     onClearRecents: () -> Unit,
     onSuggestion: (String) -> Unit,
+    /** Where the rider is, for the distance beside each result; null hides the distances. */
+    here: GeoPoint? = null,
 ) {
     GlassPanel(Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -659,6 +664,9 @@ private fun SearchPanel(
                                 if (place.detail.isNotBlank()) {
                                     Text(place.detail, fontSize = 14.sp, color = MotoColors.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
+                            }
+                            if (here != null) {
+                                Text(formatDistance(Geo.distance(here, place.point).toInt()), fontSize = 14.sp, color = MotoColors.Gray, modifier = Modifier.padding(start = 6.dp))
                             }
                             Box(Modifier.size(68.dp).hapticClickable { onSave(place) }, contentAlignment = Alignment.Center) {
                                 Icon(
@@ -1037,7 +1045,8 @@ private fun TripBar(ui: NavUi, onStop: () -> Unit) {
     GlassPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(eta, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                // Orange when the ride is well off the plan: the time shown is RideDeck's own estimate, not the service's.
+                Text(eta, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = if (ui.etaDrift) MotoColors.Orange else Color.White)
                 Text("${formatDuration(LocalContext.current, ui.remainingS)} · ${formatDistance(ui.remainingM)}", fontSize = 15.sp, color = MotoColors.Gray)
             }
             PillButton(stringResource(R.string.finish), MotoColors.Red, onStop)

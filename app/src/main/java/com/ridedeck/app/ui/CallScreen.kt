@@ -204,7 +204,8 @@ private fun RideStrip(speedShown: Int?, nav: NavUi, call: CallState) {
         if (maneuver != null) {
             Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(maneuverIcon(maneuver.type), null, tint = Color.White, modifier = Modifier.size(34.dp))
-                Text(formatDistance(nav.distToNextM), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                // The call takes the voice; close to the turn the distance turns orange instead.
+                Text(formatDistance(nav.distToNextM), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = if (nav.distToNextM <= 60) MotoColors.Orange else Color.White)
                 Text(maneuver.instruction, fontSize = 15.sp, color = Color(0xE6FFFFFF), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         } else {

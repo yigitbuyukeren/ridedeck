@@ -25,6 +25,59 @@ object PromptSchedule {
     const val POST_MIN_M = 400.0
 }
 
+/**
+ * Arrival time that follows the ride. The routing service's time assumes free-flowing traffic; once a minute of
+ * riding has been observed, the remaining time is taken from a blend of the planned speed over the rest of the
+ * route and the speed actually ridden lately (an exponential average, frozen while standing still so a red light
+ * does not drag the estimate down).
+ */
+class EtaEstimator(
+    private val tauS: Double = TAU_S,
+    private val minObservedS: Double = MIN_OBSERVED_S,
+    private val plannedWeight: Double = PLANNED_WEIGHT,
+) {
+    private var measuredMps = 0.0
+    private var observedS = 0.0
+    private var lastAtMs = 0L
+
+    fun onFix(tMs: Long, speedMps: Double) {
+        if (lastAtMs == 0L || tMs <= lastAtMs || tMs - lastAtMs > GAP_RESET_MS) { lastAtMs = tMs; return }
+        val dt = (tMs - lastAtMs) / 1000.0
+        lastAtMs = tMs
+        if (speedMps < STILL_MPS) return // frozen while stopped
+        val alpha = dt / (tauS + dt)
+        measuredMps = if (observedS == 0.0) speedMps else measuredMps + alpha * (speedMps - measuredMps)
+        observedS += dt
+    }
+
+    /** Seconds to go for [remainingM] when the plan says [plannedS]; the plan alone until enough riding was seen. */
+    fun remainingS(remainingM: Double, plannedS: Double): Int {
+        if (remainingM <= 0.0) return 0
+        if (plannedS <= 0.0 || observedS < minObservedS || measuredMps < STILL_MPS) return plannedS.toInt()
+        val plannedMps = remainingM / plannedS
+        val blended = plannedWeight * plannedMps + (1 - plannedWeight) * measuredMps
+        return (remainingM / blended).toInt()
+    }
+
+    /** True when the ride is so far off the plan (slower or faster) that the card should say so. */
+    fun drifts(remainingM: Double, plannedS: Double): Boolean {
+        if (plannedS <= 0.0) return false
+        val ours = remainingS(remainingM, plannedS)
+        return kotlin.math.abs(ours - plannedS) / plannedS > DRIFT_FRACTION
+    }
+
+    fun reset() { measuredMps = 0.0; observedS = 0.0; lastAtMs = 0L }
+
+    companion object {
+        const val TAU_S = 60.0
+        const val MIN_OBSERVED_S = 60.0
+        const val PLANNED_WEIGHT = 0.6
+        const val DRIFT_FRACTION = 0.2
+        const val STILL_MPS = 1.4
+        const val GAP_RESET_MS = 30_000L
+    }
+}
+
 /** Distances the way a person says them: rounded so the number is believable at riding speed. */
 object SpokenDistance {
     /** 1 km and more to 100 m, 200 m and more to 50 m, under that to 10 m. */

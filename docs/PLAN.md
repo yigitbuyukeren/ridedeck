@@ -26,9 +26,9 @@ Mevcut özellikler: çok noktalı rota (en fazla üç ara durak), alternatif rot
 | 2 — bağlantı ve kalıcı durum | #3–4 çevrimdışı indirme, #6 sağlayıcı erişimi, #7–10 kurtarma/ağ/veri tazeliği | İptal, yeniden açılış, silme ve geç cevaplar doğru yönetilir; sağlayıcı koşulları uygulanır. |
 | 3 — cihaz ve yayın hazırlığı | #11 çağrı erişimi, #12 belge/sürüm tutarlılığı, saha matrisi | Sürümlü beta için cihaz sonuçları kaydedilir; belgeler mevcut davranışı açıklar. Yayın ayrıca açık istek gerektirir. |
 | Sonraki ürün değerlendirmesi | #13–15 | İlk üç aşamanın sonuçlarına göre kapsam seçilir. |
-| N — kusursuz navigasyon | #N9–N12 (aşağıda); N1–N8 2026-11-10'da kodda tamamlandı (STATUS) | Aşama 1 ile birlikte yürür. Her madde birim testi ve en az bir gerçek sürüşle kapanır; N1–N4'ün saha doğrulaması N12'de. |
+| N — kusursuz navigasyon | #N12 saha matrisi (aşağıda); N1–N11 2026-11-10'da kodda tamamlandı (STATUS) | Aşama 1 ile birlikte yürür. Her madde birim testi ve en az bir gerçek sürüşle kapanır; N1–N4'ün saha doğrulaması N12'de. |
 
-#1, #2 ve #5 N1/N2/N5 ile birlikte kodda kapandı (saha doğrulaması bekler); sıradaki N9–N11, ardından N12 saha matrisi. Bu sıralama uygulamaya başlama onayı değildir.
+#1, #2 ve #5 N1/N2/N5 ile birlikte kodda kapandı (saha doğrulaması bekler); kodda kalan navigasyon maddesi yok; sıradaki N12 saha matrisi (gerçek cihaz). Bu sıralama uygulamaya başlama onayı değildir.
 
 ## 1. Ara durakları yeniden hesaplamada koru — kodda tamamlandı 2026-11-10 (saha doğrulaması N12)
 
@@ -184,7 +184,7 @@ Rota geometrisi, kalan duraklar, tercihler ve gerekli harita alanını birlikte 
 - **Kabul:** Paket kapsamı/boyutu ve eksik alanlar anlaşılır; süreç ölümü sonrası kalan rota kurtarılır; çevrimdışı sapmada yeniden hesaplama sınırı gösterilir. Cihazdaki TTS sesinin uygunluğu doğrulanır. Saklama/temizleme/gizlilik davranışı tanımlanır.
 - **Bağımlılık:** #1, #3–4, #7–9. Bölge/koridor indirmesi sağlayıcı koşullarına uysun.
 
-## N. Kusursuz navigasyon — hata ve tasarım kusurları (2026-11-10 incelemesi)
+## N. Kusursuz navigasyon — saha kapanışı (N1–N11 kodda tamamlandı, bkz. STATUS 2026-11-10)
 
 Kaynak: `NavigationController.kt`, `GuidanceMath.kt`, `RouteSnap.kt`, `RouteRepository.kt`, `MapScreen.kt`, `Voice.kt`/`SpeechSession.kt`. İnceleme kod okumasıdır; cihazda yeniden üretilmedi. "Kusursuz" ölçütü: rotayı hiç bozmayan, hiçbir anonsu yutmayan, yanlış yerde yeniden hesaplamayan ve sürücüye asla "ne kadar sonra" sorusunu bıraktırmayan rehberlik.
 
@@ -196,21 +196,8 @@ Kaynak: `NavigationController.kt`, `GuidanceMath.kt`, `RouteSnap.kt`, `RouteRepo
 
 
 
-### N9. ETA gerçek hıza uyum sağlamıyor — düşük öncelik, tasarım
-**Kodda görülen tutarsızlık:** `Route.remainingTimeS()` Valhalla'nın statik manevra sürelerini kullanır; trafikte 20 dk geç kalınsa varış saati değişmez.
-- Son 3 dk'daki ölçülen ortalama hız ile Valhalla tahminini harmanla (örn. %60 Valhalla, %40 ölçüm; durakta ölçüm dondurulur). Sapma %20'yi aşınca kartta renk değişsin.
-- **Kabul:** Simülasyonda hız tahminin yarısına düşünce ETA 1 dk içinde yeniden hesaplanır, duraklarda zıplamaz.
 
-### N10. Görüşme sırasında talimatlar sessizce düşüyor — orta öncelik, tasarım
-**Kodda görülen tutarsızlık:** `Voice.speak()` çağrı modunda (`MODE_IN_CALL`) hiçbir şey söylemez ve bunu bildirmez; dönüş anonsu yutulur, ekranda ek vurgu yoktur.
-- Görüşmede yakın/şimdi anonsu yerine kısa titreşim deseni + bannerın büyüyüp renk değiştirmesi; görüşme biterse ve manevra hâlâ ileride ise talimat bir kez okunur. `CallScreen` zaten `distToNext` gösteriyor; "şimdi" kademesi orada da olsun.
-- **Kabul:** Simüle çağrı sırasında manevra: titreşim var, anons yok; çağrı bitince kalan manevra okunur.
-- **Kaynak:** `Voice.kt`, `CallScreen.kt`, `Haptics.kt`.
 
-### N11. Haritadan seçilen nokta adlandırılsa da geçmişe girmiyor; arama sonucu kalite sırası yok — düşük öncelik, tasarım
-**Kodda görülen tutarsızlık:** `selectPoint()` adres geldiğinde hedefi yeniden adlandırır ama `rememberChosen` yalnız seçim anında ve "Seçilen konum" adını geçtiği için geçmişe kaydetmez. Nominatim sonuçları geliş sırasıyla listelenir; sürücüye uzaklık gösterilmez.
-- Adlandırma geldiğinde geçmişe yaz. Sonuçları mesafe/önem ile sırala ve her satırda kuş uçuşu mesafe göster; aynı adlı sonuçlarda ilçe/il ayrımı zaten `detail`'de var.
-- **Kabul:** Haritaya uzun basıp giden hedef adıyla "son aramalar"da görünür; sonuç listesi yakından uzağa.
 
 ### N12. Saha doğrulama matrisi (navigasyon) — kapanış ölçütü
 Hiçbir N maddesi cihazda denenmeden kapanmaz. En az: şehir içi 30 dk (dönüş yoğun), çevre yolu 20 dk (çıkış anonsları, 90+ km/sa), 1 tünel, 1 kavşak dönüş (roundabout), 1 bilerek rotadan çıkma, 1 uçak modu kesintisi, 1 iki duraklı yolculuk + benzinlik sapması, 1 görüşme sırasında dönüş. Her sürüşte GPS logu (`RideDeckSpeed` etiketi) ve anons zaman damgaları kaydedilir; `docs/STATUS.md`'ye tarih ve cihazla işlenir.
