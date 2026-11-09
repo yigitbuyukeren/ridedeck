@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.core.content.edit
 import com.ridedeck.app.data.RouteOptions
 import com.ridedeck.app.data.ThemeMode
-import com.ridedeck.app.data.VehicleProfile
 
 object Prefs {
     private const val FILE = "ridedeck"
@@ -18,7 +17,6 @@ object Prefs {
     private const val KEY_RECENT_PLACES_ON = "recent_places_on"
     private const val KEY_AVOID_HIGHWAYS = "route_avoid_highways"
     private const val KEY_AVOID_TOLLS = "route_avoid_tolls"
-    private const val KEY_VEHICLE = "vehicle_profile"
     private const val KEY_SOS_ALARM_VOLUME = "sos_saved_alarm_volume"
     private const val KEY_SOS_CONTACTS = "sos_contacts"
     private const val KEY_SOS_CRASH = "sos_crash"
@@ -229,17 +227,6 @@ object Prefs {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putInt(KEY_SOS_ALARM_VOLUME, volume).apply()
     }
 
-    /**
-     * RideDeck is motorcycle-only. Older builds saved a car or bicycle choice; rewrite it once
-     * to motorcycle so no stale profile survives an upgrade.
-     */
-    fun migrateVehicleToMotorcycle(context: Context) {
-        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-        if (prefs.getString(KEY_VEHICLE, null) != VehicleProfile.MOTORCYCLE.name) {
-            prefs.edit().putString(KEY_VEHICLE, VehicleProfile.MOTORCYCLE.name).apply()
-        }
-    }
-
     fun routeOptions(context: Context): RouteOptions {
         val p = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
         return RouteOptions(
@@ -252,15 +239,4 @@ object Prefs {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
             .putBoolean(KEY_AVOID_HIGHWAYS, options.avoidHighways).putBoolean(KEY_AVOID_TOLLS, options.avoidTolls).apply()
     }
-
-    /** Older builds had a voice assistant; forget everything it stored (transcripts, nicknames, routines, switches). */
-    fun removeVoiceAssistantData(context: Context) {
-        val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-        val stale = prefs.all.keys.filter { key ->
-            key.startsWith("voice_") && key !in KEEP_VOICE_KEYS || key == "legacy_speech_wake_migrated"
-        }
-        if (stale.isNotEmpty()) prefs.edit { stale.forEach(::remove) }
-    }
-
-    private val KEEP_VOICE_KEYS = setOf("voice_speech_rate", "voice_tts_name")
 }

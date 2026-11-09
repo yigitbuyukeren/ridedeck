@@ -15,8 +15,6 @@
     <string name="perm_notif_desc">For music control and caller name</string>
     <string name="perm_overlay">Display over other apps</string>
     <string name="perm_overlay_desc">For the speed strip</string>
-    <string name="perm_home">Set as home app</string>
-    <string name="perm_home_desc">Home button opens RideDeck</string>
     <string name="perm_battery">Battery restriction</string>
     <string name="perm_battery_desc">Set the app to \"Unrestricted\"</string>
     <string name="action_allow">Allow</string>
@@ -78,7 +76,7 @@
     <string name="msg_auto_desc">Reads incoming messages automatically. When off, the card shows a Read button.</string>
     <string name="trips_title">Trip history</string>
     <string name="trips_desc">Distance, time, average and top speed</string>
-    <string name="trips_empty">No trips yet. Recording starts automatically when you ride faster than %1$s.</string>
+    <string name="trips_empty">No trips yet. With the app on screen, recording starts by itself once you ride faster than %1$s.</string>
     <string name="battery_percent_fmt">%1$d%%</string>
     <string name="battery_status_fmt">Battery %1$d percent</string>
     <string name="battery_status_charging_fmt">Battery %1$d percent, charging</string>
@@ -92,7 +90,7 @@
     <string name="stat_max">Top speed</string>
     <string name="trip_delete">Delete</string>
     <string name="record_trips_title">Record trips</string>
-    <string name="record_trips_desc">Rides are recorded automatically and stay on this phone. Started rides keep recording with the screen off.</string>
+    <string name="record_trips_desc">While the app is on screen, rides are recorded by themselves and stay on this phone. To record with the screen off, start the ride with Start.</string>
     <string name="speed_limit_title">Speed limit display</string>
     <string name="speed_limit_desc">Shows the road\'s speed limit during navigation and warns when you go over. Your position is sent to the OpenStreetMap (Valhalla) server.</string>
     <string name="speed_limit_warning">Speed limit %1$d, slow down</string>
@@ -129,7 +127,7 @@
     <string name="thermal_banner">Phone is overheating, consider unplugging the charger</string>
     <string name="thermal_voice">The phone is getting too hot</string>
     <string name="sos_title">Emergency (SOS)</string>
-    <string name="sos_desc">If you crash, or hold the button, a countdown starts; when it ends one SMS with a location link goes to up to 3 people (no calls). Works only while the app is on screen. Your carrier\'s SMS fee may apply.</string>
+    <string name="sos_desc">If you crash, or hold the button, a countdown starts; when it ends one SMS with a location link goes to up to 3 people (no calls). Works while the app is on screen or a started ride is running; with the screen off the countdown comes to the front as a notification. Your carrier\'s SMS fee may apply.</string>
     <string name="sos_add_contact">Add contact</string>
     <string name="sos_remove">Remove</string>
     <string name="sos_no_contacts">Add at least one emergency contact first.</string>
@@ -137,7 +135,7 @@
     <string name="sos_perm_title">SMS permission</string>
     <string name="sos_perm_desc">To send the message</string>
     <string name="sos_crash_title">Automatic crash detection</string>
-    <string name="sos_crash_desc">Starts the countdown after a hard impact followed by stillness. Use with the phone mounted on the motorcycle.</string>
+    <string name="sos_crash_desc">Starts the countdown after a hard impact followed by stillness. Start the ride with Start so it also works with the screen off. Use with the phone mounted on the motorcycle.</string>
     <string name="sos_button_title">SOS button</string>
     <string name="sos_button_desc">Hold the button in the corner of the speed gauge for 1.5 seconds.</string>
     <string name="sos_test">Test (no SMS is sent)</string>
@@ -235,8 +233,8 @@
     <string name="dash_media">Music</string>
     <string name="dash_apps">Apps</string>
     <string name="dash_none">Empty</string>
-    <string name="perm_intro_title">A few permissions are needed</string>
-    <string name="perm_intro_sub">You can skip this; they all stay in Settings > Setup.</string>
+    <string name="perm_intro_title">Location permission needed</string>
+    <string name="perm_intro_sub">The speedometer runs on GPS. Phone, music and SOS ask for their permissions when you switch them on; all of them stay in Settings > Permissions and system.</string>
     <string name="perm_intro_later">Later</string>
     <string name="perm_intro_done">Done</string>
     <string name="perm_sms">SMS</string>
@@ -248,7 +246,6 @@
     <string name="open_external_label">In another app</string>
     <string name="save_place_label">Save</string>
     <string name="save_place_saved">Saved</string>
-    <string name="perm_intro_settings_hint">Settings: tap the gear tile in the dock.</string>
     <string name="gps_debug_fmt">age %1$s ms · interval %2$s s · speed accuracy %3$s m/s</string>
     <string name="voice_tts_title">Guidance voice</string>
     <string name="voice_tts_desc">Choose an installed system voice</string>

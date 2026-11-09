@@ -1,30 +1,20 @@
 package com.ridedeck.app.ui
 
-import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -36,49 +26,35 @@ import com.ridedeck.app.R
 data class PermissionRow(val title: String, val description: String, val granted: Boolean, val onAllow: () -> Unit)
 
 /**
- * Shown on first launch instead of the full settings page: the few permissions the app is
- * built around, each with its own button. "Later" skips; whatever is skipped stays in Settings > Setup.
+ * Shown on first launch: only the location permission, which the speedometer cannot do without.
+ * Every other permission is asked for where its feature is switched on. "Later" skips.
  */
 @Composable
-fun PermissionIntro(rows: List<PermissionRow>, onClose: () -> Unit) {
+fun PermissionIntro(row: PermissionRow, onClose: () -> Unit) {
     val palette = LocalMotoPalette.current
-    val portrait = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
-    Box(modifier = Modifier.fillMaxSize().background(palette.wallpaper)) {
+    Box(modifier = Modifier.fillMaxSize().background(palette.wallpaper), contentAlignment = Alignment.Center) {
         Column(
-            modifier = Modifier.fillMaxSize().symmetricSafePadding().padding(horizontal = 32.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.symmetricSafePadding().padding(horizontal = 32.dp, vertical = 12.dp).widthIn(max = 640.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(stringResource(R.string.perm_intro_title), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = palette.text, textAlign = TextAlign.Center)
-            Text(stringResource(R.string.perm_intro_sub), fontSize = 14.sp, color = palette.textSecondary, textAlign = TextAlign.Center)
-            Text(stringResource(R.string.perm_intro_settings_hint), fontSize = 14.sp, color = palette.textSecondary, textAlign = TextAlign.Center)
-            // The rows scroll if they must; "Later" stays pinned below so the page can always be left.
-            Column(
-                modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
-            ) {
-                rows.chunked(if (portrait) 1 else 2).forEach { chunk ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max)) {
-                        chunk.forEach { row -> PermissionCard(row, Modifier.weight(1f).fillMaxHeight()) }
-                        if (chunk.size == 1 && !portrait) Spacer(Modifier.weight(1f))
-                    }
-                }
-            }
-            val done = rows.firstOrNull()?.granted == true
+            Text(stringResource(R.string.perm_intro_sub), fontSize = 15.sp, color = palette.textSecondary, textAlign = TextAlign.Center)
+            PermissionCard(row)
             PillButton(
-                stringResource(if (done) R.string.perm_intro_done else R.string.perm_intro_later),
-                if (done) MotoColors.Blue else palette.track, onClose, Modifier.widthIn(min = 260.dp),
-                textColor = if (done) Color.White else palette.text, minHeight = 64.dp,
+                stringResource(if (row.granted) R.string.perm_intro_done else R.string.perm_intro_later),
+                if (row.granted) MotoColors.Blue else palette.track, onClose, Modifier.widthIn(min = 260.dp),
+                textColor = if (row.granted) Color.White else palette.text, minHeight = 64.dp,
             )
         }
     }
 }
 
 @Composable
-private fun PermissionCard(row: PermissionRow, modifier: Modifier) {
+private fun PermissionCard(row: PermissionRow) {
     val palette = LocalMotoPalette.current
     Row(
-        modifier = modifier.clip(RoundedCornerShape(20.dp)).background(palette.cardHigh).padding(start = 16.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+        modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(palette.cardHigh).padding(start = 16.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {

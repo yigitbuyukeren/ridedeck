@@ -49,28 +49,8 @@ fun Dock(
     /** Short press on the Settings tile opens Settings directly. */
     onSettings: () -> Unit = {},
     active: DockTab = DockTab.NONE,
-    /** A bar along the bottom for an upright phone; the default is the column down the left side. */
-    horizontal: Boolean = false,
 ) {
-    if (horizontal) {
-        // The tiles take what the clock block leaves: 68dp on a normal phone, smaller on a narrow one.
-        BoxWithConstraints(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)) {
-            val statusWidth = 84.dp
-            val tile = ((maxWidth - statusWidth - 8.dp * 4) / 4).coerceIn(48.dp, 68.dp)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                DockTile(Icons.Rounded.Navigation, MotoColors.Blue, tile, onNavigation, active == DockTab.NAV, label = stringResource(R.string.nav_title))
-                DockTile(Icons.Rounded.MusicNote, MotoColors.Red, tile, onMusic, active == DockTab.MUSIC, label = stringResource(R.string.dock_music))
-                DockTile(Icons.Rounded.Call, Color(0xFF34C759), tile, onPhone, active == DockTab.PHONE, label = stringResource(R.string.perm_phone))
-                DockTile(Icons.Rounded.Settings, MotoColors.Gray, tile, onSettings, active == DockTab.SETTINGS, label = stringResource(R.string.apps_settings))
-                Box(Modifier.width(statusWidth), contentAlignment = Alignment.Center) { DockStatus(battery) }
-            }
-        }
-        return
-    }
+    // The column down the left side of the landscape dashboard.
     BoxWithConstraints(modifier = Modifier.fillMaxHeight().width(96.dp).padding(vertical = 8.dp)) {
         // Tiles take whatever height the status block leaves, up to a glove-sized 76dp (never below 62dp).
         val gap = 8.dp

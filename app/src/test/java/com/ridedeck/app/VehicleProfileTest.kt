@@ -23,14 +23,6 @@ class VehicleProfileTest {
     }
 
     @Test
-    fun theLegacyVehicleChoiceAlwaysComesBackAsMotorcycle() {
-        assertEquals(VehicleProfile.MOTORCYCLE, VehicleProfile.fromName("CAR"))
-        assertEquals(VehicleProfile.MOTORCYCLE, VehicleProfile.fromName("BICYCLE"))
-        assertEquals(VehicleProfile.MOTORCYCLE, VehicleProfile.fromName(null))
-        assertEquals(VehicleProfile.MOTORCYCLE, VehicleProfile.fromName("TRUCK"))
-    }
-
-    @Test
     fun theMotorcycleLooksForFuelOnly() {
         assertEquals(listOf(StopKind.FUEL), VehicleProfile.MOTORCYCLE.config.stops.map { it.kind })
     }

@@ -1,18 +1,10 @@
 package com.ridedeck.app.data
 
-/**
- * RideDeck is motorcycle-only. The type stays so route, crash and gauge code share one profile;
- * older builds may have saved a car or bicycle choice, and those are migrated to this one.
- */
+/** RideDeck is motorcycle-only. The type stays so route, crash and gauge code share one profile. */
 enum class VehicleProfile {
     MOTORCYCLE;
 
     val config: ProfileConfig get() = ProfileConfig.of(this)
-
-    companion object {
-        /** Legacy values ("CAR", "BICYCLE") and unknown names all come back as motorcycle. */
-        fun fromName(name: String?): VehicleProfile = MOTORCYCLE
-    }
 }
 
 /** What a rider might stop for. RideDeck only looks for fuel. */

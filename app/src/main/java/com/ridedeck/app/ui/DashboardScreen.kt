@@ -24,9 +24,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Surface
 import android.Manifest
 import android.widget.Toast
-import android.content.res.Configuration
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -78,8 +76,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
     val resume by vm.resumeTick.collectAsStateWithLifecycle()
     val routeOptions by vm.nav.options.collectAsStateWithLifecycle()
     val cfg = com.ridedeck.app.data.VehicleProfile.MOTORCYCLE.config
-    val portrait = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
-
     val speedLimitOn by vm.speedLimitEnabled.collectAsStateWithLifecycle()
     val speedLimit by vm.speedLimit.limit.collectAsStateWithLifecycle()
     val recordTrips by vm.recordTrips.collectAsStateWithLifecycle()
@@ -157,7 +153,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
             )
         } else {
             locationAsked = true
-            permissionLauncher.launch(runtimePermissions())
+            permissionLauncher.launch(locationPermissions())
         }
     }
     val phonebookLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -179,10 +175,10 @@ fun DashboardScreen(vm: DashboardViewModel) {
                 ),
                 locationGranted(context), context.getString(R.string.action_allow), required = true,
             ) {
-                permissionLauncher.launch(runtimePermissions())
+                permissionLauncher.launch(locationPermissions())
             },
             SettingItem(context.getString(R.string.perm_phone), context.getString(R.string.perm_phone_desc), phoneGranted(context), context.getString(R.string.action_allow)) {
-                permissionLauncher.launch(runtimePermissions())
+                permissionLauncher.launch(phonePermissions())
             },
             SettingItem(context.getString(R.string.perm_dialer), context.getString(R.string.perm_dialer_desc), isDefaultDialer(context), context.getString(R.string.action_set)) {
                 dialerLauncher.launch(defaultDialerIntent(context))
@@ -191,9 +187,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
                 context.openSettingsAction(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
             },
             SettingItem(context.getString(R.string.perm_overlay), context.getString(R.string.perm_overlay_desc), overlayGranted(context), context.getString(R.string.action_open)) { context.openOverlaySettings() },
-            SettingItem(context.getString(R.string.perm_home), context.getString(R.string.perm_home_desc), isHomeApp(context), context.getString(R.string.action_set)) {
-                context.openSettingsAction(Settings.ACTION_HOME_SETTINGS)
-            },
             SettingItem(context.getString(R.string.perm_battery), context.getString(R.string.perm_battery_desc), ignoresBatteryOptimization(context), context.getString(R.string.action_open)) {
                 context.openSettingsAction(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
             },
@@ -203,19 +196,10 @@ fun DashboardScreen(vm: DashboardViewModel) {
         )
     }
 
-    val introRows = remember(resume) {
-        listOf(
-            PermissionRow(context.getString(R.string.perm_location), context.getString(R.string.perm_location_desc), locationGranted(context), requestLocation),
-            PermissionRow(context.getString(R.string.perm_notif), context.getString(R.string.perm_notif_desc), notificationAccessGranted(context)) {
-                context.openSettingsAction(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-            },
-            PermissionRow(context.getString(R.string.perm_phone), context.getString(R.string.perm_phone_desc), phoneGranted(context)) {
-                permissionLauncher.launch(runtimePermissions())
-            },
-            PermissionRow(
-                context.getString(R.string.perm_sms), context.getString(R.string.perm_sms_desc), context.hasPermission(Manifest.permission.SEND_SMS),
-            ) { smsLauncher.launch(Manifest.permission.SEND_SMS) },
-        )
+    // First launch asks for location only: the speedometer needs it, nothing else does. Phone, music
+    // and SOS ask for their own permissions where they are switched on.
+    val introRow = remember(resume) {
+        PermissionRow(context.getString(R.string.perm_location), context.getString(R.string.perm_location_desc), locationGranted(context), requestLocation)
     }
 
     // Settings are a place to read and tap: locked while riding (with a live fix), as the keypad and the map search are.
@@ -253,7 +237,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
                         else { showSettings = true; showMap = false; showNowPlaying = false; showPhone = false }
                     },
                     active = when { showMap -> DockTab.NAV; showNowPlaying -> DockTab.MUSIC; showPhone -> DockTab.PHONE; showSettings -> DockTab.SETTINGS; else -> DockTab.NONE },
-                    horizontal = portrait,
                 )
             }
             val content: @Composable (Modifier) -> Unit = { outer ->
@@ -350,27 +333,17 @@ fun DashboardScreen(vm: DashboardViewModel) {
                         }
                     }
                     val shownSlots = dashSlots.filter { it != DashCard.NONE }
-                    if (portrait) {
-                        // Upright phone: speed on top, the chosen cards below.
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            speedCard(Modifier.weight(1.4f).fillMaxWidth())
-                            shownSlots.forEach { card ->
-                                slotCard(card, Modifier.weight(when (card) { DashCard.NAV -> 1.3f; DashCard.MEDIA -> 0.9f; else -> 0.6f }).fillMaxWidth())
-                            }
-                        }
-                    } else {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        ) {
-                            speedCard(Modifier.weight(1f).fillMaxSize())
-                            if (shownSlots.isNotEmpty()) {
-                                Column(
-                                    modifier = Modifier.weight(1.15f).fillMaxSize(),
-                                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                                ) {
-                                    shownSlots.forEach { card -> slotCard(card, Modifier.weight(1f).fillMaxSize()) }
-                                }
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        speedCard(Modifier.weight(1f).fillMaxSize())
+                        if (shownSlots.isNotEmpty()) {
+                            Column(
+                                modifier = Modifier.weight(1.15f).fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                shownSlots.forEach { card -> slotCard(card, Modifier.weight(1f).fillMaxSize()) }
                             }
                         }
                     }
@@ -411,20 +384,11 @@ fun DashboardScreen(vm: DashboardViewModel) {
                 }
             } else null
 
-            if (portrait) {
-                Column(modifier = Modifier.fillMaxSize().padding(start = 12.dp, end = 12.dp, top = 8.dp)) {
-                    // Upright: the alert takes its own row above the cards, so it never covers the speed card.
-                    alert?.invoke(Modifier.align(Alignment.CenterHorizontally).padding(bottom = 8.dp))
-                    content(Modifier.weight(1f).fillMaxWidth())
-                    dock()
-                }
-            } else {
-                Row(modifier = Modifier.fillMaxSize().padding(end = 16.dp, top = 8.dp, bottom = 12.dp)) {
-                    dock()
-                    content(Modifier.weight(1f).fillMaxSize())
-                }
-                alert?.invoke(Modifier.align(Alignment.TopCenter).padding(top = 12.dp))
+            Row(modifier = Modifier.fillMaxSize().padding(end = 16.dp, top = 8.dp, bottom = 12.dp)) {
+                dock()
+                content(Modifier.weight(1f).fillMaxSize())
             }
+            alert?.invoke(Modifier.align(Alignment.TopCenter).padding(top = 12.dp))
 
             if (shownMessage != null && !showSettings) {
                 MessageBanner(
@@ -607,7 +571,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
         }
 
         // The first-launch permission page sits above everything but the SOS countdown.
-        if (showPermIntro) PermissionIntro(introRows, onClose = { showPermIntro = false })
+        if (showPermIntro) PermissionIntro(introRow, onClose = { showPermIntro = false })
 
         // Last, so nothing can cover an SOS countdown.
         SosScreen(sosUi, sosContacts.map { it.name }, onCancel = vm.sos::cancel, onDismiss = vm.sos::dismiss)

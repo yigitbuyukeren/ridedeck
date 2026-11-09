@@ -15,8 +15,6 @@
     <string name="perm_notif_desc">Müzik kontrolü ve arayan adı için</string>
     <string name="perm_overlay">Üstte göster</string>
     <string name="perm_overlay_desc">Hız şeridi için</string>
-    <string name="perm_home">Ana ekran olarak ayarla</string>
-    <string name="perm_home_desc">Home tuşu RideDeck\'i açsın</string>
     <string name="perm_battery">Pil kısıtlaması</string>
     <string name="perm_battery_desc">Uygulamayı \"Kısıtlanmamış\" yap</string>
     <string name="action_allow">İzin ver</string>
@@ -78,7 +76,7 @@
     <string name="msg_auto_desc">Gelen mesajı otomatik okur. Kapalıyken kartta Oku düğmesi çıkar.</string>
     <string name="trips_title">Yolculuk geçmişi</string>
     <string name="trips_desc">Mesafe, süre, ortalama ve en yüksek hız</string>
-    <string name="trips_empty">Henüz kayıtlı yolculuk yok. %1$s üzerinde sürmeye başlayınca otomatik kaydedilir.</string>
+    <string name="trips_empty">Henüz kayıtlı yolculuk yok. Uygulama ekrandayken %1$s üzerine çıkınca kayıt kendiliğinden başlar.</string>
     <string name="battery_percent_fmt">%%%1$d</string>
     <string name="battery_status_fmt">Pil %%%1$d</string>
     <string name="battery_status_charging_fmt">Pil %%%1$d, şarj oluyor</string>
@@ -92,7 +90,7 @@
     <string name="stat_max">En yüksek hız</string>
     <string name="trip_delete">Sil</string>
     <string name="record_trips_title">Yolculukları kaydet</string>
-    <string name="record_trips_desc">Sürüşler otomatik kaydedilir ve yalnızca bu telefonda saklanır. Başlatılan yolculuklar ekran kapalıyken de kaydedilir.</string>
+    <string name="record_trips_desc">Uygulama ekrandayken sürüşler kendiliğinden kaydedilir ve yalnızca bu telefonda saklanır. Ekran kapalıyken de kayıt için yolculuğu Başlat ile aç.</string>
     <string name="speed_limit_title">Hız limiti göstergesi</string>
     <string name="speed_limit_desc">Navigasyon sırasında yolun hız limitini gösterir, aşınca uyarır. Konumun OpenStreetMap (Valhalla) sunucusuna gönderilir.</string>
     <string name="speed_limit_warning">Hız limiti %1$d, yavaşla</string>
@@ -129,7 +127,7 @@
     <string name="thermal_banner">Telefon ısınıyor, şarjı kesmeyi düşün</string>
     <string name="thermal_voice">Telefon çok ısındı</string>
     <string name="sos_title">Acil durum (SOS)</string>
-    <string name="sos_desc">Kaza olursa veya düğmeye uzun basarsan geri sayım başlar; süre dolunca en fazla 3 kişiye konum linkli tek SMS gider (arama yok). Yalnızca uygulama ekrandayken çalışır. Operatör SMS ücreti uygulanabilir.</string>
+    <string name="sos_desc">Kaza olursa veya düğmeye uzun basarsan geri sayım başlar; süre dolunca en fazla 3 kişiye konum linkli tek SMS gider (arama yok). Uygulama ekrandayken veya başlatılmış bir yolculuk sürerken çalışır; ekran kapalıysa geri sayım bildirimle öne gelir. Operatör SMS ücreti uygulanabilir.</string>
     <string name="sos_add_contact">Kişi ekle</string>
     <string name="sos_remove">Sil</string>
     <string name="sos_no_contacts">Önce en az bir acil durum kişisi ekle.</string>
@@ -137,7 +135,7 @@
     <string name="sos_perm_title">SMS izni</string>
     <string name="sos_perm_desc">Mesajı göndermek için</string>
     <string name="sos_crash_title">Otomatik kaza algılama</string>
-    <string name="sos_crash_desc">Sert darbe ve ardından hareketsizlik olursa geri sayım başlar. Telefon motosiklete sabitken kullan.</string>
+    <string name="sos_crash_desc">Sert darbe ve ardından hareketsizlik olursa geri sayım başlar. Ekran kapalıyken de çalışması için yolculuğu Başlat ile aç. Telefon motosiklete sabitken kullan.</string>
     <string name="sos_button_title">SOS düğmesi</string>
     <string name="sos_button_desc">Hız göstergesinin köşesindeki düğmeye 1,5 saniye basılı tut.</string>
     <string name="sos_test">Test et (SMS gitmez)</string>
@@ -236,8 +234,8 @@
     <string name="dash_apps">Uygulama</string>
     <string name="dash_none">Boş</string>
 
-    <string name="perm_intro_title">Birkaç izin gerekiyor</string>
-    <string name="perm_intro_sub">Şimdi vermesen de olur; hepsi Ayarlar > Kurulum\'da durur.</string>
+    <string name="perm_intro_title">Konum izni gerekiyor</string>
+    <string name="perm_intro_sub">Hız göstergesi GPS\'le çalışır. Telefon, müzik ve SOS izinleri ilgili özelliği açarken istenir; hepsi Ayarlar > İzinler ve sistem\'de durur.</string>
     <string name="perm_intro_later">Sonra</string>
     <string name="perm_intro_done">Tamam</string>
     <string name="perm_sms">SMS</string>
@@ -249,7 +247,6 @@
     <string name="open_external_label">Başka uygulamada</string>
     <string name="save_place_label">Kaydet</string>
     <string name="save_place_saved">Kayıtlı</string>
-    <string name="perm_intro_settings_hint">Ayarlar: alt dock\'taki dişli karosuna dokun.</string>
     <string name="gps_debug_fmt">yaş %1$s ms · aralık %2$s sn · hız doğruluğu %3$s m/s</string>
     <string name="voice_tts_title">Sesli yönlendirme sesi</string>
     <string name="voice_tts_desc">Cihazda yüklü bir sistem sesi seç</string>

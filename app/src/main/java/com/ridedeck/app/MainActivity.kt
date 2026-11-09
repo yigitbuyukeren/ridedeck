@@ -34,7 +34,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Units.load(this)
         com.ridedeck.app.ui.MarkerStyle.load(this)
-        com.ridedeck.app.util.LegacyCleanup.run(this)
         enableEdgeToEdge()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (savedInstanceState == null) handleDialIntent(intent)
@@ -81,9 +80,11 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         (application as RideDeckApplication).rideTracking.setScreenVisible(this, true)
         (application as RideDeckApplication).rideNavigation.setScreenVisible(this, true)
+        (application as RideDeckApplication).rideSafety.setScreenVisible(true)
     }
 
     override fun onStop() {
+        (application as RideDeckApplication).rideSafety.setScreenVisible(false)
         (application as RideDeckApplication).rideNavigation.setScreenVisible(this, false)
         (application as RideDeckApplication).rideTracking.setScreenVisible(this, false)
         super.onStop()

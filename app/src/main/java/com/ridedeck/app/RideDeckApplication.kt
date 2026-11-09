@@ -1,19 +1,16 @@
 package com.ridedeck.app
 
 import android.app.Application
-import android.util.Log
-import com.ridedeck.app.util.LegacyVoskDataMigration
-import com.ridedeck.app.util.Prefs
 
 class RideDeckApplication : Application() {
     val rideTracking by lazy { com.ridedeck.app.data.RideTracking(this) }
     val rideNavigation by lazy { com.ridedeck.app.data.RideNavigation(this, rideTracking) }
+    /** Crash detection and SOS live here, not in a screen, so a started ride keeps them running with the screen off. */
+    val rideSafety by lazy { com.ridedeck.app.data.RideSafety(this, rideTracking, rideNavigation) }
+
     override fun onCreate() {
         super.onCreate()
-        Prefs.removeVoiceAssistantData(this)
-        Prefs.migrateVehicleToMotorcycle(this)
-        if (!LegacyVoskDataMigration.removeArtifacts(filesDir, cacheDir)) {
-            Log.w("RideDeck", "Could not remove all retired speech model files; will retry next launch")
-        }
+        // An SOS countdown that died with the process left the alarm volume raised; put it back now.
+        rideSafety
     }
 }

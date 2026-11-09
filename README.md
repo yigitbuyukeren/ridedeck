@@ -54,7 +54,7 @@ Aşağıdakiler Android emülatöründen (Türkçe arayüz) alınmıştır.
 ### 📲 Kurulum
 
 1. [Son sürümün](https://github.com/yigitbuyukeren/ridedeck/releases/latest) APK'sını indir ve kur (bilinmeyen kaynaklardan kuruluma izin ver).
-2. İlk açılışta izin sayfasını gör; istersen RideDeck'i ana ekran (HOME) uygulaması yap.
+2. İlk açılışta yalnızca konum izni istenir; telefon, müzik ve SOS izinleri ilgili özelliği açarken sorulur.
 3. Müzik ve mesaj okuma için Ayarlar > İzinler ve sistem'den bildirim erişimini ver.
 
 ### 🧭 Özellikler
@@ -68,7 +68,6 @@ Ayrıntılar için başlıklara dokun.
 - Rota her zaman Valhalla `motorcycle` costing'i ile hesaplanır; otoyolsuz ve ücretsiz yol seçenekleri hatırlanır
 - ⛽ düğmesi benzinlik arar; benzinlik, ara durak ve rota üzerindeki duraklar motosiklet akışında çalışır
 - Kaza algılama eşikleri ve 200 km/s hız göstergesi motosiklete sabittir; arayüz yatay gidon düzenindedir
-- Eski sürümlerde Araba veya Bisiklet seçmiş kullanıcıların kaydı açılışta motosiklete çevrilir; geçmiş, kayıtlı yerler, SOS kişileri ve diğer veriler korunur
 
 </details>
 
@@ -127,7 +126,7 @@ Ayrıntılar için başlıklara dokun.
 - Ses yolu seçimi sistemin bildirdiği kullanılabilir yollarla sınırlıdır ve onaylandığında güncellenir. Görüşme sırasında TTS anonsları kesilir; kask/kulaklık kopması algılanırsa otomatik müzik devamı durdurulur.
 - Müzik: yalnızca müzik uygulamalarının oturumu, ilerleme çubuğu, kapağı kaydırarak şarkı geçme, ses tuşları; hiçbir şey çalmıyorken Oynat son müziği başlatır (bildirim erişimi gerekir)
 - Mesajları sesli okuma (yalnızca RideDeck ekrandayken)
-- Diğer uygulamaların üstünde hız/saat şeridi; ana ekran (HOME) launcher olarak ayarlanabilir
+- Diğer uygulamaların üstünde hız/saat şeridi
 
 </details>
 
@@ -138,7 +137,7 @@ Ayrıntılar için başlıklara dokun.
 - Arka plan takibi için yolculuğu uygulama görünürken başlatmak gerekir (navigasyondaki **Başlat / Yola devam** da başlatır). Kesin konum izni ve açık GPS gerekir; overlay izni gerekmez. Bildirimler reddedilmişse uygulamadan veya Android Etkin uygulamalar bölümünden durdurulur. Navigasyon yokken 3 dk hareketsizlikte, 3 dk GPS alınamadığında veya izin/depolama hatasında kapanır. Android zorla durdurduğunda kendiliğinden yeniden başlamaz; yarım kalan kayıt sonraki açılışta toparlanır.
 - Açık yolculukta navigasyon ve TTS aynı uygulama süreci içinde ekran/Activity yeniden açılışından bağımsız sürer; ara durakta Yola devam beklenebilir. Bildirimden Bitir rehberliği ve bekleyen rotayı da iptal eder. Süreç ölümü veya zorla durdurma sonrasında rota kendiliğinden devam etmez; son hedef yalnızca önizleme olarak önerilir (Başlat ile rehberlik yeniden başlar). Çevrimdışı harita indirmesinin gerçek boyutu, süresi ve uçak modunda çizimi ile fiziksel kilit/Doze/OEM ve interkom doğrulaması henüz tamamlanmadı.
 - Canlı trafik, radar uyarısı, iOS ve Android Auto desteği yok.
-- SOS/kaza algılama yardımcı bir özelliktir, güvenlik garantisi değildir; yalnızca uygulama ekrandayken çalışır.
+- SOS/kaza algılama yardımcı bir özelliktir, güvenlik garantisi değildir; uygulama ekrandayken veya başlatılmış bir yolculuk sürerken çalışır, ekran kapalıysa geri sayım tam ekran bildirimle öne gelir.
 
 📖 Tasarım kararları ve testler: [Teknik vaka analizi](docs/CASE-STUDY.md) · [English](docs/CASE-STUDY.en.md)
 
@@ -157,7 +156,7 @@ Sürüm APK'sı (R8 ile küçültülmüş, ~10 MB): kök dizine `keystore.proper
 
 RideDeck hesabı veya uygulamaya ait sunucu yok; yolculuk kayıtları ve ayarlar telefonda tutulur, Android yedeklemesi kapalıdır. Çevrimiçi özellikler şu verileri dış servislere gönderir: arama metni (Nominatim, yalnızca Ara'ya basınca), rota uç noktaları ve hız limiti için son konum noktaları (Valhalla), yaklaşık konum (hava durumu için 1 km hassasiyetle, Open-Meteo), çevre veya rota boyunca benzinlik sorgusu (Nominatim / Overpass). Harita stilleri ve görünen bölgenin harita karoları OpenFreeMap'ten indirilir; bu servisler istekle birlikte IP adresini de görebilir. Sistem TTS motorunda ağ gerektiren bir ses seçilirse okunacak metin motorun sağlayıcısında işlenebilir; çevrimdışı Türkçe ses varsa başlangıçta tercih edilir. Mesajları sesli okuma isteğe bağlıdır.
 
-SOS yalnızca sen açarsan çalışır ve `SEND_SMS` izni ister; kişiler telefonun kişi seçicisinden eklenir (rehber izni gerekmez). Kaza algılama yalnızca uygulama ekrandayken ve güncel GPS/sensör verisiyle çalışır; Android arka plandaki sensörleri kısıtlar. Varsayılan SMS SIM'i seçili olmalıdır. Uzun metin birden çok SMS parçasına bölünebilir ve operatörün SMS ücreti uygulanabilir. Gönderim onayı alıcıya teslim onayı değildir; belirsiz sonucu yeniden göndermek aynı mesajı çoğaltabilir. Bu özellik bir güvenlik garantisi değildir.
+SOS yalnızca sen açarsan çalışır ve `SEND_SMS` izni ister; kişiler telefonun kişi seçicisinden eklenir (rehber izni gerekmez). Kaza algılama uygulama ekrandayken veya başlatılmış bir yolculuk (ön plan servisi) sürerken, güncel GPS/sensör verisiyle çalışır; yolculuk başlatılmamışsa ekran kapanınca durur. Varsayılan SMS SIM'i seçili olmalıdır. Uzun metin birden çok SMS parçasına bölünebilir ve operatörün SMS ücreti uygulanabilir. Gönderim onayı alıcıya teslim onayı değildir; belirsiz sonucu yeniden göndermek aynı mesajı çoğaltabilir. Bu özellik bir güvenlik garantisi değildir.
 
 ### ⚠️ Güvenlik notu
 

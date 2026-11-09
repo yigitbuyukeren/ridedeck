@@ -81,8 +81,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import android.content.res.Configuration
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -186,7 +184,6 @@ fun MapScreen(
     val options by nav.options.collectAsStateWithLifecycle()
     val me by locationState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val portrait = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
 
     val mapView = remember {
         MapLibre.getInstance(context)
@@ -289,8 +286,8 @@ fun MapScreen(
             include(LatLng(me.lat, me.lon))
             route.shape.drop(ui.progressIndex).forEach { include(LatLng(it.lat, it.lon)) }
         }.build()
-        val padding = if (portrait) intArrayOf(140, 300, 260, 200) else intArrayOf(120, 420, 120, 140)
-        m.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding[0], padding[1], padding[2], padding[3]), 700)
+        // Clear of the panel on the left and the round buttons on the right.
+        m.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 120, 420, 120, 140), 700)
         kotlinx.coroutines.delay(OVERVIEW_MS)
         overview = false
     }
@@ -312,11 +309,8 @@ fun MapScreen(
             val bounds = LatLngBounds.Builder().apply {
                 route.shape.forEach { include(LatLng(it.lat, it.lon)) }
             }.build()
-            // Keep the route clear of the panel: on the left when wide, along the top when upright.
-            val padding = if (portrait) intArrayOf(140, 640, 260, 200) else intArrayOf(520, 140, 140, 140)
-            m.animateCamera(
-                CameraUpdateFactory.newLatLngBounds(bounds, padding[0], padding[1], padding[2], padding[3]), 800
-            )
+            // Keep the route clear of the panel on the left.
+            m.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 520, 140, 140, 140), 800)
         }
     }
 
@@ -360,10 +354,7 @@ fun MapScreen(
 
         // Left side panel, CarPlay style.
         Column(
-            modifier = Modifier.fillMaxHeight()
-                // Upright: the panel takes the width, leaving the round buttons on the right free.
-                .then(if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT) Modifier.fillMaxWidth().padding(end = 84.dp) else Modifier.width(380.dp))
-                .padding(12.dp),
+            modifier = Modifier.fillMaxHeight().width(380.dp).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             val chosen = saving
@@ -435,13 +426,11 @@ fun MapScreen(
 
         if (ui.navigating) {
             Column(
-                modifier = Modifier.align(Alignment.BottomStart).padding(12.dp)
-                    .then(if (portrait) Modifier.fillMaxWidth().padding(end = 84.dp) else Modifier.width(356.dp)),
+                modifier = Modifier.align(Alignment.BottomStart).padding(12.dp).width(356.dp),
             ) { TripBar(ui, onStop = nav::stopNavigation) }
         }
 
-        // The keyboard covers the lower right of an upright screen: the round buttons wait until it is closed.
-        if (!(typing && portrait)) Column(
+        Column(
             modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.End,
@@ -463,7 +452,7 @@ fun MapScreen(
             }
         }
         // Speed readout sits at the bottom, clear of the map credit, with the limit sign beside it.
-        if (!(typing && portrait)) Row(
+        Row(
             modifier = Modifier.align(Alignment.BottomEnd).padding(start = 12.dp, end = 12.dp, bottom = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,

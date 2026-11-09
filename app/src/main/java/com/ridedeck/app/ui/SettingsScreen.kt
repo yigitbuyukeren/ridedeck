@@ -104,17 +104,6 @@ fun defaultDialerIntent(c: Context): android.content.Intent =
             .putExtra(android.telecom.TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, c.packageName)
     }
 
-/** True when RideDeck is the phone's home (launcher) app. */
-fun isHomeApp(c: Context): Boolean =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        c.getSystemService(android.app.role.RoleManager::class.java)?.isRoleHeld(android.app.role.RoleManager.ROLE_HOME) == true
-    } else {
-        c.packageManager.resolveActivity(
-            android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME),
-            android.content.pm.PackageManager.MATCH_DEFAULT_ONLY,
-        )?.activityInfo?.packageName == c.packageName
-    }
-
 /** True when the system leaves RideDeck out of battery optimisation, so it is not put to sleep on the road. */
 fun ignoresBatteryOptimization(c: Context): Boolean =
     c.getSystemService(android.os.PowerManager::class.java)?.isIgnoringBatteryOptimizations(c.packageName) == true
@@ -123,13 +112,12 @@ fun notificationAccessGranted(c: Context) =
     NotificationManagerCompat.getEnabledListenerPackages(c).contains(c.packageName)
 fun overlayGranted(c: Context) = Settings.canDrawOverlays(c)
 
-fun runtimePermissions(): Array<String> {
-    val list = mutableListOf(
-        Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.ACCESS_COARSE_LOCATION,
-        Manifest.permission.READ_PHONE_STATE,
-        Manifest.permission.ANSWER_PHONE_CALLS,
-    )
+/** The one permission the dashboard cannot work without. */
+fun locationPermissions() = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+
+/** Answering and rejecting calls from the dashboard; the ride notification needs the notification permission on Android 13+. */
+fun phonePermissions(): Array<String> {
+    val list = mutableListOf(Manifest.permission.READ_PHONE_STATE, Manifest.permission.ANSWER_PHONE_CALLS)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) list += Manifest.permission.POST_NOTIFICATIONS
     return list.toTypedArray()
 }

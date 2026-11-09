@@ -1,18 +1,9 @@
 package com.ridedeck.app
 
-import android.Manifest
-import com.ridedeck.app.data.AndroidSmsSender
-import com.ridedeck.app.data.AndroidSosAlarm
-import com.ridedeck.app.data.CrashSensor
 import com.ridedeck.app.data.WeatherRepository
 import com.ridedeck.app.data.Place
 import com.ridedeck.app.data.DialOutcome
 import com.ridedeck.app.data.VehicleProfile
-import com.ridedeck.app.data.SosContact
-import com.ridedeck.app.data.SosController
-import com.ridedeck.app.data.SosMath
-import com.ridedeck.app.data.SosReason
-import com.ridedeck.app.util.hasPermission
 import com.ridedeck.app.data.ThermalGuard
 import com.ridedeck.app.data.WeatherAlert
 import com.ridedeck.app.data.WeatherController
@@ -262,69 +253,18 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         thermalEnabled.value = enabled
     }
 
-    val sosContacts = MutableStateFlow(SosMath.fromJson(Prefs.sosContacts(app)))
-    val sosCrashEnabled = MutableStateFlow(Prefs.sosCrash(app))
-    val sosButtonEnabled = MutableStateFlow(Prefs.sosButton(app))
-    val sos = SosController(
-        scope = viewModelScope,
-        location = location.state,
-        contacts = sosContacts,
-        sms = AndroidSmsSender(app),
-        alarm = AndroidSosAlarm(app),
-        smsAllowed = { app.hasPermission(Manifest.permission.SEND_SMS) },
-        speak = { reason, seconds ->
-            announcer.speak(
-                when (reason) {
-                    SosReason.AUTO -> app.getString(R.string.sos_voice_auto, seconds)
-                    SosReason.MANUAL -> app.getString(R.string.sos_voice_manual, seconds)
-                    SosReason.TEST -> app.getString(R.string.sos_voice_test)
-                }
-            )
-        },
-        message = { reason, link, stale ->
-            val head = if (reason == SosReason.AUTO) {
-                app.getString(R.string.sos_sms_auto, app.getString(R.string.sos_noun_moto))
-            } else app.getString(R.string.sos_sms_manual)
-            SosMath.compose(
-                head, link, stale,
-                none = app.getString(R.string.sos_loc_none),
-                staleFmt = app.getString(R.string.sos_loc_stale),
-                fmt = app.getString(R.string.sos_loc),
-            )
-        },
-    )
-    private val crashSensor = CrashSensor(app, speedKmh = {
-        val fix = locationState.value
-        if (fix.hasSpeed && fix.hasFreshFix(System.currentTimeMillis(), android.os.SystemClock.elapsedRealtime())) fix.speedKmh else null
-    }, config = { profileNow.config }) { sos.trigger(SosReason.AUTO) }
-
-    fun setSosCrashEnabled(enabled: Boolean) {
-        Prefs.setSosCrash(getApplication(), enabled)
-        sosCrashEnabled.value = enabled
-        if (enabled && onScreen) crashSensor.start() else crashSensor.stop()
-    }
-
-    fun setSosButtonEnabled(enabled: Boolean) {
-        Prefs.setSosButton(getApplication(), enabled)
-        sosButtonEnabled.value = enabled
-    }
-
-    fun addSosContact(contact: SosContact) = updateSosContacts(SosMath.addContact(sosContacts.value, contact))
-
-    fun removeSosContact(contact: SosContact) = updateSosContacts(sosContacts.value - contact)
-
-    private fun updateSosContacts(list: List<SosContact>) {
-        sosContacts.value = list
-        Prefs.setSosContacts(getApplication(), SosMath.toJson(list))
-        // Without a contact there is nobody to alert, so the triggers switch themselves off.
-        if (list.isEmpty()) {
-            setSosCrashEnabled(false)
-            setSosButtonEnabled(false)
-        }
-    }
+    // SOS and crash detection belong to the process (RideSafety), so they outlive this screen.
+    private val safety = (app as RideDeckApplication).rideSafety
+    val sos = safety.sos
+    val sosContacts = safety.contacts
+    val sosCrashEnabled = safety.crashEnabled
+    val sosButtonEnabled = safety.buttonEnabled
+    fun setSosCrashEnabled(enabled: Boolean) = safety.setCrashEnabled(enabled)
+    fun setSosButtonEnabled(enabled: Boolean) = safety.setButtonEnabled(enabled)
+    fun addSosContact(contact: com.ridedeck.app.data.SosContact) = safety.addContact(contact)
+    fun removeSosContact(contact: com.ridedeck.app.data.SosContact) = safety.removeContact(contact)
 
     init {
-        AndroidSosAlarm(app).restoreVolumeIfPending()
         weather.start()
         viewModelScope.launch {
             MessageBridge.latest.filterNotNull().collect { message ->
@@ -343,7 +283,6 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         battery.start()
         navigation.refreshAudio()
         theme.start()
-        if (sosCrashEnabled.value) crashSensor.start()
         // The strip is a service: after a reboot or a killed process it has to be started again.
         if (Prefs.overlayEnabled(getApplication())) OverlayService.start(getApplication())
         resumeTick.value++
@@ -363,14 +302,11 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     fun onPause() {
         onScreen = false
-        crashSensor.stop()
         theme.stop()
     }
 
     override fun onCleared() {
-        sos.close()
         battery.stop()
-        crashSensor.stop()
         theme.stop()
     }
 

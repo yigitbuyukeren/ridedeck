@@ -1,6 +1,5 @@
 package com.ridedeck.app.ui
 
-import android.content.res.Configuration
 import android.os.SystemClock
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
@@ -76,7 +75,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -106,9 +104,7 @@ fun NowPlayingScreen(
             Empty(stringResource(R.string.media_grant_prompt), stringResource(R.string.grant_access), onGrantAccess)
             return@Box
         }
-        val portrait = LocalConfiguration.current.orientation == Configuration.ORIENTATION_PORTRAIT
-        // Buttons a little smaller on an upright phone, where all five have to fit the width.
-        val k = if (portrait) 0.86f else 1f
+        val k = 1f
         val controls: @Composable () -> Unit = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -126,36 +122,21 @@ fun NowPlayingScreen(
                 RoundButton(Icons.AutoMirrored.Rounded.VolumeUp, (60 * k).toInt(), palette.track, onClick = media::volumeUp)
             }
         }
-        if (portrait) {
-            // Upright: the cover on top, then title, progress bar and the buttons underneath.
-            Column(
-                modifier = Modifier.fillMaxSize().padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Cover(state, direction = { media.skipDirection }, onNext = { media.next() }, onPrevious = { media.previous() })
-                }
-                TrackTitle(state)
-                if (state.hasSession) Progress(state, media::seekTo)
-                controls()
+        Row(
+            modifier = Modifier.fillMaxSize().padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.fillMaxHeight().aspectRatio(0.88f), contentAlignment = Alignment.Center) {
+                Cover(state, direction = { media.skipDirection }, onNext = { media.next() }, onPrevious = { media.previous() })
             }
-        } else {
-            Row(
-                modifier = Modifier.fillMaxSize().padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Spacer(Modifier.width(28.dp))
+            Column(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                verticalArrangement = Arrangement.SpaceBetween,
             ) {
-                Box(Modifier.fillMaxHeight().aspectRatio(0.88f), contentAlignment = Alignment.Center) {
-                    Cover(state, direction = { media.skipDirection }, onNext = { media.next() }, onPrevious = { media.previous() })
-                }
-                Spacer(Modifier.width(28.dp))
-                Column(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    verticalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Box(Modifier.padding(end = 56.dp)) { TrackTitle(state) }
-                    if (state.hasSession) Progress(state, media::seekTo) else Spacer(Modifier.height(1.dp))
-                    controls()
-                }
+                Box(Modifier.padding(end = 56.dp)) { TrackTitle(state) }
+                if (state.hasSession) Progress(state, media::seekTo) else Spacer(Modifier.height(1.dp))
+                controls()
             }
         }
     }
