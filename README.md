@@ -53,7 +53,7 @@ Aşağıdakiler Android emülatöründen (Türkçe arayüz) alınmıştır.
 
 ### 📲 Kurulum
 
-1. [Son sürümün](https://github.com/yigitbuyukeren/ridedeck/releases/latest) APK'sını indir ve kur (bilinmeyen kaynaklardan kuruluma izin ver).
+1. [Son sürümün](https://github.com/yigitbuyukeren/ridedeck/releases/latest) APK'sını indir ve kur (bilinmeyen kaynaklardan kuruluma izin ver). 0.5.0 kuruluysa önce kaldır: 0.6.0 yeni bir imza anahtarı kullanır, üstüne güncelleme kurulmaz.
 2. İlk açılışta yalnızca konum izni istenir; telefon, müzik ve SOS izinleri ilgili özelliği açarken sorulur.
 3. Müzik ve mesaj okuma için Ayarlar > İzinler ve sistem'den bildirim erişimini ver.
 
