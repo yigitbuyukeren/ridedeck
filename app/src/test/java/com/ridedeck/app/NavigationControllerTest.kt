@@ -133,6 +133,31 @@ class NavigationControllerTest {
     }
 
     @Test
+    fun aLongGpsGapOnADenseRouteDoesNotTriggerAReroute() {
+        // 10 m segments, 2 km long: 80 segments cover only 800 m, a 60 s tunnel at 50 km/h covers 830 m.
+        val dense = (0 until 201).map { GeoPoint(start.lat + it * (STEP / 10), start.lon) }
+        val route = Route(dense, listOf(
+            Maneuver(1, "Depart", "", "Head north", 1500.0, 0),
+            Maneuver(10, "Turn right", "Turn right ahead", "Turn right now", 500.0, 180),
+            Maneuver(4, "Arrive", "", "You have arrived", 0.0, 200),
+        ), 2000.0, 200.0)
+        routing.routeHandler = { _, _ -> Result.success(route) }
+        startGuidance()
+        val requestsBefore = routing.requests.size
+        location.value = fixAt(dense[5])
+        location.value = fixAt(dense[6])
+        // Tunnel: no fixes for 60 s, then one 1.3 km further on.
+        clock += 60_000
+        location.value = fixAt(dense[136])
+        location.value = fixAt(dense[137])
+        location.value = fixAt(dense[138])
+        location.value = fixAt(dense[139])
+        assertEquals(requestsBefore, routing.requests.size)
+        assertTrue(nav.ui.value.progressIndex in 138..139)
+        assertFalse(nav.ui.value.rerouting)
+    }
+
+    @Test
     fun selectingAPlaceRoutesFromTheCurrentFix() {
         nav.selectPlace(dest)
         assertNotNull(nav.ui.value.route)

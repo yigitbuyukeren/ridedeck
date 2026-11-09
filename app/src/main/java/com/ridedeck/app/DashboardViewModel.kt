@@ -57,6 +57,9 @@ data class GpsUi(
     val speedAccuracyMps: Float? = null,
     /** The speed every readout shows: the filtered speed rounded to km/h, null while unknown (same source as the dial). `speedKmh` stays the raw fix. */
     val displayKmh: Int? = null,
+    /** Riding, stopped or unknown, with hysteresis; every "while riding" lock reads [inputLocked], never a raw speed. */
+    val motion: com.ridedeck.app.data.Motion = com.ridedeck.app.data.Motion.UNKNOWN,
+    val inputLocked: Boolean = false,
 )
 
 class DashboardViewModel(app: Application) : AndroidViewModel(app) {
@@ -234,15 +237,22 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    private val motionTracker = com.ridedeck.app.data.MotionTracker()
+    private var inputLocked = false
+
     val gps: StateFlow<GpsUi> = combine(location.state, ticker) { loc, now ->
         val fresh = loc.hasFreshFix(now, android.os.SystemClock.elapsedRealtime())
-        GpsUi(if (fresh) loc.speedKmh else 0, fresh, loc.accuracyM, loc.fixAgeMs, loc.fixIntervalMs, loc.speedAccuracyMps, if (fresh) location.displayKmh()?.roundToInt() else null)
+        val shown = if (fresh) location.displayKmh() else null
+        val motion = motionTracker.update(shown, loc.elapsedRealtimeMs)
+        inputLocked = com.ridedeck.app.data.MotionTracker.inputLocked(inputLocked, motion)
+        GpsUi(if (fresh) loc.speedKmh else 0, fresh, loc.accuracyM, loc.fixAgeMs, loc.fixIntervalMs, loc.speedAccuracyMps, shown?.roundToInt(), motion, inputLocked)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, GpsUi())
 
     val thermalEnabled = MutableStateFlow(Prefs.thermalGuard(app))
     val thermal = ThermalGuard(
         viewModelScope, battery.state,
-        gps.map { it.speedKmh }.stateIn(viewModelScope, SharingStarted.Eagerly, 0),
+        // No fix means "unknown", not "standing still": a tunnel must not dim a hot screen.
+        gps.map { if (it.hasFix) it.speedKmh else null }.stateIn(viewModelScope, SharingStarted.Eagerly, null),
         thermalEnabled,
     ) {
         if (call.state.value.phase == CallPhase.IDLE) announcer.speak(app.getString(R.string.thermal_voice))

@@ -203,7 +203,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
     }
 
     // Settings are a place to read and tap: locked while riding (with a live fix), as the keypad and the map search are.
-    val settingsLocked = gps.hasFix && gps.speedKmh >= SETTINGS_LOCK_KMH
+    val settingsLocked = gps.inputLocked
     val tellSettingsLocked = { android.widget.Toast.makeText(context, R.string.settings_locked, android.widget.Toast.LENGTH_SHORT).show() }
     LaunchedEffect(settingsLocked) { if (settingsLocked && showSettings) { showSettings = false; tellSettingsLocked() } }
 
@@ -251,7 +251,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                         recents = recents,
                         contacts = contacts,
                         hasAccess = phonebookGranted(context),
-                        keypadLocked = gps.speedKmh >= PHONE_LOCK_KMH,
+                        keypadLocked = gps.inputLocked,
                         initialNumber = dialRequest,
                         onGrantAccess = { phonebookLauncher.launch(phonebookPermissions()) },
                         dialerHint = !isDefaultDialer(context),
@@ -280,6 +280,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                         nav = vm.nav,
                         locationState = vm.locationState,
                         speedKmh = gps.speedKmh,
+                        inputLocked = gps.inputLocked,
                         speedShown = gps.displayKmh,
                         speedLimit = speedLimit,
                         isDay = isDay,
@@ -579,9 +580,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
     }
 }
 
-/** No number entry while riding, same limit as the map search box. */
-private const val PHONE_LOCK_KMH = 5
-private const val SETTINGS_LOCK_KMH = 5
 
 private fun toggleOverlay(context: Context, enabled: Boolean): Boolean {
     if (enabled && !overlayGranted(context)) {

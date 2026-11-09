@@ -154,8 +154,6 @@ internal const val SRC_DEST = "dest"
 internal const val SRC_ME = "me"
 internal const val SRC_FUEL = "fuel"
 
-/** No typing while riding: the search box locks above this speed. */
-private const val SEARCH_LOCK_KMH = 5
 private const val SAVED_SPOT_M = 30.0
 private const val FULL_FPS = 60
 private const val LOW_POWER_FPS = 20
@@ -165,6 +163,8 @@ fun MapScreen(
     nav: NavigationController,
     locationState: StateFlow<LocationState>,
     speedKmh: Int,
+    /** No typing while riding; decided by the motion state (hysteresis, unknown keeps the last answer), not a raw speed. */
+    inputLocked: Boolean,
     speedShown: Int? = null,
     speedLimit: Int?,
     isDay: Boolean,
@@ -194,7 +194,7 @@ fun MapScreen(
     var centeredOnce by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf<Place?>(null) }
     var typing by remember { mutableStateOf(false) }
-    LaunchedEffect(speedKmh >= SEARCH_LOCK_KMH) { if (speedKmh >= SEARCH_LOCK_KMH) typing = false }
+    LaunchedEffect(inputLocked) { if (inputLocked) typing = false }
 
     // A hot phone gets a calmer map: fewer frames per second.
     LaunchedEffect(lowPower) { mapView.setMaximumFps(if (lowPower) LOW_POWER_FPS else FULL_FPS) }
@@ -381,7 +381,7 @@ fun MapScreen(
                 addingStop && ui.route != null && !ui.navigating -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     PillButton(stringResource(R.string.cancel), MotoColors.PanelHigh, { addingStop = false; typing = false }, Modifier.fillMaxWidth())
                     SearchPanel(
-                        ui = ui, locked = speedKmh >= SEARCH_LOCK_KMH, typing = typing,
+                        ui = ui, locked = inputLocked, typing = typing,
                         onFocus = { typing = true },
                         onSearch = { typing = false; nav.search() },
                         places = places,
@@ -393,7 +393,7 @@ fun MapScreen(
                 }
                 ui.route != null -> RouteCard(
                     ui, options, onOptions = nav::setOptions,
-                    canOpenExternal = speedKmh < SEARCH_LOCK_KMH,
+                    canOpenExternal = !inputLocked,
                     onStart = onStartNavigation, onCancel = nav::stopNavigation, onChoose = nav::chooseRoute,
                     onAddStop = { addingStop = true; nav.onQueryChange("") },
                     onRemoveStop = nav::removeStop,
@@ -402,7 +402,7 @@ fun MapScreen(
                 )
                 else -> SearchPanel(
                     ui = ui,
-                    locked = speedKmh >= SEARCH_LOCK_KMH,
+                    locked = inputLocked,
                     typing = typing,
                     onFocus = { typing = true },
                     onSearch = { typing = false; nav.search() },
@@ -463,7 +463,7 @@ fun MapScreen(
         MapCredit(Modifier.align(Alignment.BottomEnd).padding(end = 8.dp, bottom = 4.dp))
 
         // The app's own keyboard: it covers the lower part of the map, never resizes anything.
-        if (typing && speedKmh < SEARCH_LOCK_KMH) {
+        if (typing && !inputLocked) {
             SearchKeyboard(
                 query = ui.query,
                 onQuery = nav::onQueryChange,

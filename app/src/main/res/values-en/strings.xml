@@ -113,6 +113,7 @@
     <string name="ice_banner_fmt">Ice risk: %1$d°C</string>
     <string name="ice_voice_fmt">It is %1$d degrees, the road may be icy</string>
     <string name="stop_arrived">You have reached your stop</string>
+    <string name="stop_approaching">Your stop is coming up</string>
     <string name="continue_trip">Continue</string>
     <string name="fuel_title">Fuel stations</string>
     <string name="fuel_searching">Looking for stops…</string>

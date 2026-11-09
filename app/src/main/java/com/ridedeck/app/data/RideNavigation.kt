@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
+private data class ActiveTripSnapshot(val guiding: Boolean, val destination: Place?, val finalDestination: Place?, val stopsAhead: List<Place>)
+
 /** One in-memory navigation/TTS/audio session per process. Activity and ViewModel are only clients. */
 class RideNavigation(context: Context, private val tracking: RideTracking) {
     private val app = context.applicationContext
@@ -69,15 +71,15 @@ class RideNavigation(context: Context, private val tracking: RideTracking) {
         }
         DebugSim.stopHook = { tracking.location.stopSimulation() }
         scope.launch {
-            nav.ui.map { Triple(it.navigating, it.destination, it.finalDestination) }.distinctUntilChanged().collect { (guiding, dest, final) ->
-                if (guiding && dest != null) Prefs.setActiveTrip(app, ActiveTrip(dest, final, System.currentTimeMillis()).toJson())
+            nav.ui.map { ActiveTripSnapshot(it.navigating, it.destination, it.finalDestination, it.stops.drop(it.stopsPassed)) }.distinctUntilChanged().collect { (guiding, dest, final, ahead) ->
+                if (guiding && dest != null) Prefs.setActiveTrip(app, ActiveTrip(dest, final, System.currentTimeMillis(), ahead).toJson())
                 else if (wasGuiding) { Prefs.setActiveTrip(app, null); tracking.location.stopSimulation() }
                 wasGuiding = guiding
             }
         }
         if (saved != null) scope.launch {
             tracking.location.state.first { it.hasFreshFix(System.currentTimeMillis()) }
-            if (nav.ui.value.destination == null && !nav.ui.value.navigating) nav.restoreTrip(saved.destination, saved.finalDestination)
+            if (nav.ui.value.destination == null && !nav.ui.value.navigating) nav.restoreTrip(saved.destination, saved.finalDestination, saved.stops)
         }
         scope.launch { call.state.collect { if (it.phase == CallPhase.IDLE) CallBridge.callerName.value = null } }
     }

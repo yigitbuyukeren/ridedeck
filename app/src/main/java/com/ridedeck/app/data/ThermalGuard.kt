@@ -47,9 +47,10 @@ object ThermalMath {
      * One step of the guard. A cool phone is never touched: the screen only dims when the battery is
      * hot, and goes nearly dark only if it is hot *and* the bike has stood still for a minute.
      */
-    fun next(prev: ThermalState, tempC: Float, speedKmh: Int, nowMs: Long, enabled: Boolean): ThermalState {
+    fun next(prev: ThermalState, tempC: Float, speedKmh: Int?, nowMs: Long, enabled: Boolean): ThermalState {
         if (!enabled) return ThermalState()
-        val stoppedSince = if (speedKmh < STOPPED_KMH) prev.stoppedSinceMs.takeIf { it > 0 } ?: nowMs else 0L
+        // Unknown speed (no GPS) is not evidence of a stop: the idle timer does not run on it.
+        val stoppedSince = if (speedKmh != null && speedKmh < STOPPED_KMH) prev.stoppedSinceMs.takeIf { it > 0 } ?: nowMs else 0L
         val hot = tempC > DIM_FROM_C
         val idle = hot && stoppedSince > 0 && nowMs - stoppedSince >= IDLE_AFTER_MS
         val brightness = when {
@@ -65,7 +66,7 @@ object ThermalMath {
 class ThermalGuard(
     scope: CoroutineScope,
     battery: StateFlow<BatteryState>,
-    speedKmh: StateFlow<Int>,
+    speedKmh: StateFlow<Int?>,
     enabled: StateFlow<Boolean>,
     private val onWarn: () -> Unit,
 ) {

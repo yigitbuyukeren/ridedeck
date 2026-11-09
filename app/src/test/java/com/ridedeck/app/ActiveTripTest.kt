@@ -18,6 +18,10 @@ class ActiveTripTest {
         assertEquals(a, ActiveTrip.fromJson(a.toJson()))
         val b = ActiveTrip(dest, Place("İş", "", GeoPoint(41.0, 29.0)), 5)
         assertEquals(b, ActiveTrip.fromJson(b.toJson()))
+        val c = ActiveTrip(dest, null, 7, listOf(Place("S1", "", GeoPoint(41.01, 29.0)), Place("S2", "d", GeoPoint(41.02, 29.0))))
+        assertEquals(c, ActiveTrip.fromJson(c.toJson()))
+        // Older saves have no stops field.
+        assertEquals(emptyList<Place>(), ActiveTrip.fromJson(ActiveTrip(dest, null, 1).toJson())!!.stops)
     }
 
     @Test

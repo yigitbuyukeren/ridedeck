@@ -98,6 +98,74 @@ class MultiStopTest {
     }
 
     @Test
+    fun roadPreferenceChangeInPreviewKeepsTheStops() {
+        val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        val loc = MutableStateFlow(LocationState(speedKmh = 40, fixAtMs = 5, lat = 41.0, lon = 29.0))
+        val routing = ViaRouting()
+        val nav = NavigationController({ "t$it" }, scope, loc, silent, routing, noFuel, nowMs = { 5 })
+        val dest = Place("D", "", GeoPoint(41.03, 29.01))
+        nav.selectPlace(dest)
+        nav.addStop(Place("S1", "", GeoPoint(41.01, 29.0)))
+        nav.addStop(Place("S2", "", GeoPoint(41.02, 29.0)))
+        nav.setOptions(RouteOptions(avoidHighways = true))
+        assertEquals(listOf("S1", "S2"), nav.ui.value.stops.map { it.name })
+        // start, S1, S2, destination: the stops went into the new request too.
+        assertEquals(4, routing.vias.last().size)
+        assertEquals(dest.point, routing.vias.last().last())
+        assertNotNull(nav.ui.value.route)
+        nav.shutdown(); scope.cancel()
+    }
+
+    @Test
+    fun aFuelDetourKeepsThePlannedStopsForTheLegAfterIt() {
+        val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        val loc = MutableStateFlow(LocationState(speedKmh = 40, fixAtMs = 5, lat = 41.0, lon = 29.0))
+        val routing = ViaRouting()
+        val nav = NavigationController({ "t$it" }, scope, loc, silent, routing, noFuel, nowMs = { 5 })
+        val dest = Place("D", "", GeoPoint(41.03, 29.01))
+        nav.selectPlace(dest)
+        nav.addStop(Place("S1", "", GeoPoint(41.01, 29.0)))
+        nav.addStop(Place("S2", "", GeoPoint(41.02, 29.0)))
+        nav.startNavigation()
+        val pump = Place("Opet", "", GeoPoint(41.005, 29.0))
+        nav.detourVia(pump)
+        var ui = nav.ui.value
+        assertEquals(pump, ui.destination)
+        assertEquals(dest, ui.finalDestination)
+        assertEquals(listOf("S1", "S2"), ui.stops.map { it.name })
+        assertEquals(0, ui.stopsPassed)
+        // Nothing can be added to the pump leg; the stops are edited once the trip continues.
+        nav.addStop(Place("X", "", GeoPoint(41.004, 29.0)))
+        assertEquals(listOf("S1", "S2"), nav.ui.value.stops.map { it.name })
+        // Ride the pump leg to its end (fixes carry the test clock), continue: the route goes start -> S1 -> S2 -> D.
+        ui.route!!.shape.forEach { pt -> loc.value = LocationState(speedKmh = 30, fixAtMs = 5, lat = pt.lat, lon = pt.lon) }
+        assertTrue(nav.ui.value.arrived)
+        nav.continueToFinal()
+        ui = nav.ui.value
+        assertTrue(ui.navigating)
+        assertEquals(dest, ui.destination)
+        assertEquals(listOf("S1", "S2"), ui.stops.map { it.name })
+        assertEquals(4, routing.vias.last().size)
+        assertEquals(dest.point, routing.vias.last().last())
+        nav.shutdown(); scope.cancel()
+    }
+
+    @Test
+    fun aRestoredTripRoutesThroughItsRemainingStops() {
+        val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        val loc = MutableStateFlow(LocationState(speedKmh = 0, fixAtMs = 5, lat = 41.0, lon = 29.0))
+        val routing = ViaRouting()
+        val nav = NavigationController({ "t$it" }, scope, loc, silent, routing, noFuel, nowMs = { 5 })
+        val dest = Place("D", "", GeoPoint(41.03, 29.01))
+        nav.restoreTrip(dest, null, listOf(Place("S2", "", GeoPoint(41.02, 29.0))))
+        assertEquals(listOf("S2"), nav.ui.value.stops.map { it.name })
+        assertEquals(3, routing.vias.last().size)
+        assertNotNull(nav.ui.value.route)
+        assertTrue(!nav.ui.value.navigating)
+        nav.shutdown(); scope.cancel()
+    }
+
+    @Test
     fun reachingAStopSaysSoAndCountsItAsPassed() {
         val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
         val loc = MutableStateFlow(LocationState(speedKmh = 50, fixAtMs = 1, lat = 41.0, lon = 29.0))
@@ -120,7 +188,10 @@ class MultiStopTest {
         nav.addStop(Place("S", "", route.shape[stopIdx]))
         nav.startNavigation()
         for (i in 1..stopIdx + 2) { clock++; loc.value = LocationState(speedKmh = 50, fixAtMs = clock, lat = route.shape[i].lat, lon = route.shape[i].lon) }
+        assertTrue(silent.said.toString(), silent.said.contains("t${R.string.stop_approaching}"))
         assertTrue(silent.said.toString(), silent.said.contains("t${R.string.stop_arrived}"))
+        // Approaching is said first, reached only at the stop itself.
+        assertTrue(silent.said.indexOf("t${R.string.stop_approaching}") < silent.said.indexOf("t${R.string.stop_arrived}"))
         assertEquals(1, nav.ui.value.stopsPassed)
         nav.shutdown(); scope.cancel()
     }

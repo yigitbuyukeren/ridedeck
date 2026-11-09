@@ -11,6 +11,14 @@ class ThermalTest {
     private val none = ThermalState.NO_OVERRIDE
 
     @Test
+    fun lostGpsOnAHotPhoneDoesNotCountAsStandingStill() {
+        var s = ThermalMath.next(ThermalState(), 44f, null, 1_000L, true)
+        s = ThermalMath.next(s, 44f, null, 1_000L + 120_000L, true)
+        assertTrue(s.brightness > ThermalMath.IDLE_BRIGHTNESS)
+        assertEquals(0L, s.stoppedSinceMs)
+    }
+
+    @Test
     fun coolPhoneIsNeverTouched() {
         var s = ThermalState()
         // Standing still for ten minutes at 35 degrees: no dimming at all.

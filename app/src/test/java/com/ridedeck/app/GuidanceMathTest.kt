@@ -54,6 +54,19 @@ class GuidanceMathTest {
     }
 
     @Test
+    fun matchWindowGrowsWithTheGapAndCoversTheWholeRouteAfterALongOne() {
+        // 300 segments of 10 m.
+        val cumulative = DoubleArray(301) { it * 10.0 }
+        assertEquals(80, RouteMatcher.windowSegments(cumulative, 0, 0.0, 15.0, 80))
+        assertEquals(80, RouteMatcher.windowSegments(cumulative, 0, 1.0, 15.0, 80))
+        // 20 s at 15 m/s = 300 m, ×1.5 = 450 m = 45 segments: still the minimum.
+        assertEquals(80, RouteMatcher.windowSegments(cumulative, 0, 20.0, 15.0, 80))
+        // 25 s at 25 m/s = 625 m, ×1.5 ≈ 940 m = 94 segments.
+        assertEquals(94, RouteMatcher.windowSegments(cumulative, 0, 25.0, 25.0, 80))
+        assertEquals(cumulative.size, RouteMatcher.windowSegments(cumulative, 0, 60.0, 15.0, 80))
+    }
+
+    @Test
     fun offRouteLimitWidensWithSpeedAndPoorFix() {
         assertEquals(45.0, RouteMatcher.offRouteM(5.0, 5), 0.01)
         assertEquals(90.0, RouteMatcher.offRouteM(30.0, 5), 0.01)

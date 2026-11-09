@@ -59,6 +59,25 @@ object RouteMatcher {
         return Match(bestIdx, best)
     }
 
+    /** After this long without a usable fix the whole route is searched: the bike may be anywhere along it. */
+    const val FULL_SEARCH_GAP_S = 30.0
+
+    /**
+     * How many segments ahead of [from] to search after [gapS] seconds without a match at [speedMps]: the distance
+     * the bike could have covered (with half again as margin) turned into segments, never fewer than [minimum].
+     * A tunnel in a city, where segments are 10–20 m, must not leave the match behind and force a re-route.
+     */
+    fun windowSegments(cumulative: DoubleArray, from: Int, gapS: Double, speedMps: Double, minimum: Int): Int {
+        if (cumulative.size < 2) return minimum
+        if (gapS >= FULL_SEARCH_GAP_S) return cumulative.size
+        val aheadM = gapS.coerceAtLeast(0.0) * speedMps.coerceAtLeast(0.0) * 1.5
+        if (aheadM <= 0.0) return minimum
+        val start = from.coerceIn(0, cumulative.size - 2)
+        var end = start
+        while (end < cumulative.size - 2 && cumulative[end + 1] - cumulative[start] < aheadM) end++
+        return max(minimum, end - start + 1)
+    }
+
     /** Metres from the route that count as "off it": wider on a motorway and for a poor GPS fix. */
     fun offRouteM(speedMps: Double, accuracyM: Int?): Double =
         max(max(45.0, (accuracyM ?: 0) * 2.0), speedMps * 3.0).coerceAtMost(150.0)

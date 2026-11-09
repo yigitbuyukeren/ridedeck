@@ -113,6 +113,7 @@
     <string name="ice_banner_fmt">Buzlanma riski: %1$d°C</string>
     <string name="ice_voice_fmt">Hava %1$d derece, yol buzlanabilir</string>
     <string name="stop_arrived">Ara durağa ulaştınız</string>
+    <string name="stop_approaching">Ara durak yaklaşıyor</string>
     <string name="continue_trip">Yola devam</string>
     <string name="fuel_title">Benzinlikler</string>
     <string name="fuel_searching">Yakındaki duraklar aranıyor…</string>

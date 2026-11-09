@@ -87,7 +87,7 @@ class NavigationController(
     val options: StateFlow<RouteOptions> = _options
     private var routeJob: Job? = null
     private var routeGeneration = 0L
-    private data class DetourRequest(val stop: Place, val final: Place, val from: GeoPoint, val generation: Long)
+    private data class DetourRequest(val stop: Place, val final: Place, val from: GeoPoint, val generation: Long, val stopsAhead: List<Place>)
 
     private val _ui = MutableStateFlow(NavUi())
     val ui: StateFlow<NavUi> = _ui
@@ -104,6 +104,9 @@ class NavigationController(
     /** "Re-routing" is announced once per time off the road, and a failed attempt waits before the next one. */
     private var rerouteSpoken = false
     private var nextRerouteAtMs = 0L
+    /** When and how fast the last on-route match was, so a long GPS gap widens the next search (N3). */
+    private var lastMatchAtMs = 0L
+    private var lastMatchSpeedMps = 0.0
 
     private fun here(): GeoPoint? =
         location.value.takeIf { it.hasFreshFix(nowMs()) }?.let { GeoPoint(it.lat, it.lon) }
@@ -173,11 +176,16 @@ class NavigationController(
         routeJob = scope.launch { calculatePlaceRoute(place, request.first, request.second) }
     }
 
-    /** After a process kill: routes to the saved destination as a preview ("Start" resumes guidance); a saved fuel stop is not re-planned. */
-    fun restoreTrip(destination: Place, finalDestination: Place?) {
+    /**
+     * After a process kill: routes to the saved destination through the stops that were still ahead, as a preview
+     * ("Start" resumes guidance); a saved fuel stop is not re-planned.
+     */
+    fun restoreTrip(destination: Place, finalDestination: Place?, stops: List<Place> = emptyList()) {
         val target = finalDestination ?: destination
         val request = preparePlaceRoute(target) ?: return
-        routeJob = scope.launch { calculatePlaceRoute(target, request.first, request.second) }
+        val ahead = stops.take(maxStops)
+        _ui.update { it.copy(stops = ahead) }
+        routeJob = scope.launch { calculatePlaceRoute(target, request.first, request.second, ahead) }
     }
 
     private fun rememberChosen(place: Place) {
@@ -203,9 +211,9 @@ class NavigationController(
         return from to generation
     }
 
-    private suspend fun calculatePlaceRoute(place: Place, from: GeoPoint, generation: Long): Boolean {
+    private suspend fun calculatePlaceRoute(place: Place, from: GeoPoint, generation: Long, stops: List<Place> = emptyList()): Boolean {
         val result = try {
-            routeResult(from, place.point)
+            routeResult(from, place.point, stops = stops)
         } catch (cancelled: CancellationException) {
             if (generation == routeGeneration) {
                 _ui.update { it.copy(loading = false, destination = null, route = null) }
@@ -277,7 +285,8 @@ class NavigationController(
     /** Adds an intermediate stop before the destination, in the preview or while guiding (the route is re-planned from here). */
     fun addStop(place: Place) {
         val state = _ui.value
-        if (state.destination == null || state.stops.size - state.stopsPassed >= maxStops) return
+        // While heading for a fuel stop the stops belong to the leg after it; they are edited once the trip continues.
+        if (state.destination == null || state.finalDestination != null || state.stops.size - state.stopsPassed >= maxStops) return
         closeFuel()
         searchJob?.cancel()
         applyStops(state.stops.drop(state.stopsPassed) + place)
@@ -285,6 +294,7 @@ class NavigationController(
 
     /** Removes the [index]th stop still ahead. */
     fun removeStop(index: Int) {
+        if (_ui.value.finalDestination != null) return
         val ahead = _ui.value.stops.drop(_ui.value.stopsPassed)
         if (index !in ahead.indices) return
         applyStops(ahead.filterIndexed { i, _ -> i != index })
@@ -355,10 +365,12 @@ class NavigationController(
         val dest = state.destination
         val from = here()
         if (dest == null || from == null || (state.route == null && !state.loading) || state.navigating) return
-        _ui.update { it.copy(loading = true, route = null, error = null) }
+        // The stops stay part of the trip whatever the road preference; a fuel detour has no stops of its own.
+        val ahead = if (state.finalDestination != null) emptyList() else state.stops.drop(state.stopsPassed)
+        _ui.update { it.copy(loading = true, route = null, error = null, stops = ahead, stopsPassed = 0) }
         val generation = invalidateRoute()
         routeJob = scope.launch {
-            val result = routeResult(from, dest.point, options)
+            val result = routeResult(from, dest.point, options, stops = ahead)
             if (generation != routeGeneration) return@launch
             result?.onSuccess { route ->
                 _ui.update { it.copy(route = route, choices = emptyList(), loading = false) }
@@ -388,6 +400,7 @@ class NavigationController(
         progressIndex = startIndex
         offRouteFixes = 0
         spoken.clear()
+        lastMatchAtMs = 0L
         val next = route.maneuvers.indexOfFirst { it.beginIndex > startIndex }.takeIf { it >= 0 } ?: route.maneuvers.lastIndex
         val remaining = (route.distanceM - route.cumulative[startIndex]).coerceAtLeast(0.0)
         val remainingS = route.remainingTimeS(route.cumulative[startIndex]).toInt()
@@ -476,7 +489,9 @@ class NavigationController(
         closeFuel()
         val generation = invalidateRoute()
         _ui.update { it.copy(rerouting = true) }
-        return DetourRequest(stop, final, from, generation)
+        // Planned stops are not lost at the pump: they are kept for the leg that continues to the final destination.
+        val ahead = if (state.finalDestination != null) state.stops else state.stops.drop(state.stopsPassed)
+        return DetourRequest(stop, final, from, generation, ahead)
     }
 
     private suspend fun calculateDetour(request: DetourRequest): Boolean {
@@ -497,6 +512,7 @@ class NavigationController(
         spoken.clear()
         _ui.update {
             it.copy(destination = request.stop, finalDestination = request.final, route = route, rerouting = false,
+                stops = request.stopsAhead, stopsPassed = 0,
                 progressIndex = 0, progressFraction = 0.0,
                 maneuverIndex = 1.coerceAtMost(route.maneuvers.lastIndex),
                 remainingM = route.distanceM.toInt(), remainingS = route.durationS.toInt())
@@ -510,15 +526,16 @@ class NavigationController(
         if (_ui.value.loading || _ui.value.navigating) return
         val final = _ui.value.finalDestination ?: return
         val from = here() ?: return
+        val ahead = _ui.value.stops
         _ui.update { it.copy(loading = true, error = null) }
         val generation = invalidateRoute()
         routeJob = scope.launch {
-            val result = routeResult(from, final.point)
+            val result = routeResult(from, final.point, stops = ahead)
             if (generation != routeGeneration) return@launch
             (result ?: Result.failure(IllegalStateException("routing timeout")))
                 .onSuccess { route ->
                     _ui.update { it.copy(destination = final, finalDestination = null, route = route, loading = false,
-                        arrived = false, termination = NavigationTermination.NONE) }
+                        stops = ahead, stopsPassed = 0, arrived = false, termination = NavigationTermination.NONE) }
                     startNavigation()
                 }
                 .onFailure { _ui.update { s -> s.copy(loading = false, error = text(R.string.route_failed)) } }
@@ -554,8 +571,11 @@ class NavigationController(
         val p = GeoPoint(fix.lat, fix.lon)
 
         // Match to the best segment near the last known position, preferring the direction of travel.
+        // A long gap since the last match (tunnel) widens the search by the distance the bike could have covered.
         val speedMps = fix.speedKmh / 3.6
-        val match = RouteMatcher.match(route.shape, p, progressIndex, MATCH_WINDOW, fix.bearing?.toDouble(), speedMps)
+        val gapS = if (lastMatchAtMs > 0L) (fix.fixAtMs - lastMatchAtMs) / 1000.0 else 0.0
+        val window = RouteMatcher.windowSegments(route.cumulative, progressIndex, gapS, maxOf(speedMps, lastMatchSpeedMps), MATCH_WINDOW)
+        val match = RouteMatcher.match(route.shape, p, progressIndex, window, fix.bearing?.toDouble(), speedMps)
         val bestIdx = match.index
         val best = match.projection
 
@@ -569,6 +589,8 @@ class NavigationController(
         offRouteFixes = 0
         rerouteSpoken = false
         progressIndex = bestIdx
+        lastMatchAtMs = fix.fixAtMs
+        lastMatchSpeedMps = speedMps
 
         val travelled = route.cumulative[bestIdx] +
             best.fraction * (route.cumulative[bestIdx + 1] - route.cumulative[bestIdx])
@@ -592,8 +614,10 @@ class NavigationController(
             if (PromptSchedule.alertWorthIt(distToNext, speedMps)) voice.speak(maneuver.alert)
         }
         if (distToNext < PromptSchedule.nearM(speedMps) && spoken.add(next * 10 + 1)) voice.speak(
-            if (maneuver.isStop) text(R.string.stop_arrived) else withFollowUp(route, next)
+            if (maneuver.isStop) text(R.string.stop_approaching) else withFollowUp(route, next)
         )
+        // "Reached" only at the stop itself, not hundreds of metres before it.
+        if (maneuver.isStop && distToNext <= ARRIVAL_M && spoken.add(next * 10 + 2)) voice.speak(text(R.string.stop_arrived))
 
         _ui.update {
             it.copy(
@@ -624,9 +648,11 @@ class NavigationController(
             voice.speak(text(R.string.rerouting_voice))
         }
         val generation = invalidateRoute()
-        val ahead = _ui.value.stops.drop(_ui.value.stopsPassed)
+        val detour = _ui.value.finalDestination != null
+        // On the way to a fuel stop the planned stops belong to the leg after it and stay as they are.
+        val ahead = if (detour) _ui.value.stops else _ui.value.stops.drop(_ui.value.stopsPassed)
         routeJob = scope.launch {
-            val result = routeResult(from, dest.point, stops = ahead)
+            val result = routeResult(from, dest.point, stops = if (detour) emptyList() else ahead)
             if (generation != routeGeneration) return@launch
             (result ?: Result.failure(IllegalStateException("routing timeout")))
                 .onSuccess { route ->
