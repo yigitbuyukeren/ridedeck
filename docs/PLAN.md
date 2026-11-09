@@ -1,6 +1,6 @@
 # Plan listesi
 
-**Güncelleme: 2026-11-05.** Bekleyen işler ve ürün önerileri. Kullanıcı uygulamayı açıkça istemeden geliştirmeye başlanmaz. Tamamlanan işler buradan çıkarılıp [STATUS.md](STATUS.md) içine kaydedilir. İlgili kapsam kararları: [EKSIKLER.md](EKSIKLER.md).
+**Güncelleme: 2026-11-10.** Bekleyen işler ve ürün önerileri. Kullanıcı uygulamayı açıkça istemeden geliştirmeye başlanmaz. Tamamlanan işler buradan çıkarılıp [STATUS.md](STATUS.md) içine kaydedilir. İlgili kapsam kararları: [EKSIKLER.md](EKSIKLER.md).
 
 ## Mevcut durum ve kanıt sınırı
 
@@ -26,8 +26,9 @@ Mevcut özellikler: çok noktalı rota (en fazla üç ara durak), alternatif rot
 | 2 — bağlantı ve kalıcı durum | #3–4 çevrimdışı indirme, #6 sağlayıcı erişimi, #7–10 kurtarma/ağ/veri tazeliği | İptal, yeniden açılış, silme ve geç cevaplar doğru yönetilir; sağlayıcı koşulları uygulanır. |
 | 3 — cihaz ve yayın hazırlığı | #11 çağrı erişimi, #12 belge/sürüm tutarlılığı, saha matrisi | Sürümlü beta için cihaz sonuçları kaydedilir; belgeler mevcut davranışı açıklar. Yayın ayrıca açık istek gerektirir. |
 | Sonraki ürün değerlendirmesi | #13–15 | İlk üç aşamanın sonuçlarına göre kapsam seçilir. |
+| N — kusursuz navigasyon | #N1–N12 (aşağıda) | Aşama 1 ile birlikte yürür: N1–N4 düzeltme, N5–N12 tasarım. Her madde birim testi ve en az bir gerçek sürüşle kapanır. |
 
-İlk önerilen görev #1'dir; ardından #2 ve #5 gelir. Bu sıralama uygulamaya başlama onayı değildir.
+İlk önerilen görev #1'dir (N1 ile birlikte); ardından #2 (N2 ile birlikte) ve #5 (N5 ile birlikte) gelir. Bu sıralama uygulamaya başlama onayı değildir.
 
 ## 1. Ara durakları yeniden hesaplamada koru — yüksek öncelik
 
@@ -183,11 +184,84 @@ Rota geometrisi, kalan duraklar, tercihler ve gerekli harita alanını birlikte 
 - **Kabul:** Paket kapsamı/boyutu ve eksik alanlar anlaşılır; süreç ölümü sonrası kalan rota kurtarılır; çevrimdışı sapmada yeniden hesaplama sınırı gösterilir. Cihazdaki TTS sesinin uygunluğu doğrulanır. Saklama/temizleme/gizlilik davranışı tanımlanır.
 - **Bağımlılık:** #1, #3–4, #7–9. Bölge/koridor indirmesi sağlayıcı koşullarına uysun.
 
+## N. Kusursuz navigasyon — hata ve tasarım kusurları (2026-11-10 incelemesi)
+
+Kaynak: `NavigationController.kt`, `GuidanceMath.kt`, `RouteSnap.kt`, `RouteRepository.kt`, `MapScreen.kt`, `Voice.kt`/`SpeechSession.kt`. İnceleme kod okumasıdır; cihazda yeniden üretilmedi. "Kusursuz" ölçütü: rotayı hiç bozmayan, hiçbir anonsu yutmayan, yanlış yerde yeniden hesaplamayan ve sürücüye asla "ne kadar sonra" sorusunu bıraktırmayan rehberlik.
+
+### N1. Benzinlik sapması ve "Yola devam" planlı ara durakları siliyor — yüksek öncelik, hata
+**Kodda görülen tutarsızlık:** `detourVia()` → `calculateDetour()` rotayı yalnız `from → benzinlik` hesaplar ve `stops` listesine dokunmaz; `continueToFinal()` yalnız `from → finalDestination` ister. Ara duraklar ekranda listelenmeye devam eder ama rota artık oradan geçmez. `#1`'deki `setOptions()` sorununun kardeşidir; `restoreTrip()` de aynı şekilde yalnız hedefi kurtarır (`#7`).
+- Durak listesi tek bir "kalan yolculuk" modeli olsun: `kalan duraklar + hedef`; sapma, seçenek değişimi, yeniden hesaplama, kurtarma ve "Yola devam" hepsi bu modelden rota istesin.
+- **Kabul:** İki duraklı yolculukta benzinliğe sap, benzinliğe var, "Yola devam": rota iki durağı sırayla içerir; geçilen durak tekrar eklenmez; sapma iptal edilirse eski rota ve duraklar korunur. Süreç ölümü sonrası kurtarmada duraklar korunur (`ActiveTrip` durakları da saklar).
+- **Kaynak:** `NavigationController.detourVia/continueToFinal/restoreTrip`, `ActiveTrip.kt`, `MultiStopTest.kt`, `NavigationControllerTest.detourSetsTheStopAsDestination…`.
+
+### N2. Sürüş kilitleri ham GPS hızına bağlı — yüksek öncelik, hata
+**Kodda görülen tutarsızlık:** `MapScreen` arama kutusu, "başka uygulamada aç" ve klavye kapatma kilidi (`SEARCH_LOCK_KMH = 5`) filtrelenmemiş `gps.speedKmh` ile karar verir; tuş takımı (`PHONE_LOCK_KMH`) ve Ayarlar kilidi de aynı değeri kullanır. Kırmızı ışıkta GPS gürültüsü 5–7 km/sa gösterebilir: klavye yazarken kapanır. Ters yönü `#2`'de: sinyal kaybında 0 görünür ve kilit açılır.
+- Tek bir `MotionState { MOVING, STOPPED, UNKNOWN }` üret (filtreli hız + duruş histerezisi + fix yaşı); tüm kilitler ve ısı karartması bunu tüketsin. `UNKNOWN` kilidi açmaz, yazmayı da kesmez (son bilinen durumu korur).
+- **Kabul:** Durakta 6 km/sa'lık tek gürültü fix'i klavyeyi kapatmaz; 5 sn sinyal kaybı kilidi açmaz; sürüşe geçiş 2 ardışık hareketli fix'te kilitler.
+- **Kaynak:** `MapScreen.kt`, `DashboardScreen.kt` (`PHONE_LOCK_KMH`, `SETTINGS_LOCK_KMH`), `SpeedFilter.kt` (duruş mantığı zaten var), `ThermalGuard.kt`.
+
+### N3. Uzun GPS kesintisinden sonra gereksiz yeniden hesaplama — orta öncelik, hata
+**Kodda görülen tutarsızlık:** `RouteMatcher.match()` son eşlenen segmentten yalnız `MATCH_WINDOW = 80` segment ileriye bakar. Şehirde segmentler 10–20 m olabilir; tünelde 60 sn kesinti 1 km ilerletir, eşleme arkada kalır, mesafe eşiği aşılır ve rota doğruyken yeniden hesaplanır (anons dahil).
+- Pencereyi zamana bağla: `son fix'ten geçen süre × son hız × 1,5` metreye karşılık gelen segment sayısı, en az 80; kesinti 30 sn'yi aşarsa ilk fix'te tüm rotada arama yap.
+- **Kabul:** Simülasyonda 60 sn'lik boşluk + 1 km ilerleme yeniden hesaplama tetiklemez; gerçek sapma hâlâ 3–4 fix'te yakalanır.
+- **Kaynak:** `GuidanceMath.kt` (`RouteMatcher`), `NavigationController.onFix`, `RouteSimulator.kt` ile test.
+
+### N4. "Ara durağa ulaştınız" durağa 100–450 m kala söyleniyor — düşük öncelik, hata
+**Kodda görülen tutarsızlık:** `isStop` manevrası `nearM()` zamanlamasıyla (hıza göre 100–450 m önce) `stop_arrived` metnini okur; durağa varış ayrıca anons edilmez.
+- Yaklaşırken "Ara durak yaklaşıyor, sağda" (Valhalla `verbal_pre_transition` yanı), durağa 25 m kala "Ara durağa ulaştınız". Durakta 10 sn hareketsizlik olmadan "geçildi" sayılmasın (bkz. N8).
+- **Kabul:** İki anons, doğru sırada, duraksız rotada hiçbiri çalmaz.
+
+### N5. Anonslar mesafe söylemiyor, birbirini kesiyor, "şimdi" yok — yüksek öncelik, tasarım
+**Kodda görülen tutarsızlık:** Uzak uyarı (`alert`, ~45 sn) Valhalla'nın "Sağa dönün" metnidir, mesafe içermez; sürücü ne kadar sonra olduğunu yalnız ekrandan anlar. Manevra anında üçüncü bir anons yok. `postVerbal` ("2 km düz devam") ayrıştırılır ama hiç okunmaz. `Voice` yalnız `QUEUE_FLUSH` kullanır: mesaj okuma, yağmur, ısı veya hız limiti uyarısı yakın dönüş talimatını yarıda keser (`#5` bunun öncelik tarafıdır).
+- Üç kademe: uzak (hıza göre 45 sn, metinde yuvarlanmış mesafe: "800 metre sonra sağa dön, Atatürk Caddesi"), yakın (11 sn, tam talimat + "ardından" zinciri mevcut), **şimdi** (manevraya 30 m / 3 sn kala kısa: "Sağa dön"). Dönüşten sonra 400 m'den uzun düz yolda bir kez `postVerbal`.
+- Anons öncelik kuyruğu: navigasyon > SOS/kaza > hız limiti > hava/ısı > mesaj. Düşük öncelikli metin yakın/şimdi anonsunu kesemez, sonra okunur veya düşer; aynı önceliktekiler sıraya girer (`QUEUE_ADD`), eski navigasyon anonsu yeni manevraya yetişemezse atlanır.
+- Mesafe yuvarlama: 1 km üstü 100 m'ye, 1 km altı 50 m'ye, 200 m altı 10 m'ye; mil modunda eşdeğeri.
+- **Kabul:** Simüle rotada her manevra için 3 anons, sırası ve mesafesi doğru; mesaj okunurken yakın dönüş gelirse mesaj kesilir ve dönüş okunur, tersi olmaz. Uzak ve yakın anons çakışırsa yalnız yakın okunur (mevcut `alertWorthIt`).
+- **Kaynak:** `GuidanceMath.PromptSchedule`, `NavigationController.onFix/withFollowUp`, `Voice.kt`, `SpeechSession.kt`, `TripParser` (`postVerbal`).
+
+### N6. Rota isteği yön bilgisi taşımıyor: başlangıçta ve yeniden hesaplamada U dönüşü — yüksek öncelik, tasarım
+**Kodda görülen tutarsızlık:** `requestBody()` konumları yalnız `lat/lon` olarak gönderir; Valhalla `heading` ve `heading_tolerance` alanları kullanılmaz. Hareket halinde seçilen hedef veya rotadan çıkınca yapılan yeniden hesaplama, ters yönden başlayan (ilk talimatı "geri dönün" olan) rota üretebilir. Ayrıca yeniden hesaplama `from` olarak istek anındaki fix'i gönderir; 90 km/sa'de cevap gelince sürücü 75 m ileridedir.
+- Hız ≥ 2,5 m/s iken başlangıç konumuna `heading` (fix bearing) ve `heading_tolerance: 45` ekle; yeniden hesaplamada `from`'u son hız × tahmini gecikme (1,5 sn) kadar ileri tahmin et veya Valhalla `radius`/`street_side` ile daralt.
+- **Kabul:** Simülasyonda ters yönde seyreden sürücüye önce "U dönüşü" değil ileride uygun dönüş verilir; durakta (hız 0) heading gönderilmez.
+- **Kaynak:** `RouteRepository.requestBody`, `NavigationController.reroute/here()`.
+
+### N7. Çevrimdışıyken rehberlik sessizce bozuluyor — orta öncelik, tasarım
+**Kodda görülen tutarsızlık:** Rotadan çıkınca `reroute()` başarısız olursa 10 sn sonra sessizce tekrar denenir; sürücüye "rota hesaplanamıyor" denmez, banner değişmez. İndirilen çevrimdışı harita varken bile rota/arama internet ister (`#15` kapsam önerisi).
+- Yeniden hesaplama iki kez başarısız olunca bir kez sesli ve bannerda: "İnternet yok, rota güncellenemiyor; eski rotayı izle". Bağlantı dönünce otomatik yeniden dene ve "rota güncellendi" de. Hedefe kuş uçuşu mesafe ve yön okunu çevrimdışı da göster.
+- **Kabul:** Uçak modunda rotadan çıkış → bir uyarı, tekrar yok; bağlantı dönüşünde yeniden hesaplama ve tek onay anonsu.
+- **Kaynak:** `NavigationController.reroute`, `MapScreen` (`rerouting_chip`), `#8` ile birlikte.
+
+### N8. Varış ve durak geçişi yalnız geometriyle karar veriliyor — orta öncelik, tasarım
+**Kodda görülen tutarsızlık:** Varış `remaining ≤ 25 m` koşuluna bağlı; kapalı otoparkta GPS kesilirse varış hiç tetiklenmez, yolculuk servisi çalışır kalır. Ara durak, şekil indeksi geçildiği anda "geçildi" sayılır (`stopsPassed`), sürücü durağa uğramasa bile.
+- Varış: `≤ 25 m` **veya** hedefe ≤ 60 m ve 15 sn hareketsizlik **veya** hedefe ≤ 100 m iken GPS 20 sn kayıp. Ara durak geçişi: durağa ≤ 40 m yaklaşıp sonra uzaklaşma veya ≥ 10 sn durma.
+- Varış anonsu hedefin hangi tarafta olduğunu söylesin (Valhalla `instruction` içinde "sağda/solda" bilgisi mevcut).
+- **Kabul:** Simülasyonda hedefe 40 m kala GPS kesilince 20 sn içinde varış; duraktan geçmeden yanından geçişte durak "geçildi" olur, sapma mesafesi doğru.
+- **Kaynak:** `NavigationController.onFix` (`ARRIVAL_M`, `stopsPassed`), `NavigationRideLifecycle`.
+
+### N9. ETA gerçek hıza uyum sağlamıyor — düşük öncelik, tasarım
+**Kodda görülen tutarsızlık:** `Route.remainingTimeS()` Valhalla'nın statik manevra sürelerini kullanır; trafikte 20 dk geç kalınsa varış saati değişmez.
+- Son 3 dk'daki ölçülen ortalama hız ile Valhalla tahminini harmanla (örn. %60 Valhalla, %40 ölçüm; durakta ölçüm dondurulur). Sapma %20'yi aşınca kartta renk değişsin.
+- **Kabul:** Simülasyonda hız tahminin yarısına düşünce ETA 1 dk içinde yeniden hesaplanır, duraklarda zıplamaz.
+
+### N10. Görüşme sırasında talimatlar sessizce düşüyor — orta öncelik, tasarım
+**Kodda görülen tutarsızlık:** `Voice.speak()` çağrı modunda (`MODE_IN_CALL`) hiçbir şey söylemez ve bunu bildirmez; dönüş anonsu yutulur, ekranda ek vurgu yoktur.
+- Görüşmede yakın/şimdi anonsu yerine kısa titreşim deseni + bannerın büyüyüp renk değiştirmesi; görüşme biterse ve manevra hâlâ ileride ise talimat bir kez okunur. `CallScreen` zaten `distToNext` gösteriyor; "şimdi" kademesi orada da olsun.
+- **Kabul:** Simüle çağrı sırasında manevra: titreşim var, anons yok; çağrı bitince kalan manevra okunur.
+- **Kaynak:** `Voice.kt`, `CallScreen.kt`, `Haptics.kt`.
+
+### N11. Haritadan seçilen nokta adlandırılsa da geçmişe girmiyor; arama sonucu kalite sırası yok — düşük öncelik, tasarım
+**Kodda görülen tutarsızlık:** `selectPoint()` adres geldiğinde hedefi yeniden adlandırır ama `rememberChosen` yalnız seçim anında ve "Seçilen konum" adını geçtiği için geçmişe kaydetmez. Nominatim sonuçları geliş sırasıyla listelenir; sürücüye uzaklık gösterilmez.
+- Adlandırma geldiğinde geçmişe yaz. Sonuçları mesafe/önem ile sırala ve her satırda kuş uçuşu mesafe göster; aynı adlı sonuçlarda ilçe/il ayrımı zaten `detail`'de var.
+- **Kabul:** Haritaya uzun basıp giden hedef adıyla "son aramalar"da görünür; sonuç listesi yakından uzağa.
+
+### N12. Saha doğrulama matrisi (navigasyon) — kapanış ölçütü
+Hiçbir N maddesi cihazda denenmeden kapanmaz. En az: şehir içi 30 dk (dönüş yoğun), çevre yolu 20 dk (çıkış anonsları, 90+ km/sa), 1 tünel, 1 kavşak dönüş (roundabout), 1 bilerek rotadan çıkma, 1 uçak modu kesintisi, 1 iki duraklı yolculuk + benzinlik sapması, 1 görüşme sırasında dönüş. Her sürüşte GPS logu (`RideDeckSpeed` etiketi) ve anons zaman damgaları kaydedilir; `docs/STATUS.md`'ye tarih ve cihazla işlenir.
+
 ## Korunan kararlar ve kapsam sınırları
 
 - Anahtarsız/ücretsiz servisler, sürüşte yazı girişi yasağı ve eldivenle kullanım korunur. Yeni dokunma hedefleri ve TR/EN metinler proje kurallarını izler.
 - Sesli asistan/STT/uyandırma, GPX, bakım takibi, OBD ve otomatik park kaydı geçmişte kaldırıldı; bu plan geri getirmez.
 - Canlı trafik, 3D bina, viraj ağırlıklı rota, gidon kumandası, TPMS/yakıt menzili ve grup/canlı konum paylaşımı mevcut kapsam dışı kararlarıdır.
 - Şerit okları: 2026-11-02 kaydında üç rotadaki 51 adımın altısında veri vardı; kapsam artmadan bant planlanmıyor.
-- Arka planda kaza sensörü ayrı ve ertelenmiş karardır. Açık yolculuk servisi ekranla sınırlı SOS sensörünü arka plan algılamaya dönüştürmez.
+- Kaza sensörü ve SOS 2026-11-09'dan beri uygulama ömürlü `RideSafety` içindedir: ekran görünürken veya başlatılmış yolculuk sürerken çalışır; başlatılmamış yolculukta ekran kapanınca durur. Bunun ötesinde (yolculuk başlatılmadan arka plan algılama) ayrı karardır.
 - Yeni sağlayıcı, sunucu, ücret, cihazda SMS/arama, kurulum, etiket ve yayın bu plan kaydıyla yetkilendirilmiş sayılmaz.
