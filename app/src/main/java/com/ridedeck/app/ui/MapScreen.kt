@@ -416,6 +416,7 @@ fun MapScreen(
                 )
             }
             if (ui.rerouting) Chip(stringResource(R.string.rerouting_chip), MotoColors.Orange)
+            else if (ui.guidanceDegraded) Chip(stringResource(R.string.reroute_unavailable_chip), MotoColors.Red)
             val online = rememberOnline(LocalContext.current)
             val offlineAreas by com.ridedeck.app.data.OfflineMaps.areas.collectAsStateWithLifecycle()
             LaunchedEffect(Unit) { com.ridedeck.app.data.OfflineMaps.load(context) }

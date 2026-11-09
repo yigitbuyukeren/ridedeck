@@ -166,6 +166,38 @@ class MultiStopTest {
     }
 
     @Test
+    fun aStopLeftFarBehindAfterAGpsJumpCountsAsPassed() {
+        val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        val loc = MutableStateFlow(LocationState(speedKmh = 50, fixAtMs = 1, lat = 41.0, lon = 29.0))
+        var clock = 1L
+        val base = lShapedRoute(kmStraight = 2.0)
+        val stopIdx = 10
+        val maneuvers = listOf(
+            com.ridedeck.app.data.Maneuver(1, "d", "", "go", 1000.0, 0),
+            com.ridedeck.app.data.Maneuver(4, "a", "", "arrived", 0.0, stopIdx, isStop = true),
+            com.ridedeck.app.data.Maneuver(1, "d", "", "go2", 1000.0, stopIdx),
+            com.ridedeck.app.data.Maneuver(4, "a", "", "arrived", 0.0, base.shape.lastIndex),
+        )
+        val route = base.copy(maneuvers = maneuvers, stopIndices = listOf(stopIdx))
+        val routing = object : Routing {
+            override suspend fun route(from: GeoPoint, to: GeoPoint, options: RouteOptions) = Result.success(route)
+            override suspend fun search(query: String, near: GeoPoint?) = Result.success(emptyList<Place>())
+        }
+        val nav = NavigationController({ "t$it" }, scope, loc, silent, routing, noFuel, nowMs = { clock })
+        nav.selectPlace(Place("D", "", route.shape.last()))
+        nav.addStop(Place("S", "", route.shape[stopIdx]))
+        nav.startNavigation()
+        for (i in 1..3) { clock++; loc.value = LocationState(speedKmh = 50, fixAtMs = clock, lat = route.shape[i].lat, lon = route.shape[i].lon) }
+        // Just past the stop without ever having been within 40 m of it: not passed yet.
+        clock++; loc.value = LocationState(speedKmh = 50, fixAtMs = clock, lat = route.shape[stopIdx + 1].lat, lon = route.shape[stopIdx + 1].lon)
+        assertEquals(0, nav.ui.value.stopsPassed)
+        // 400 m beyond it: clearly skipped.
+        clock++; loc.value = LocationState(speedKmh = 50, fixAtMs = clock, lat = route.shape[stopIdx + 4].lat, lon = route.shape[stopIdx + 4].lon)
+        assertEquals(1, nav.ui.value.stopsPassed)
+        nav.shutdown(); scope.cancel()
+    }
+
+    @Test
     fun reachingAStopSaysSoAndCountsItAsPassed() {
         val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
         val loc = MutableStateFlow(LocationState(speedKmh = 50, fixAtMs = 1, lat = 41.0, lon = 29.0))

@@ -287,6 +287,52 @@ class NavigationControllerTest {
     }
 
     @Test
+    fun repeatedRerouteFailuresAreToldOnceAndRecoveryOnce() {
+        var online = true
+        routing.routeHandler = { from, _ -> if (routing.requests.size == 1 || online) Result.success(straightRoute(from)) else Result.failure(IllegalStateException("offline")) }
+        startGuidance()
+        online = false
+        val off = GeoPoint(start.lat + 5 * STEP, start.lon + 0.0036)
+        fun tryReroute() { clock += 11_000; repeat(4) { location.value = fixAt(off) } }
+        tryReroute()
+        assertFalse(nav.ui.value.guidanceDegraded)
+        tryReroute()
+        assertTrue(nav.ui.value.guidanceDegraded)
+        assertEquals(1, speaker.said.count { it == "t${R.string.reroute_unavailable_voice}" })
+        tryReroute()
+        assertEquals(1, speaker.said.count { it == "t${R.string.reroute_unavailable_voice}" })
+        assertTrue(nav.ui.value.navigating)
+        assertNotNull(nav.ui.value.route) // the old route stays on screen
+        online = true
+        tryReroute()
+        assertFalse(nav.ui.value.guidanceDegraded)
+        assertEquals(1, speaker.said.count { it == "t${R.string.route_updated_voice}" })
+    }
+
+    @Test
+    fun comingToRestAtTheDoorCountsAsArrival() {
+        startGuidance()
+        for (i in 1..19) drive(i)
+        assertFalse(nav.ui.value.arrived)
+        // Pull into a car park 50 m beside the end of the road and stand still for 16 s.
+        val door = GeoPoint(start.lat + 20 * STEP, start.lon + 0.0006)
+        repeat(17) { clock += 1000; location.value = LocationState(speedKmh = 0, fixAtMs = clock, lat = door.lat, lon = door.lon) }
+        assertTrue(nav.ui.value.arrived)
+        assertFalse(nav.ui.value.navigating)
+    }
+
+    @Test
+    fun losingGpsAtTheDoorCountsAsArrivalOnTheClock() {
+        startGuidance()
+        for (i in 1..19) drive(i)
+        location.value = fixAt(GeoPoint(start.lat + 19.5 * STEP, start.lon)) // 50 m before the end
+        nav.checkArrivalWithoutFix(clock + 5_000)
+        assertFalse(nav.ui.value.arrived)
+        nav.checkArrivalWithoutFix(clock + 21_000)
+        assertTrue(nav.ui.value.arrived)
+    }
+
+    @Test
     fun aRerouteStartsAheadOfTheRiderAlongTheHeading() {
         startGuidance()
         val before = routing.requests.size
@@ -343,7 +389,7 @@ class NavigationControllerTest {
         assertTrue(ui.arrived)
         assertFalse(ui.navigating)
         assertEquals(NavigationTermination.ARRIVED, ui.termination)
-        assertEquals("t${R.string.arrived}", speaker.said.last())
+        assertEquals("You have arrived", speaker.said.last()) // the service's own arrival sentence (names the side)
     }
 
     @Test

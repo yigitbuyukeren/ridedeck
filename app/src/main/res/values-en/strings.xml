@@ -49,6 +49,9 @@
     <string name="search_failed">Search failed, check your internet connection</string>
     <string name="route_failed">Could not get a route</string>
     <string name="rerouting_voice">Recalculating route</string>
+    <string name="reroute_unavailable_voice">No internet, the route cannot be updated. Follow the old route on the map.</string>
+    <string name="reroute_unavailable_chip">Route cannot be updated · showing the old route</string>
+    <string name="route_updated_voice">Route updated</string>
     <string name="offline_title">Offline map</string>
     <string name="offline_desc">Map without internet: download the area around you (about %1$d MB). Routing and search still need a connection.</string>
     <string name="offline_download">Download area (%1$d km)</string>

@@ -26,9 +26,9 @@ Mevcut özellikler: çok noktalı rota (en fazla üç ara durak), alternatif rot
 | 2 — bağlantı ve kalıcı durum | #3–4 çevrimdışı indirme, #6 sağlayıcı erişimi, #7–10 kurtarma/ağ/veri tazeliği | İptal, yeniden açılış, silme ve geç cevaplar doğru yönetilir; sağlayıcı koşulları uygulanır. |
 | 3 — cihaz ve yayın hazırlığı | #11 çağrı erişimi, #12 belge/sürüm tutarlılığı, saha matrisi | Sürümlü beta için cihaz sonuçları kaydedilir; belgeler mevcut davranışı açıklar. Yayın ayrıca açık istek gerektirir. |
 | Sonraki ürün değerlendirmesi | #13–15 | İlk üç aşamanın sonuçlarına göre kapsam seçilir. |
-| N — kusursuz navigasyon | #N7–N12 (aşağıda); N1–N6 2026-11-10'da kodda tamamlandı (STATUS) | Aşama 1 ile birlikte yürür. Her madde birim testi ve en az bir gerçek sürüşle kapanır; N1–N4'ün saha doğrulaması N12'de. |
+| N — kusursuz navigasyon | #N9–N12 (aşağıda); N1–N8 2026-11-10'da kodda tamamlandı (STATUS) | Aşama 1 ile birlikte yürür. Her madde birim testi ve en az bir gerçek sürüşle kapanır; N1–N4'ün saha doğrulaması N12'de. |
 
-#1, #2 ve #5 N1/N2/N5 ile birlikte kodda kapandı (saha doğrulaması bekler); sıradaki N7 ve N8. Bu sıralama uygulamaya başlama onayı değildir.
+#1, #2 ve #5 N1/N2/N5 ile birlikte kodda kapandı (saha doğrulaması bekler); sıradaki N9–N11, ardından N12 saha matrisi. Bu sıralama uygulamaya başlama onayı değildir.
 
 ## 1. Ara durakları yeniden hesaplamada koru — kodda tamamlandı 2026-11-10 (saha doğrulaması N12)
 
@@ -194,18 +194,7 @@ Kaynak: `NavigationController.kt`, `GuidanceMath.kt`, `RouteSnap.kt`, `RouteRepo
 
 
 
-### N7. Çevrimdışıyken rehberlik sessizce bozuluyor — orta öncelik, tasarım
-**Kodda görülen tutarsızlık:** Rotadan çıkınca `reroute()` başarısız olursa 10 sn sonra sessizce tekrar denenir; sürücüye "rota hesaplanamıyor" denmez, banner değişmez. İndirilen çevrimdışı harita varken bile rota/arama internet ister (`#15` kapsam önerisi).
-- Yeniden hesaplama iki kez başarısız olunca bir kez sesli ve bannerda: "İnternet yok, rota güncellenemiyor; eski rotayı izle". Bağlantı dönünce otomatik yeniden dene ve "rota güncellendi" de. Hedefe kuş uçuşu mesafe ve yön okunu çevrimdışı da göster.
-- **Kabul:** Uçak modunda rotadan çıkış → bir uyarı, tekrar yok; bağlantı dönüşünde yeniden hesaplama ve tek onay anonsu.
-- **Kaynak:** `NavigationController.reroute`, `MapScreen` (`rerouting_chip`), `#8` ile birlikte.
 
-### N8. Varış ve durak geçişi yalnız geometriyle karar veriliyor — orta öncelik, tasarım
-**Kodda görülen tutarsızlık:** Varış `remaining ≤ 25 m` koşuluna bağlı; kapalı otoparkta GPS kesilirse varış hiç tetiklenmez, yolculuk servisi çalışır kalır. Ara durak, şekil indeksi geçildiği anda "geçildi" sayılır (`stopsPassed`), sürücü durağa uğramasa bile.
-- Varış: `≤ 25 m` **veya** hedefe ≤ 60 m ve 15 sn hareketsizlik **veya** hedefe ≤ 100 m iken GPS 20 sn kayıp. Ara durak geçişi: durağa ≤ 40 m yaklaşıp sonra uzaklaşma veya ≥ 10 sn durma.
-- Varış anonsu hedefin hangi tarafta olduğunu söylesin (Valhalla `instruction` içinde "sağda/solda" bilgisi mevcut).
-- **Kabul:** Simülasyonda hedefe 40 m kala GPS kesilince 20 sn içinde varış; duraktan geçmeden yanından geçişte durak "geçildi" olur, sapma mesafesi doğru.
-- **Kaynak:** `NavigationController.onFix` (`ARRIVAL_M`, `stopsPassed`), `NavigationRideLifecycle`.
 
 ### N9. ETA gerçek hıza uyum sağlamıyor — düşük öncelik, tasarım
 **Kodda görülen tutarsızlık:** `Route.remainingTimeS()` Valhalla'nın statik manevra sürelerini kullanır; trafikte 20 dk geç kalınsa varış saati değişmez.

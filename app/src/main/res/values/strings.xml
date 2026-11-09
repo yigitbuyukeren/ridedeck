@@ -49,6 +49,9 @@
     <string name="search_failed">Arama başarısız, internet bağlantısını kontrol et</string>
     <string name="route_failed">Rota alınamadı</string>
     <string name="rerouting_voice">Rota yeniden hesaplanıyor</string>
+    <string name="reroute_unavailable_voice">İnternet yok, rota güncellenemiyor. Haritadaki eski rotayı izle.</string>
+    <string name="reroute_unavailable_chip">Rota güncellenemiyor · eski rota gösteriliyor</string>
+    <string name="route_updated_voice">Rota güncellendi</string>
     <string name="offline_title">Çevrimdışı harita</string>
     <string name="offline_desc">İnternet olmadan harita: bulunduğun yerin çevresini indir (yaklaşık %1$d MB). Rota ve arama yine internet ister.</string>
     <string name="offline_download">Çevresini indir (%1$d km)</string>

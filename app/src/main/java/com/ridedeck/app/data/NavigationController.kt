@@ -31,6 +31,8 @@ data class NavUi(
     val error: String? = null,
     val navigating: Boolean = false,
     val rerouting: Boolean = false,
+    /** Re-routing has failed repeatedly (offline, server down): the old route is still shown and guidance goes on along it. */
+    val guidanceDegraded: Boolean = false,
     val arrived: Boolean = false,
     val maneuverIndex: Int = 0,
     /** Matched position on [route]: segment index and fraction along it; the map greys out what lies behind. */
@@ -112,6 +114,14 @@ class NavigationController(
     /** The manoeuvre that was next on the previous fix (to notice one was just passed) and when the full instruction was spoken. */
     private var lastNext = -1
     private var lastNearAtMs = 0L
+    /** Consecutive failed re-routes; at [DEGRADED_AFTER_FAILURES] the rider is told once. */
+    private var rerouteFailures = 0
+    /** For arriving without a precise fix: when the bike came to rest, and how near the end the last fix was. */
+    private var stillSinceMs = 0L
+    private var lastFixAtMs = 0L
+    private var lastNearEndM = Double.MAX_VALUE
+    /** Stops the rider actually came close to (index into `route.stopIndices`). */
+    private val visitedStops = HashSet<Int>()
 
     private fun here(): GeoPoint? =
         location.value.takeIf { it.hasFreshFix(nowMs()) }?.let { GeoPoint(it.lat, it.lon) }
@@ -441,8 +451,20 @@ class NavigationController(
         }
         lastNext = -1
         lastNearAtMs = 0L
+        rerouteFailures = 0
+        stillSinceMs = 0L
+        lastFixAtMs = 0L
+        lastNearEndM = Double.MAX_VALUE
+        visitedStops.clear()
         trackJob?.cancel()
         trackJob = scope.launch {
+            launch {
+                // GPS can die in a covered car park: arrive on the clock when the last fix was already at the door.
+                while (true) {
+                    delay(ARRIVAL_WATCH_MS)
+                    checkArrivalWithoutFix(nowMs())
+                }
+            }
             try {
                 locationUpdates.collect(::onFix)
             } catch (cancelled: CancellationException) {
@@ -610,6 +632,17 @@ class NavigationController(
         val bestIdx = match.index
         val best = match.projection
 
+        // Arrival by coming to rest at the door: the end of the route or the chosen place, whichever is nearer. Checked
+        // before the off-route test, because a car park entrance is often 50 m beside the road.
+        val nearEnd = minOf(Geo.distance(p, route.shape.last()), state.destination?.let { Geo.distance(p, it.point) } ?: Double.MAX_VALUE)
+        lastNearEndM = nearEnd
+        lastFixAtMs = fix.fixAtMs
+        stillSinceMs = if (fix.speedKmh < STILL_KMH) (stillSinceMs.takeIf { it > 0L } ?: fix.fixAtMs) else 0L
+        if (nearEnd <= ARRIVAL_STILL_M && stillSinceMs > 0L && fix.fixAtMs - stillSinceMs >= ARRIVAL_STILL_MS) {
+            arrive(state, route)
+            return
+        }
+
         if (best.distanceM > RouteMatcher.offRouteM(speedMps, fix.accuracyM)) {
             offRouteFixes++
             if (offRouteFixes >= RouteMatcher.offRouteFixes(speedMps) && !state.rerouting && fix.fixAtMs >= nextRerouteAtMs) {
@@ -628,11 +661,16 @@ class NavigationController(
         val remaining = (route.distanceM - travelled).coerceAtLeast(0.0)
 
         if (remaining <= ARRIVAL_M) {
-            voice.speak(text(if (state.finalDestination != null) R.string.stop_arrived else R.string.arrived), SpeechPriority.NAVIGATION)
-            trackJob?.cancel()
-            invalidateRoute()
-            _ui.update { it.copy(navigating = false, arrived = true, remainingM = 0, remainingS = 0, distToNextM = 0, termination = NavigationTermination.ARRIVED) }
+            arrive(state, route)
             return
+        }
+
+        // A planned stop counts as passed once the bike came within reach of it and then left it behind (or stood there),
+        // or when the rider is clearly past it; the match index alone is not enough after a GPS jump.
+        route.stopIndices.forEachIndexed { i, stopIdx ->
+            if (i < state.stopsPassed) return@forEachIndexed
+            val stopPoint = route.shape[stopIdx.coerceIn(0, route.shape.lastIndex)]
+            if (Geo.distance(p, stopPoint) <= STOP_REACH_M) visitedStops += i
         }
 
         val next = route.maneuvers.indexOfFirst { it.beginIndex > bestIdx }
@@ -675,12 +713,34 @@ class NavigationController(
                 maneuverIndex = next,
                 progressIndex = bestIdx,
                 progressFraction = best.fraction,
-                stopsPassed = it.stopsPassed.coerceAtLeast(route.stopIndices.count { s -> s <= bestIdx }),
+                stopsPassed = it.stopsPassed.coerceAtLeast(route.stopIndices.withIndex().count { (i, s) ->
+                    val stopAtM = route.cumulative[s.coerceIn(0, route.shape.lastIndex)]
+                    val beyondM = travelled - stopAtM
+                    (i in visitedStops && (beyondM > 0 || (stillSinceMs > 0L && fix.fixAtMs - stillSinceMs >= STOP_DWELL_MS))) || beyondM >= STOP_SKIPPED_M
+                }),
                 distToNextM = distToNext.toInt(),
                 remainingM = remaining.toInt(),
                 remainingS = route.remainingTimeS(travelled).toInt(),
             )
         }
+    }
+
+    private fun arrive(state: NavUi, route: Route) {
+        // Valhalla's arrival sentence names the side ("your destination is on the right"); fall back to the plain text.
+        val spoken = if (state.finalDestination != null) text(R.string.stop_arrived)
+        else route.maneuvers.lastOrNull()?.verbal?.takeIf { it.isNotBlank() } ?: text(R.string.arrived)
+        voice.speak(spoken, SpeechPriority.NAVIGATION)
+        trackJob?.cancel()
+        invalidateRoute()
+        _ui.update { it.copy(navigating = false, arrived = true, rerouting = false, guidanceDegraded = false, remainingM = 0, remainingS = 0, distToNextM = 0, termination = NavigationTermination.ARRIVED) }
+    }
+
+    /** Called on the clock while guiding: no fix for [ARRIVAL_GPS_LOST_MS] with the last one at the door means arrived. */
+    fun checkArrivalWithoutFix(nowMs: Long) {
+        val state = _ui.value
+        val route = state.route ?: return
+        if (!state.navigating || lastFixAtMs <= 0L) return
+        if (nowMs - lastFixAtMs >= ARRIVAL_GPS_LOST_MS && lastNearEndM <= ARRIVAL_GPS_LOST_M) arrive(state, route)
     }
 
     /** "Turn right now, then left": a second turn closer than [THEN_M] is announced together with the first. */
@@ -712,15 +772,24 @@ class NavigationController(
                     progressIndex = 0
                     offRouteFixes = 0
                     nextRerouteAtMs = 0L
+                    rerouteFailures = 0
                     spoken.clear()
                     lastNext = -1
-                    _ui.update { it.copy(route = route, stops = ahead, stopsPassed = 0, rerouting = false, progressIndex = 0, progressFraction = 0.0) }
+                    visitedStops.clear()
+                    val wasDegraded = _ui.value.guidanceDegraded
+                    _ui.update { it.copy(route = route, stops = ahead, stopsPassed = 0, rerouting = false, guidanceDegraded = false, progressIndex = 0, progressFraction = 0.0) }
+                    // Back online: say once that the route is current again.
+                    if (wasDegraded) voice.speak(text(R.string.route_updated_voice), SpeechPriority.NAVIGATION)
                 }
                 .onFailure {
                     offRouteFixes = 0
                     // Offline or the server is busy: try again in a few seconds, not on every fourth fix.
                     nextRerouteAtMs = location.value.fixAtMs + REROUTE_RETRY_MS
-                    _ui.update { it.copy(rerouting = false) }
+                    rerouteFailures++
+                    val degradedNow = rerouteFailures >= DEGRADED_AFTER_FAILURES && !_ui.value.guidanceDegraded
+                    _ui.update { it.copy(rerouting = false, guidanceDegraded = it.guidanceDegraded || degradedNow) }
+                    // Told once: the old route stays on screen and guidance follows it; retries go on quietly.
+                    if (degradedNow) voice.speak(text(R.string.reroute_unavailable_voice), SpeechPriority.NAVIGATION)
                 }
         }
     }
@@ -743,5 +812,18 @@ class NavigationController(
         const val REROUTE_RETRY_MS = 10_000L
         /** Seconds of travel the re-route start is moved ahead, roughly the routing round trip. */
         const val REROUTE_LEAD_S = 1.5
+        /** Two failed re-routes in a row: the rider is told the route cannot be updated. */
+        const val DEGRADED_AFTER_FAILURES = 2
+        /** Arrival by standing still near the end, and by losing GPS at the door. */
+        const val STILL_KMH = 5
+        const val ARRIVAL_STILL_M = 60.0
+        const val ARRIVAL_STILL_MS = 15_000L
+        const val ARRIVAL_GPS_LOST_M = 100.0
+        const val ARRIVAL_GPS_LOST_MS = 20_000L
+        const val ARRIVAL_WATCH_MS = 5_000L
+        /** A stop is visited within this distance; passed when left behind, or after dwelling; skipped when this far beyond. */
+        const val STOP_REACH_M = 40.0
+        const val STOP_DWELL_MS = 10_000L
+        const val STOP_SKIPPED_M = 300.0
     }
 }
