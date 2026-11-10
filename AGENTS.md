@@ -1,6 +1,8 @@
 # RideDeck
 - Android Kotlin/Compose sürüş paneli; kaynak kod ve `docs/STATUS.md` güncel gerçekliktir.
-- Gradle wrapper ve JDK 17 kullan. Kontroller: `./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease`.
+- Gradle wrapper ve JDK 17 kullan. Hedefli geliştirmede ilgili birim testini seç; bu, tam CI veya yayın kapısının yerine geçmez.
+- CI kapsamı: `./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest` (debug ve release birim testleri; instrumentation testleri yalnız derlenir). CI ayrıca release APK için `scripts/check-apk-alignment.py` ve `zipalign -c -P 16` kontrollerini çalıştırır.
+- Yerel APK Merkezi komutu `python3 /home/notrace/Projeler/apk-merkezi/derle.py ridedeck` yalnız yeni debug APK derler, doğrular ve yayımlar; CI test/lint veya fiziksel cihaz ve yayın kapılarının yerine geçmez. Kaynak değişiklikliyse APK'nın temiz commit'e ait olduğu varsayılmaz.
 - Sürüş güvenliği, SOS, GPS ve navigasyon davranışlarını değiştirmeden önce ilgili testleri doğrula. Gerçek cihazda denenmeyen özellikleri doğrulanmış gösterme.
 - Navigasyon servislerinde mevcut anahtarsız yapıyı ve merkezi HTTP katmanını koru.
 - Canlı dağıtım veya sürüm yayınlama açık talimat gerektirir.
