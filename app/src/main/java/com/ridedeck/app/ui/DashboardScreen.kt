@@ -95,8 +95,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
     var hapticsOn by remember { mutableStateOf(Prefs.hapticsEnabled(context)) }
     val recentPlaces by vm.recents.collectAsStateWithLifecycle()
     val voiceSpeechRate by vm.voiceSpeechRate.collectAsStateWithLifecycle()
-    val ttsVoiceNames by vm.voiceTtsNames.collectAsStateWithLifecycle()
-    val selectedTtsVoice by vm.selectedTtsVoice.collectAsStateWithLifecycle()
     val pinnedApps by vm.pinnedApps.collectAsStateWithLifecycle()
     val messageApps by vm.messageApps.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { vm.refreshMessageApps() }
@@ -444,9 +442,13 @@ fun DashboardScreen(vm: DashboardViewModel) {
                         SettingsCategory.GENERAL,
                         listOf(
                             {
-                                ToggleRow(
-                                    ToggleItem(stringResource(R.string.units_title), stringResource(R.string.units_desc), Units.miles) { Units.set(context, it) },
-                                )
+                                ChoiceRow(
+                                    stringResource(R.string.units_title), stringResource(R.string.units_desc),
+                                    listOf(
+                                        stringResource(R.string.units_metric) to !Units.miles,
+                                        stringResource(R.string.units_miles) to Units.miles,
+                                    ),
+                                ) { Units.set(context, it == 1) }
                             },
                             {
                                 ToggleRow(
@@ -465,14 +467,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
                                     ToggleItem(stringResource(R.string.haptics_title), stringResource(R.string.haptics_desc), hapticsOn) { on ->
                                         hapticsOn = on; Prefs.setHapticsEnabled(context, on)
                                     },
-                                )
-                            },
-                            {
-                                SettingRow(
-                                    SettingItem(
-                                        stringResource(R.string.trips_title), stringResource(R.string.trips_desc), false,
-                                        stringResource(R.string.action_open),
-                                    ) { showSettings = false; showTrips = true },
                                 )
                             },
                         ),
@@ -511,10 +505,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                         SettingsCategory.SOUND,
                         listOf(
                             {
-                                VoiceControlsRow(
-                                    voiceSpeechRate, vm::setVoiceSpeechRate,
-                                    ttsVoiceNames, selectedTtsVoice, vm::setTtsVoice,
-                                )
+                                VoiceControlsRow(voiceSpeechRate, vm::setVoiceSpeechRate)
                             },
                             {
                                 ToggleRow(

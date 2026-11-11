@@ -179,9 +179,10 @@ fun SettingsScreen(
 
     Box(modifier = Modifier.fillMaxSize().background(palette.scrim).clickable(enabled = false) {}) {
         Column(
-            modifier = Modifier.fillMaxHeight().widthIn(max = 820.dp).align(Alignment.TopCenter)
-                .symmetricSafePadding()
-                .padding(horizontal = if (isNarrowScreen()) 16.dp else 24.dp, vertical = 12.dp),
+            // Safe-area inset first, then the 820 dp cap: the inset must not eat into the content width.
+            modifier = Modifier.fillMaxHeight().symmetricSafePadding().widthIn(max = 820.dp)
+                .align(Alignment.TopCenter)
+                .padding(horizontal = if (isNarrowScreen()) 20.dp else 28.dp, vertical = 16.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -243,7 +244,7 @@ fun SettingsScreen(
                     state = listState,
                     modifier = Modifier.fillMaxSize().testTag("settings-list"),
                     contentPadding = PaddingValues(bottom = 44.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     itemsIndexed(page.rows) { _, row -> row() }
                 }
@@ -424,15 +425,9 @@ fun ChoiceRow(title: String, description: String, choices: List<Pair<String, Boo
     }
 }
 
-/** Speech rate and installed voices in one card: both belong to the same spoken guidance. */
+/** Speech rate for spoken guidance, kept as one big slider. */
 @Composable
-fun VoiceControlsRow(
-    speechRate: Float,
-    onSpeechRate: (Float) -> Unit,
-    ttsVoiceNames: List<String>,
-    selectedTtsVoice: String?,
-    onTtsVoice: (String?) -> Unit,
-) {
+fun VoiceControlsRow(speechRate: Float, onSpeechRate: (Float) -> Unit) {
     val palette = LocalMotoPalette.current
     Column(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(16.dp),
@@ -440,37 +435,6 @@ fun VoiceControlsRow(
     ) {
         Text(stringResource(R.string.voice_speech_rate, (speechRate * 100).toInt()), fontSize = 19.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
         Slider(speechRate, onSpeechRate, valueRange = 0.75f..1.25f)
-        Text(stringResource(R.string.voice_tts_title), fontSize = 18.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
-        Text(stringResource(R.string.voice_tts_desc), fontSize = 14.sp, color = palette.muted)
-        if (ttsVoiceNames.isEmpty()) {
-            Text(stringResource(R.string.voice_tts_missing), fontSize = 14.sp, color = palette.muted)
-        } else {
-            val choices = listOf(stringResource(R.string.voice_tts_default) to (selectedTtsVoice == null)) +
-                ttsVoiceNames.map { it to (it == selectedTtsVoice) }
-            // An odd number of voices leaves a half-width button, not a full-width one.
-            val columns = choices.size.coerceIn(1, 2)
-            choices.withIndex().chunked(columns).forEach { rowItems ->
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    rowItems.forEach { (i, choice) ->
-                        val (label, selected) = choice
-                        Box(
-                            modifier = Modifier.weight(1f).height(64.dp).clip(RoundedCornerShape(32.dp))
-                                .background(if (selected) MotoColors.Blue else palette.cardHigh)
-                                .hapticClickable(haptic = RideHaptic.Select) { onTtsVoice(ttsVoiceNames.getOrNull(i - 1)) }
-                                .padding(horizontal = 8.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = if (selected) Color.White else palette.text,
-                            )
-                        }
-                    }
-                    repeat(columns - rowItems.size) { Spacer(Modifier.weight(1f)) }
-                }
-            }
-        }
     }
 }
 
@@ -506,21 +470,22 @@ fun MarkerRow() {
                 }
             }
         }
-        // Six colours in two rows of three: every 46 dp swatch keeps a 64 dp touch target even
-        // on a narrow portrait card, where one row of six would overflow.
-        MARKER_COLORS.withIndex().chunked(3).forEach { rowItems ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                rowItems.forEach { (i, argb) ->
+        // Six colours in one row: 6 * 64 dp + 5 * 12 dp fits the settings content width.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            MARKER_COLORS.forEachIndexed { i, argb ->
+                Box(
+                    modifier = Modifier.size(64.dp).clip(CircleShape)
+                        .hapticClickable(haptic = RideHaptic.Select) { MarkerStyle.set(context, look.copy(colorIndex = i)) },
+                    contentAlignment = Alignment.Center,
+                ) {
                     Box(
-                        modifier = Modifier.size(64.dp).clip(CircleShape)
-                            .hapticClickable(haptic = RideHaptic.Select) { MarkerStyle.set(context, look.copy(colorIndex = i)) },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Box(
-                            modifier = Modifier.size(46.dp).clip(CircleShape).background(Color(argb))
-                                .then(if (i == look.colorIndex) Modifier.border(4.dp, palette.text, CircleShape) else Modifier),
-                        )
-                    }
+                        modifier = Modifier.size(46.dp).clip(CircleShape).background(Color(argb))
+                            .then(if (i == look.colorIndex) Modifier.border(4.dp, palette.text, CircleShape) else Modifier),
+                    )
                 }
             }
         }

@@ -78,7 +78,6 @@
     <string name="msg_auto_title">Read messages aloud</string>
     <string name="msg_auto_desc">Reads incoming messages automatically. When off, the card shows a Read button.</string>
     <string name="trips_title">Trip history</string>
-    <string name="trips_desc">Distance, time, average and top speed</string>
     <string name="trips_empty">No trips yet. With the app on screen, recording starts by itself once you ride faster than %1$s.</string>
     <string name="battery_percent_fmt">%1$d%%</string>
     <string name="battery_status_fmt">Battery %1$d percent</string>
@@ -228,8 +227,10 @@
     <string name="speed_unit_mph">mph</string>
     <string name="haptics_title">Touch vibration</string>
     <string name="haptics_desc">A light tick when a button is pressed. Does not vibrate if the phone\'s "touch feedback" setting is off.</string>
-    <string name="units_title">Miles and mph</string>
-    <string name="units_desc">Show speed in mph and distance in miles/feet. Route voice prompts use miles too.</string>
+    <string name="units_title">Speed and distance units</string>
+    <string name="units_desc">The dashboard and route voice prompts use the unit you pick.</string>
+    <string name="units_metric">Kilometres (km/h)</string>
+    <string name="units_miles">Miles (mph)</string>
     <string name="apps_remove">Remove</string>
     <string name="apps_settings">Settings</string>
     <string name="open_external_nav">Open in a navigation app</string>
@@ -265,10 +266,6 @@
     <string name="save_place_label">Save</string>
     <string name="save_place_saved">Saved</string>
     <string name="gps_debug_fmt">age %1$s ms · interval %2$s s · speed accuracy %3$s m/s</string>
-    <string name="voice_tts_title">Guidance voice</string>
-    <string name="voice_tts_desc">Choose an installed system voice</string>
-    <string name="voice_tts_default">Default</string>
-    <string name="voice_tts_missing">No selectable text-to-speech voice found on this device.</string>
     <string name="voice_speech_rate">Speech rate: %1$d%%</string>
     <string name="voice_navigation_tracking_failed">Navigation guidance stopped because the location stream failed.</string>
     <string name="voice_navigation_location_disabled">Navigation guidance stopped because GPS was turned off. Enable location and restart the route.</string>

@@ -78,7 +78,6 @@
     <string name="msg_auto_title">Mesajları sesli oku</string>
     <string name="msg_auto_desc">Gelen mesajı otomatik okur. Kapalıyken kartta Oku düğmesi çıkar.</string>
     <string name="trips_title">Yolculuk geçmişi</string>
-    <string name="trips_desc">Mesafe, süre, ortalama ve en yüksek hız</string>
     <string name="trips_empty">Henüz kayıtlı yolculuk yok. Uygulama ekrandayken %1$s üzerine çıkınca kayıt kendiliğinden başlar.</string>
     <string name="battery_percent_fmt">%%%1$d</string>
     <string name="battery_status_fmt">Pil %%%1$d</string>
@@ -228,8 +227,10 @@
     <string name="speed_unit_mph">mil/sa</string>
     <string name="haptics_title">Dokunma titremesi</string>
     <string name="haptics_desc">Düğmelere basınca hafif titreşim. Telefonun "dokunma geri bildirimi" ayarı kapalıysa yine de titremez.</string>
-    <string name="units_title">Mil ve mph</string>
-    <string name="units_desc">Hızı mph, mesafeyi mil/fit olarak göster. Rota sesleri de mil kullanır.</string>
+    <string name="units_title">Hız ve mesafe birimi</string>
+    <string name="units_desc">Gösterge ve rota sesleri seçtiğin birimi kullanır.</string>
+    <string name="units_metric">Kilometre (km/sa)</string>
+    <string name="units_miles">Mil (mph)</string>
     <string name="apps_remove">Kaldır</string>
     <string name="apps_settings">Ayarlar</string>
     <string name="open_external_nav">Navigasyon uygulamasında aç</string>
@@ -266,10 +267,6 @@
     <string name="save_place_label">Kaydet</string>
     <string name="save_place_saved">Kayıtlı</string>
     <string name="gps_debug_fmt">yaş %1$s ms · aralık %2$s sn · hız doğruluğu %3$s m/s</string>
-    <string name="voice_tts_title">Sesli yönlendirme sesi</string>
-    <string name="voice_tts_desc">Cihazda yüklü bir sistem sesi seç</string>
-    <string name="voice_tts_default">Varsayılan</string>
-    <string name="voice_tts_missing">Cihazda seçilebilir bir TTS sesi bulunamadı.</string>
     <string name="voice_speech_rate">Konuşma hızı: %1$d%%</string>
     <string name="voice_navigation_tracking_failed">Navigasyon takibi konum akışındaki hata nedeniyle durdu.</string>
     <string name="voice_navigation_location_disabled">GPS kapandığı için navigasyon takibi durdu. Konum hizmetini açıp rotayı yeniden başlat.</string>

@@ -117,14 +117,19 @@ private fun puckMarker(color: Int, size: Int): Bitmap {
 private fun classicMarker(color: Int, size: Int): Bitmap {
     val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val c = Canvas(bmp)
+    val s = size / 128f
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     val mid = size / 2f
     paint.color = 0x55000000
-    c.drawCircle(mid, mid + 3f, mid - 6f, paint)
+    c.drawCircle(mid, mid + 3f * s, mid - 6f * s, paint)
     paint.color = 0xFFF2F2F7.toInt()
-    c.drawCircle(mid, mid, mid - 8f, paint)
+    c.drawCircle(mid, mid, mid - 8f * s, paint)
     val arrow = Path().apply {
-        moveTo(mid, 26f); lineTo(mid + 25f, 92f); lineTo(mid, 78f); lineTo(mid - 25f, 92f); close()
+        moveTo(mid, 26f * s)
+        lineTo(mid + 25f * s, 92f * s)
+        lineTo(mid, 78f * s)
+        lineTo(mid - 25f * s, 92f * s)
+        close()
     }
     paint.color = color
     c.drawPath(arrow, paint)
