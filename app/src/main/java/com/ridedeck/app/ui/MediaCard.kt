@@ -1,10 +1,9 @@
 package com.ridedeck.app.ui
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.Crossfade
@@ -65,7 +64,7 @@ fun MediaCard(
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalMotoPalette.current
-    val tint by animateColorAsState(remember(state.art, palette) { mediaTint(state.art, palette) }, tween(600), label = "tint")
+    val tint = rememberMediaTint(state, palette)
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(28.dp))
@@ -92,7 +91,7 @@ fun MediaCard(
                             .clip(RoundedCornerShape(16.dp)).background(MotoColors.CardHigh),
                         contentAlignment = Alignment.Center,
                     ) {
-                        TrackCover(state.title, state.artist, state.art, { media.skipDirection }, 34.dp)
+                        TrackCover(state.title, state.artist, state.art, state.playing, { media.skipDirection }, 34.dp)
                     }
                     AnimatedContent(
                         targetState = state.title to state.artist,

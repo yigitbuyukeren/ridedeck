@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
@@ -22,6 +24,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import com.ridedeck.app.data.MediaState
 
 /**
  * The cover changes like a page turn: after "next" the old one leaves to the left and the new one comes
@@ -42,10 +45,13 @@ private const val SLIDE_MS = 380
  * cover that is sliding out never shows the new one.
  */
 @Composable
-fun TrackCover(title: String, artist: String, art: Bitmap?, direction: () -> Int, iconSize: Dp) {
+fun TrackCover(title: String, artist: String, art: Bitmap?, playing: Boolean, direction: () -> Int, iconSize: Dp) {
     val key = title to artist
     val arts = remember { LinkedHashMap<Pair<String, String>, Bitmap?>() }
-    if (art != null || key !in arts) {
+    val known = arts[key]
+    // While playing a late picture may replace the placeholder. While paused the player sometimes
+    // re-sends a blank or different bitmap; keep the one that was on screen instead of flashing.
+    if (key !in arts || (art != null && (playing || known == null))) {
         arts[key] = art
         while (arts.size > KEPT_COVERS) arts.remove(arts.keys.first { it != key })
     }
@@ -67,3 +73,29 @@ fun TrackCover(title: String, artist: String, art: Bitmap?, direction: () -> Int
 }
 
 private const val KEPT_COVERS = 3
+
+/**
+ * The artwork used for the card tint. Some players drop or replace their artwork when playback
+ * stops; letting that through pulled the tint towards the neutral fallback and the card visibly
+ * darkened for a moment. Keep the artwork seen while playing until the track changes or playback
+ * resumes, so pausing only shrinks the cover.
+ */
+internal class ArtworkMemory<T> {
+    private var key: Pair<String, String>? = null
+    private var art: T? = null
+
+    fun pick(nowKey: Pair<String, String>, nowArt: T?, playing: Boolean, hasSession: Boolean): T? {
+        if (!hasSession) { key = nowKey; art = null; return null }
+        if (nowKey != key) { key = nowKey; art = nowArt }
+        if (nowArt != null && (playing || art == null)) art = nowArt
+        return art
+    }
+}
+
+@Composable
+internal fun rememberMediaTint(state: MediaState, palette: MotoPalette): Color {
+    val memory = remember { ArtworkMemory<Bitmap>() }
+    val art = memory.pick(state.title to state.artist, state.art, state.playing, state.hasSession)
+    val target = remember(art, palette) { mediaTint(art, palette) }
+    return animateColorAsState(target, tween(600), label = "tint").value
+}

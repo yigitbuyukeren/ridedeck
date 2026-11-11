@@ -3,7 +3,6 @@ package com.ridedeck.app.ui
 import android.os.SystemClock
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -93,7 +92,7 @@ fun NowPlayingScreen(
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalMotoPalette.current
-    val tint by animateColorAsState(remember(state.art, palette) { mediaTint(state.art, palette) }, tween(600), label = "tint")
+    val tint = rememberMediaTint(state, palette)
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(28.dp))
@@ -182,7 +181,7 @@ private fun Cover(state: MediaState, direction: () -> Int, onNext: () -> Unit, o
             },
         contentAlignment = Alignment.Center,
     ) {
-        TrackCover(state.title, state.artist, state.art, direction, 72.dp)
+        TrackCover(state.title, state.artist, state.art, state.playing, direction, 72.dp)
     }
 }
 
