@@ -1,7 +1,7 @@
 package com.ridedeck.app.data
 
 /** What a dashboard card slot can show. The speed card is always there; two slots hold the rest. */
-enum class DashCard { NAV, MEDIA, APPS, NONE }
+enum class DashCard { NAV, MEDIA, APPS, SUNSET, NONE }
 
 object DashLayout {
     val DEFAULT = listOf(DashCard.NAV, DashCard.MEDIA)

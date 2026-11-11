@@ -102,7 +102,7 @@ Ayrıntılar için başlıklara dokun.
 
 - Dock'taki dişli düğmesi Ayarlar'ı açar; sürüş sırasında ayarlar kilitlenir.
 - Ayarlar altı bölüme ayrıldı: Genel, Görünüm, Harita, Ses ve bildirimler, Güvenlik, İzinler ve sistem. Üstteki bölüm şeridi yatay kayar; geniş ekranda (yatay telefon) satırlar iki sütuna yayılır, dik ekranda tek sütun kalır.
-- Ana ekran kartları ayarlanır (Ayarlar > Görünüm): harita, müzik, uygulama kartı veya boş. Önceden sabitlenmiş uygulamalar kartta kalır; yeni uygulama ekleme kaldırılmıştır.
+- Ana ekran kartları ayarlanır (Ayarlar > Görünüm): harita, müzik, uygulama kartı, gün batımı veya boş. Önceden sabitlenmiş uygulamalar kartta kalır; yeni uygulama ekleme kaldırılmıştır.
 - Rota kartında "Navigasyon uygulamasında aç" (Google Haritalar, Waze, Yandex Navi derin bağlantıları, yalnızca dururken); rota hâlâ RideDeck'te hesaplanır, canlı trafik isteyen bu uygulamalara geçer
 - Mil ve mph ayarı (Ayarlar > Genel): hız, mesafe, hız limiti ve rota sesleri
 - Düğmelere basınca hafif dokunma titremesi (Ayarlar > Genel'den kapatılır); telefonun "dokunma geri bildirimi" ayarı kapalıysa yine de titremez

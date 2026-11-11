@@ -15,3 +15,7 @@ fun LocationState.hasFreshFix(nowMs: Long, elapsedMs: Long? = null): Boolean {
     val age = if (elapsedMs != null && elapsedRealtimeMs > 0L) elapsedMs - elapsedRealtimeMs else nowMs - fixAtMs
     return age in 0 until LocationFixPolicy.MAX_AGE_MS
 }
+
+/** A fix exists but is older than [maxAgeMs], so it is a last-known position rather than a live one. */
+fun LocationState.hasOldFix(nowMs: Long, maxAgeMs: Long): Boolean =
+    fixAtMs > 0L && nowMs - fixAtMs > maxAgeMs

@@ -17,6 +17,8 @@ class DashLayoutTest {
     fun roundTrip() {
         val slots = listOf(DashCard.APPS, DashCard.NAV)
         assertEquals(slots, DashLayout.fromString(DashLayout.toString(slots)))
+        val sunset = listOf(DashCard.SUNSET, DashCard.MEDIA)
+        assertEquals(sunset, DashLayout.fromString(DashLayout.toString(sunset)))
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.ridedeck.app
 import com.ridedeck.app.data.LocationFixPolicy
 import com.ridedeck.app.data.LocationState
 import com.ridedeck.app.data.hasFreshFix
+import com.ridedeck.app.data.hasOldFix
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -30,5 +31,13 @@ class LocationFreshnessTest {
         assertTrue(fix.hasFreshFix(1_000, 6_000))
         assertFalse(fix.hasFreshFix(10_001, 11_000))
         assertFalse(fix.hasFreshFix(9_000))
+    }
+
+    @Test fun oldFixIsReportedButMissingOrFutureFixIsNot() {
+        val fix = LocationState(fixAtMs = 10_000)
+        assertFalse(fix.hasOldFix(11_000, 300_000))
+        assertTrue(fix.hasOldFix(310_001, 300_000))
+        assertFalse(LocationState().hasOldFix(310_001, 300_000))
+        assertFalse(fix.hasOldFix(9_000, 300_000))
     }
 }
