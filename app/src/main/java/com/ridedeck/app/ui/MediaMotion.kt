@@ -50,23 +50,32 @@ private const val SLIDE_MS = 380
  * cover that is sliding out never shows the new one.
  */
 @Composable
-fun TrackCover(title: String, artist: String, art: Bitmap?, playing: Boolean, direction: () -> Int, iconSize: Dp) {
+fun TrackCover(
+    title: String,
+    artist: String,
+    art: Bitmap?,
+    artIsPlaceholder: Boolean,
+    direction: () -> Int,
+    iconSize: Dp,
+) {
     val key = title to artist
+    // A launcher icon is not album art: players often send it for a moment while the real cover
+    // loads, and on the dark card a transparent icon looks like the cover going black.
+    val realArt = if (artIsPlaceholder) null else art
     val arts = remember { LinkedHashMap<Pair<String, String>, Bitmap?>() }
-    val known = arts[key]
-    // While playing a late picture may replace the placeholder. While paused the player sometimes
-    // re-sends a blank or different bitmap; keep the one that was on screen instead of flashing.
-    if (key !in arts || (art != null && (playing || known == null))) {
-        arts[key] = art
+    // Freeze the first real cover of each track: a skip or a seek may re-send metadata, and
+    // replacing a known cover with a blank one is what made the card flash on previous/next.
+    if (key !in arts || (arts[key] == null && realArt != null)) {
+        arts[key] = realArt
         while (arts.size > KEPT_COVERS) arts.remove(arts.keys.first { it != key })
     }
     // The title changes at once, but players often send the new track's artwork a moment later.
     // Hold the previous cover during that gap instead of sliding a dark placeholder in; a track
     // with no artwork at all falls back to the placeholder after a short grace period.
     var shownKey by remember { mutableStateOf(key) }
-    LaunchedEffect(key, art) {
+    LaunchedEffect(key, realArt) {
         if (key == shownKey) return@LaunchedEffect
-        if (art != null || arts[shownKey] == null) { shownKey = key; return@LaunchedEffect }
+        if (realArt != null || arts[shownKey] == null) { shownKey = key; return@LaunchedEffect }
         delay(TRACK_ART_GRACE_MS)
         if (key != shownKey) shownKey = key
     }
@@ -102,9 +111,10 @@ internal class ArtworkMemory<T> {
     private var key: Pair<String, String>? = null
     private var art: T? = null
 
-    fun pick(nowKey: Pair<String, String>, nowArt: T?, playing: Boolean, hasSession: Boolean): T? {
+    fun pick(nowKey: Pair<String, String>, nowArt: T?, hasSession: Boolean): T? {
         if (!hasSession) { key = nowKey; art = null; return null }
-        if (nowArt != null && (nowKey != key || playing || art == null)) {
+        // Take the first real artwork of a track and keep it: skip/seek re-sends must not change it.
+        if (nowArt != null && (nowKey != key || art == null)) {
             key = nowKey
             art = nowArt
         }
@@ -117,7 +127,7 @@ internal fun rememberMediaTint(state: MediaState, palette: MotoPalette): Color {
     val memory = remember { ArtworkMemory<Bitmap>() }
     // The app icon is only a placeholder; it must not colour the card while the cover loads.
     val realArt = if (state.artIsPlaceholder) null else state.art
-    val art = memory.pick(state.title to state.artist, realArt, state.playing, state.hasSession)
+    val art = memory.pick(state.title to state.artist, realArt, state.hasSession)
     val target = remember(art, palette) { mediaTint(art, palette) }
     return animateColorAsState(target, tween(600), label = "tint").value
 }

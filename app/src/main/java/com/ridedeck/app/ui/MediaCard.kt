@@ -91,7 +91,7 @@ fun MediaCard(
                             .clip(RoundedCornerShape(16.dp)).background(MotoColors.CardHigh),
                         contentAlignment = Alignment.Center,
                     ) {
-                        TrackCover(state.title, state.artist, state.art, state.playing, { media.skipDirection }, 34.dp)
+                        TrackCover(state.title, state.artist, state.art, state.artIsPlaceholder, { media.skipDirection }, 34.dp)
                     }
                     AnimatedContent(
                         targetState = state.title to state.artist,

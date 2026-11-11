@@ -181,7 +181,7 @@ private fun Cover(state: MediaState, direction: () -> Int, onNext: () -> Unit, o
             },
         contentAlignment = Alignment.Center,
     ) {
-        TrackCover(state.title, state.artist, state.art, state.playing, direction, 72.dp)
+        TrackCover(state.title, state.artist, state.art, state.artIsPlaceholder, direction, 72.dp)
     }
 }
 
