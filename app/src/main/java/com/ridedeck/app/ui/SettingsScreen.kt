@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,13 +22,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -150,19 +149,18 @@ enum class SettingsCategory(val label: Int, val icon: ImageVector) {
 }
 
 /**
- * One settings page. Rows stay separate composables so a wide screen can place them in two
- * columns without nesting cards; a narrow screen keeps a single column.
+ * One settings page. Rows stay separate composables; the screen stacks them in one column so
+ * every card starts at the same edge instead of leaving holes next to a taller neighbour.
  */
 class SettingsPage(
     val category: SettingsCategory,
     val rows: List<@Composable () -> Unit>,
-    /** A page with one long card (SOS) reads better across the full width. */
-    val fullWidth: Boolean = false,
 )
 
 /**
- * Six categories on a horizontal rail, content in an adaptive grid. Landscape phones get two
- * columns, upright phones one; the rail scrolls sideways instead of squeezing six labels.
+ * Six categories on a horizontal rail, content in one centred column. The width is capped on a
+ * wide landscape dash so controls do not drift to opposite edges; the rail scrolls sideways
+ * instead of squeezing six labels.
  */
 @Composable
 fun SettingsScreen(
@@ -174,7 +172,7 @@ fun SettingsScreen(
     var selectedOrdinal by rememberSaveable { mutableStateOf(initialCategory.ordinal) }
     val current = SettingsCategory.entries.firstOrNull { it.ordinal == selectedOrdinal } ?: SettingsCategory.GENERAL
     val page = pages.firstOrNull { it.category == current } ?: pages.firstOrNull()
-    val gridState = rememberLazyGridState()
+    val listState = rememberLazyListState()
     val railState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
@@ -182,7 +180,8 @@ fun SettingsScreen(
 
     Box(modifier = Modifier.fillMaxSize().background(palette.scrim).clickable(enabled = false) {}) {
         Column(
-            modifier = Modifier.fillMaxSize().safeDrawingPadding()
+            modifier = Modifier.fillMaxHeight().widthIn(max = 820.dp).align(Alignment.TopCenter)
+                .safeDrawingPadding()
                 .padding(horizontal = if (isNarrowScreen()) 16.dp else 24.dp, vertical = 12.dp),
         ) {
             Row(
@@ -209,7 +208,7 @@ fun SettingsScreen(
                 state = railState,
                 modifier = Modifier.fillMaxWidth().padding(top = 10.dp).testTag("settings-tabs"),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(end = 4.dp),
+                contentPadding = PaddingValues(end = 16.dp),
             ) {
                 items(SettingsCategory.entries) { category ->
                     val active = category == current
@@ -219,7 +218,7 @@ fun SettingsScreen(
                             .semantics { selected = active }
                             .hapticClickable(haptic = RideHaptic.Select) {
                                 selectedOrdinal = category.ordinal
-                                scope.launch { gridState.scrollToItem(0) }
+                                scope.launch { listState.scrollToItem(0) }
                             }
                             .padding(horizontal = 18.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -241,21 +240,16 @@ fun SettingsScreen(
 
             if (page == null) return@Column
             Box(modifier = Modifier.fillMaxSize().padding(top = 10.dp)) {
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 340.dp),
-                    state = gridState,
+                LazyColumn(
+                    state = listState,
                     modifier = Modifier.fillMaxSize().testTag("settings-list"),
                     contentPadding = PaddingValues(bottom = 44.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    itemsIndexed(
-                        page.rows,
-                        span = { _, _ -> if (page.fullWidth) GridItemSpan(maxLineSpan) else GridItemSpan(1) },
-                    ) { _, row -> row() }
+                    itemsIndexed(page.rows) { _, row -> row() }
                 }
                 // A soft fade at the bottom says there is more below; it is gone when the page ends.
-                if (gridState.canScrollForward) {
+                if (listState.canScrollForward) {
                     Box(
                         Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(44.dp)
                             .background(Brush.verticalGradient(listOf(Color.Transparent, palette.scrim))),
@@ -402,8 +396,14 @@ fun ChoiceRow(title: String, description: String, choices: List<Pair<String, Boo
         Text(title, fontSize = 19.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
         Text(description, fontSize = 14.sp, color = palette.muted)
         // At most three buttons per line (four go two by two), so every name stays on one line even on a narrow phone.
-        choices.withIndex().chunked(if (choices.size == 4) 2 else 3).forEach { rowItems ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // An incomplete last line keeps empty slots, so its buttons stay the same width as the line above.
+        val columns = when {
+            choices.size <= 3 -> choices.size.coerceAtLeast(1)
+            choices.size == 4 -> 2
+            else -> 3
+        }
+        choices.withIndex().chunked(columns).forEach { rowItems ->
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 rowItems.forEach { (i, choice) ->
                     val (label, selected) = choice
                     // One line each: a long name such as "Motorcycle" must not wrap inside a third of the width.
@@ -419,6 +419,7 @@ fun ChoiceRow(title: String, description: String, choices: List<Pair<String, Boo
                         )
                     }
                 }
+                repeat(columns - rowItems.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
@@ -447,8 +448,10 @@ fun VoiceControlsRow(
         } else {
             val choices = listOf(stringResource(R.string.voice_tts_default) to (selectedTtsVoice == null)) +
                 ttsVoiceNames.map { it to (it == selectedTtsVoice) }
-            choices.withIndex().chunked(2).forEach { rowItems ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // An odd number of voices leaves a half-width button, not a full-width one.
+            val columns = choices.size.coerceIn(1, 2)
+            choices.withIndex().chunked(columns).forEach { rowItems ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     rowItems.forEach { (i, choice) ->
                         val (label, selected) = choice
                         Box(
@@ -465,6 +468,7 @@ fun VoiceControlsRow(
                             )
                         }
                     }
+                    repeat(columns - rowItems.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
         }

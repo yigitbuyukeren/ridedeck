@@ -536,8 +536,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     ),
                     SettingsPage(
                         SettingsCategory.SAFETY,
-                        fullWidth = true,
-                        rows = listOf(
+                        listOf(
                             {
                                 SosSettingsCard(
                                     contacts = sosContacts,
