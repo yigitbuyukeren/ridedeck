@@ -184,6 +184,17 @@ Rota geometrisi, kalan duraklar, tercihler ve gerekli harita alanını birlikte 
 - **Kabul:** Paket kapsamı/boyutu ve eksik alanlar anlaşılır; süreç ölümü sonrası kalan rota kurtarılır; çevrimdışı sapmada yeniden hesaplama sınırı gösterilir. Cihazdaki TTS sesinin uygunluğu doğrulanır. Saklama/temizleme/gizlilik davranışı tanımlanır.
 - **Bağımlılık:** #1, #3–4, #7–9. Bölge/koridor indirmesi sağlayıcı koşullarına uysun.
 
+## 16. Ana ekran düzeni ve Görünüm sayfası — ürün önerisi (2026-11-11)
+
+Gün batımı kartı ve Ayarlar > Görünüm'deki kart seçimi kaldırıldı. Sıradaki adım ana ekranın sağ sütununu ve Görünüm sayfasını yeniden kurmak; ayrıntılar kullanıcıyla netleşmeden kod değişikliği yapılmaz.
+
+- **Sabit iskelet:** Hız kartı solda sabit kalır; sağda tek sütun. Sütunun ne göstereceği (harita + müzik, seçili uygulamalar veya tek büyük kart) ürün kararıdır; iki ayrı "üst kart / alt kart" ayarı geri getirilmez.
+- **Görünüm sayfası:** Yalnız tema (gündüz/gece/otomatik) kalır. Kart yoğunluğu, köşe yuvarlaklığı veya yazı boyutu gibi yeni seçenekler yalnız gerçek ihtiyaç doğarsa ve tek ekranda toplanır; sürüş sırasında ayarlar yine kilitlidir.
+- **Uygulama kartı:** Sabitlenmiş uygulamaların yeri yeniden tanımlanır (dock kısayolu veya tek kart). Yeni uygulama ekleme bu kapsamda değildir.
+- **Tema:** Gündüz/gece teması ortam ışığıyla otomatik çalışmaya devam eder; bu, kaldırılan gün batımı kartından bağımsızdır.
+- **Kabul:** Sağ sütun dar/geniş ekranda ve 180° döndürmede taşmaz; kart yoksa hız kartı tüm alanı kullanır; TR/EN metinleri ve `DashLayout` testleri yeni düzene göre güncellenir; emülatörde iki temada görülür.
+- **Bağımlılık:** [DashboardScreen.kt](../app/src/main/java/com/ridedeck/app/ui/DashboardScreen.kt), [SettingsScreen.kt](../app/src/main/java/com/ridedeck/app/ui/SettingsScreen.kt), [DashLayout.kt](../app/src/main/java/com/ridedeck/app/data/DashLayout.kt).
+
 ## N. Kusursuz navigasyon — saha kapanışı (N1–N11 kodda tamamlandı, bkz. STATUS 2026-11-10)
 
 Kaynak: `NavigationController.kt`, `GuidanceMath.kt`, `RouteSnap.kt`, `RouteRepository.kt`, `MapScreen.kt`, `Voice.kt`/`SpeechSession.kt`. İnceleme kod okumasıdır; cihazda yeniden üretilmedi. "Kusursuz" ölçütü: rotayı hiç bozmayan, hiçbir anonsu yutmayan, yanlış yerde yeniden hesaplamayan ve sürücüye asla "ne kadar sonra" sorusunu bıraktırmayan rehberlik.

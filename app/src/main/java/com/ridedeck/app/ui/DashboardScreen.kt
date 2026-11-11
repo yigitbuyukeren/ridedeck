@@ -323,16 +323,12 @@ fun DashboardScreen(vm: DashboardViewModel) {
                             modifier = mod,
                         )
                     }
-                    val sunsetCard: @Composable (Modifier) -> Unit = { mod ->
-                        SunsetCard(locationState, modifier = mod)
-                    }
-                    // The speed card is fixed; the other two slots show what the rider chose in Settings.
+                    // The speed card is fixed; the other slots follow the stored layout.
                     val slotCard: @Composable (DashCard, Modifier) -> Unit = { card, mod ->
                         when (card) {
                             DashCard.NAV -> navCard(mod)
                             DashCard.MEDIA -> mediaCard(mod)
                             DashCard.APPS -> appsCard(mod)
-                            DashCard.SUNSET -> sunsetCard(mod)
                             DashCard.NONE -> {}
                         }
                     }
@@ -407,16 +403,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
 
         // Settings and trips cover the whole screen, cutout strip included; they pad their own content.
             AnimatedVisibility(visible = showSettings, enter = overlayEnter, exit = overlayExit) {
-                val dashOrder = listOf(DashCard.NAV, DashCard.MEDIA, DashCard.APPS, DashCard.SUNSET, DashCard.NONE)
-                @Composable
-                fun slotRow(index: Int, title: Int) = ChoiceRow(
-                    stringResource(title), stringResource(R.string.dash_slot_desc),
-                    listOf(
-                        stringResource(R.string.dash_nav), stringResource(R.string.dash_media),
-                        stringResource(R.string.dash_apps), stringResource(R.string.dash_sunset),
-                        stringResource(R.string.dash_none),
-                    ).mapIndexed { i, label -> label to (dashSlots.getOrNull(index) == dashOrder[i]) },
-                ) { vm.setDashSlot(index, dashOrder[it]) }
                 val messageToggles = messageApps.map { row ->
                     ToggleItem(
                         stringResource(R.string.msg_app_title_fmt, row.label), "",
@@ -475,8 +461,6 @@ fun DashboardScreen(vm: DashboardViewModel) {
                         SettingsCategory.APPEARANCE,
                         listOf(
                             { ThemeRow(themeMode, vm.theme::setMode) },
-                            { slotRow(0, R.string.dash_slot_one) },
-                            { slotRow(1, R.string.dash_slot_two) },
                         ),
                     ),
                     SettingsPage(

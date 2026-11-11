@@ -57,10 +57,6 @@ object Prefs {
     fun dashSlots(context: Context): String? =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_DASH_SLOTS, null)
 
-    fun setDashSlots(context: Context, value: String) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(KEY_DASH_SLOTS, value).apply()
-    }
-
     fun markerShape(context: Context): String = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("marker_shape", "MODERN").orEmpty()
     fun markerColor(context: Context): Int = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getInt("marker_color", 0)
     fun setMarker(context: Context, shape: String, color: Int) {

@@ -17,8 +17,8 @@ class DashLayoutTest {
     fun roundTrip() {
         val slots = listOf(DashCard.APPS, DashCard.NAV)
         assertEquals(slots, DashLayout.fromString(DashLayout.toString(slots)))
-        val sunset = listOf(DashCard.SUNSET, DashCard.MEDIA)
-        assertEquals(sunset, DashLayout.fromString(DashLayout.toString(sunset)))
+        val apps = listOf(DashCard.APPS, DashCard.MEDIA)
+        assertEquals(apps, DashLayout.fromString(DashLayout.toString(apps)))
     }
 
     @Test
@@ -30,12 +30,5 @@ class DashLayoutTest {
     fun anOldWidgetSettingLeavesThatSlotEmpty() {
         assertEquals(listOf(DashCard.NONE, DashCard.NAV), DashLayout.fromString("WIDGET,NAV"))
         assertEquals(listOf(DashCard.MEDIA, DashCard.NONE), DashLayout.fromString("MEDIA,WIDGET"))
-    }
-
-    @Test
-    fun settingACardAlreadyInTheOtherSlotSwaps() {
-        assertEquals(listOf(DashCard.MEDIA, DashCard.NAV), DashLayout.set(listOf(DashCard.NAV, DashCard.MEDIA), 0, DashCard.MEDIA))
-        assertEquals(listOf(DashCard.NAV, DashCard.APPS), DashLayout.set(listOf(DashCard.NAV, DashCard.MEDIA), 1, DashCard.APPS))
-        assertEquals(listOf(DashCard.NONE, DashCard.MEDIA), DashLayout.set(listOf(DashCard.NAV, DashCard.MEDIA), 0, DashCard.NONE))
     }
 }

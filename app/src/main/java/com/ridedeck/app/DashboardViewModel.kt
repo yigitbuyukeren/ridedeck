@@ -141,12 +141,6 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     val dashSlots = MutableStateFlow(DashLayout.fromString(Prefs.dashSlots(app)))
 
-    fun setDashSlot(index: Int, card: DashCard) {
-        val next = DashLayout.set(dashSlots.value, index, card)
-        dashSlots.value = next
-        Prefs.setDashSlots(getApplication(), DashLayout.toString(next))
-    }
-
     val pinnedApps = MutableStateFlow(PinnedApps.fromJson(Prefs.pinnedApps(app)))
     val places = rideTracking.places
 

@@ -236,22 +236,6 @@
     <string name="open_external_nav">Navigasyon uygulamasında aç</string>
     <string name="msg_app_title_fmt">%1$s mesajları</string>
     <string name="msg_app_desc">Kapatırsan bu uygulamanın mesajları ana ekranda görünmez ve okunmaz.</string>
-    <string name="dash_slot_one">Ana ekran: üst kart</string>
-    <string name="dash_slot_two">Ana ekran: alt kart</string>
-    <string name="dash_slot_desc">Hız göstergesinin yanında hangi kart görünsün.</string>
-    <string name="dash_nav">Harita</string>
-    <string name="dash_media">Müzik</string>
-    <string name="dash_apps">Uygulama</string>
-    <string name="dash_sunset">Gün batımı</string>
-    <string name="dash_none">Boş</string>
-    <string name="sunset_title">Gün batımı</string>
-    <string name="sunset_tomorrow">Yarın gün batımı</string>
-    <string name="sunset_waiting">Konum bekleniyor</string>
-    <string name="sunset_none">Bugün gün batımı yok</string>
-    <string name="sunset_none_tomorrow">Yarın gün batımı yok</string>
-    <string name="sunset_stale">Konum eski</string>
-    <string name="sunset_in_hm">%1$d sa %2$d dk kaldı</string>
-    <string name="sunset_in_m">%1$d dk kaldı</string>
 
     <string name="perm_intro_title">Konum izni gerekiyor</string>
     <string name="perm_intro_sub">Hız göstergesi GPS\'le çalışır. Telefon, müzik ve SOS izinleri ilgili özelliği açarken istenir; hepsi Ayarlar > İzinler ve sistem\'de durur.</string>
