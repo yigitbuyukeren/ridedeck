@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -102,7 +101,7 @@ fun CallScreen(
             .background(Brush.verticalGradient(listOf(Color(0xFF0D2247), Color(0xFF05080F), Color.Black)))
             .clickable(enabled = false) {},
     ) {
-        Column(modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 28.dp, vertical = 10.dp)) {
+        Column(modifier = Modifier.fillMaxSize().symmetricSafePadding().padding(horizontal = 28.dp, vertical = 10.dp)) {
             RideStrip(speedShown, nav, call)
             TwoPane(
                 modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 12.dp),

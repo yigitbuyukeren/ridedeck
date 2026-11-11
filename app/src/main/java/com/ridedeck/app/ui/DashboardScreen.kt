@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Surface
 import android.Manifest
 import android.widget.Toast
@@ -225,7 +224,9 @@ fun DashboardScreen(vm: DashboardViewModel) {
         val risePx = with(LocalDensity.current) { 32.dp.roundToPx() }
         val overlayEnter = MotoMotion.overlayEnter(lowPower, risePx)
         val overlayExit = MotoMotion.overlayExit(lowPower, risePx)
-        Box(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
+        // Symmetric side padding: the camera cutout's side changes when the phone is turned the
+        // other way round, and a one-sided inset would slide the whole dashboard sideways.
+        Box(modifier = Modifier.fillMaxSize().symmetricSafePadding()) {
             val dock: @Composable () -> Unit = {
                 Dock(
                     battery = battery,
