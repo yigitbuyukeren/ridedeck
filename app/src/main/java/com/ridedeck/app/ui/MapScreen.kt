@@ -7,6 +7,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import com.ridedeck.app.util.Units
+import kotlin.math.roundToInt
 import com.ridedeck.app.data.SpeedLimitMath
 import com.ridedeck.app.data.Geo
 import com.ridedeck.app.data.CameraPlan
@@ -82,6 +83,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -185,6 +187,11 @@ fun MapScreen(
     val me by locationState.collectAsStateWithLifecycle()
     val herePoint = me.takeIf { it.hasFreshFix(System.currentTimeMillis()) }?.let { GeoPoint(it.lat, it.lon) }
     val context = LocalContext.current
+    // The full map follows the phone's own refresh rate; only the hot-phone mode slows it down.
+    val display = LocalView.current.display
+    val fullFps = remember(display) {
+        display?.supportedModes?.maxOfOrNull { it.refreshRate }?.roundToInt()?.coerceAtLeast(FULL_FPS) ?: FULL_FPS
+    }
 
     val mapView = remember {
         MapLibre.getInstance(context)
@@ -197,8 +204,8 @@ fun MapScreen(
     var typing by remember { mutableStateOf(false) }
     LaunchedEffect(inputLocked) { if (inputLocked) typing = false }
 
-    // A hot phone gets a calmer map: fewer frames per second.
-    LaunchedEffect(lowPower) { mapView.setMaximumFps(if (lowPower) LOW_POWER_FPS else FULL_FPS) }
+    // A hot phone gets a calmer map: fewer frames per second; otherwise use the display's rate.
+    LaunchedEffect(lowPower, fullFps) { mapView.setMaximumFps(if (lowPower) LOW_POWER_FPS else fullFps) }
 
     MapLifecycleEffect(mapView)
     MarkerRefresh(map, styleReady)
@@ -233,7 +240,7 @@ fun MapScreen(
         zoom = camZoom,
         tilt = camTilt,
         padTopFraction = 0.45,
-        maxFps = if (lowPower) LOW_POWER_FPS else FULL_FPS,
+        maxFps = if (lowPower) LOW_POWER_FPS else fullFps,
         route = ui.route.takeIf { ui.navigating },
         progressIndex = ui.progressIndex,
         progressFraction = ui.progressFraction,

@@ -245,13 +245,15 @@ private fun VolumeButton(icon: ImageVector, description: String, onClick: () -> 
 /** Digits for voice menus ("press 1"); sent down the line as tones. */
 @Composable
 private fun InCallKeypad(onDigit: (Char) -> Unit, modifier: Modifier = Modifier) {
+    val keyTone = rememberKeypadTone()
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf("123", "456", "789", "*0#").forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f).fillMaxWidth()) {
                 row.forEach { key ->
                     Box(
                         modifier = Modifier.weight(1f).fillMaxHeight().defaultMinSize(minHeight = 56.dp).clip(RoundedCornerShape(18.dp))
-                            .background(Color(0x26FFFFFF)).hapticClickable { onDigit(key) },
+                            // The local beep is for the rider's ear; the digit still goes down the line as before.
+                            .background(Color(0x26FFFFFF)).hapticClickable { keyTone(key); onDigit(key) },
                         contentAlignment = Alignment.Center,
                     ) { Text(key.toString(), fontSize = 30.sp, fontWeight = FontWeight.SemiBold, color = Color.White) }
                 }

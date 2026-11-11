@@ -41,6 +41,15 @@ class ArtworkMemoryTest {
     }
 
     @Test
+    fun keepsTheOldArtworkUntilTheNewTrackHasOne() {
+        val memory = ArtworkMemory<Any>()
+        memory.pick(track, first, playing = true, hasSession = true)
+        // The new title arrives before its cover: keep the old colour instead of flashing dark.
+        assertSame(first, memory.pick("Next" to "Artist", null, playing = true, hasSession = true))
+        assertSame(second, memory.pick("Next" to "Artist", second, playing = true, hasSession = true))
+    }
+
+    @Test
     fun resetsWhenTheSessionEnds() {
         val memory = ArtworkMemory<Any>()
         memory.pick(track, first, playing = true, hasSession = true)

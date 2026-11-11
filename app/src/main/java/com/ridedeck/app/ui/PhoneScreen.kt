@@ -316,6 +316,7 @@ private fun Keypad(
     var name by remember(initial) { mutableStateOf<String?>(null) }
     val palette = LocalMotoPalette.current
     val haptics = rememberRideHaptics()
+    val keyTone = rememberKeypadTone()
     val suggestions = remember(number, contacts, recents) { PhoneMath.matches(number, contacts, recents) }
     val canCall = !locked && PhoneMath.dialable(number).isNotEmpty()
     val portrait = isNarrowScreen()
@@ -408,9 +409,10 @@ private fun Keypad(
                                 .border(1.dp, palette.border, RoundedCornerShape(20.dp))
                                 .pressKey(
                                     enabled = !locked,
-                                    onClick = { number = PhoneMath.append(number, key); name = null },
+                                    // One beep per tap: a long press on 0 replaces the tap, so it beeps once too.
+                                    onClick = { keyTone(key); number = PhoneMath.append(number, key); name = null },
                                     // Hold 0 for +, as on the phone's own keypad.
-                                    onLongClick = if (key == '0') ({ number = PhoneMath.append(number, '+'); name = null }) else null,
+                                    onLongClick = if (key == '0') ({ keyTone(key); number = PhoneMath.append(number, '+'); name = null }) else null,
                                 ),
                             contentAlignment = Alignment.Center,
                         ) { Text(key.toString(), fontSize = 34.sp, fontWeight = FontWeight.SemiBold, color = if (locked) palette.muted else palette.text) }

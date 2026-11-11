@@ -32,6 +32,8 @@ data class MediaState(
     val title: String = "",
     val artist: String = "",
     val art: Bitmap? = null,
+    /** True when [art] is only the player's app icon, not real album artwork. */
+    val artIsPlaceholder: Boolean = false,
     val playing: Boolean = false,
     val packageName: String? = null,
     val durationMs: Long = 0,
@@ -152,15 +154,17 @@ class MediaRepository(private val context: Context) {
         }
         if (Prefs.lastMusicApp(context) != c.packageName) Prefs.setLastMusicApp(context, c.packageName)
         val meta = c.metadata
-        val art = meta?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+        val albumArt = meta?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
             ?: meta?.getBitmap(MediaMetadata.METADATA_KEY_ART)
-            ?: meta?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+        val art = albumArt ?: meta?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
         _state.value = MediaState(
             hasAccess = true,
             hasSession = true,
             title = meta?.getString(MediaMetadata.METADATA_KEY_TITLE).orEmpty(),
             artist = meta?.getString(MediaMetadata.METADATA_KEY_ARTIST).orEmpty(),
             art = art,
+            // The app icon is not album artwork: it must not tint the card while the real cover loads.
+            artIsPlaceholder = albumArt == null && art != null,
             playing = c.playbackState?.state == PlaybackState.STATE_PLAYING,
             packageName = c.packageName,
             durationMs = meta?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0,

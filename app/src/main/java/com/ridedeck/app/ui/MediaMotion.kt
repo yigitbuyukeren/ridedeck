@@ -13,7 +13,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,6 +29,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import com.ridedeck.app.data.MediaState
+import kotlinx.coroutines.delay
 
 /**
  * The cover changes like a page turn: after "next" the old one leaves to the left and the new one comes
@@ -55,8 +60,18 @@ fun TrackCover(title: String, artist: String, art: Bitmap?, playing: Boolean, di
         arts[key] = art
         while (arts.size > KEPT_COVERS) arts.remove(arts.keys.first { it != key })
     }
+    // The title changes at once, but players often send the new track's artwork a moment later.
+    // Hold the previous cover during that gap instead of sliding a dark placeholder in; a track
+    // with no artwork at all falls back to the placeholder after a short grace period.
+    var shownKey by remember { mutableStateOf(key) }
+    LaunchedEffect(key, art) {
+        if (key == shownKey) return@LaunchedEffect
+        if (art != null || arts[shownKey] == null) { shownKey = key; return@LaunchedEffect }
+        delay(TRACK_ART_GRACE_MS)
+        if (key != shownKey) shownKey = key
+    }
     AnimatedContent(
-        targetState = key,
+        targetState = shownKey,
         transitionSpec = { trackTransition(direction()) },
         label = "cover",
     ) { shown ->
@@ -74,11 +89,14 @@ fun TrackCover(title: String, artist: String, art: Bitmap?, playing: Boolean, di
 
 private const val KEPT_COVERS = 3
 
+/** How long a new track may wait for its artwork before the placeholder is shown. */
+private const val TRACK_ART_GRACE_MS = 1_200L
+
 /**
- * The artwork used for the card tint. Some players drop or replace their artwork when playback
- * stops; letting that through pulled the tint towards the neutral fallback and the card visibly
- * darkened for a moment. Keep the artwork seen while playing until the track changes or playback
- * resumes, so pausing only shrinks the cover.
+ * The artwork used for the card tint. Players drop or replace their artwork when playback stops,
+ * and a new track's cover often arrives a moment after its title. Letting either through pulled
+ * the tint towards the neutral fallback and the card visibly darkened. Keep the last real artwork
+ * until the new one is in hand; a pause-time replacement is ignored.
  */
 internal class ArtworkMemory<T> {
     private var key: Pair<String, String>? = null
@@ -86,8 +104,10 @@ internal class ArtworkMemory<T> {
 
     fun pick(nowKey: Pair<String, String>, nowArt: T?, playing: Boolean, hasSession: Boolean): T? {
         if (!hasSession) { key = nowKey; art = null; return null }
-        if (nowKey != key) { key = nowKey; art = nowArt }
-        if (nowArt != null && (playing || art == null)) art = nowArt
+        if (nowArt != null && (nowKey != key || playing || art == null)) {
+            key = nowKey
+            art = nowArt
+        }
         return art
     }
 }
@@ -95,7 +115,9 @@ internal class ArtworkMemory<T> {
 @Composable
 internal fun rememberMediaTint(state: MediaState, palette: MotoPalette): Color {
     val memory = remember { ArtworkMemory<Bitmap>() }
-    val art = memory.pick(state.title to state.artist, state.art, state.playing, state.hasSession)
+    // The app icon is only a placeholder; it must not colour the card while the cover loads.
+    val realArt = if (state.artIsPlaceholder) null else state.art
+    val art = memory.pick(state.title to state.artist, realArt, state.playing, state.hasSession)
     val target = remember(art, palette) { mediaTint(art, palette) }
     return animateColorAsState(target, tween(600), label = "tint").value
 }
