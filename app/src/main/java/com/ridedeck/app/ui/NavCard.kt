@@ -63,18 +63,18 @@ fun NavCard(
     val guiding = nav.navigating && maneuver != null
     Box(
         modifier = modifier
+            // The squeeze is outside the clip/background so the whole card scales as one piece;
+            // applied inside, only the map and texts shrank and the map spilled past the rounded edge.
+            .pressClickable(onClick = onOpenMap)
             .clip(shape)
             .background(Color(0xFF15202B))
-            .border(1.dp, Color(0x26FFFFFF), shape)
-            // No press squeeze here: scaling a card this large moves the whole map and, while the
-            // finger is down, made the map spill past the rounded edge. Haptic still answers the tap.
-            .hapticClickable(onClick = onOpenMap),
+            .border(1.dp, Color(0x26FFFFFF), shape),
     ) {
         if (guiding) {
             // Live map while guiding: the same route the full map shows, at a glance.
             MiniMap(nav.route, nav.progressIndex, nav.progressFraction, nav.destination, me, isDay, lowPower)
             // The map view swallows touches; this clear layer on top passes a tap on to the card.
-            Box(Modifier.fillMaxSize().hapticClickable(onClick = onOpenMap))
+            Box(Modifier.fillMaxSize().pressClickable(onClick = onOpenMap))
             Box(
                 Modifier.fillMaxSize().background(
                     Brush.verticalGradient(listOf(Color(0xCC000000), Color.Transparent, Color.Transparent, Color(0xB3000000)))
