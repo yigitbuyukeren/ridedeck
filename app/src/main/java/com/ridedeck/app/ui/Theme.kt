@@ -111,6 +111,19 @@ object MotoColors {
     val CardHigh: Color @Composable get() = LocalMotoPalette.current.cardHigh
 }
 
+/** Shared measurements for settings cards, so the six pages keep one card rhythm. */
+object SettingsCardDefaults {
+    val Radius = 20.dp
+    val Padding = 16.dp
+    val TitleSize = 19.sp
+    val DescriptionSize = 14.sp
+}
+
+/** The settings card surface; its color still comes from the active [MotoPalette]. */
+fun Modifier.settingsCard(): Modifier = composed {
+    clip(RoundedCornerShape(SettingsCardDefaults.Radius)).background(LocalMotoPalette.current.card)
+}
+
 @Composable
 fun MotoTheme(isDay: Boolean = false, content: @Composable () -> Unit) {
     val palette = if (isDay) DayPalette else NightPalette

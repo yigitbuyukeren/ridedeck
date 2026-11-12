@@ -1,5 +1,6 @@
 package com.ridedeck.app.ui
 
+import com.ridedeck.app.util.NavApp
 import com.ridedeck.app.util.installedNavApps
 import com.ridedeck.app.util.startExternalNav
 import androidx.compose.foundation.layout.heightIn
@@ -99,6 +100,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -905,10 +907,12 @@ internal fun RouteCard(
     onRemoveStop: (Int) -> Unit,
     /** Explicit cached-route refresh only; default keeps non-cached callers source-compatible. */
     onRefreshCached: () -> Unit = {},
+    /** Test seam; production callers use the apps actually installed on this device. */
+    externalNavApps: List<NavApp>? = null,
 ) {
     val route = ui.route ?: return
     val context = LocalContext.current
-    val externalApps = remember { context.installedNavApps() }
+    val externalApps = remember(externalNavApps) { externalNavApps ?: context.installedNavApps() }
     val debuggable = remember { (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0 }
     var menuOpen by remember { mutableStateOf(false) }
     val now by rememberNowMs()
@@ -917,45 +921,28 @@ internal fun RouteCard(
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
           // Everything but Start / Cancel scrolls, so the primary actions stay reachable on a short screen.
           Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(ui.destination?.name.orEmpty(), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                if (externalApps.isNotEmpty() && canOpenExternal) {
-                    Box(
-                        Modifier.size(width = 76.dp, height = 68.dp).hapticClickable {
-                            val dest = ui.destination ?: return@hapticClickable
-                            if (externalApps.size == 1) context.startExternalNav(externalApps[0], dest.point.lat, dest.point.lon)
-                            else menuOpen = true
-                        },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.AutoMirrored.Rounded.OpenInNew, stringResource(R.string.open_external_nav), tint = MotoColors.Gray, modifier = Modifier.size(32.dp))
-                            Text(stringResource(R.string.open_external_label), fontSize = 12.sp, color = MotoColors.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            externalApps.forEach { app ->
-                                DropdownMenuItem(
-                                    text = { Text(app.label, fontSize = 20.sp) },
-                                    modifier = Modifier.heightIn(min = 64.dp),
-                                    onClick = {
-                                        menuOpen = false
-                                        ui.destination?.let { context.startExternalNav(app, it.point.lat, it.point.lon) }
-                                    },
-                                )
-                            }
-                        }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(ui.destination?.name.orEmpty(), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                val showExternal = externalApps.isNotEmpty() && canOpenExternal
+                if (!showExternal) {
+                    // No external target: keep Save compact instead of turning it into a full-width bar.
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        SavePlaceAction(saved, onSave, Modifier.widthIn(min = 88.dp, max = 140.dp))
                     }
-                }
-                Box(Modifier.size(width = 76.dp, height = 68.dp).hapticClickable(onClick = onSave), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            if (saved) Icons.Rounded.Star else Icons.Rounded.StarBorder, null,
-                            tint = if (saved) MotoColors.Orange else MotoColors.Gray, modifier = Modifier.size(32.dp),
+                } else {
+                    // Full-width action rows give the label its full measured width. A weighted
+                    // side-by-side row can shrink the cell and make an otherwise complete label
+                    // report a visual overflow on narrow test/window widths.
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ExternalNavAction(
+                            apps = externalApps,
+                            destination = ui.destination,
+                            menuOpen = menuOpen,
+                            onOpenMenu = { menuOpen = true },
+                            onDismissMenu = { menuOpen = false },
+                            modifier = Modifier.fillMaxWidth(),
                         )
-                        Text(
-                            stringResource(if (saved) R.string.save_place_saved else R.string.save_place_label),
-                            fontSize = 12.sp, color = if (saved) MotoColors.Orange else MotoColors.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        )
+                        SavePlaceAction(saved, onSave, Modifier.fillMaxWidth())
                     }
                 }
             }
@@ -966,9 +953,14 @@ internal fun RouteCard(
             )
             if (ui.cachedPreview) {
                 Text(stringResource(R.string.cached_route_notice), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                if (ui.cachedPreviewMapCoverage == CachedRouteMapCoverage.UNKNOWN) {
-                    Text(stringResource(R.string.cached_route_coverage_unknown), fontSize = 14.sp, color = MotoColors.Gray)
+                val coverageNotice = when (ui.cachedPreviewMapCoverage) {
+                    CachedRouteMapCoverage.UNKNOWN -> R.string.cached_route_coverage_unknown
+                    CachedRouteMapCoverage.BOUNDS_ONLY -> R.string.cached_route_bounds_only
+                    CachedRouteMapCoverage.OUTSIDE_SAVED_BOUNDS -> R.string.cached_route_outside_saved_bounds
                 }
+                // Advisory only: saved-region metadata never proves tiles are stored, so this stays
+                // neutral gray rather than a ready/green state.
+                Text(stringResource(coverageNotice), fontSize = 14.sp, color = MotoColors.Gray)
                 if (ui.cachedPreviewRefreshFailed && !ui.loading) {
                     Text(stringResource(R.string.cached_route_refresh_failed), fontSize = 14.sp, color = MotoColors.Orange)
                 }
@@ -1053,6 +1045,103 @@ internal fun RouteCard(
                 }
             }
         }
+    }
+}
+
+/**
+ * One secondary route action. Its label wraps instead of ellipsizing so a narrow panel or a large
+ * font cannot turn "Başka uygulamada" into an ambiguous prefix; the whole cell stays >=64 dp.
+ */
+@Composable
+private fun RouteAction(
+    label: String,
+    tint: Color,
+    labelTag: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .defaultMinSize(minWidth = 64.dp, minHeight = 64.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .hapticClickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Box(Modifier.size(32.dp), contentAlignment = Alignment.Center) { content() }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            label,
+            fontSize = 12.sp,
+            color = tint,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().testTag(labelTag),
+        )
+    }
+}
+
+@Composable
+private fun ExternalNavAction(
+    apps: List<NavApp>,
+    destination: Place?,
+    menuOpen: Boolean,
+    onOpenMenu: () -> Unit,
+    onDismissMenu: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    Box(modifier) {
+        RouteAction(
+            label = stringResource(R.string.open_external_label),
+            tint = MotoColors.Gray,
+            labelTag = "map-external-app-label",
+            modifier = Modifier.fillMaxWidth().testTag("map-external-app-action"),
+            onClick = {
+                if (destination != null) {
+                    if (apps.size == 1) context.startExternalNav(apps[0], destination.point.lat, destination.point.lon)
+                    else onOpenMenu()
+                }
+            },
+        ) {
+            Icon(
+                Icons.AutoMirrored.Rounded.OpenInNew,
+                stringResource(R.string.open_external_nav),
+                tint = MotoColors.Gray,
+                modifier = Modifier.size(32.dp),
+            )
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = onDismissMenu) {
+            apps.forEach { app ->
+                DropdownMenuItem(
+                    text = { Text(app.label, fontSize = 20.sp) },
+                    modifier = Modifier.heightIn(min = 64.dp),
+                    onClick = {
+                        onDismissMenu()
+                        destination?.let { context.startExternalNav(app, it.point.lat, it.point.lon) }
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SavePlaceAction(saved: Boolean, onSave: () -> Unit, modifier: Modifier = Modifier) {
+    RouteAction(
+        label = stringResource(if (saved) R.string.save_place_saved else R.string.save_place_label),
+        tint = if (saved) MotoColors.Orange else MotoColors.Gray,
+        labelTag = "map-save-action-label",
+        modifier = modifier.testTag("map-save-action"),
+        onClick = onSave,
+    ) {
+        Icon(
+            if (saved) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+            null,
+            tint = if (saved) MotoColors.Orange else MotoColors.Gray,
+            modifier = Modifier.size(32.dp),
+        )
     }
 }
 

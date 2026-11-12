@@ -101,4 +101,65 @@ class ReadinessPanelUiTest {
             .assertIsDisplayed().performClick()
         compose.runOnIdle { assertTrue(closed) }
     }
+
+    @Test fun unreadableGpsPermissionUsesAppSettingsRecoveryNotProviderToggle() {
+        var action: ReadinessAction? = null
+        val readiness = RideReadinessAssessment.assess(
+            RideReadinessInput(
+                fineLocationGranted = null,
+                coarseLocationGranted = null,
+                gpsEnabled = true,
+                hasFreshFix = false,
+                internet = ConnectivityStatus.OFFLINE,
+                offlineAreas = emptyList(),
+                tts = TtsFacts(engineInitialized = false),
+                sosContactsConfigured = false,
+            )
+        )
+        compose.setContent {
+            MotoTheme {
+                Box(Modifier.size(640.dp, 480.dp)) {
+                    ReadinessContent(readiness, onClose = {}, onAction = { action = it })
+                }
+            }
+        }
+
+        val detail = context.getString(R.string.readiness_detail_gps_permission_unknown)
+        compose.onNodeWithTag("readiness-list", useUnmergedTree = true).performScrollToNode(hasText(detail))
+        compose.onNodeWithTag("readiness-action-GPS", useUnmergedTree = true)
+            .performScrollTo().assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(ReadinessAction.APP_DETAILS, action) }
+    }
+
+    @Test fun missingSosPermissionOffersAppSettingsRecoveryWithoutSendingSms() {
+        var action: ReadinessAction? = null
+        val readiness = RideReadinessAssessment.assess(
+            RideReadinessInput(
+                fineLocationGranted = true,
+                coarseLocationGranted = true,
+                gpsEnabled = true,
+                hasFreshFix = true,
+                internet = ConnectivityStatus.VALIDATED,
+                offlineAreas = emptyList(),
+                tts = TtsFacts(engineInitialized = true, languageAvailable = true, selectedVoiceRequiresNetwork = false),
+                notificationsGranted = true,
+                mediaAccess = true,
+                sosContactsConfigured = true,
+                sosSmsGranted = false,
+            )
+        )
+        compose.setContent {
+            MotoTheme {
+                Box(Modifier.size(640.dp, 480.dp)) {
+                    ReadinessContent(readiness, onClose = {}, onAction = { action = it })
+                }
+            }
+        }
+
+        val detail = context.getString(R.string.readiness_detail_sos_permission_missing)
+        compose.onNodeWithTag("readiness-list", useUnmergedTree = true).performScrollToNode(hasText(detail))
+        compose.onNodeWithTag("readiness-action-SOS", useUnmergedTree = true)
+            .performScrollTo().assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(ReadinessAction.APP_DETAILS, action) }
+    }
 }

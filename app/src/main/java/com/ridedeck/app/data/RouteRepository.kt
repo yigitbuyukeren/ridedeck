@@ -10,6 +10,40 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
+/**
+ * The cancellable HTTP calls used by the service repositories. Production uses [CancellableServiceHttp];
+ * tests inject a transport so no request leaves the JVM.
+ */
+interface ServiceHttp {
+    suspend fun get(url: String, connectMs: Int = 10_000, readMs: Int = 12_000): String
+
+    suspend fun postJson(
+        url: String,
+        body: String,
+        connectMs: Int = 10_000,
+        readMs: Int = 12_000,
+        emptyOn400: Boolean = false,
+    ): String
+
+    suspend fun postForm(url: String, body: String, connectMs: Int = 10_000, readMs: Int = 30_000): String
+}
+
+object CancellableServiceHttp : ServiceHttp {
+    override suspend fun get(url: String, connectMs: Int, readMs: Int): String =
+        Http.getCancellable(url, connectMs, readMs)
+
+    override suspend fun postJson(
+        url: String,
+        body: String,
+        connectMs: Int,
+        readMs: Int,
+        emptyOn400: Boolean,
+    ): String = Http.postJsonCancellable(url, body, connectMs, readMs, emptyOn400)
+
+    override suspend fun postForm(url: String, body: String, connectMs: Int, readMs: Int): String =
+        Http.postFormCancellable(url, body, connectMs, readMs)
+}
+
 data class Place(val name: String, val detail: String, val point: GeoPoint)
 
 data class Maneuver(
@@ -130,6 +164,7 @@ private const val METRES_PER_MILE = 1609.344
 
 /** Valhalla (OSM) motorcycle routing and Nominatim geocoding, both public no-key services. */
 class RouteRepository(
+    private val http: ServiceHttp = CancellableServiceHttp,
     /** Spoken and written route texts follow the rider's unit choice; lengths are converted back to metres. */
     private val miles: () -> Boolean = { false },
 ) : Routing {
@@ -139,7 +174,7 @@ class RouteRepository(
         safely("route") {
             val useMiles = miles()
             val body = requestBody(listOf(from, to), options, useMiles, alternates = 0, headingDeg = headingDeg)
-            parseTrip(Http.postJson("https://valhalla1.openstreetmap.de/route", body.toString()), if (useMiles) METRES_PER_MILE else 1000.0)
+            parseTrip(http.postJson("https://valhalla1.openstreetmap.de/route", body.toString()), if (useMiles) METRES_PER_MILE else 1000.0)
         }
     }
 
@@ -149,7 +184,7 @@ class RouteRepository(
         safely("routeVia") {
             val useMiles = miles()
             val body = requestBody(points, options, useMiles, alternates = 0, headingDeg = headingDeg)
-            parseTrip(Http.postJson("https://valhalla1.openstreetmap.de/route", body.toString()), if (useMiles) METRES_PER_MILE else 1000.0)
+            parseTrip(http.postJson("https://valhalla1.openstreetmap.de/route", body.toString()), if (useMiles) METRES_PER_MILE else 1000.0)
         }
     }
 
@@ -157,7 +192,7 @@ class RouteRepository(
         safely("alternatives") {
             val useMiles = miles()
             val body = requestBody(from, to, options, useMiles, alternates = 2)
-            val reply = Http.postJson("https://valhalla1.openstreetmap.de/route", body.toString())
+            val reply = http.postJson("https://valhalla1.openstreetmap.de/route", body.toString())
             val unit = if (useMiles) METRES_PER_MILE else 1000.0
             val json = JSONObject(reply)
             val out = mutableListOf(parseTripObject(json.getJSONObject("trip"), unit))
@@ -199,7 +234,7 @@ class RouteRepository(
         safely("reverse") {
             val url = "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=${Locale.getDefault().language}" +
                 "&lat=${"%.6f".format(Locale.US, point.lat)}&lon=${"%.6f".format(Locale.US, point.lon)}"
-            PlaceNames.fromReverse(Http.get(url), point)
+            PlaceNames.fromReverse(http.get(url), point)
         }
     }
 
@@ -207,13 +242,13 @@ class RouteRepository(
         safely("search") {
             val base = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=${Locale.getDefault().language}" +
                 "&q=${URLEncoder.encode(query, "UTF-8")}"
-            if (near == null) return@safely parsePlaces(Http.get(base))
+            if (near == null) return@safely parsePlaces(http.get(base))
             val view = "&viewbox=${near.lon - 1.0},${near.lat + 1.0},${near.lon + 1.0},${near.lat - 1.0}"
             // Places around the rider first; the whole country only when nothing is near (one request per second at most).
-            val nearby = parsePlaces(Http.get("$base$view&bounded=1"))
+            val nearby = parsePlaces(http.get("$base$view&bounded=1"))
             if (nearby.isNotEmpty()) return@safely nearby
             delay(SEARCH_GAP_MS)
-            parsePlaces(Http.get("$base$view"))
+            parsePlaces(http.get("$base$view"))
         }
     }
 

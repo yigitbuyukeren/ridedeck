@@ -124,6 +124,7 @@ class CachedRouteUiTest {
         needsNetwork: Boolean = false,
         choices: List<Route> = emptyList(),
         stops: List<Place> = emptyList(),
+        coverage: CachedRouteMapCoverage = CachedRouteMapCoverage.UNKNOWN,
     ) = NavUi(
         destination = dest,
         route = route,
@@ -136,7 +137,7 @@ class CachedRouteUiTest {
         cachedPreviewStartBlocked = blocked,
         cachedPreviewRefreshFailed = failed,
         cachedRouteNeedsNetwork = needsNetwork,
-        cachedPreviewMapCoverage = CachedRouteMapCoverage.UNKNOWN,
+        cachedPreviewMapCoverage = coverage,
         loading = loading,
     )
 
@@ -208,6 +209,34 @@ class CachedRouteUiTest {
         compose.onNodeWithText("Simüle et (x4)").assertDoesNotExist()
     }
 
+    @Test fun cachedCoverageAdvisoryIsExhaustiveAndNeverClaimsTilesAreStored() {
+        val expected = linkedMapOf(
+            CachedRouteMapCoverage.UNKNOWN to R.string.cached_route_coverage_unknown,
+            CachedRouteMapCoverage.BOUNDS_ONLY to R.string.cached_route_bounds_only,
+            CachedRouteMapCoverage.OUTSIDE_SAVED_BOUNDS to R.string.cached_route_outside_saved_bounds,
+        )
+        assertEquals(
+            "every coverage enum value needs an advisory string",
+            CachedRouteMapCoverage.values().toSet(),
+            expected.keys,
+        )
+
+        val coverage = mutableStateOf(CachedRouteMapCoverage.UNKNOWN)
+        renderAt(600.dp, 320.dp) {
+            Column(Modifier.fillMaxSize().padding(14.dp)) {
+                card(cachedUi(blocked = true, coverage = coverage.value), {}, {})
+            }
+        }
+        val cardBounds = compose.onNodeWithTag("map-route-card").getUnclippedBoundsInRoot()
+        expected.forEach { (value, textRes) ->
+            compose.runOnIdle { coverage.value = value }
+            compose.waitForIdle()
+            val advisory = compose.onNodeWithText(string(textRes))
+            scrollToAndAssertVisible("$value coverage advisory", advisory, cardBounds)
+            assertNotEllipsized("$value coverage advisory", advisory)
+        }
+    }
+
     @Test fun cachedPreviewLoadingHidesRefreshAndKeepsRouteVisible() {
         var refreshes = 0
         renderAt(600.dp, 320.dp) {
@@ -216,8 +245,16 @@ class CachedRouteUiTest {
             }
         }
         compose.onNodeWithTag("cached-route-refresh").assertDoesNotExist()
-        compose.onNodeWithText(string(R.string.cached_route_notice)).assertIsDisplayed()
-        compose.onNodeWithText(string(R.string.route_updating)).assertIsDisplayed()
+        val cardBounds = compose.onNodeWithTag("map-route-card").getUnclippedBoundsInRoot()
+        // Secondary route actions can take more vertical space when the device has an external nav
+        // app; the cached-state text stays reachable in the card's scroll region instead of being
+        // required to fit above the fold.
+        val notice = compose.onNodeWithText(string(R.string.cached_route_notice))
+        scrollToAndAssertVisible("loading cached notice", notice, cardBounds)
+        assertNotEllipsized("loading cached notice", notice)
+        val updating = compose.onNodeWithText(string(R.string.route_updating))
+        scrollToAndAssertVisible("loading route state", updating, cardBounds)
+        assertNotEllipsized("loading route state", updating)
     }
 
     @Test fun cachedRefreshFailureKeepsRouteAndShowsRetry() {

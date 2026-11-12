@@ -41,6 +41,7 @@ interface SpeedLimitLookup {
 
 /** Posted speed limit of the road under the last few GPS fixes, from the public Valhalla server. */
 class SpeedLimitRepository(
+    private val http: ServiceHttp = CancellableServiceHttp,
     /** Valhalla costing that matches the vehicle, so the trail snaps to roads the vehicle may use. */
     private val costing: () -> String = { "motorcycle" },
 ) : SpeedLimitLookup {
@@ -52,7 +53,7 @@ class SpeedLimitRepository(
                 .put("costing", costing())
                 .put("shape_match", "map_snap")
                 .put("filters", JSONObject().put("attributes", JSONArray().put("edge.speed_limit")).put("action", "include"))
-            Result.success(SpeedLimitMath.parseLimit(Http.postJson("https://valhalla1.openstreetmap.de/trace_attributes", body.toString(), connectMs = 8_000, readMs = 10_000, emptyOn400 = true)))
+            Result.success(SpeedLimitMath.parseLimit(http.postJson("https://valhalla1.openstreetmap.de/trace_attributes", body.toString(), connectMs = 8_000, readMs = 10_000, emptyOn400 = true)))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

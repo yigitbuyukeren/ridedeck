@@ -126,6 +126,8 @@
     <string name="trip_delete_confirm_body">%1$s tarihli yolculuk ve GPS kaydı bu telefondan kalıcı olarak silinecek.</string>
     <string name="trip_delete_confirm_action">Yolculuğu sil</string>
     <string name="trip_delete_cancel">Vazgeç</string>
+    <string name="trip_delete_success_fmt">Yolculuk silindi: %1$s</string>
+    <string name="trip_delete_failed_fmt">Yolculuk silinemedi; kayıt korunuyor: %1$s</string>
     <string name="trip_map_open">Haritada göster</string>
     <string name="trip_map_title">Yolculuk haritası</string>
     <string name="trip_map_privacy">Harita açılırken OpenFreeMap\'ten karo istenebilir. GPS kaydın yalnızca bu telefonda kalır.</string>
@@ -137,6 +139,7 @@
     <string name="trip_map_simplified">Kayıt sadeleştirildi: %1$d / %2$d nokta çizildi.</string>
     <string name="trip_map_gaps">GPS boşlukları ayrı çizildi: %1$d.</string>
     <string name="trip_map_local_only">Karo yüklenemedi; yalnızca kayıtlı iz yerel arka planda gösteriliyor. Çevrimdışı rota hesaplanmaz.</string>
+    <string name="trip_map_tiles_unavailable">Bazı harita karoları yüklenemedi. Kayıtlı GPS izi kullanılabilir durumda.</string>
     <string name="record_trips_title">Yolculukları kaydet</string>
     <string name="record_trips_desc">Uygulama ekrandayken sürüşler kendiliğinden kaydedilir ve yalnızca bu telefonda saklanır. Ekran kapalıyken de kayıt için yolculuğu Başlat ile aç.</string>
     <string name="speed_limit_title">Hız limiti göstergesi</string>
@@ -415,6 +418,8 @@
     <string name="cached_route_refresh">Rotayı güncelle</string>
     <string name="cached_route_refresh_failed">Rota güncellenemedi; önbellek rotası korunuyor.</string>
     <string name="cached_route_coverage_unknown">Çevrimdışı harita yeterliliği doğrulanmadı.</string>
+    <string name="cached_route_bounds_only">Rota kayıtlı çevrimdışı bölge sınırları içinde; karo indirildiği doğrulanmadı.</string>
+    <string name="cached_route_outside_saved_bounds">Rota kayıtlı çevrimdışı bölgelerin dışına çıkıyor; çevrimdışı harita yeterliliği doğrulanmadı.</string>
     <string name="detour_calculate">Sapmayı hesapla</string>
     <string name="detour_available_fmt">≈ +%1$s · +%2$s</string>
     <string name="detour_unavailable">Sapma hesaplanamadı</string>

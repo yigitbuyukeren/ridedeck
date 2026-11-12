@@ -12,6 +12,7 @@ private class MemoryTrips : TripStorage {
     val rows = linkedMapOf<Long, Trip>()
     val samples = linkedMapOf<Long, MutableList<TripPoint>>()
     var failWrites = false
+    var failDeletes = false
     private var next = 0L
     override fun startTrip(startedAt: Long): Long = (++next).also {
         rows[it] = Trip(it, startedAt, 0, TripStats(0.0, 0, 0))
@@ -30,8 +31,16 @@ private class MemoryTrips : TripStorage {
     override fun points(tripId: Long) = samples[tripId]?.toList().orEmpty()
     override fun unfinishedIds() = rows.values.filter { it.endedAt == 0L }.map { it.id }
     override fun lastPointTime(tripId: Long) = points(tripId).lastOrNull()?.t ?: 0
-    override fun delete(tripId: Long) { rows.remove(tripId); samples.remove(tripId) }
-    override fun deleteAll() { rows.clear(); samples.clear() }
+    override fun delete(tripId: Long) {
+        if (failDeletes) throw IOException("delete failed")
+        rows.remove(tripId)
+        samples.remove(tripId)
+    }
+    override fun deleteAll() {
+        if (failDeletes) throw IOException("delete failed")
+        rows.clear()
+        samples.clear()
+    }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -47,6 +56,11 @@ class TripRecorderTest {
             ride.location.value = LocationState(fixAtMs = sec * 1000L, speedKmh = 36, lat = 0.0, lon = sec * 0.00009)
             runCurrent()
         }
+    }
+
+    private fun finishedTrip(store: MemoryTrips, id: Long, startedAt: Long = 1_000L) {
+        store.rows[id] = Trip(id, startedAt, startedAt + 60_000, TripStats(400.0, 60_000, 40))
+        store.samples[id] = mutableListOf(TripPoint(startedAt, 0.0, 0.0, 20))
     }
 
     @Test fun disablingRecordingWithoutAnotherGpsFixClosesTheTripImmediately() = runTest {
@@ -85,7 +99,7 @@ class TripRecorderTest {
         val ride = Ride(this)
         runCurrent()
         drive(ride, 1..75)
-        ride.recorder.deleteAll()
+        assertTrue(ride.recorder.deleteAll())
         assertFalse(ride.recorder.recording.value)
         drive(ride, 76..78)
         assertTrue(ride.recorder.recording.value)
@@ -131,6 +145,82 @@ class TripRecorderTest {
         assertEquals(75_000L, ride.store.trips().single().endedAt)
         val version = ride.recorder.version.value
         assertTrue(ride.recorder.finishCurrent())
+        assertEquals(version, ride.recorder.version.value)
+    }
+
+    @Test fun deletingATripReportsSuccessAndOnlyRemovesThatTrip() = runTest {
+        val store = MemoryTrips()
+        finishedTrip(store, 1)
+        finishedTrip(store, 2, startedAt = 2_000L)
+        val ride = Ride(this, store)
+        runCurrent()
+        val version = ride.recorder.version.value
+
+        assertTrue(ride.recorder.delete(1))
+        assertFalse(store.rows.containsKey(1))
+        assertFalse(store.samples.containsKey(1))
+        assertTrue(store.rows.containsKey(2))
+        assertTrue(store.samples.containsKey(2))
+        assertEquals(version + 1, ride.recorder.version.value)
+    }
+
+    @Test fun failedDeleteReportsFailureAndKeepsTheStoredRide() = runTest {
+        val store = MemoryTrips()
+        finishedTrip(store, 1)
+        val ride = Ride(this, store)
+        runCurrent()
+        ride.store.failDeletes = true
+        val version = ride.recorder.version.value
+
+        assertFalse(ride.recorder.delete(1))
+        assertTrue(store.rows.containsKey(1))
+        assertTrue(store.samples.getValue(1).isNotEmpty())
+        assertTrue(ride.recorder.error.value)
+        assertEquals(version, ride.recorder.version.value)
+    }
+
+    @Test fun deletingAnotherTripWhileRecordingKeepsTheActiveRide() = runTest {
+        val ride = Ride(this)
+        runCurrent()
+        drive(ride, 1..10)
+        assertTrue(ride.recorder.recording.value)
+        finishedTrip(ride.store, 99)
+
+        assertTrue(ride.recorder.delete(99))
+        assertTrue(ride.recorder.recording.value)
+        drive(ride, 11..11)
+        assertEquals(11_000L, ride.store.points(1).last().t)
+    }
+
+    @Test fun failedDeleteOfTheActiveTripKeepsItsRowForRecoveryAndStopsRecording() = runTest {
+        val ride = Ride(this)
+        runCurrent()
+        drive(ride, 1..10)
+        val active = ride.store.rows.keys.single()
+        ride.store.failDeletes = true
+
+        assertFalse(ride.recorder.delete(active))
+        assertTrue(ride.recorder.error.value)
+        assertFalse(ride.recorder.recording.value)
+        assertTrue(ride.store.rows.containsKey(active))
+        assertTrue(ride.store.points(active).isNotEmpty())
+    }
+
+    @Test fun failedDeleteAllReportsFailureAndKeepsEveryStoredRide() = runTest {
+        val store = MemoryTrips()
+        finishedTrip(store, 1)
+        finishedTrip(store, 2, startedAt = 2_000L)
+        val ride = Ride(this, store)
+        runCurrent()
+        ride.store.failDeletes = true
+        val version = ride.recorder.version.value
+
+        assertFalse(ride.recorder.deleteAll())
+        assertTrue(store.rows.containsKey(1))
+        assertTrue(store.rows.containsKey(2))
+        assertTrue(store.samples.containsKey(1))
+        assertTrue(store.samples.containsKey(2))
+        assertTrue(ride.recorder.error.value)
         assertEquals(version, ride.recorder.version.value)
     }
 }

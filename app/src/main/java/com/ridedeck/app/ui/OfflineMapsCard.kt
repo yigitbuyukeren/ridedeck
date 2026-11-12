@@ -4,13 +4,11 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,7 +21,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -52,10 +49,11 @@ data class OfflineMapsCardActions(
     val delete: (Context, OfflineArea, Boolean) -> Unit = { context, area, allowStale ->
         OfflineMaps.delete(context, area, allowStale)
     },
+    val cancel: (Context, OfflineArea) -> Unit = { context, area -> OfflineMaps.cancel(context, area) },
     val clearError: () -> Unit = OfflineMaps::clearError,
 )
 
-/** Settings > Setup: download the map around the rider, list and delete the areas already stored. */
+/** Settings > Setup: download the map around the rider, list, cancel and delete the areas already stored. */
 @Composable
 fun OfflineMapsCard(
     here: GeoPoint?,
@@ -79,11 +77,11 @@ fun OfflineMapsCard(
         if (confirming != null && areas.none { it == confirming }) confirming = null
     }
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(16.dp),
+        Modifier.fillMaxWidth().settingsCard().padding(SettingsCardDefaults.Padding),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(stringResource(R.string.offline_title), fontSize = 20.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
-        Text(stringResource(R.string.offline_desc), fontSize = 15.sp, color = LocalMotoPalette.current.muted)
+        Text(stringResource(R.string.offline_title), fontSize = SettingsCardDefaults.TitleSize, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.offline_desc), fontSize = SettingsCardDefaults.DescriptionSize, color = LocalMotoPalette.current.muted)
         val fitting = here?.let { OfflinePlan.fittingRadii(it).lastOrNull() }
         if (here != null && fitting != null) {
             val budget = OfflinePlan.budget(here, fitting)
@@ -151,6 +149,15 @@ fun OfflineMapsCard(
                     offlineStateText(reconciled?.state), fontSize = 14.sp, lineHeight = 20.sp,
                     color = if (reconciled?.state == NativeRegionState.ERROR) MotoColors.Red else LocalMotoPalette.current.muted,
                 )
+                // An inherited ACTIVE native region can be stopped without a new download; this is
+                // the existing OfflineMaps.cancel path, separate from the provider-block message above.
+                if (reconciled?.state == NativeRegionState.DOWNLOADING) {
+                    PillButton(
+                        stringResource(R.string.cancel), MotoColors.PanelHigh,
+                        { actions.cancel(context, a) }, Modifier.fillMaxWidth().testTag("offline-cancel"),
+                        horizontalPadding = 8.dp, minHeight = 64.dp, fontSize = 16.sp,
+                    )
+                }
                 if (confirming == a) {
                     Text(
                         stringResource(R.string.offline_delete_confirm_text), fontSize = 15.sp, lineHeight = 22.sp,

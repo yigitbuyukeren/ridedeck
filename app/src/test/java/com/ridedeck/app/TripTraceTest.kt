@@ -212,6 +212,30 @@ class TripTraceTest {
     }
 
     @Test
+    fun duplicateSavedFixAddsNoGapAndKeepsTheLineContinuous() {
+        val points = listOf(p(0), p(1, 0.00001), p(1, 0.00001), p(2, 0.00002))
+        val trace = TripTrace.from(points)
+        assertEquals(listOf(3), trace.segments.map { it.size })
+        assertEquals(3, trace.pointCount)
+        assertEquals(3, trace.sampledPointCount)
+        assertTrue(trace.gaps.isEmpty())
+        assertEquals(GeoPoint(points.first().lat, points.first().lon), trace.start)
+        assertEquals(GeoPoint(points.last().lat, points.last().lon), trace.end)
+    }
+
+    @Test
+    fun equalTimestampAtAnotherPositionStillBreaksTheSegment() {
+        val trace = TripTrace.from(
+            listOf(p(0), p(1, 0.00001), TripPoint(2_000L, 0.0, 0.00002, 30), p(2, 0.00003)),
+        )
+        assertEquals(listOf(2, 2), trace.segments.map { it.size })
+        assertEquals(1, trace.gaps.size)
+        assertEquals(TripGapReason.TIME_NOT_INCREASING, trace.gaps[0].reason)
+        assertEquals(1, trace.gaps[0].afterPointIndex)
+        assertEquals(0L, trace.gaps[0].durationMs)
+    }
+
+    @Test
     fun invalidTimestampAtLongMinValueDoesNotOverflowGapDuration() {
         val trace = TripTrace.from(
             listOf(p(0), TripPoint(Long.MIN_VALUE, 0.0, 0.00002, 30), p(3, 0.00003)),

@@ -138,7 +138,7 @@ object FuelMath {
  * so a search asks all of them at once and takes the first good answer; Nominatim is the quick fallback
  * (and the first choice around the rider). Searches are rare, explicit taps.
  */
-class FuelRepository : FuelFinder {
+class FuelRepository(private val http: ServiceHttp = CancellableServiceHttp) : FuelFinder {
     private val mirrors = listOf(
         "https://overpass.kumi.systems/api/interpreter",
         "https://overpass-api.de/api/interpreter",
@@ -177,7 +177,7 @@ class FuelRepository : FuelFinder {
     /** One Nominatim search per kind of stop; the kinds are merged, nearest first. */
     private suspend fun nominatim(box: FuelMath.Box, here: GeoPoint, sources: List<StopSource>): List<FuelStation> =
         FuelMath.mix(
-            sources.flatMap { FuelMath.parseNominatim(Http.get(FuelMath.nominatimUrl(box, it.nominatimQuery)), here, listOf(it)) }
+            sources.flatMap { FuelMath.parseNominatim(http.get(FuelMath.nominatimUrl(box, it.nominatimQuery)), here, listOf(it)) }
                 .sortedBy { it.distanceM },
         )
 
@@ -197,7 +197,7 @@ class FuelRepository : FuelFinder {
         }
     }
 
-    private suspend fun firstAnswer(body: String): String = firstAnswerOf(body, mirrors)
+    private suspend fun firstAnswer(body: String): String = firstAnswerOf(body, mirrors, http)
 
     private companion object {
         const val NEAR_BOX_DEG = 0.03
@@ -207,13 +207,13 @@ class FuelRepository : FuelFinder {
 }
 
 /** Asks every server at once with the same Overpass query and returns the first good reply. */
-private suspend fun firstAnswerOf(query: String, mirrors: List<String>): String = coroutineScope {
+private suspend fun firstAnswerOf(query: String, mirrors: List<String>, http: ServiceHttp): String = coroutineScope {
     val body = "data=" + URLEncoder.encode(query, "UTF-8")
     val results = Channel<Result<String>>(mirrors.size)
     val requests = mirrors.map { url ->
         launch(Dispatchers.IO) {
             val outcome = try {
-                Result.success(Http.postFormCancellable(url, body, connectMs = 5_000, readMs = 10_000))
+                Result.success(http.postForm(url, body, connectMs = 5_000, readMs = 10_000))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

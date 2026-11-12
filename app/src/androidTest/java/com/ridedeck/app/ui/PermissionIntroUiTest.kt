@@ -85,6 +85,41 @@ class PermissionIntroUiTest {
         compose.runOnIdle { assertEquals(1, closed) }
     }
 
+    @Test fun optionalReadinessEntryStaysReachableAtFont2AndDoesNotCloseIntro() {
+        var readinessOpened = 0
+        var closed = 0
+        val row = PermissionRow(
+            title = context.getString(R.string.perm_location),
+            description = context.getString(R.string.perm_location_precise),
+            granted = false,
+            actionLabel = context.getString(R.string.action_open_settings),
+            onAction = {},
+        )
+        compose.setContent {
+            MotoTheme {
+                val density = LocalDensity.current
+                CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
+                    Box(Modifier.size(600.dp, 320.dp)) {
+                        PermissionIntro(
+                            row,
+                            onClose = { closed++ },
+                            onOpenReadiness = { readinessOpened++ },
+                        )
+                    }
+                }
+            }
+        }
+
+        compose.onNodeWithText(context.getString(R.string.readiness_title))
+            .assertIsDisplayed().performClick()
+        compose.runOnIdle {
+            assertEquals(1, readinessOpened)
+            assertEquals("opening readiness must not dismiss the first-launch page", 0, closed)
+        }
+        compose.onNodeWithText(context.getString(R.string.perm_intro_later)).assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(1, closed) }
+    }
+
     @Test fun grantedLocationShowsStatusAndHasNoAllowAction() {
         val row = PermissionRow(
             title = context.getString(R.string.perm_location),

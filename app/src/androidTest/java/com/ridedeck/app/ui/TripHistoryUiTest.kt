@@ -2,6 +2,7 @@ package com.ridedeck.app.ui
 
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -100,6 +101,38 @@ class TripHistoryUiTest {
 
         compose.runOnIdle { assertEquals(1, deletes) }
         compose.onNodeWithText(confirmTitle).assertDoesNotExist()
+    }
+
+    @Test
+    fun deleteFeedbackNamesTheActionAndItsDateForBothOutcomes() {
+        val confirmedDate = "12 Kasım 2026 14:30"
+        render(fontScale = 1f, width = 700.dp, height = 240.dp) {
+            Column(Modifier.fillMaxSize()) {
+                TripDeleteFeedbackText(TripDeleteFeedback(succeeded = true, tripDate = confirmedDate))
+                TripDeleteFeedbackText(TripDeleteFeedback(succeeded = false, tripDate = confirmedDate))
+            }
+        }
+
+        compose.onNodeWithText(context.getString(R.string.trip_delete_success_fmt, confirmedDate))
+            .assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.trip_delete_failed_fmt, confirmedDate))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun deleteFeedbackStaysReadableAtLargeFontAndNarrowWidth() {
+        val confirmedDate = "12 Kasım 2026 14:30"
+        render(fontScale = 2f, width = 300.dp, height = 400.dp) {
+            Column(Modifier.fillMaxSize()) {
+                TripDeleteFeedbackText(TripDeleteFeedback(succeeded = true, tripDate = confirmedDate))
+                TripDeleteFeedbackText(TripDeleteFeedback(succeeded = false, tripDate = confirmedDate))
+            }
+        }
+
+        compose.onNodeWithText(context.getString(R.string.trip_delete_success_fmt, confirmedDate))
+            .assertIsDisplayed()
+        compose.onNodeWithText(context.getString(R.string.trip_delete_failed_fmt, confirmedDate))
+            .assertIsDisplayed()
     }
 
     @Test

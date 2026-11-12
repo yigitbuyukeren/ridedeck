@@ -335,7 +335,7 @@ fun ToggleRow(t: ToggleItem) {
     // create a second focus/click node or toggle twice.
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)
-            .clip(RoundedCornerShape(20.dp)).background(MotoColors.Card)
+            .settingsCard()
             .testTag("settings-toggle-row")
             .hapticClickable(
                 enabled = t.enabled, role = Role.Switch,
@@ -344,12 +344,12 @@ fun ToggleRow(t: ToggleItem) {
                 t.onChange(!t.checked)
             }
             .semantics { toggleableState = ToggleableState(t.checked) }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(SettingsCardDefaults.Padding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
-            Text(t.title, fontSize = 19.sp, lineHeight = 24.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
-            Text(t.description, fontSize = 14.sp, lineHeight = 19.sp, color = LocalMotoPalette.current.muted)
+            Text(t.title, fontSize = SettingsCardDefaults.TitleSize, lineHeight = 24.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
+            Text(t.description, fontSize = SettingsCardDefaults.DescriptionSize, lineHeight = 19.sp, color = LocalMotoPalette.current.muted)
         }
         Switch(
             checked = t.checked,
@@ -370,12 +370,12 @@ fun ToggleGroupRow(title: String, description: String, toggles: List<ToggleItem>
     if (toggles.isEmpty()) return
     val palette = LocalMotoPalette.current
     Column(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+        modifier = Modifier.fillMaxWidth().settingsCard()
+            .padding(SettingsCardDefaults.Padding),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text(title, fontSize = 19.sp, lineHeight = 24.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
-        Text(description, fontSize = 14.sp, lineHeight = 19.sp, color = palette.muted)
+        Text(title, fontSize = SettingsCardDefaults.TitleSize, lineHeight = 24.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
+        Text(description, fontSize = SettingsCardDefaults.DescriptionSize, lineHeight = 19.sp, color = palette.muted)
         toggles.forEach { t ->
             Box(Modifier.fillMaxWidth().height(1.dp).background(palette.track))
             Row(
@@ -410,13 +410,13 @@ fun ToggleGroupRow(title: String, description: String, toggles: List<ToggleItem>
 fun SettingRow(item: SettingItem) {
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)
-            .clip(RoundedCornerShape(20.dp)).background(MotoColors.Card)
-            .testTag("settings-setting-row").padding(16.dp),
+            .settingsCard()
+            .testTag("settings-setting-row").padding(SettingsCardDefaults.Padding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(item.title, fontSize = 19.sp, lineHeight = 24.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
-            Text(item.description, fontSize = 14.sp, lineHeight = 19.sp, color = LocalMotoPalette.current.muted)
+            Text(item.title, fontSize = SettingsCardDefaults.TitleSize, lineHeight = 24.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
+            Text(item.description, fontSize = SettingsCardDefaults.DescriptionSize, lineHeight = 19.sp, color = LocalMotoPalette.current.muted)
             item.progress?.let { progress ->
                 if (progress < 0f) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
                 else LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
@@ -437,11 +437,11 @@ fun SettingRow(item: SettingItem) {
 fun ThemeRow(mode: ThemeMode, onSelect: (ThemeMode) -> Unit) {
     val palette = LocalMotoPalette.current
     Column(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(16.dp),
+        modifier = Modifier.fillMaxWidth().settingsCard().padding(SettingsCardDefaults.Padding),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(stringResource(R.string.theme_title), fontSize = 19.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
-        Text(stringResource(R.string.theme_desc), fontSize = 14.sp, color = palette.muted)
+        Text(stringResource(R.string.theme_title), fontSize = SettingsCardDefaults.TitleSize, color = palette.text, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.theme_desc), fontSize = SettingsCardDefaults.DescriptionSize, color = palette.muted)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             listOf(
                 ThemeMode.AUTO to R.string.theme_auto,
@@ -469,11 +469,11 @@ fun ThemeRow(mode: ThemeMode, onSelect: (ThemeMode) -> Unit) {
 fun ChoiceRow(title: String, description: String, choices: List<Pair<String, Boolean>>, onSelect: (Int) -> Unit) {
     val palette = LocalMotoPalette.current
     Column(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(16.dp),
+        modifier = Modifier.fillMaxWidth().settingsCard().padding(SettingsCardDefaults.Padding),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(title, fontSize = 19.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
-        Text(description, fontSize = 14.sp, color = palette.muted)
+        Text(title, fontSize = SettingsCardDefaults.TitleSize, color = palette.text, fontWeight = FontWeight.SemiBold)
+        Text(description, fontSize = SettingsCardDefaults.DescriptionSize, color = palette.muted)
         // At most three buttons per line (four go two by two), so every name stays on one line even on a narrow phone.
         // An incomplete last line keeps empty slots, so its buttons stay the same width as the line above.
         val columns = when {
@@ -509,10 +509,10 @@ fun ChoiceRow(title: String, description: String, choices: List<Pair<String, Boo
 fun VoiceControlsRow(speechRate: Float, onSpeechRate: (Float) -> Unit) {
     val palette = LocalMotoPalette.current
     Column(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(16.dp),
+        modifier = Modifier.fillMaxWidth().settingsCard().padding(SettingsCardDefaults.Padding),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(stringResource(R.string.voice_speech_rate, (speechRate * 100).toInt()), fontSize = 19.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.voice_speech_rate, (speechRate * 100).toInt()), fontSize = SettingsCardDefaults.TitleSize, color = palette.text, fontWeight = FontWeight.SemiBold)
         // Material's inner Slider remains the visual/semantic control at its 48 dp minimum.
         // This 64 dp host handles only the top/bottom edge strips itself; the centre is delegated
         // untouched to Slider so TalkBack SetProgress and the original drag path still work.
@@ -570,11 +570,11 @@ fun MarkerRow() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val look by MarkerStyle.look.collectAsStateWithLifecycle()
     Column(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(16.dp),
+        modifier = Modifier.fillMaxWidth().settingsCard().padding(SettingsCardDefaults.Padding),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(stringResource(R.string.marker_title), fontSize = 19.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
-        Text(stringResource(R.string.marker_desc), fontSize = 14.sp, color = palette.muted)
+        Text(stringResource(R.string.marker_title), fontSize = SettingsCardDefaults.TitleSize, color = palette.text, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.marker_desc), fontSize = SettingsCardDefaults.DescriptionSize, color = palette.muted)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             listOf(
                 MarkerShape.MODERN to R.string.marker_modern,

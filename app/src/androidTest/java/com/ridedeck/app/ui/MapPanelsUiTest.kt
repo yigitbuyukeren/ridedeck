@@ -1,6 +1,8 @@
 package com.ridedeck.app.ui
 
+import android.content.pm.ActivityInfo
 import android.content.res.Configuration
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -17,11 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -48,8 +51,11 @@ import com.ridedeck.app.data.PlaceKind
 import com.ridedeck.app.data.Route
 import com.ridedeck.app.data.RouteOptions
 import com.ridedeck.app.data.SavedPlace
+import com.ridedeck.app.util.NavApp
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
@@ -58,14 +64,31 @@ import org.junit.Test
  * of [MapScreen] that hold typed input and the primary actions; MapLibre itself is not started here.
  */
 class MapPanelsUiTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
+    private var originalOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+
+    /**
+     * These panels are designed for the landscape ride dashboard. Request landscape on the test
+     * Activity only (never a global device setting) so a shared emulator left in portrait cannot
+     * change the geometry result, and restore the prior Activity value after every test.
+     */
+    @Before fun forceLandscapeForThisTest() {
+        originalOrientation = compose.activity.requestedOrientation
+        compose.activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        compose.waitForIdle()
+    }
+
+    @After fun restoreActivityOrientation() {
+        compose.activity.requestedOrientation = originalOrientation
+        compose.waitForIdle()
+    }
 
     private fun string(id: Int) = context.getString(id)
     private fun string(id: Int, vararg args: Any) = context.getString(id, *args)
 
-    private fun renderAt(width: Dp, height: Dp, content: @Composable () -> Unit) {
-        val configuration = Configuration(context.resources.configuration).apply { fontScale = 2f }
+    private fun renderAt(width: Dp, height: Dp, fontScale: Float = 2f, content: @Composable () -> Unit) {
+        val configuration = Configuration(context.resources.configuration).apply { this.fontScale = fontScale }
         val density = Density(context.createConfigurationContext(configuration))
         compose.setContent {
             MotoTheme {
@@ -132,6 +155,18 @@ class MapPanelsUiTest {
         node.fetchSemanticsNode().config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(results)
         return results.firstOrNull()?.lineCount ?: 0
     }
+
+    private fun textLayout(node: SemanticsNodeInteraction): TextLayoutResult {
+        val results = mutableListOf<TextLayoutResult>()
+        node.fetchSemanticsNode().config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(results)
+        return results.first()
+    }
+
+    private fun overflowReport(layout: TextLayoutResult): String =
+        "text='${layout.layoutInput.text}' lines=${layout.lineCount} size=${layout.size} " +
+            "constraints=${layout.layoutInput.constraints} overflowW=${layout.didOverflowWidth} " +
+            "overflowH=${layout.didOverflowHeight} ellipsized=" +
+            (0 until layout.lineCount).any { layout.isLineEllipsized(it) }
 
     @Test fun maneuverBannerScrollsTheFullInstructionAtFont2Short() {
         val instruction = "Atatürk Caddesi üzerinden sağa dönün, köprüyü geçtikten sonra sahildeki kavşaktan sola dönün ve otoparka girin"
@@ -203,6 +238,91 @@ class MapPanelsUiTest {
         cancel.performScrollTo().assertIsDisplayed()
         assertTargetAtLeast64("tiny cancel", cancel)
         assertInside("tiny cancel", cancel, card)
+    }
+
+    @Test fun externalAppLabelStaysCompleteAtNormalFontInTheWideActionRow() {
+        val label = string(R.string.open_external_label)
+        renderAt(356.dp, 440.dp, 1f) {
+            RouteCard(
+                ui = NavUi(route = route(9_000.0, 700.0), destination = place("Hedef")),
+                options = RouteOptions(),
+                onOptions = {},
+                canOpenExternal = true,
+                saved = false,
+                onSave = {},
+                onStart = {},
+                onCancel = {},
+                onChoose = {},
+                onAddStop = {},
+                onRemoveStop = {},
+                externalNavApps = listOf(NavApp("Test Harita", "com.test.maps")),
+            )
+        }
+        val action = compose.onNodeWithTag("map-external-app-action")
+        action.assertIsDisplayed().assertHasClickAction()
+        assertTargetAtLeast64("external app action", action)
+        val text = compose.onNodeWithTag("map-external-app-label", useUnmergedTree = true)
+        text.assertTextEquals(label).assertIsDisplayed()
+        val layout = textLayout(text)
+        val actionBounds = action.getUnclippedBoundsInRoot()
+        val textBounds = text.getUnclippedBoundsInRoot()
+        assertTrue(
+            "external label was truncated: ${overflowReport(layout)} action=$actionBounds text=$textBounds",
+            !layout.hasVisualOverflow,
+        )
+        assertTrue("external label must not be ellipsized: ${overflowReport(layout)}", (0 until layout.lineCount).none { layout.isLineEllipsized(it) })
+        assertInside("external label", text, actionBounds)
+        assertTargetAtLeast64("save action", compose.onNodeWithTag("map-save-action"))
+    }
+
+    @Test fun externalAppLabelWrapsWithoutEllipsisAtFont2InANarrowPanel() {
+        val label = string(R.string.open_external_label)
+        renderAt(190.dp, 440.dp, 2f) {
+            RouteCard(
+                ui = NavUi(route = route(9_000.0, 700.0), destination = place("Hedef")),
+                options = RouteOptions(),
+                onOptions = {},
+                canOpenExternal = true,
+                saved = false,
+                onSave = {},
+                onStart = {},
+                onCancel = {},
+                onChoose = {},
+                onAddStop = {},
+                onRemoveStop = {},
+                externalNavApps = listOf(NavApp("Test Harita", "com.test.maps")),
+            )
+        }
+        val action = compose.onNodeWithTag("map-external-app-action")
+        action.assertIsDisplayed().assertHasClickAction()
+        assertTargetAtLeast64("narrow external app action", action)
+        val text = compose.onNodeWithTag("map-external-app-label", useUnmergedTree = true)
+        text.assertTextEquals(label).assertIsDisplayed()
+        val layout = textLayout(text)
+        assertTrue("large external label should wrap", layout.lineCount >= 2)
+        assertTrue("large external label was truncated: ${overflowReport(layout)}", !layout.hasVisualOverflow)
+        assertInside("large external label", text, action.getUnclippedBoundsInRoot())
+    }
+
+    @Test fun externalAppActionStaysHiddenWhenMotionLockedAndSaveTargetRemains64() {
+        renderAt(356.dp, 440.dp, 2f) {
+            RouteCard(
+                ui = NavUi(route = route(9_000.0, 700.0), destination = place("Hedef")),
+                options = RouteOptions(),
+                onOptions = {},
+                canOpenExternal = false,
+                saved = false,
+                onSave = {},
+                onStart = {},
+                onCancel = {},
+                onChoose = {},
+                onAddStop = {},
+                onRemoveStop = {},
+                externalNavApps = listOf(NavApp("Test Harita", "com.test.maps")),
+            )
+        }
+        compose.onNodeWithTag("map-external-app-action").assertDoesNotExist()
+        assertTargetAtLeast64("save action while locked", compose.onNodeWithTag("map-save-action"))
     }
 
     @Test fun routeCardKeepsActionsPinnedInANarrowMapParent() {

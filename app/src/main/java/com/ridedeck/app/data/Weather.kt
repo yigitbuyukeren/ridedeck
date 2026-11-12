@@ -101,11 +101,11 @@ interface WeatherLookup {
     suspend fun fetch(at: GeoPoint, nowMs: Long = System.currentTimeMillis()): Result<WeatherSnapshot>
 }
 
-class WeatherRepository : WeatherLookup {
+class WeatherRepository(private val http: ServiceHttp = CancellableServiceHttp) : WeatherLookup {
     override suspend fun fetch(at: GeoPoint, nowMs: Long): Result<WeatherSnapshot> =
         withContext(Dispatchers.IO) {
             safely("weather") {
-                WeatherMath.parse(Http.get(WeatherMath.url(at.lat, at.lon), connectMs = 8_000, readMs = 10_000), nowMs)
+                WeatherMath.parse(http.get(WeatherMath.url(at.lat, at.lon), connectMs = 8_000, readMs = 10_000), nowMs)
                     ?: error("no current weather in reply")
             }
         }

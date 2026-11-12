@@ -14,9 +14,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 enum class NavigationTermination { NONE, USER_CANCELLED, ARRIVED, LOCATION_DISABLED, LOCATION_PERMISSION_REVOKED, TRACKING_ERROR }
 
-/** OFFLINE MAP SUFFICIENCY IS UNKNOWN for a cached route; never render this as ready. */
-enum class CachedRouteMapCoverage { UNKNOWN }
-
 data class CachedRoutePreview(
     val destination: Place,
     val remainingStops: List<Place>,
@@ -71,6 +68,10 @@ data class NavUi(
     val cachedPreviewRefreshFailed: Boolean = false,
     /** A saved trip exists but its geometry is missing/invalid and validated network is unavailable. */
     val cachedRouteNeedsNetwork: Boolean = false,
+    /**
+     * Advisory saved-region bounds comparison for the cached route. It is metadata, not a tile count:
+     * [CachedRouteMapCoverage.BOUNDS_ONLY] never means the map is downloaded and ready.
+     */
     val cachedPreviewMapCoverage: CachedRouteMapCoverage = CachedRouteMapCoverage.UNKNOWN,
 )
 
@@ -119,11 +120,17 @@ class NavigationController(
     private val cue: () -> Unit = {},
     /** Any explicit rider route command; owner decides whether a pending startup record is still current. */
     private val onUserRouteChoice: (RouteChoiceReason) -> Unit = {},
+    /**
+     * Saved offline-region metadata, observed while a cached preview is visible. It is bounds metadata
+     * only: no value proves tile availability. An empty flow keeps the advisory UNKNOWN.
+     */
+    private val offlineAreas: StateFlow<List<OfflineArea>> = MutableStateFlow<List<OfflineArea>>(emptyList()),
 ) {
     private val _options = MutableStateFlow(initialOptions)
     val options: StateFlow<RouteOptions> = _options
     private var routeJob: Job? = null
     private var cachedEligibilityJob: Job? = null
+    private var cachedCoverageJob: Job? = null
     private var routeGeneration = 0L
     /** Monotonic count of explicit route commands; startup restore must not override a rider action. */
     private var userRouteChoices = 0L
@@ -297,6 +304,7 @@ class NavigationController(
         stopCachedEligibility()
         if (_options.value != preview.options) _options.value = preview.options
         val blocked = !cachedStartEligible(preview.route)
+        val coverage = cachedCoverage(preview.route, offlineAreas.value)
         _ui.update {
             it.copy(
                 query = preview.destination.name,
@@ -329,12 +337,18 @@ class NavigationController(
                 cachedPreviewStartBlocked = blocked,
                 cachedPreviewRefreshFailed = false,
                 cachedRouteNeedsNetwork = false,
-                cachedPreviewMapCoverage = CachedRouteMapCoverage.UNKNOWN,
+                cachedPreviewMapCoverage = coverage,
             )
         }
         watchCachedEligibility(preview.route)
+        watchCachedCoverage(preview.route)
         return true
     }
+
+    /** Metadata-only bounds advice; a provider failure must never block showing the saved route. */
+    private fun cachedCoverage(route: Route, areas: List<OfflineArea>): CachedRouteMapCoverage =
+        runCatching { CachedRouteCoverage.assess(areas, route.shape) }
+            .getOrDefault(CachedRouteMapCoverage.UNKNOWN)
 
     /** Explicit rider action only: replaces the cached preview with a fresh route; failure keeps the cache. */
     fun refreshCachedPreview(): Boolean {
@@ -363,6 +377,11 @@ class NavigationController(
             if (generation != routeGeneration) return@launch
             if (result == null || result.isFailure) {
                 _ui.update { it.copy(loading = false, cachedPreviewRefreshFailed = true, error = text(R.string.route_failed)) }
+                // The cached route stays on screen: resume the watchers that refresh stopped.
+                state.route?.let { shown ->
+                    watchCachedEligibility(shown)
+                    watchCachedCoverage(shown)
+                }
                 return@launch
             }
             val fresh = result.getOrThrow()
@@ -378,6 +397,7 @@ class NavigationController(
                     cachedPreviewStartBlocked = false,
                     cachedPreviewRefreshFailed = false,
                     cachedRouteNeedsNetwork = false,
+                    cachedPreviewMapCoverage = CachedRouteMapCoverage.UNKNOWN,
                     progressIndex = 0,
                     progressFraction = 0.0,
                     maneuverIndex = 0,
@@ -401,6 +421,30 @@ class NavigationController(
         }
     }
 
+    /**
+     * Re-evaluates advisory bounds while the preview is visible: area metadata can change (new download,
+     * deletion, or first OfflineMaps load). It never starts guidance and never turns metadata into a tile count.
+     */
+    private fun watchCachedCoverage(route: Route) {
+        cachedCoverageJob?.cancel()
+        cachedCoverageJob = scope.launch {
+            offlineAreas.collect { areas ->
+                val state = _ui.value
+                if (!state.cachedPreview || state.navigating || state.route !== route) return@collect
+                val coverage = cachedCoverage(route, areas)
+                if (state.cachedPreviewMapCoverage != coverage) {
+                    _ui.update { current ->
+                        if (current.route === route && current.cachedPreview) {
+                            current.copy(cachedPreviewMapCoverage = coverage)
+                        } else {
+                            current
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /** The saved trip cannot be previewed locally; UI must offer an explicit online retry later. */
     fun markCachedRouteNeedsNetwork() {
         _ui.update { it.copy(cachedRouteNeedsNetwork = true) }
@@ -409,6 +453,8 @@ class NavigationController(
     private fun stopCachedEligibility() {
         cachedEligibilityJob?.cancel()
         cachedEligibilityJob = null
+        cachedCoverageJob?.cancel()
+        cachedCoverageJob = null
     }
 
     /** Fresh current fix must match the first stretch of the cached route, not its old starting position. */
@@ -452,7 +498,7 @@ class NavigationController(
                 results = emptyList(), searching = false, loading = true, error = null,
                 navigating = false, rerouting = false, arrived = false, termination = NavigationTermination.NONE,
                 cachedRoute = false, cachedPreview = false, cachedPreviewStartBlocked = false, cachedPreviewRefreshFailed = false,
-                cachedRouteNeedsNetwork = false)
+                cachedRouteNeedsNetwork = false, cachedPreviewMapCoverage = CachedRouteMapCoverage.UNKNOWN)
         }
         return from to generation
     }

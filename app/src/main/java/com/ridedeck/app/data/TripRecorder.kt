@@ -127,22 +127,30 @@ class TripRecorder(
         store.finishTrip(id, maxOf(endedAt, started + 1), stats)
     }
 
-    suspend fun delete(id: Long) = mutex.withLock {
-        if (storageAction { withContext(io) { store.delete(id) } } && tripId == id) {
-            tripId = null
-            _recording.value = false
-            startStreak = 0
+    /** Returns true only when the storage delete completed; failures keep the stored ride. */
+    suspend fun delete(id: Long): Boolean = mutex.withLock {
+        val deleted = storageAction { withContext(io) { store.delete(id) } }
+        if (deleted) {
+            if (tripId == id) {
+                tripId = null
+                _recording.value = false
+                startStreak = 0
+            }
+            version.value++
         }
-        version.value++
+        deleted
     }
 
-    suspend fun deleteAll() = mutex.withLock {
-        if (storageAction { withContext(io) { store.deleteAll() } }) {
+    /** Returns true only when every stored ride was deleted; failures keep the stored rides. */
+    suspend fun deleteAll(): Boolean = mutex.withLock {
+        val deleted = storageAction { withContext(io) { store.deleteAll() } }
+        if (deleted) {
             tripId = null
             _recording.value = false
             startStreak = 0
+            version.value++
         }
-        version.value++
+        deleted
     }
 
     suspend fun trips(): List<Trip> = mutex.withLock {

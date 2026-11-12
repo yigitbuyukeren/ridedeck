@@ -1,6 +1,7 @@
 package com.ridedeck.app.data
 
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.ln
@@ -118,4 +119,100 @@ object OfflinePlan {
             OfflineArea(o.getString("n"), GeoPoint(o.getDouble("lat"), o.getDouble("lon")), o.getInt("r"), o.getLong("at"))
         }
     }.getOrDefault(emptyList())
+}
+
+/**
+ * Advisory result of comparing cached-route geometry with saved offline-region metadata.
+ *
+ * [BOUNDS_ONLY] means only that the route lies inside the lat/lon bounds that were requested for the
+ * saved regions. It does not prove that any tile is stored: the saved area is written after MapLibre
+ * reports completion, and that SDK status is not tile availability. No value here may be presented as
+ * "offline ready", and downloads stay blocked by [OfflinePlan.blockFor].
+ */
+enum class CachedRouteMapCoverage {
+    /** No usable saved regions or route geometry, or metadata outside the trusted download schema. */
+    UNKNOWN,
+
+    /** The whole route lies inside saved-region metadata bounds; tile presence is NOT verified. */
+    BOUNDS_ONLY,
+
+    /** At least one route segment lies outside every saved region's metadata bounds. */
+    OUTSIDE_SAVED_BOUNDS;
+
+    /** Saved-region metadata is never evidence that map tiles are actually stored. */
+    val provesTileAvailability: Boolean get() = false
+}
+
+/**
+ * Metadata-only bounds assessment for a cached route. Every polyline segment is clipped against the
+ * rectangles [OfflinePlan.corners] requested for the saved areas, and a segment is accepted only when
+ * those clipped intervals cover it completely across one or more areas. Checking vertices alone is not
+ * enough: a straight segment between two areas can cross an uncovered gap.
+ *
+ * Anything that cannot be judged conservatively stays [CachedRouteMapCoverage.UNKNOWN]: empty or
+ * malformed metadata, fewer than two route points, polar points, a bounds rectangle that wraps the
+ * antimeridian, or a segment that itself crosses ±180°. Longitude is compared as a plain number there,
+ * so such geometry is not silently treated as "outside" or as a long straight line.
+ */
+object CachedRouteCoverage {
+    private const val EPS = 1e-9
+    private const val MAX_LAT = 85.0
+
+    fun assess(areas: List<OfflineArea>, shape: List<GeoPoint>): CachedRouteMapCoverage {
+        if (shape.size < 2 || areas.isEmpty()) return CachedRouteMapCoverage.UNKNOWN
+        if (shape.any { !trustedPoint(it) }) return CachedRouteMapCoverage.UNKNOWN
+        if (shape.zipWithNext().any { (a, b) -> abs(a.lon - b.lon) > 180.0 }) return CachedRouteMapCoverage.UNKNOWN
+
+        val rects = ArrayList<Pair<GeoPoint, GeoPoint>>(areas.size)
+        for (area in areas) {
+            // A region whose saved metadata is unusable may be the one covering the gap: make no claim.
+            if (area.radiusKm <= 0 || !trustedPoint(area.center)) return CachedRouteMapCoverage.UNKNOWN
+            val (sw, ne) = OfflinePlan.corners(area.center, area.radiusKm)
+            if (!trustedPoint(sw) || !trustedPoint(ne)) return CachedRouteMapCoverage.UNKNOWN
+            rects += sw to ne
+        }
+
+        for (i in 0 until shape.lastIndex) {
+            if (!segmentCovered(shape[i], shape[i + 1], rects)) return CachedRouteMapCoverage.OUTSIDE_SAVED_BOUNDS
+        }
+        return CachedRouteMapCoverage.BOUNDS_ONLY
+    }
+
+    private fun trustedPoint(p: GeoPoint): Boolean =
+        p.lat.isFinite() && p.lon.isFinite() && abs(p.lat) <= MAX_LAT && abs(p.lon) <= 180.0
+
+    /** Whether the union of the saved bounds covers the whole a→b segment; interval overlap is exact. */
+    private fun segmentCovered(a: GeoPoint, b: GeoPoint, rects: List<Pair<GeoPoint, GeoPoint>>): Boolean {
+        val intervals = rects.mapNotNull { (sw, ne) -> clip(a, b, sw, ne) }.sortedBy { it.first }
+        if (intervals.isEmpty()) return false
+        var coveredUntil = 0.0
+        for ((start, end) in intervals) {
+            if (start > coveredUntil + EPS) return false
+            if (end > coveredUntil) coveredUntil = end
+            if (coveredUntil >= 1.0 - EPS) return true
+        }
+        return coveredUntil >= 1.0 - EPS
+    }
+
+    /** The part of segment a→b inside the lat/lon rectangle (sw, ne), as fractions of the segment. */
+    private fun clip(a: GeoPoint, b: GeoPoint, sw: GeoPoint, ne: GeoPoint): Pair<Double, Double>? {
+        var t0 = 0.0
+        var t1 = 1.0
+        fun edge(p: Double, d: Double, lo: Double, hi: Double): Boolean {
+            if (d == 0.0) return p >= lo && p <= hi
+            var enter = (lo - p) / d
+            var exitT = (hi - p) / d
+            if (enter > exitT) {
+                val swap = enter
+                enter = exitT
+                exitT = swap
+            }
+            if (enter > t0) t0 = enter
+            if (exitT < t1) t1 = exitT
+            return t0 <= t1
+        }
+        if (!edge(a.lat, b.lat - a.lat, sw.lat, ne.lat)) return null
+        if (!edge(a.lon, b.lon - a.lon, sw.lon, ne.lon)) return null
+        return t0 to t1
+    }
 }

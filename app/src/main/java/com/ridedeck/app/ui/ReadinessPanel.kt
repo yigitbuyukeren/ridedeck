@@ -94,12 +94,18 @@ internal data class ReadinessUiState(val open: Boolean = false) {
 
 internal fun readinessAction(item: ReadinessItem): ReadinessAction? = when {
     item.kind == ReadinessKind.PRECISE_LOCATION -> ReadinessAction.APP_DETAILS
-    // A GPS row missing precise permission is a permission-recovery action, not a provider toggle.
-    item.kind == ReadinessKind.GPS && item.detail == ReadinessDetail.GPS_PERMISSION_MISSING -> ReadinessAction.APP_DETAILS
+    // A GPS row whose permission is missing or unreadable is a permission-recovery action, not a
+    // provider toggle; sending "location source" there could not fix a permission problem.
+    item.kind == ReadinessKind.GPS &&
+        (item.detail == ReadinessDetail.GPS_PERMISSION_MISSING || item.detail == ReadinessDetail.GPS_PERMISSION_UNKNOWN) ->
+        ReadinessAction.APP_DETAILS
     item.kind == ReadinessKind.GPS -> ReadinessAction.LOCATION_SOURCE
     item.kind == ReadinessKind.INTERNET -> ReadinessAction.NETWORK_SETTINGS
     item.kind == ReadinessKind.NOTIFICATIONS -> ReadinessAction.NOTIFICATION_SETTINGS
     item.kind == ReadinessKind.MEDIA -> ReadinessAction.NOTIFICATION_ACCESS
+    // SOS stays optional, but a missing SMS permission has a real recovery page: the app's own
+    // permission list. This never sends a message or starts SOS.
+    item.kind == ReadinessKind.SOS && item.detail == ReadinessDetail.SOS_PERMISSION_MISSING -> ReadinessAction.APP_DETAILS
     else -> null
 }
 
@@ -124,12 +130,22 @@ internal fun ReadinessEntryRow(onOpen: () -> Unit, modifier: Modifier = Modifier
 }
 
 /**
- * The one refreshable fact-read helper used by the panel. `refreshKey` is the Activity resume tick,
- * so returning from a system page re-reads permissions; a failed read is null/UNKNOWN.
+ * The one refreshable fact-read helper used by the panel. It re-reads when [refreshKey] changes and on
+ * every lifecycle resume, so returning from a system/app settings page refreshes permissions even if a
+ * caller does not supply a new key. A failed read is null/UNKNOWN, never a crash.
  */
 @Composable
-internal fun <T> rememberReadinessFact(refreshKey: Any?, read: () -> T): T? =
-    remember(refreshKey) { runCatching(read).getOrNull() }
+internal fun <T> rememberReadinessFact(refreshKey: Any?, read: () -> T): T? {
+    val currentRead by rememberUpdatedState(read)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    var fact by remember(refreshKey) { mutableStateOf(runCatching(read).getOrNull()) }
+    LaunchedEffect(refreshKey, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            fact = runCatching { currentRead() }.getOrNull()
+        }
+    }
+    return fact
+}
 
 /** Lifecycle-aware one-second clock for freshness; it never requests GPS or creates a location source. */
 @Composable

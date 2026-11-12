@@ -4,8 +4,10 @@ import kotlin.math.abs
 
 /**
  * A saved trip prepared for drawing. [segments] never bridge a gap: invalid fixes, non-increasing
- * timestamps, long GPS outages and implausible jumps start a new segment. [start] and [end] are the
- * first and last usable fixes before sampling; a one-point trip keeps the same point for both.
+ * timestamps, long GPS outages and implausible jumps start a new segment. Exact duplicate fixes
+ * (same timestamp and coordinate) add no geometry and are ignored instead of creating a fake gap.
+ * [start] and [end] are the first and last usable fixes before sampling; a one-point trip keeps the
+ * same point for both.
  *
  * [pointCount] is the number of usable saved fixes before sampling. [sampledPointCount] is the
  * number of points actually returned in [segments] and never exceeds the requested budget.
@@ -79,8 +81,13 @@ data class TripTrace(
                     continue
                 }
 
-                val point = GeoPoint(raw.lat, raw.lon)
                 val before = previous
+                // A duplicated row (same fix saved twice) adds no geometry. Splitting the line and
+                // reporting a fake GPS gap would be wrong; a shared timestamp with a different
+                // position is still ambiguous and stays a TIME_NOT_INCREASING break.
+                if (before != null && raw.t == before.t && raw.lat == before.lat && raw.lon == before.lon) continue
+
+                val point = GeoPoint(raw.lat, raw.lon)
                 if (before != null) {
                     val dt = raw.t - before.t
                     val distance = Geo.distance(GeoPoint(before.lat, before.lon), point)

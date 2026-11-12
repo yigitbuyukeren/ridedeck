@@ -91,6 +91,9 @@ internal data class TripSummaryCalendarState(
     val broadcastActive: Boolean,
 )
 
+/** Result of the latest explicit delete action, kept until the user selects another trip or deletes again. */
+internal data class TripDeleteFeedback(val succeeded: Boolean, val tripDate: String)
+
 /**
  * Lifecycle-aware calendar refresh for the summary header. The clock, zone and signal flow are
  * injectable for tests; production uses the wall clock, system zone and the three protected system
@@ -181,6 +184,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
     val startRide = rememberRideStart(tracking)
     val list by produceState(emptyList<Trip>(), version) { value = trips.trips() }
     var selectedId by remember { mutableStateOf<Long?>(null) }
+    var deleteFeedback by remember { mutableStateOf<TripDeleteFeedback?>(null) }
     val selected = list.firstOrNull { it.id == selectedId } ?: list.firstOrNull()
     val dateFormat = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
     val locale = LocalConfiguration.current.locales[0]
@@ -224,6 +228,9 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
             if (ride.running && !recordingAllowed) Text(stringResource(R.string.ride_recording_off), color = palette.muted, fontSize = 14.sp)
             if (ride.running && !NotificationManagerCompat.from(context).areNotificationsEnabled()) {
                 Text(stringResource(R.string.ride_notifications_off), color = palette.muted, fontSize = 14.sp)
+            }
+            deleteFeedback?.let {
+                TripDeleteFeedbackText(it, Modifier.fillMaxWidth().padding(top = 8.dp))
             }
             if (list.isEmpty()) {
                 Column(
@@ -271,7 +278,10 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                                 modifier = Modifier.fillMaxWidth()
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(if (isSelected) MotoColors.Blue else MotoColors.Card)
-                                    .hapticClickable(haptic = RideHaptic.Select) { selectedId = trip.id }
+                                    .hapticClickable(haptic = RideHaptic.Select) {
+                                        selectedId = trip.id
+                                        deleteFeedback = null
+                                    }
                                     .padding(16.dp),
                             ) {
                                 val fg = if (isSelected) Color.White else palette.text
@@ -290,9 +300,15 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                                 trip = selected,
                                 modifier = m,
                                 onDelete = {
-                                    scope.launch {
-                                        trips.delete(selected.id)
-                                        selectedId = null
+                                    val target = selected
+                                    if (target != null) {
+                                        val tripDate = dateFormat.format(Date(target.startedAt))
+                                        deleteFeedback = null
+                                        scope.launch {
+                                            val deleted = trips.delete(target.id)
+                                            deleteFeedback = TripDeleteFeedback(deleted, tripDate)
+                                            if (deleted) selectedId = null
+                                        }
                                     }
                                 },
                                 onLoadPoints = { trips.points(selected.id) },
@@ -319,6 +335,21 @@ private fun SplitPane(modifier: Modifier, first: @Composable (Modifier) -> Unit,
             second(Modifier.weight(1f).fillMaxHeight())
         }
     }
+}
+
+/** Explicit per-action result; stays visible even when the deleted trip was the last one. */
+@Composable
+internal fun TripDeleteFeedbackText(feedback: TripDeleteFeedback, modifier: Modifier = Modifier) {
+    Text(
+        stringResource(
+            if (feedback.succeeded) R.string.trip_delete_success_fmt else R.string.trip_delete_failed_fmt,
+            feedback.tripDate,
+        ),
+        modifier = modifier.testTag("trip-delete-feedback"),
+        color = if (feedback.succeeded) MotoColors.Green else MotoColors.Red,
+        fontSize = 15.sp,
+        fontWeight = FontWeight.SemiBold,
+    )
 }
 
 /** Weekly/monthly totals in the list pane; scrolls with history and keeps a 64 dp minimum block. */

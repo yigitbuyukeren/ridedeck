@@ -70,6 +70,8 @@ class RideNavigation(
         inCall = { call.state.value.phase != CallPhase.IDLE },
         cue = { NavCue.pulse(app) },
         nowElapsedMs = SystemClock::elapsedRealtime,
+        // Advisory only: saved-region metadata bounds, never tile availability. OfflineMaps loads on demand.
+        offlineAreas = OfflineMaps.areas,
         onUserRouteChoice = { reason ->
             retryContext = null
             startupInvalidation.onRouteChoice(reason)
@@ -167,14 +169,18 @@ class RideNavigation(
                 override fun routeChoiceCount(): Long = nav.userRouteChoiceCount()
                 override fun hasDestination(): Boolean = nav.ui.value.destination != null
                 override fun isNavigating(): Boolean = nav.ui.value.navigating
-                override fun restoreCachedPreview(snapshot: RouteGeometrySnapshot): Boolean = nav.restoreCachedPreview(
-                    CachedRoutePreview(
-                        destination = snapshot.destination,
-                        remainingStops = snapshot.remainingStops,
-                        options = snapshot.options,
-                        route = snapshot.route,
+                override fun restoreCachedPreview(snapshot: RouteGeometrySnapshot): Boolean {
+                    // Advisory metadata only: a native/init failure must never block the saved geometry preview.
+                    runCatching { OfflineMaps.load(app) }
+                    return nav.restoreCachedPreview(
+                        CachedRoutePreview(
+                            destination = snapshot.destination,
+                            remainingStops = snapshot.remainingStops,
+                            options = snapshot.options,
+                            route = snapshot.route,
+                        )
                     )
-                )
+                }
                 override fun restoreNetworkTrip(activeTrip: ActiveTrip) {
                     nav.restoreTrip(activeTrip.destination, activeTrip.finalDestination, activeTrip.stops, activeTrip.options)
                 }

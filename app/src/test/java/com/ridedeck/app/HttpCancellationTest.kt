@@ -1,6 +1,7 @@
 package com.ridedeck.app
 
 import com.ridedeck.app.data.Http
+import com.ridedeck.app.data.safely
 import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.IOException
@@ -15,11 +16,13 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -273,6 +276,123 @@ class HttpCancellationTest {
             }
         }
     }
+
+    @Test
+    fun safelyRethrowsCancellationInsteadOfReturningFailure() {
+        val cancelled = CancellationException("cancelled")
+        val thrown = assertThrows(CancellationException::class.java) {
+            safely("test") { throw cancelled }
+        }
+        assertSame(cancelled, thrown)
+    }
+
+    @Test
+    fun callerTimeoutCancelsAStalledResponseAndClosesItsSocket() {
+        LoopbackServer().use { server ->
+            val startedAt = System.nanoTime()
+            assertThrows(TimeoutCancellationException::class.java) {
+                runBlocking {
+                    // The server accepts the request and never writes a status line, so only the
+                    // caller's timeout can end the call.
+                    withTimeout(2_000) {
+                        Http.getCancellable("${server.base}/silent", connectMs = 2_000, readMs = 30_000)
+                    }
+                }
+            }
+            val elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
+            assertTrue("timeout took ${elapsedMs}ms", elapsedMs < 6_000)
+            assertTrue("stalled request never started", server.silentStarted.await(5, TimeUnit.SECONDS))
+            assertTrue("timed-out socket stayed open", server.silentClientClosed.await(5, TimeUnit.SECONDS))
+            runBlocking {
+                assertEquals(
+                    "hello",
+                    withTimeout(3_000) { Http.getCancellable("${server.base}/ok", connectMs = 2_000, readMs = 2_000) },
+                )
+            }
+        }
+    }
+
+    @Test
+    fun readTimeoutFailsWithIOExceptionAndLeavesThePoolUsable() {
+        LoopbackServer().use { server ->
+            // /slow sends the status line and one body byte, then stalls, so the timeout is a read
+            // timeout rather than a connect failure.
+            assertThrows(IOException::class.java) {
+                runBlocking {
+                    Http.postFormCancellable("${server.base}/slow", "data=x", connectMs = 2_000, readMs = 1_000)
+                }
+            }
+            assertTrue("stalled request never started", server.slowStarted.await(5, TimeUnit.SECONDS))
+            assertTrue("timed-out socket stayed open", server.slowClientClosed.await(5, TimeUnit.SECONDS))
+            runBlocking {
+                assertEquals(
+                    "hello",
+                    withTimeout(3_000) { Http.getCancellable("${server.base}/ok", connectMs = 2_000, readMs = 2_000) },
+                )
+            }
+        }
+    }
+
+    @Test
+    fun cancellingALargeUploadClosesItsSocketAndLeavesThePoolUsable() = runBlocking {
+        LoopbackServer().use { server ->
+            // The server reads only the headers and never consumes this body. Cancelling while the
+            // request is still being written must abort the socket, not let the upload continue.
+            val body = "x".repeat(8 * 1024 * 1024)
+            val job = launch(Dispatchers.Default) {
+                Http.postFormCancellable("${server.base}/unread", body, connectMs = 2_000, readMs = 30_000)
+                error("uploaded request should not complete")
+            }
+            try {
+                assertTrue("upload request never started", server.uploadStarted.await(5, TimeUnit.SECONDS))
+                Thread.sleep(200)
+                assertTrue("upload completed before cancellation", job.isActive)
+                val cancelAt = System.nanoTime()
+                job.cancel()
+                withTimeout(3_000) { job.join() }
+                val cancelMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - cancelAt)
+                assertTrue("cancellation took ${cancelMs}ms", cancelMs < 2_000)
+                assertTrue(job.isCancelled)
+
+                server.uploadProbe.countDown()
+                assertTrue("uploaded socket stayed open", server.uploadClosed.await(5, TimeUnit.SECONDS))
+                assertEquals(
+                    "hello",
+                    withTimeout(3_000) { Http.getCancellable("${server.base}/ok", connectMs = 2_000, readMs = 2_000) },
+                )
+            } finally {
+                server.uploadProbe.countDown()
+                job.cancel()
+            }
+        }
+    }
+
+    @Test
+    fun emptyOn400ReturnsWithoutReadingTheUnfinishedBody() {
+        LoopbackServer().use { server ->
+            val startedAt = System.nanoTime()
+            val reply = runBlocking {
+                // /slow400 announces 64 body bytes but sends one; reading them would block for the
+                // full read timeout. emptyOn400 must dispose the response immediately.
+                withTimeout(3_000) {
+                    Http.postJsonCancellable(
+                        "${server.base}/slow400", "{}", connectMs = 2_000, readMs = 30_000, emptyOn400 = true,
+                    )
+                }
+            }
+            val elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
+            assertEquals("{}", reply)
+            assertTrue("400 reply took ${elapsedMs}ms", elapsedMs < 2_000)
+            assertTrue("400 response never started", server.early400Started.await(5, TimeUnit.SECONDS))
+            assertTrue("unread 400 body kept the socket open", server.early400Closed.await(5, TimeUnit.SECONDS))
+            runBlocking {
+                assertEquals(
+                    "hello",
+                    withTimeout(3_000) { Http.getCancellable("${server.base}/ok", connectMs = 2_000, readMs = 2_000) },
+                )
+            }
+        }
+    }
 }
 
 /** Minimal HTTP/1.1 loopback server for deterministic cancellation and parity checks. */
@@ -285,6 +405,13 @@ private class LoopbackServer(slowLimit: Int = 1) : Closeable {
     val slowClientClosed = CountDownLatch(slowLimit)
     val slowRequests = AtomicInteger()
     val slowRelease = CountDownLatch(1)
+    val silentStarted = CountDownLatch(1)
+    val silentClientClosed = CountDownLatch(1)
+    val uploadStarted = CountDownLatch(1)
+    val uploadProbe = CountDownLatch(1)
+    val uploadClosed = CountDownLatch(1)
+    val early400Started = CountDownLatch(1)
+    val early400Closed = CountDownLatch(1)
 
     @Volatile var lastMethod: String? = null
     @Volatile var lastUserAgent: String? = null
@@ -317,7 +444,8 @@ private class LoopbackServer(slowLimit: Int = 1) : Closeable {
                     val colon = line.indexOf(':')
                     if (colon > 0) headers[line.substring(0, colon).trim().lowercase()] = line.substring(colon + 1).trim()
                 }
-                val body = readBody(input, headers["content-length"]?.toIntOrNull() ?: 0)
+                // /unread deliberately leaves the body in the socket to apply write backpressure.
+                val body = if (path == "/unread") "" else readBody(input, headers["content-length"]?.toIntOrNull() ?: 0)
 
                 lastMethod = method
                 lastUserAgent = headers["user-agent"]
@@ -336,6 +464,29 @@ private class LoopbackServer(slowLimit: Int = 1) : Closeable {
                         // This deliberately does not depend on slowRelease, which the tests hold back
                         // to prove the worker/socket, not a server-side release, made the slot reusable.
                         if (awaitClientEof(input)) slowClientClosed.countDown()
+                        slowRelease.await(10, TimeUnit.SECONDS)
+                    }
+                    "/silent" -> {
+                        // Accept the request but never send a status line; only cancellation or the
+                        // caller's timeout can finish it.
+                        silentStarted.countDown()
+                        if (awaitClientEof(input)) silentClientClosed.countDown()
+                        slowRelease.await(10, TimeUnit.SECONDS)
+                    }
+                    "/unread" -> {
+                        uploadStarted.countDown()
+                        // Start draining only after the test has cancelled the upload. The client
+                        // must close the socket instead of finishing the rest of the body.
+                        uploadProbe.await(10, TimeUnit.SECONDS)
+                        if (awaitClientEof(input)) uploadClosed.countDown()
+                    }
+                    "/slow400" -> {
+                        // A complete 400 has 64 body bytes, but only one is sent before the stall.
+                        writeHead(output, 400, 64)
+                        output.write('x'.code)
+                        output.flush()
+                        early400Started.countDown()
+                        if (awaitClientEof(input)) early400Closed.countDown()
                         slowRelease.await(10, TimeUnit.SECONDS)
                     }
                     "/missing" -> respond(output, 404, "nope")
@@ -397,6 +548,7 @@ private class LoopbackServer(slowLimit: Int = 1) : Closeable {
 
     override fun close() {
         slowRelease.countDown()
+        uploadProbe.countDown()
         runCatching { socket.close() }
         acceptThread.join(1_000)
     }

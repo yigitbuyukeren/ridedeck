@@ -126,6 +126,8 @@
     <string name="trip_delete_confirm_body">The trip from %1$s and its GPS record will be permanently deleted from this phone.</string>
     <string name="trip_delete_confirm_action">Delete trip</string>
     <string name="trip_delete_cancel">Cancel</string>
+    <string name="trip_delete_success_fmt">Trip deleted: %1$s</string>
+    <string name="trip_delete_failed_fmt">Trip could not be deleted; it was kept: %1$s</string>
     <string name="trip_map_open">Show on map</string>
     <string name="trip_map_title">Trip map</string>
     <string name="trip_map_privacy">Opening the map may request tiles from OpenFreeMap. Your GPS record stays on this phone.</string>
@@ -137,6 +139,7 @@
     <string name="trip_map_simplified">Record simplified: %1$d / %2$d points drawn.</string>
     <string name="trip_map_gaps">GPS gaps drawn separately: %1$d.</string>
     <string name="trip_map_local_only">Tiles unavailable; only the stored trace is shown on a local background. No offline routing is performed.</string>
+    <string name="trip_map_tiles_unavailable">Some map tiles could not load. Saved GPS trace remains available.</string>
     <string name="record_trips_title">Record trips</string>
     <string name="record_trips_desc">While the app is on screen, rides are recorded by themselves and stay on this phone. To record with the screen off, start the ride with Start.</string>
     <string name="speed_limit_title">Speed limit display</string>
@@ -414,6 +417,8 @@
     <string name="cached_route_refresh">Refresh route</string>
     <string name="cached_route_refresh_failed">Route could not be refreshed; the cached route is kept.</string>
     <string name="cached_route_coverage_unknown">Offline map sufficiency has not been verified.</string>
+    <string name="cached_route_bounds_only">Route is inside saved offline region bounds; the tile download is not verified.</string>
+    <string name="cached_route_outside_saved_bounds">Route leaves the saved offline regions; offline map sufficiency is not verified.</string>
     <string name="detour_calculate">Calculate detour</string>
     <string name="detour_available_fmt">≈ +%1$s · +%2$s</string>
     <string name="detour_unavailable">Detour could not be calculated</string>

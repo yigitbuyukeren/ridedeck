@@ -109,8 +109,9 @@ object Http {
 
     /**
      * OkHttp is used only here, where cancellation must abort the socket. [Call.cancel] is its
-     * mechanism for aborting an in-flight connect, write or read; the slow-read path is measured by
-     * the loopback tests. The synchronous HttpURLConnection path above is unchanged for every
+     * mechanism for aborting an in-flight connect, write or read; the loopback tests cover the
+     * slow-read, caller-timeout and upload-abort paths. DNS/connect timing and real device networks
+     * are not measured here. The synchronous HttpURLConnection path above is unchanged for every
      * existing caller. The dispatcher is a fixed pool shared by all cancellable calls, so a tap
      * never creates its own thread or an unbounded pool.
      */
@@ -142,18 +143,21 @@ object Http {
                 }
 
                 override fun onResponse(call: Call, response: Response) {
-                    response.use {
-                        try {
-                            val result = when {
+                    // Dispose the response before resuming: a caller that retries in its catch
+                    // handler must not race a socket that is still attached to a failed body.
+                    val result = try {
+                        response.use {
+                            when {
                                 emptyOn400 && it.code == 400 -> "{}"
                                 it.code !in 200..299 -> error("HTTP ${it.code}")
                                 else -> it.body?.string().orEmpty()
                             }
-                            continuation.resume(result)
-                        } catch (e: Exception) {
-                            continuation.resumeWithException(e)
                         }
+                    } catch (e: Exception) {
+                        continuation.resumeWithException(e)
+                        return
                     }
+                    continuation.resume(result)
                 }
             })
         }

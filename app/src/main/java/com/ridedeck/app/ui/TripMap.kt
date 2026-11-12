@@ -69,6 +69,7 @@ import org.maplibre.android.style.layers.PropertyFactory.lineColor
 import org.maplibre.android.style.layers.PropertyFactory.lineJoin
 import org.maplibre.android.style.layers.PropertyFactory.lineWidth
 import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.android.tile.TileOperation
 import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
@@ -79,6 +80,8 @@ private const val SRC_TRIP_LINES = "trip-lines"
 private const val SRC_TRIP_START = "trip-start"
 private const val SRC_TRIP_END = "trip-end"
 private const val LOCAL_STYLE_FALLBACK_MS = 3_500L
+
+private val TRIP_TILE_SOURCES = setOf(SRC_TRIP_LINES, SRC_TRIP_START, SRC_TRIP_END)
 
 private sealed interface TripMapLoad {
     data object Loading : TripMapLoad
@@ -93,6 +96,7 @@ internal data class TripMapSnapshot(
     val styleReady: Boolean,
     val dayStyle: Boolean,
     val localOnly: Boolean,
+    val tilesUnavailable: Boolean,
     val lineLayer: Boolean,
     val startLayer: Boolean,
     val endLayer: Boolean,
@@ -107,6 +111,18 @@ internal data class TripMapSnapshot(
     val cameraTarget: LatLng?,
     val cameraZoom: Double,
 )
+
+/**
+ * Sticky base-map tile failure for the current style. One failed tile is enough to say that some
+ * tiles could not load; a later successful tile does not prove the whole map loaded, so only an
+ * explicit style reload clears the state. Trip GeoJSON sources never request tiles.
+ */
+internal data class TripTileAvailability(val hasError: Boolean = false) {
+    fun onAction(operation: TileOperation?, sourceId: String?): TripTileAvailability {
+        if (sourceId != null && sourceId in TRIP_TILE_SOURCES) return this
+        return if (operation == TileOperation.Error) copy(hasError = true) else this
+    }
+}
 
 /**
  * Lazily loads saved points only after the explicit map action. The point read is cancelled with
@@ -246,6 +262,35 @@ internal fun TripMapReady(
     }
 }
 
+/** Explains a missing base map without covering the trace or the attribution. */
+@Composable
+internal fun TripMapNotice(localOnly: Boolean, tilesUnavailable: Boolean) {
+    // A local style has no tiles at all; a loaded online style may still be missing some tiles.
+    val message = when {
+        localOnly -> R.string.trip_map_local_only
+        tilesUnavailable -> R.string.trip_map_tiles_unavailable
+        else -> return
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 32.dp)
+            .padding(bottom = 4.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color(0xCC000000))
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 6.dp, vertical = 3.dp)
+            .testTag("trip-map-notice"),
+    ) {
+        Text(
+            stringResource(message),
+            fontSize = 11.sp,
+            lineHeight = 13.2.sp,
+            color = Color.White,
+        )
+    }
+}
+
 @Composable
 internal fun TripMapCanvas(
     trace: TripTrace,
@@ -265,6 +310,7 @@ internal fun TripMapCanvas(
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
     var styleReady by remember { mutableStateOf(false) }
     var localOnly by remember { mutableStateOf(false) }
+    var tileState by remember { mutableStateOf(TripTileAvailability()) }
     var mapSize by remember { mutableStateOf(IntSize.Zero) }
     var frameRendered by remember { mutableStateOf(false) }
     var cameraFitted by remember { mutableStateOf(false) }
@@ -275,14 +321,17 @@ internal fun TripMapCanvas(
     var fittedSize by remember(trace) { mutableStateOf(IntSize.Zero) }
 
     fun publishSnapshot(m: MapLibreMap, local: Boolean) {
+        // Snapshots are a test seam; production must not rebuild GeoJSON features for them.
+        val sink = snapshotSink ?: return
         val style = m.style
         val camera = m.cameraPosition
-        snapshotSink?.invoke(
+        sink(
             TripMapSnapshot(
                 hasMap = true,
                 styleReady = styleReady,
                 dayStyle = currentIsDay,
                 localOnly = local,
+                tilesUnavailable = !local && tileState.hasError,
                 lineLayer = style?.getLayer("trip-line") != null,
                 startLayer = style?.getLayer("trip-start") != null,
                 endLayer = style?.getLayer("trip-end") != null,
@@ -323,6 +372,25 @@ internal fun TripMapCanvas(
         mapView.addOnDidBecomeIdleListener(frameListener)
         onDispose { mapView.removeOnDidBecomeIdleListener(frameListener) }
     }
+    // The style can load while its tiles still fail (provider down, quota, captive portal). Keep
+    // the first SDK-reported tile failure until the next explicit style load; a good tile is not
+    // proof that the complete map loaded.
+    DisposableEffect(mapView) {
+        val listener = MapView.OnTileActionListener { operation, _, _, _, _, _, sourceId ->
+            val token = generation
+            mapView.post {
+                if (token == generation && styleReady && !localOnly && !disposed && !mapView.isDestroyed) {
+                    val next = tileState.onAction(operation, sourceId)
+                    if (next != tileState) {
+                        tileState = next
+                        map?.let { publishSnapshot(it, localOnly) }
+                    }
+                }
+            }
+        }
+        mapView.addOnTileActionListener(listener)
+        onDispose { mapView.removeOnTileActionListener(listener) }
+    }
 
     LaunchedEffect(map, isDay, online, trace) {
         val m = map ?: return@LaunchedEffect
@@ -330,6 +398,7 @@ internal fun TripMapCanvas(
         // Keep the last good camera even if a previous style request is still in flight.
         val restoreCamera = if (styleReady) m.cameraPosition else lastCamera
         styleReady = false
+        tileState = TripTileAvailability()
         frameRendered = false
         cameraFitted = fitted
         fun draw(style: Style, callbackToken: Int, local: Boolean) {
@@ -389,26 +458,7 @@ internal fun TripMapCanvas(
     }
 
     Column(modifier = modifier) {
-        if (localOnly) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 32.dp)
-                    .padding(bottom = 4.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xCC000000))
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 6.dp, vertical = 3.dp)
-                    .testTag("trip-map-notice"),
-            ) {
-                Text(
-                    stringResource(R.string.trip_map_local_only),
-                    fontSize = 11.sp,
-                    lineHeight = 13.2.sp,
-                    color = Color.White,
-                )
-            }
-        }
+        TripMapNotice(localOnly = localOnly, tilesUnavailable = tileState.hasError)
         Box(
             modifier = Modifier.weight(1f).fillMaxWidth().heightIn(min = 64.dp)
                 .onSizeChanged {

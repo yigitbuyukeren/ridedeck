@@ -1,6 +1,7 @@
 package com.ridedeck.app.ui
 
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -14,6 +15,10 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.ridedeck.app.R
 import com.ridedeck.app.data.ConnectivityStatus
 import com.ridedeck.app.data.LocationState
@@ -141,5 +146,69 @@ class ReadinessWiringUiTest {
         }
     }
 
+    @Test fun motionCloseStaysClosedWhenStationaryUntilExplicitReopen() {
+        var inputLocked by mutableStateOf(false)
+        var gate by mutableStateOf(ReadinessUiState())
+
+        compose.setContent {
+            MotoTheme {
+                if (gate.open) {
+                    ReadinessContent(fakeReadiness(), onClose = { gate = gate.dismiss() }, onAction = {})
+                }
+            }
+        }
+
+        compose.runOnIdle { gate = gate.requestOpen(inputLocked) }
+        compose.onNodeWithText(composeContext().getString(R.string.readiness_title)).assertIsDisplayed()
+
+        compose.runOnIdle {
+            inputLocked = true
+            gate = gate.afterMotion(inputLocked)
+        }
+        compose.onNodeWithText(composeContext().getString(R.string.readiness_title)).assertDoesNotExist()
+
+        // Becoming stationary again must not silently reopen an informational panel that motion closed.
+        compose.runOnIdle {
+            inputLocked = false
+            gate = gate.afterMotion(inputLocked)
+        }
+        compose.onNodeWithText(composeContext().getString(R.string.readiness_title)).assertDoesNotExist()
+
+        compose.runOnIdle { gate = gate.requestOpen(inputLocked) }
+        compose.onNodeWithText(composeContext().getString(R.string.readiness_title)).assertIsDisplayed()
+    }
+
+    @Test fun resumeWithoutRefreshKeyChangeReReadsPermissionFact() {
+        var fact = false
+        val owner = TestLifecycleOwner()
+
+        compose.setContent {
+            MotoTheme {
+                CompositionLocalProvider(LocalLifecycleOwner provides owner) {
+                    Text(
+                        "fact=${rememberReadinessFact(refreshKey = "fixed") { fact }}",
+                        modifier = Modifier.testTag("readiness-fact"),
+                    )
+                }
+            }
+        }
+        compose.runOnIdle { owner.registry.currentState = Lifecycle.State.RESUMED }
+        compose.onNodeWithTag("readiness-fact").assertTextContains("fact=false")
+
+        compose.runOnIdle { owner.registry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE) }
+        compose.runOnIdle { fact = true }
+        compose.onNodeWithTag("readiness-fact").assertTextContains("fact=false")
+
+        compose.runOnIdle { owner.registry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME) }
+        compose.waitUntil(2_000) {
+            compose.onAllNodesWithText("fact=true", substring = true).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
     private fun composeContext() = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+
+    private class TestLifecycleOwner : LifecycleOwner {
+        val registry = LifecycleRegistry(this)
+        override val lifecycle: Lifecycle get() = registry
+    }
 }

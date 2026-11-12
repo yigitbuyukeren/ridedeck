@@ -21,6 +21,7 @@ class ReadinessActionTest {
         assertNull(readinessAction(item(ReadinessKind.OFFLINE_MAP, ReadinessDetail.OFFLINE_STORAGE_UNVERIFIED)))
         assertNull(readinessAction(item(ReadinessKind.VOICE, ReadinessDetail.VOICE_UNKNOWN)))
         assertNull(readinessAction(item(ReadinessKind.SOS, ReadinessDetail.SOS_CONFIGURED_UNVERIFIED)))
+        assertNull(readinessAction(item(ReadinessKind.SOS, ReadinessDetail.SOS_NOT_CONFIGURED)))
     }
 
     @Test fun gpsWithoutPrecisePermissionUsesPermissionRecoveryNotProviderSettings() {
@@ -29,8 +30,19 @@ class ReadinessActionTest {
             readinessAction(item(ReadinessKind.GPS, ReadinessDetail.GPS_PERMISSION_MISSING)),
         )
         assertEquals(
+            ReadinessAction.APP_DETAILS,
+            readinessAction(item(ReadinessKind.GPS, ReadinessDetail.GPS_PERMISSION_UNKNOWN)),
+        )
+        assertEquals(
             ReadinessAction.LOCATION_SOURCE,
             readinessAction(item(ReadinessKind.GPS, ReadinessDetail.GPS_WAITING_FIX)),
+        )
+    }
+
+    @Test fun sosWithoutSmsPermissionUsesPermissionRecovery() {
+        assertEquals(
+            ReadinessAction.APP_DETAILS,
+            readinessAction(item(ReadinessKind.SOS, ReadinessDetail.SOS_PERMISSION_MISSING)),
         )
     }
 
