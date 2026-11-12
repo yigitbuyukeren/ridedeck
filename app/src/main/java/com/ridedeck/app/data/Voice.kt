@@ -13,6 +13,9 @@ import android.content.Intent
 import android.content.IntentFilter
 import androidx.core.content.ContextCompat
 import com.ridedeck.app.util.Prefs
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * What may interrupt what. A lower priority never cuts into a higher one: it waits (briefly) or is dropped;
@@ -32,6 +35,14 @@ interface Speaker {
 
 data class TtsVoice(val name: String, val language: String, val requiresNetwork: Boolean)
 data class TtsStartupPlan(val ready: Boolean, val voices: List<TtsVoice>, val selected: TtsVoice?)
+
+/** Read-only runtime facts; null means the fact could not be observed. Control readiness stays private. */
+data class TtsFacts(
+    val engineInitialized: Boolean? = null,
+    val languageAvailable: Boolean? = null,
+    /** Null means the network requirement could not be observed; never treat it as offline-ready. */
+    val selectedVoiceRequiresNetwork: Boolean? = null,
+)
 
 object TtsVoicePolicy {
     /** A saved voice of another language is ignored, so a phone language change falls back to the policy. */
@@ -70,6 +81,8 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
     @Volatile private var closed = false
     private val initLock = Any()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val _runtimeFacts = MutableStateFlow(TtsFacts())
+    val runtimeFacts: StateFlow<TtsFacts> = _runtimeFacts.asStateFlow()
     private lateinit var tts: TextToSpeech
 
     init {
@@ -80,6 +93,7 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
         if (closed) return@synchronized
         if (status != TextToSpeech.SUCCESS) {
             ready = false
+            _runtimeFacts.value = TtsFacts(engineInitialized = false)
             runCatching { onVoices(emptyList()) }
             return@synchronized
         }
@@ -94,6 +108,7 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
         }
         if (runCatching { tts.setOnUtteranceProgressListener(progressListener); true }.getOrDefault(false).not()) {
             ready = false
+            _runtimeFacts.value = TtsFacts(engineInitialized = false)
             runCatching { onVoices(emptyList()) }
             return@synchronized
         }
@@ -112,6 +127,14 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
         val selected = chosen?.let { option -> platformVoices.firstOrNull { it.name == option.name } }
         val voiceReady = selected != null && runCatching { tts.setVoice(selected) == TextToSpeech.SUCCESS }.getOrDefault(false)
         ready = voiceReady || languageReady
+        // The engine's active voice (including its default language voice) may be network-backed;
+        // a failed read stays null so the assessment reports UNKNOWN rather than READY.
+        val activeVoiceRequiresNetwork = runCatching { tts.voice?.isNetworkConnectionRequired }.getOrNull()
+        _runtimeFacts.value = TtsFacts(
+            engineInitialized = true,
+            languageAvailable = languageReady || voiceReady,
+            selectedVoiceRequiresNetwork = activeVoiceRequiresNetwork,
+        )
         if (voiceReady) Prefs.setVoiceTtsName(context, chosen?.name)
         runCatching { onVoices(if (ready) plan.voices.map { it.name } else emptyList()) }
     }
@@ -124,9 +147,26 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
 
     fun selectVoice(name: String?): Boolean {
         if (!ready || closed) return false
-        if (name == null) return runCatching { tts.setLanguage(GuidanceLanguage.currentLocale()) >= TextToSpeech.LANG_AVAILABLE }.getOrDefault(false)
+        if (name == null) {
+            val languageReady = runCatching { tts.setLanguage(GuidanceLanguage.currentLocale()) >= TextToSpeech.LANG_AVAILABLE }.getOrDefault(false)
+            if (languageReady) {
+                val activeVoiceRequiresNetwork = runCatching { tts.voice?.isNetworkConnectionRequired }.getOrNull()
+                _runtimeFacts.value = _runtimeFacts.value.copy(
+                    languageAvailable = true,
+                    selectedVoiceRequiresNetwork = activeVoiceRequiresNetwork,
+                )
+            }
+            return languageReady
+        }
         val voice = runCatching { tts.voices.orEmpty().firstOrNull { it.name == name && it.locale.language.equals(GuidanceLanguage.currentLocale().language, true) } }.getOrNull() ?: return false
-        return runCatching { tts.setVoice(voice) == TextToSpeech.SUCCESS }.getOrDefault(false)
+        val voiceReady = runCatching { tts.setVoice(voice) == TextToSpeech.SUCCESS }.getOrDefault(false)
+        if (voiceReady) {
+            _runtimeFacts.value = _runtimeFacts.value.copy(
+                languageAvailable = true,
+                selectedVoiceRequiresNetwork = voice.isNetworkConnectionRequired,
+            )
+        }
+        return voiceReady
     }
 
     private var timeout: Runnable? = null
@@ -193,6 +233,7 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
             stopOnMain()
             session.close()
             ready = false
+            _runtimeFacts.value = TtsFacts(engineInitialized = false)
             runCatching { tts.shutdown() }
         }
     }

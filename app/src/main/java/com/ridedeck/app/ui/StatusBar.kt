@@ -24,6 +24,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -74,7 +75,7 @@ fun DockStatus(battery: BatteryState) {
         },
         level,
     )
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.testTag("dock-status")) {
         Text(time, fontSize = cappedSp(26f), fontWeight = FontWeight.Bold, color = palette.text, maxLines = 1, softWrap = false)
         Row(
             modifier = Modifier.clearAndSetSemantics { contentDescription = description },

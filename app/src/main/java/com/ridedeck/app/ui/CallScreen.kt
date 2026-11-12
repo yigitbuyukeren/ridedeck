@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -53,13 +54,15 @@ import java.util.Date
 import java.text.SimpleDateFormat
 import com.ridedeck.app.data.NavUi
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Dialpad
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.sp
 import android.telecom.CallAudioState
 import com.ridedeck.app.R
@@ -103,6 +106,16 @@ fun CallScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize().symmetricSafePadding().padding(horizontal = 28.dp, vertical = 10.dp)) {
             RideStrip(speedShown, nav, call)
+            if (keys && call.phase == CallPhase.ACTIVE) {
+                InCallKeysPane(
+                    callerName = name,
+                    typed = typed,
+                    onDigit = { if (onDigit(it)) typed += it },
+                    onHide = { keys = false },
+                    onHangUp = onHangUp,
+                    modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 12.dp),
+                )
+            } else {
             TwoPane(
                 modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 12.dp),
                 first = { m -> Column(
@@ -112,17 +125,20 @@ fun CallScreen(
                 ) {
                     Avatar(initial, pulsing = call.phase != CallPhase.ACTIVE)
                     Text(
-                        name, fontSize = if (name.count { it.isDigit() } > name.length / 2) 30.sp else 38.sp, lineHeight = 44.sp, fontWeight = FontWeight.Bold, color = Color.White,
+                        name,
+                        fontSize = cappedSp(if (name.count { it.isDigit() } > name.length / 2) 30f else 38f, maxScale = 1.25f),
+                        lineHeight = cappedSp(44f, maxScale = 1.25f),
+                        fontWeight = FontWeight.Bold, color = Color.White,
                         maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
                     )
                     when (call.phase) {
                         CallPhase.ACTIVE -> Text(
                             "%02d:%02d".format(elapsed / 60, elapsed % 60),
-                            fontSize = 32.sp, fontWeight = FontWeight.Medium, color = MotoColors.Green,
+                            fontSize = cappedSp(32f, maxScale = 1.2f), fontWeight = FontWeight.Medium, color = MotoColors.Green,
                         )
-                        CallPhase.DIALING -> Text(stringResource(R.string.call_dialing) + "…", fontSize = 22.sp, color = MotoColors.Gray)
-                        CallPhase.HELD -> Text(stringResource(R.string.call_held), fontSize = 22.sp, color = MotoColors.Gray)
-                        else -> Text(stringResource(R.string.call_incoming), fontSize = 22.sp, color = MotoColors.Gray)
+                        CallPhase.DIALING -> Text(stringResource(R.string.call_dialing) + "…", fontSize = cappedSp(22f, maxScale = 1.2f), color = MotoColors.Gray)
+                        CallPhase.HELD -> Text(stringResource(R.string.call_held), fontSize = cappedSp(22f, maxScale = 1.2f), color = MotoColors.Gray)
+                        else -> Text(stringResource(R.string.call_incoming), fontSize = cappedSp(22f, maxScale = 1.2f), color = MotoColors.Gray)
                     }
                     if (!ringing) VolumeRow(onVolumeDown, onVolumeUp)
                 } },
@@ -135,12 +151,6 @@ fun CallScreen(
                         ringing -> {
                             ActionPill(Icons.Rounded.Call, stringResource(R.string.call_answer), MotoColors.Green, onAnswer, RideHaptic.Confirm)
                             ActionPill(Icons.Rounded.CallEnd, stringResource(R.string.call_decline), MotoColors.Red, onHangUp, RideHaptic.Reject)
-                        }
-                        keys && call.phase == CallPhase.ACTIVE -> {
-                            // What has been sent so far, so a long menu ("press 1, then 3") can be followed.
-                            Text(typed.takeLast(14), fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, modifier = Modifier.height(36.dp))
-                            InCallKeypad({ if (onDigit(it)) typed += it }, modifier = Modifier.weight(1f))
-                            ToggleAction(Icons.Rounded.Dialpad, stringResource(R.string.call_keys_hide), false, { keys = false }, Modifier.fillMaxWidth())
                         }
                         else -> {
                             if (call.managed && call.phase == CallPhase.ACTIVE) {
@@ -156,6 +166,7 @@ fun CallScreen(
                     }
                 } },
             )
+            }
         }
     }
 }
@@ -195,22 +206,22 @@ private fun RideStrip(speedShown: Int?, nav: NavUi, call: CallState) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        Text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(now)), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        Text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(now)), fontSize = cappedSp(26f, maxScale = 1.15f), fontWeight = FontWeight.Bold, color = Color.White)
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(if (speedShown != null) "${Units.speed(speedShown)}" else "--", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            Text(stringResource(if (Units.miles) R.string.speed_unit_mph else R.string.speed_unit), fontSize = 15.sp, color = MotoColors.Gray, modifier = Modifier.padding(bottom = 4.dp))
+            Text(if (speedShown != null) "${Units.speed(speedShown)}" else "--", fontSize = cappedSp(28f, maxScale = 1.15f), fontWeight = FontWeight.Bold, color = Color.White)
+            Text(stringResource(if (Units.miles) R.string.speed_unit_mph else R.string.speed_unit), fontSize = cappedSp(15f, maxScale = 1.15f), color = MotoColors.Gray, modifier = Modifier.padding(bottom = 4.dp))
         }
         if (maneuver != null) {
             Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(maneuverIcon(maneuver.type), null, tint = Color.White, modifier = Modifier.size(34.dp))
                 // The call takes the voice; close to the turn the distance turns orange instead.
-                Text(formatDistance(nav.distToNextM), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = if (nav.distToNextM <= 60) MotoColors.Orange else Color.White)
-                Text(maneuver.instruction, fontSize = 15.sp, color = Color(0xE6FFFFFF), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(formatDistance(nav.distToNextM), fontSize = cappedSp(22f, maxScale = 1.15f), fontWeight = FontWeight.Bold, color = if (nav.distToNextM <= 60) MotoColors.Orange else Color.White)
+                Text(maneuver.instruction, fontSize = cappedSp(15f, maxScale = 1.15f), color = Color(0xE6FFFFFF), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         } else {
             // No route to show: use the room for where the call sound is going.
             Spacer(Modifier.weight(1f))
-            if (call.managed) routeLabel(call.route)?.let { Text(stringResource(it), fontSize = 17.sp, color = MotoColors.Gray) }
+            if (call.managed) routeLabel(call.route)?.let { Text(stringResource(it), fontSize = cappedSp(17f, maxScale = 1.15f), color = MotoColors.Gray) }
         }
     }
 }
@@ -229,7 +240,7 @@ private fun VolumeRow(onDown: () -> Unit, onUp: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         VolumeButton(Icons.Rounded.Remove, stringResource(R.string.volume_down), onDown)
         Icon(Icons.AutoMirrored.Rounded.VolumeUp, null, tint = MotoColors.Gray, modifier = Modifier.size(26.dp))
-        Text(stringResource(R.string.call_volume), fontSize = 17.sp, color = MotoColors.Gray)
+        Text(stringResource(R.string.call_volume), fontSize = cappedSp(17f, maxScale = 1.2f), color = MotoColors.Gray)
         VolumeButton(Icons.Rounded.Add, stringResource(R.string.volume_up), onUp)
     }
 }
@@ -242,20 +253,88 @@ private fun VolumeButton(icon: ImageVector, description: String, onClick: () -> 
     ) { Icon(icon, description, tint = Color.White, modifier = Modifier.size(32.dp)) }
 }
 
+/** Full-content keypad view: the caller and typed digits stay visible, actions stay pinned below. */
+@Composable
+internal fun InCallKeysPane(
+    callerName: String,
+    typed: String,
+    onDigit: (Char) -> Unit,
+    onHide: () -> Unit,
+    onHangUp: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                callerName, fontSize = cappedSp(22f, maxScale = 1.2f), fontWeight = FontWeight.SemiBold,
+                color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+            )
+            // What has been sent so far, so a long menu ("press 1, then 3") can be followed.
+            Text(
+                typed.takeLast(14), fontSize = cappedSp(26f, maxScale = 1.15f),
+                fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1,
+                modifier = Modifier.height(40.dp).testTag("call-typed-digits"),
+            )
+        }
+        InCallKeypad(onDigit, Modifier.weight(1f))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            ToggleAction(
+                Icons.Rounded.Dialpad, stringResource(R.string.call_keys_hide), false, onHide,
+                Modifier.weight(1f),
+            )
+            // Ending the call stays available while the digits are open.
+            Row(
+                modifier = Modifier.weight(1f).height(64.dp).clip(RoundedCornerShape(32.dp))
+                    .background(MotoColors.Red).testTag("call-hangup-keys")
+                    .pressClickable(haptic = RideHaptic.Reject, onClick = onHangUp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Rounded.CallEnd, null, tint = Color.White, modifier = Modifier.size(28.dp))
+                Text(
+                    stringResource(R.string.call_hangup), fontSize = cappedSp(20f, maxScale = 1.2f),
+                    fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
 /** Digits for voice menus ("press 1"); sent down the line as tones. */
 @Composable
 private fun InCallKeypad(onDigit: (Char) -> Unit, modifier: Modifier = Modifier) {
     val keyTone = rememberKeypadTone()
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf("123", "456", "789", "*0#").forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f).fillMaxWidth()) {
-                row.forEach { key ->
-                    Box(
-                        modifier = Modifier.weight(1f).fillMaxHeight().defaultMinSize(minHeight = 56.dp).clip(RoundedCornerShape(18.dp))
-                            // The local beep is for the rider's ear; the digit still goes down the line as before.
-                            .background(Color(0x26FFFFFF)).hapticClickable { keyTone(key); onDigit(key) },
-                        contentAlignment = Alignment.Center,
-                    ) { Text(key.toString(), fontSize = 30.sp, fontWeight = FontWeight.SemiBold, color = Color.White) }
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val key: @Composable (Char) -> Unit = { digit ->
+            Box(
+                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(18.dp))
+                    // The local beep is for the rider's ear; the digit still goes down the line as before.
+                    .background(Color(0x26FFFFFF)).testTag("call-key-$digit")
+                    .hapticClickable { keyTone(digit); onDigit(digit) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    digit.toString(), fontSize = cappedSp(30f, maxScale = 1.15f),
+                    fontWeight = FontWeight.SemiBold, color = Color.White,
+                )
+            }
+        }
+        when {
+            // Canonical 3x4 only when the real width and height keep every key >=64 dp.
+            maxHeight >= KEYPAD_3X4_HEIGHT && maxWidth >= KEYPAD_3X4_WIDTH ->
+                KeypadGrid(KEYPAD_3X4, Modifier.fillMaxSize(), key)
+            // Full-content landscape: 6x2 only when width also keeps every key >= 64 dp.
+            maxWidth >= KEYPAD_6X2_WIDTH && maxHeight >= KEYPAD_6X2_HEIGHT ->
+                KeypadGrid(KEYPAD_6X2, Modifier.fillMaxSize(), key)
+            // Very short/narrow screens: fewer columns, fixed 64 dp keys, scroll; actions stay pinned.
+            else -> {
+                val rows = keypadFallbackRows(maxWidth)
+                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    KeypadGrid(rows, Modifier.fillMaxWidth().height(keypadRowsHeight(rows.size)), key)
                 }
             }
         }
@@ -279,7 +358,7 @@ private fun Avatar(initial: String?, pulsing: Boolean) {
                 .background(Brush.verticalGradient(listOf(Color(0xFF5AA9FF), Color(0xFF1F5FD6)))),
             contentAlignment = Alignment.Center,
         ) {
-            if (initial != null) Text(initial, fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            if (initial != null) Text(initial, fontSize = cappedSp(40f, maxScale = 1.2f), fontWeight = FontWeight.Bold, color = Color.White)
             else Icon(Icons.Rounded.Person, null, tint = Color.White, modifier = Modifier.size(48.dp))
         }
     }
@@ -293,6 +372,7 @@ private fun ActionPill(
     onClick: () -> Unit,
     haptic: RideHaptic = RideHaptic.Tap,
 ) {
+    val foreground = callActionForeground(color)
     Row(
         modifier = Modifier
             .fillMaxWidth().height(80.dp).clip(RoundedCornerShape(40.dp)).background(color)
@@ -300,8 +380,8 @@ private fun ActionPill(
         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, null, tint = Color.White, modifier = Modifier.size(34.dp))
-        Text(label, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, softWrap = false)
+        Icon(icon, null, tint = foreground, modifier = Modifier.size(34.dp))
+        Text(label, fontSize = cappedSp(24f, maxScale = 1.2f), fontWeight = FontWeight.Bold, color = foreground, maxLines = 1, softWrap = false)
     }
 }
 
@@ -316,7 +396,7 @@ private fun ToggleAction(icon: ImageVector, label: String, on: Boolean, onClick:
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(icon, null, tint = if (on) Color.Black else Color.White, modifier = Modifier.size(26.dp))
-            Text(label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = if (on) Color.Black else Color.White)
+            Text(label, fontSize = cappedSp(16f, maxScale = 1.2f), fontWeight = FontWeight.SemiBold, color = if (on) Color.Black else Color.White, maxLines = 1)
         }
     }
 }
@@ -337,3 +417,7 @@ private fun RoutePicker(route: Int, routes: Int, onRoute: (Int) -> Unit) {
         }
     }
 }
+
+/** Green call actions need black content; red/other call actions keep white. */
+internal fun callActionForeground(background: Color): Color =
+    if (background == MotoColors.Green) Color.Black else Color.White

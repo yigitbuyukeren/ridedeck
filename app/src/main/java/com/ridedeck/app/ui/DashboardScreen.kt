@@ -70,6 +70,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
     val locationState by vm.locationState.collectAsStateWithLifecycle()
     val battery by vm.battery.state.collectAsStateWithLifecycle()
     val mediaState by vm.media.state.collectAsStateWithLifecycle()
+    val voiceFacts by vm.voiceFacts.collectAsStateWithLifecycle()
     val callState by vm.call.state.collectAsStateWithLifecycle()
     val callerName by vm.callerName.collectAsStateWithLifecycle()
     val resume by vm.resumeTick.collectAsStateWithLifecycle()
@@ -102,6 +103,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
     val recents by vm.phone.recents.collectAsStateWithLifecycle()
     val contacts by vm.phone.contacts.collectAsStateWithLifecycle()
     val navUi by vm.nav.ui.collectAsStateWithLifecycle()
+    val detourUi by vm.detourQuotes.ui.collectAsStateWithLifecycle()
     val places by vm.places.collectAsStateWithLifecycle()
     val thermal by vm.thermal.state.collectAsStateWithLifecycle()
     // A hot phone slows the maps down; the guard lives in ThermalGuard.
@@ -124,6 +126,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
     LaunchedEffect(icy) { if (!icy) iceDismissed = false }
     // Settings no longer open by themselves; first launch shows the short permission page instead.
     var showSettings by remember { mutableStateOf(false) }
+    var readinessUi by remember { mutableStateOf(ReadinessUiState()) }
     var showPermIntro by rememberSaveable { mutableStateOf(!locationGranted(context)) }
     LaunchedEffect(dialRequest) {
         if (dialRequest != null) { showPhone = true; showMap = false; showNowPlaying = false; showSettings = false; showTrips = false }
@@ -142,12 +145,15 @@ fun DashboardScreen(vm: DashboardViewModel) {
     val smsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vm.onResume() }
     // The second tap on "Allow" after a refusal goes to the app's system page, where Android no longer asks again.
     var locationAsked by remember { mutableStateOf(false) }
+    val openLocationSettings = {
+        context.startActivity(
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    }
     val requestLocation = {
         if (locationAsked && !locationGranted(context)) {
-            context.startActivity(
-                android.content.Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
-                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
+            openLocationSettings()
         } else {
             locationAsked = true
             permissionLauncher.launch(locationPermissions())
@@ -194,15 +200,38 @@ fun DashboardScreen(vm: DashboardViewModel) {
     }
 
     // First launch asks for location only: the speedometer needs it, nothing else does. Phone, music
-    // and SOS ask for their own permissions where they are switched on.
-    val introRow = remember(resume) {
-        PermissionRow(context.getString(R.string.perm_location), context.getString(R.string.perm_location_desc), locationGranted(context), requestLocation)
+    // and SOS ask for their own permissions where they are switched on. If Android only allows
+    // approximate location or the user denied it, the action goes straight to the app's system page.
+    val introRow = remember(resume, locationAsked) {
+        val fine = locationGranted(context)
+        val coarseOnly = !fine && context.hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+        val needsSettings = coarseOnly || locationAsked
+        PermissionRow(
+            title = context.getString(R.string.perm_location),
+            description = context.getString(
+                when {
+                    fine -> R.string.perm_location_desc
+                    coarseOnly -> R.string.perm_location_precise
+                    locationAsked -> R.string.perm_location_denied
+                    else -> R.string.perm_intro_location_why
+                }
+            ),
+            granted = fine,
+            actionLabel = context.getString(if (needsSettings) R.string.action_open_settings else R.string.action_allow),
+            onAction = if (needsSettings) openLocationSettings else requestLocation,
+        )
     }
 
     // Settings are a place to read and tap: locked while riding (with a live fix), as the keypad and the map search are.
     val settingsLocked = gps.inputLocked
     val tellSettingsLocked = { android.widget.Toast.makeText(context, R.string.settings_locked, android.widget.Toast.LENGTH_SHORT).show() }
-    LaunchedEffect(settingsLocked) { if (settingsLocked && showSettings) { showSettings = false; tellSettingsLocked() } }
+    LaunchedEffect(settingsLocked) {
+        if (settingsLocked && (showSettings || readinessUi.open)) {
+            showSettings = false
+            readinessUi = readinessUi.afterMotion(true)
+            tellSettingsLocked()
+        }
+    }
 
     BackHandler(enabled = showMap || showNowPlaying || showPhone || showTrips) {
         showTrips = false
@@ -215,6 +244,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
     // and an SOS countdown cannot be cancelled by accident (only their own buttons do that).
     BackHandler(enabled = showSettings) { showSettings = false }
     BackHandler(enabled = showPermIntro) { showPermIntro = false }
+    BackHandler(enabled = readinessUi.open) { readinessUi = readinessUi.dismiss() }
     BackHandler(enabled = sosUi.phase != SosPhase.IDLE) { if (sosUi.phase != SosPhase.COUNTDOWN) vm.sos.dismiss() }
 
     Surface(color = Color.Transparent, modifier = Modifier.fillMaxSize().background(LocalMotoPalette.current.wallpaper)) {
@@ -291,6 +321,11 @@ fun DashboardScreen(vm: DashboardViewModel) {
                         modifier = m,
                         recents = recentPlaces,
                         onClearRecents = vm::clearRecents,
+                        // Explicit cached-trip retry; no auto route/start. Null would keep the notice text-only.
+                        onRetryCachedNetwork = { vm.retryCachedRouteRestore() },
+                        detourUi = detourUi,
+                        onCalculateDetour = { vm.requestDetourQuote(it) },
+                        onCloseDetour = { vm.detourQuotes.close() },
                     )
                 } else Column(modifier = m) {
                     val speedCard: @Composable (Modifier) -> Unit = { mod ->
@@ -428,6 +463,11 @@ fun DashboardScreen(vm: DashboardViewModel) {
                         SettingsCategory.GENERAL,
                         listOf(
                             {
+                                ReadinessEntryRow(onOpen = {
+                                    if (settingsLocked) tellSettingsLocked() else readinessUi = readinessUi.requestOpen(settingsLocked)
+                                })
+                            },
+                            {
                                 ChoiceRow(
                                     stringResource(R.string.units_title), stringResource(R.string.units_desc),
                                     listOf(
@@ -552,7 +592,34 @@ fun DashboardScreen(vm: DashboardViewModel) {
         }
 
         // The first-launch permission page sits above everything but the SOS countdown.
-        if (showPermIntro) PermissionIntro(introRow, onClose = { showPermIntro = false })
+        if (showPermIntro) {
+            PermissionIntro(
+                introRow,
+                onClose = { showPermIntro = false },
+                onOpenReadiness = {
+                    if (settingsLocked) tellSettingsLocked() else readinessUi = readinessUi.requestOpen(settingsLocked)
+                },
+            )
+        }
+
+        // Informational only: this never opens by itself and never blocks starting a ride or SOS.
+        if (readinessUi.open) {
+            ReadinessPanel(
+                locationState = locationState,
+                mediaState = mediaState,
+                ttsFacts = voiceFacts,
+                sosContacts = sosContacts,
+                refreshKey = resume,
+                onClose = { readinessUi = readinessUi.dismiss() },
+                onAction = { action ->
+                    if (!readinessUi.allowsSettingsAction(settingsLocked)) {
+                        tellSettingsLocked()
+                    } else if (!openReadinessAction(context, action)) {
+                        android.widget.Toast.makeText(context, R.string.readiness_settings_unavailable, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                },
+            )
+        }
 
         // Last, so nothing can cover an SOS countdown.
         SosScreen(sosUi, sosContacts.map { it.name }, onCancel = vm.sos::cancel, onDismiss = vm.sos::dismiss)

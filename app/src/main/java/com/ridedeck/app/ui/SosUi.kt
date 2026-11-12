@@ -54,6 +54,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -100,9 +103,11 @@ fun SosButton(onTrigger: () -> Unit, modifier: Modifier = Modifier) {
         spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "sosScale",
     )
+    val holdHint = stringResource(R.string.sos_button_a11y)
     Box(
         modifier = modifier
             .size(68.dp)
+            .semantics { contentDescription = holdHint }
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .drawBehind {
                 val halo = SosHoldMath.halo(progress)
@@ -163,7 +168,7 @@ fun SosScreen(ui: SosUi, contactNames: List<String>, onCancel: () -> Unit, onDis
             SosPhase.SENDING -> Text(stringResource(R.string.sos_sending), color = Color.White, fontSize = 24.sp, modifier = Modifier.padding(32.dp))
             SosPhase.SENT -> Result(
                 title = stringResource(if (ui.reason == SosReason.TEST) R.string.sos_test_done else R.string.sos_sent),
-                detail = if (ui.reason == SosReason.TEST) null else smsResultDetail(ui),
+                detail = if (ui.reason == SosReason.TEST) stringResource(R.string.sos_test_note) else smsResultDetail(ui),
                 onDismiss = onDismiss,
             )
             SosPhase.PARTIAL, SosPhase.UNKNOWN -> Result(
@@ -272,7 +277,10 @@ private fun Result(title: String, detail: String?, onDismiss: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text(title, fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center)
+        Text(
+            title, fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold,
+            color = Color.White, textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() },
+        )
         if (detail != null) Text(detail, fontSize = 20.sp, lineHeight = 26.sp, color = Color(0xE6FFFFFF), textAlign = TextAlign.Center)
         PillButton(stringResource(R.string.ok), Color.White, onDismiss, textColor = Color(0xFF7A0A0A), modifier = Modifier.padding(top = 10.dp))
     }

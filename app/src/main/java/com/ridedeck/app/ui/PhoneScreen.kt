@@ -2,6 +2,9 @@ package com.ridedeck.app.ui
 
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.verticalScroll
 import android.text.format.DateFormat
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
@@ -23,7 +26,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -56,6 +58,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
@@ -98,42 +104,49 @@ fun PhoneScreen(
     var tab by remember(initialNumber) { mutableStateOf(if (initialNumber != null) PhoneTab.KEYPAD else PhoneTab.RECENTS) }
     val palette = LocalMotoPalette.current
     val narrow = isNarrowScreen()
+    val dialerHintRow: @Composable () -> Unit = {
+        DialerHint(onSetDialer = onSetDialer)
+    }
     Column(modifier = modifier.padding(start = 6.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
             PhoneTab.entries.forEach { t ->
-                val selected = t == tab
+                val isSelected = t == tab
                 Box(
                     modifier = Modifier
                         .weight(1f).height(TAP).clip(RoundedCornerShape(TAP / 2))
-                        .background(if (selected) MotoColors.Green else palette.card)
-                        .hapticClickable(haptic = RideHaptic.Select) { tab = t },
+                        // Green stays the selected fill; black text keeps it readable instead of white on green.
+                        .background(if (isSelected) MotoColors.Green else palette.card)
+                        .semantics { this.selected = isSelected }
+                        .testTag("phone-tab-${t.name.lowercase()}")
+                        .hapticClickable(role = Role.Tab, haptic = RideHaptic.Select) { tab = t },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        stringResource(t.label), fontSize = if (narrow) 16.sp else 21.sp, fontWeight = FontWeight.SemiBold,
-                        maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
-                        color = if (selected) Color.White else palette.text,
+                        stringResource(t.label),
+                        fontSize = cappedSp(if (narrow) 16f else 21f, maxScale = 1.2f),
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+                        color = if (isSelected) Color.Black else palette.text,
                         modifier = Modifier.padding(horizontal = 6.dp),
                     )
                 }
             }
         }
-        if (dialerHint) {
-            Row(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(palette.card).padding(start = 16.dp, top = 4.dp, bottom = 4.dp, end = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(stringResource(R.string.dialer_hint), fontSize = 16.sp, color = palette.textSecondary, modifier = Modifier.weight(1f))
-                PillButton(stringResource(R.string.action_set), MotoColors.Blue, onSetDialer, horizontalPadding = 20.dp)
-            }
-        }
+        // Upright, the hint sits above; on a short landscape phone it moves into the keypad's
+        // left column so it cannot eat the key targets.
+        if (dialerHint && (narrow || tab != PhoneTab.KEYPAD)) dialerHintRow()
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when {
-                tab == PhoneTab.KEYPAD -> Keypad(keypadLocked, initialNumber.orEmpty(), contacts, recents, onDial)
+                tab == PhoneTab.KEYPAD -> Keypad(
+                    keypadLocked, initialNumber.orEmpty(), contacts, recents, onDial,
+                    footer = if (dialerHint && !narrow) dialerHintRow else null,
+                )
                 !hasAccess -> Notice(stringResource(R.string.phone_need_perm), stringResource(R.string.phone_allow), onGrantAccess)
-                tab == PhoneTab.RECENTS -> RecentsList(recents, onDial)
-                else -> ContactsList(contacts, onDial)
+                tab == PhoneTab.RECENTS -> RecentsList(recents, onDial) { tab = PhoneTab.KEYPAD }
+                else -> ContactsList(contacts, onDial) { tab = PhoneTab.KEYPAD }
             }
         }
     }
@@ -147,13 +160,29 @@ private fun Notice(text: String, action: String?, onAction: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(text, fontSize = 18.sp, color = LocalMotoPalette.current.textSecondary)
-        if (action != null) PillButton(action, MotoColors.Green, onAction)
+        if (action != null) PillButton(action, MotoColors.Green, onAction, textColor = Color.Black)
     }
 }
 
 @Composable
-private fun RecentsList(recents: List<RecentCall>, onDial: (String, String?) -> Unit) {
-    if (recents.isEmpty()) return Notice(stringResource(R.string.phone_empty_recents), null) {}
+private fun DialerHint(onSetDialer: () -> Unit) {
+    val palette = LocalMotoPalette.current
+    Row(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(palette.card)
+            .testTag("phone-dialer-hint").padding(start = 16.dp, top = 4.dp, bottom = 4.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(stringResource(R.string.dialer_hint), fontSize = 16.sp, color = palette.textSecondary, modifier = Modifier.weight(1f))
+        PillButton(stringResource(R.string.action_set), MotoColors.Blue, onSetDialer, horizontalPadding = 20.dp)
+    }
+}
+
+@Composable
+private fun RecentsList(recents: List<RecentCall>, onDial: (String, String?) -> Unit, onOpenKeypad: () -> Unit) {
+    if (recents.isEmpty()) {
+        return Notice(stringResource(R.string.phone_empty_recents), stringResource(R.string.phone_open_keypad), onOpenKeypad)
+    }
     val unknown = stringResource(R.string.phone_unknown)
     PagedList { state ->
         items(recents, key = { "${it.number}/${it.atMs}" }) { call ->
@@ -180,8 +209,10 @@ private fun RecentsList(recents: List<RecentCall>, onDial: (String, String?) -> 
 
 /** The whole address book: starred people first under a star header, then one header per letter. */
 @Composable
-private fun ContactsList(contacts: List<Contact>, onDial: (String, String?) -> Unit) {
-    if (contacts.isEmpty()) return Notice(stringResource(R.string.phone_empty_contacts), null) {}
+private fun ContactsList(contacts: List<Contact>, onDial: (String, String?) -> Unit, onOpenKeypad: () -> Unit) {
+    if (contacts.isEmpty()) {
+        return Notice(stringResource(R.string.phone_empty_contacts), stringResource(R.string.phone_open_keypad), onOpenKeypad)
+    }
     val rows = remember(contacts) {
         buildList<Any> {
             var last: Any? = null
@@ -285,23 +316,34 @@ private fun ContactRow(
     Row(
         modifier = Modifier
             .fillMaxWidth().height(rowHeight).clip(RoundedCornerShape(20.dp)).background(palette.card)
+            .testTag("phone-row")
             .hapticClickable(onClick = onClick).padding(horizontal = if (compact) 10.dp else 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 14.dp),
     ) {
         Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) { leading() }
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontSize = if (compact) 20.sp else 24.sp, fontWeight = FontWeight.SemiBold, color = titleColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (sub != null) Text(sub, fontSize = 14.sp, color = palette.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                title, fontSize = cappedSp(if (compact) 20f else 24f, maxScale = 1.3f),
+                lineHeight = cappedSp(if (compact) 24f else 29f, maxScale = 1.3f),
+                fontWeight = FontWeight.SemiBold, color = titleColor, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+            if (sub != null) Text(
+                sub, fontSize = cappedSp(14f, maxScale = 1.3f),
+                lineHeight = cappedSp(18f, maxScale = 1.3f),
+                color = palette.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
         }
-        if (trailing != null && !compact) Text(trailing, fontSize = 15.sp, color = palette.textSecondary)
+        if (trailing != null && !compact) Text(
+            trailing, fontSize = cappedSp(15f, maxScale = 1.3f),
+            lineHeight = cappedSp(20f, maxScale = 1.3f),
+            color = palette.textSecondary, maxLines = 1,
+        )
         Box(Modifier.size(minOf(60.dp, rowHeight - 12.dp)).clip(CircleShape).background(MotoColors.Green), contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.Call, stringResource(R.string.phone_call), tint = Color.White, modifier = Modifier.size(28.dp))
+            Icon(Icons.Rounded.Call, stringResource(R.string.phone_call), tint = Color.Black, modifier = Modifier.size(28.dp))
         }
     }
 }
-
-private val KEY_ROWS = listOf("123", "456", "789", "*0#")
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -311,6 +353,7 @@ private fun Keypad(
     contacts: List<Contact>,
     recents: List<RecentCall>,
     onDial: (String, String?) -> Unit,
+    footer: (@Composable () -> Unit)? = null,
 ) {
     var number by remember(initial) { mutableStateOf(PhoneMath.dialable(initial)) }
     var name by remember(initial) { mutableStateOf<String?>(null) }
@@ -322,17 +365,20 @@ private fun Keypad(
     val portrait = isNarrowScreen()
     val display: @Composable ColumnScope.() -> Unit = {
             // What has been typed; it shrinks for long numbers and says what to do while empty.
-            Box(modifier = Modifier.fillMaxWidth().height(64.dp), contentAlignment = Alignment.CenterStart) {
+            Box(modifier = Modifier.fillMaxWidth().height(64.dp).testTag("phone-number-display"), contentAlignment = Alignment.CenterStart) {
                 if (number.isEmpty()) {
-                    Text(stringResource(R.string.phone_enter_number), fontSize = 28.sp, color = palette.muted)
+                    Text(stringResource(R.string.phone_enter_number), fontSize = cappedSp(28f, maxScale = 1.15f), color = palette.muted)
                 } else {
                     Text(
                         number,
-                        fontSize = when {
-                            number.length <= 10 -> 44.sp
-                            number.length <= 14 -> 36.sp
-                            else -> 28.sp
-                        },
+                        fontSize = cappedSp(
+                            when {
+                                number.length <= 10 -> 44f
+                                number.length <= 14 -> 36f
+                                else -> 28f
+                            },
+                            maxScale = 1.15f,
+                        ),
                         fontWeight = FontWeight.Bold, color = palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
                 }
@@ -343,13 +389,17 @@ private fun Keypad(
                 // People whose number matches what is typed: a tap fills in the whole number.
                 suggestions.forEach { c ->
                     Row(
-                        modifier = Modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(16.dp)).background(palette.card)
+                        modifier = Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(16.dp)).background(palette.card)
+                            .testTag("phone-suggestion")
                             .pressClickable { number = PhoneMath.dialable(c.number); name = c.name }.padding(horizontal = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Text(c.name, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                        Text(c.number, fontSize = 14.sp, color = palette.textSecondary, maxLines = 1)
+                        Text(
+                            c.name, fontSize = cappedSp(20f, maxScale = 1.2f), fontWeight = FontWeight.SemiBold,
+                            color = palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
+                        )
+                        Text(c.number, fontSize = cappedSp(14f, maxScale = 1.2f), color = palette.textSecondary, maxLines = 1)
                     }
                 }
             }
@@ -359,14 +409,20 @@ private fun Keypad(
                 // Tap deletes one digit, a long press clears the lot. Always in the same place, so "Call" does not jump.
                 val deleteSize = if (portrait) 76.dp else 84.dp
                 val canDelete = !locked && number.isNotEmpty()
+                val clearAllLabel = stringResource(R.string.phone_delete_all)
+                val callForeground = phoneCallForeground(canCall, palette.muted)
                 Box(
                     modifier = Modifier
                         .size(deleteSize).clip(CircleShape).background(palette.card)
+                        .testTag("phone-delete")
                         .combinedClickable(
                             // No built-in long-press pulse: the RideHaptic calls here already go
                             // through the in-app switch and system haptic settings.
                             hapticFeedbackEnabled = false,
                             enabled = canDelete,
+                            role = Role.Button,
+                            onClickLabel = stringResource(R.string.phone_delete),
+                            onLongClickLabel = clearAllLabel,
                             onClick = {
                                 haptics.perform(RideHaptic.Tap)
                                 number = PhoneMath.backspace(number); name = null
@@ -391,32 +447,46 @@ private fun Keypad(
                     horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Rounded.Call, null, tint = Color.White, modifier = Modifier.size(34.dp))
-                    Text(stringResource(R.string.phone_call), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, softWrap = false)
+                    Icon(Icons.Rounded.Call, null, tint = callForeground, modifier = Modifier.size(34.dp))
+                    Text(
+                        stringResource(R.string.phone_call), fontSize = cappedSp(24f, maxScale = 1.2f),
+                        fontWeight = FontWeight.Bold, color = callForeground, maxLines = 1, softWrap = false,
+                    )
                 }
             }
         
     }
+    val phoneKey: @Composable (Char) -> Unit = { key ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize().clip(RoundedCornerShape(20.dp))
+                .background(if (locked) palette.track else palette.cardHigh)
+                .border(1.dp, palette.border, RoundedCornerShape(20.dp))
+                .testTag("phone-key-$key")
+                .pressKey(
+                    enabled = !locked,
+                    // One beep per tap: a long press on 0 replaces the tap, so it beeps once too.
+                    onClick = { keyTone(key); number = PhoneMath.append(number, key); name = null },
+                    // Hold 0 for +, as on the phone's own keypad.
+                    onLongClick = if (key == '0') ({ keyTone(key); number = PhoneMath.append(number, '+'); name = null }) else null,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                key.toString(), fontSize = cappedSp(34f, maxScale = 1.15f),
+                fontWeight = FontWeight.SemiBold, color = if (locked) palette.muted else palette.text,
+            )
+        }
+    }
     val keys: @Composable (Modifier) -> Unit = { keyModifier ->
-        Column(modifier = keyModifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            KEY_ROWS.forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    row.forEach { key ->
-                        Box(
-                            modifier = Modifier
-                                .weight(1f).fillMaxHeight().defaultMinSize(minHeight = 60.dp).clip(RoundedCornerShape(20.dp))
-                                .background(if (locked) palette.track else palette.cardHigh)
-                                .border(1.dp, palette.border, RoundedCornerShape(20.dp))
-                                .pressKey(
-                                    enabled = !locked,
-                                    // One beep per tap: a long press on 0 replaces the tap, so it beeps once too.
-                                    onClick = { keyTone(key); number = PhoneMath.append(number, key); name = null },
-                                    // Hold 0 for +, as on the phone's own keypad.
-                                    onLongClick = if (key == '0') ({ keyTone(key); number = PhoneMath.append(number, '+'); name = null }) else null,
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) { Text(key.toString(), fontSize = 34.sp, fontWeight = FontWeight.SemiBold, color = if (locked) palette.muted else palette.text) }
-                    }
+        BoxWithConstraints(keyModifier) {
+            if (maxHeight >= KEYPAD_3X4_HEIGHT && maxWidth >= KEYPAD_3X4_WIDTH) {
+                KeypadGrid(KEYPAD_3X4, Modifier.fillMaxSize(), phoneKey)
+            } else {
+                // Too short or too narrow: reflow to fewer columns, keep every key >=64 dp and scroll.
+                val rows = keypadFallbackRows(maxWidth)
+                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    KeypadGrid(rows, Modifier.fillMaxWidth().height(keypadRowsHeight(rows.size)), phoneKey)
                 }
             }
         }
@@ -434,6 +504,7 @@ private fun Keypad(
                 display()
                 Spacer(Modifier.weight(1f))
                 actions()
+                footer?.invoke()
             }
             keys(Modifier.weight(1.2f).fillMaxHeight())
         }
@@ -449,3 +520,7 @@ private fun whenLabel(atMs: Long): String {
         else -> DateFormat.getDateFormat(context).format(Date(atMs))
     }
 }
+
+/** Enabled green call actions use black; a disabled call button keeps the muted foreground. */
+internal fun phoneCallForeground(enabled: Boolean, muted: Color): Color =
+    if (enabled) Color.Black else muted

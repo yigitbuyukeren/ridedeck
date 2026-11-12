@@ -1,5 +1,6 @@
 package com.ridedeck.app
 
+import com.ridedeck.app.data.CachedRoutePreview
 import com.ridedeck.app.data.FuelFinder
 import com.ridedeck.app.data.StopKind
 import com.ridedeck.app.data.StopSource
@@ -40,6 +41,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 
 private const val STEP = 0.0009 // about 100 m of latitude
 
@@ -109,7 +111,10 @@ class NavigationControllerTest {
     private lateinit var nav: NavigationController
     private var clock = 1L
 
-    private fun fixAt(p: GeoPoint) = LocationState(speedKmh = 50, fixAtMs = ++clock, lat = p.lat, lon = p.lon)
+    private fun fixAt(p: GeoPoint) = LocationState(
+        speedKmh = 50, fixAtMs = ++clock, lat = p.lat, lon = p.lon,
+        gpsProviderEnabled = true, locationPermissionGranted = true,
+    )
 
     private fun drive(index: Int) {
         location.value = fixAt(GeoPoint(start.lat + index * STEP, start.lon))
@@ -875,6 +880,297 @@ class NavigationControllerTest {
         assertTrue(ride.serviceStarted(token))
         nav.onQueryChange("Another destination")
         assertEquals(RidePhase.ACTIVE, ride.state.value.phase)
+    }
+
+    @Test fun cachedPreviewNearRouteShowsWithoutHttpUntilExplicitRefresh() {
+        val route = straightRoute()
+        val guarded = NavigationController(
+            text, scope, location, speaker, routing, fuel,
+            beforeStart = { true }, nowMs = { clock },
+        )
+        val preview = CachedRoutePreview(dest, emptyList(), RouteOptions(), route)
+        assertTrue(guarded.restoreCachedPreview(preview))
+        assertTrue(guarded.ui.value.cachedPreview)
+        assertFalse(guarded.ui.value.cachedPreviewStartBlocked)
+        assertFalse(guarded.ui.value.navigating)
+        assertTrue(routing.requests.isEmpty())
+
+        assertTrue(guarded.refreshCachedPreview())
+        assertEquals(1, routing.requests.size)
+        assertFalse(guarded.ui.value.cachedPreview)
+        guarded.shutdown()
+    }
+
+    @Test fun farAwayCachedStartIsBlockedWithoutBeforeStartVoiceOrService() {
+        val before = intArrayOf(0)
+        val route = straightRoute()
+        location.value = fixAt(GeoPoint(42.0, 29.0))
+        val guarded = NavigationController(
+            text, scope, location, speaker, routing, fuel,
+            beforeStart = { before[0]++; true }, nowMs = { clock },
+        )
+        assertTrue(guarded.restoreCachedPreview(CachedRoutePreview(dest, emptyList(), RouteOptions(), route)))
+        assertTrue(guarded.ui.value.cachedPreviewStartBlocked)
+        val announcements = speaker.said.toList()
+
+        guarded.startNavigation()
+
+        assertFalse(guarded.ui.value.navigating)
+        assertEquals(0, before[0])
+        assertEquals(announcements, speaker.said)
+        assertTrue(routing.requests.isEmpty())
+        guarded.shutdown()
+    }
+
+    @Test fun failedCachedRefreshKeepsCachedRouteAndDoesNotInvalidatePersistedFallback() {
+        var invalidated = 0
+        val route = straightRoute()
+        val guarded = NavigationController(
+            text, scope, location, speaker, routing, fuel,
+            beforeStart = { true }, nowMs = { clock },
+            onUserRouteChoice = { invalidated++ },
+        )
+        assertTrue(guarded.restoreCachedPreview(CachedRoutePreview(dest, emptyList(), RouteOptions(), route)))
+        routing.routeHandler = { _, _ -> Result.failure(IOException("offline")) }
+
+        assertTrue(guarded.refreshCachedPreview())
+
+        assertTrue(guarded.ui.value.cachedPreview)
+        assertTrue(guarded.ui.value.cachedPreviewRefreshFailed)
+        assertEquals(route, guarded.ui.value.route)
+        assertEquals(0, invalidated)
+        guarded.shutdown()
+    }
+
+    @Test fun invalidCachedGeometryIsRejectedWithoutChangingPreview() {
+        val before = nav.ui.value
+        val bad = straightRoute().copy(distanceM = 50_000.0)
+        assertFalse(nav.restoreCachedPreview(CachedRoutePreview(dest, emptyList(), RouteOptions(), bad)))
+        assertEquals(before, nav.ui.value)
+    }
+
+    @Test fun cachedStartAt149mIsBlockedAndDoesNotAnnouncePassedInstruction() {
+        val before = intArrayOf(0)
+        val route = straightRoute()
+        location.value = fixAt(GeoPoint(41.00134, 29.0)) // ~149 m along the saved route
+        val guarded = NavigationController(
+            text, scope, location, speaker, routing, fuel,
+            beforeStart = { before[0]++; true }, nowMs = { clock },
+        )
+        assertTrue(guarded.restoreCachedPreview(CachedRoutePreview(dest, emptyList(), RouteOptions(), route)))
+        assertTrue(guarded.ui.value.cachedPreviewStartBlocked)
+        val announcements = speaker.said.toList()
+
+        guarded.startNavigation()
+
+        assertFalse(guarded.ui.value.navigating)
+        assertEquals(0, before[0])
+        assertEquals(announcements, speaker.said)
+        assertTrue(routing.requests.isEmpty())
+        guarded.shutdown()
+    }
+
+    @Test fun cachedStartNearOriginSpeaksDepartureButNotPassedStop() {
+        val route = straightRoute()
+        val guarded = NavigationController(
+            text, scope, location, speaker, routing, fuel,
+            beforeStart = { true }, nowMs = { clock },
+        )
+        assertTrue(guarded.restoreCachedPreview(CachedRoutePreview(dest, emptyList(), RouteOptions(), route)))
+        assertFalse(guarded.ui.value.cachedPreviewStartBlocked)
+
+        guarded.startNavigation()
+
+        assertTrue(guarded.ui.value.navigating)
+        assertTrue(speaker.said.contains("Head north"))
+        assertFalse(speaker.said.any { it.contains("Stop") })
+        assertTrue(routing.requests.isEmpty())
+        guarded.shutdown()
+    }
+
+    @Test fun cachedRefreshLateReplyAfterCancelIsIgnored() = runBlocking {
+        val route = straightRoute()
+        val guarded = NavigationController(
+            text, scope, location, speaker, routing, fuel,
+            beforeStart = { true }, nowMs = { clock },
+        )
+        assertTrue(guarded.restoreCachedPreview(CachedRoutePreview(dest, emptyList(), RouteOptions(), route)))
+        val result = CompletableDeferred<Result<Route>>()
+        routing.routeHandler = { _, _ -> result.await() }
+        assertTrue(guarded.refreshCachedPreview())
+        assertTrue(guarded.ui.value.loading)
+
+        guarded.stopNavigation()
+        result.complete(Result.success(straightRoute(GeoPoint(41.1, 29.0))))
+
+        assertNull(guarded.ui.value.route)
+        assertNull(guarded.ui.value.destination)
+        assertFalse(guarded.ui.value.navigating)
+        assertFalse(guarded.ui.value.loading)
+        guarded.shutdown()
+    }
+
+    @Test fun cachedStartUsesElapsedFixAgeAndRequiresLocationPermission() {
+        val before = intArrayOf(0)
+        val route = straightRoute()
+        location.value = LocationState(
+            speedKmh = 0, fixAtMs = clock, elapsedRealtimeMs = 1_000,
+            lat = start.lat, lon = start.lon, gpsProviderEnabled = true, locationPermissionGranted = false,
+        )
+        val guarded = NavigationController(
+            text, scope, location, speaker, routing, fuel,
+            beforeStart = { before[0]++; true }, nowMs = { clock }, nowElapsedMs = { 100_000 },
+        )
+        assertTrue(guarded.restoreCachedPreview(CachedRoutePreview(dest, emptyList(), RouteOptions(), route)))
+        assertTrue(guarded.ui.value.cachedPreviewStartBlocked)
+        guarded.startNavigation()
+        assertFalse(guarded.ui.value.navigating)
+        assertEquals(0, before[0])
+        guarded.shutdown()
+    }
+
+    @Test fun cachedPreviewEditingApisAreHardBlockedWithoutHttp() {
+        val route = straightRoute()
+        val guarded = NavigationController(
+            text, scope, location, speaker, routing, fuel,
+            beforeStart = { true }, nowMs = { clock },
+        )
+        assertTrue(guarded.restoreCachedPreview(CachedRoutePreview(dest, emptyList(), RouteOptions(), route)))
+        val before = guarded.ui.value
+        val options = guarded.options.value
+
+        guarded.addStop(Place("Blocked", "", GeoPoint(41.01, 29.0)))
+        guarded.removeStop(0)
+        guarded.chooseRoute(0)
+        guarded.setOptions(RouteOptions(avoidHighways = true, avoidTolls = true))
+
+        assertEquals(before, guarded.ui.value)
+        assertEquals(options, guarded.options.value)
+        assertTrue(routing.requests.isEmpty())
+        guarded.shutdown()
+    }
+
+    @Test fun leavingCachedPreviewInvalidatesPersistedTripBeforeProcessDeath() {
+        var invalidated = 0
+        val route = straightRoute()
+        val guarded = NavigationController(
+            text, scope, location, speaker, routing, fuel,
+            beforeStart = { true }, nowMs = { clock },
+            onUserRouteChoice = { invalidated++ },
+        )
+        assertTrue(guarded.restoreCachedPreview(CachedRoutePreview(dest, emptyList(), RouteOptions(), route)))
+        assertTrue(guarded.refreshCachedPreview())
+        assertEquals(1, invalidated)
+
+        assertTrue(guarded.restoreCachedPreview(CachedRoutePreview(dest, emptyList(), RouteOptions(), route)))
+        guarded.selectPlace(Place("New", "", GeoPoint(41.02, 29.0)))
+        assertEquals(2, invalidated)
+        guarded.shutdown()
+    }
+
+    @Test fun cachedStartRejectsWhenStopIsAlreadyAtOrBehindProgress() {
+        val shortShape = (0..3).map { GeoPoint(41.0 + it * 0.0001, 29.0) } // ~10 m segments
+        val stop = Place("S", "", shortShape[1])
+        val stopRoute = Route(
+            shortShape,
+            listOf(
+                Maneuver(1, "Go", "", "Go", 10.0, 0),
+                Maneuver(4, "Stop", "", "Stop", 0.0, 1, isStop = true),
+                Maneuver(4, "Arrive", "", "Arrive", 0.0, 3),
+            ),
+            30.0,
+            10.0,
+            listOf(1),
+        )
+        location.value = fixAt(shortShape[2])
+        val guarded = NavigationController(
+            text, scope, location, speaker, routing, fuel,
+            beforeStart = { true }, nowMs = { clock },
+        )
+        assertTrue(guarded.restoreCachedPreview(CachedRoutePreview(Place("D", "", shortShape.last()), listOf(stop), RouteOptions(), stopRoute)))
+        assertTrue(guarded.ui.value.cachedPreviewStartBlocked)
+        guarded.startNavigation()
+        assertFalse(guarded.ui.value.navigating)
+        assertTrue(routing.requests.isEmpty())
+        guarded.shutdown()
+    }
+
+    @Test fun explicitRouteChoiceNotifiesOwnerEvenWithoutCachedPreview() {
+        var invalidated = 0
+        val guarded = NavigationController(
+            text, scope, location, speaker, routing, fuel,
+            beforeStart = { true }, nowMs = { clock },
+            onUserRouteChoice = { invalidated++ },
+        )
+        guarded.selectPlace(dest)
+        assertEquals(1, invalidated)
+        guarded.shutdown()
+    }
+
+    @Test fun noOpRouteCommandsDoNotInvalidatePersistedRecord() {
+        var invalidated = 0
+        val guarded = NavigationController(
+            text, scope, location, speaker, routing, fuel,
+            beforeStart = { true }, nowMs = { clock },
+            onUserRouteChoice = { invalidated++ },
+        )
+        guarded.addStop(Place("S", "", GeoPoint(41.01, 29.0)))
+        guarded.removeStop(0)
+        guarded.setOptions(RouteOptions())
+        guarded.chooseRoute(0)
+        assertEquals(0, invalidated)
+        assertEquals(0L, guarded.userRouteChoiceCount())
+        guarded.shutdown()
+    }
+
+    @Test fun stopNavigationNotifiesOwnerSynchronouslyBeforeReturn() {
+        var invalidated = 0
+        val guarded = NavigationController(
+            text, scope, location, speaker, routing, fuel,
+            beforeStart = { true }, nowMs = { clock },
+            onUserRouteChoice = { invalidated++ },
+        )
+        guarded.stopNavigation()
+        assertEquals(1, invalidated)
+        guarded.shutdown()
+    }
+
+    @Test fun cachedRouteNeedsNetworkIsExplicitAndDoesNotRoute() {
+        nav.markCachedRouteNeedsNetwork()
+        assertTrue(nav.ui.value.cachedRouteNeedsNetwork)
+        assertTrue(routing.requests.isEmpty())
+        assertFalse(nav.ui.value.navigating)
+    }
+
+    @Test fun slicedCachedStartSpeaksNextLegNotPassedStop() {
+        val shape = (0..4).map { GeoPoint(41.0 + it * 0.0009, 29.0) }
+        val stop = Place("Stop1", "", shape[2])
+        val full = Route(
+            shape,
+            listOf(
+                Maneuver(1, "Go1", "", "Go1", 100.0, 0),
+                Maneuver(4, "Stop1", "", "Stop1", 0.0, 2, isStop = true),
+                Maneuver(1, "Go2", "", "Go2", 100.0, 2),
+                Maneuver(4, "Arrive", "", "Arrive", 0.0, 4),
+            ),
+            400.0,
+            20.0,
+            listOf(2),
+        )
+        val sliced = com.ridedeck.app.data.RouteGeometrySlice.afterPassedStop(full, listOf(stop), 1)!!
+        location.value = fixAt(sliced.shape.first())
+        val guarded = NavigationController(
+            text, scope, location, speaker, routing, fuel,
+            beforeStart = { true }, nowMs = { clock },
+        )
+        assertTrue(guarded.restoreCachedPreview(CachedRoutePreview(Place("D", "", sliced.shape.last()), emptyList(), RouteOptions(), sliced)))
+        guarded.startNavigation()
+
+        assertTrue(guarded.ui.value.navigating)
+        assertEquals("Go2", guarded.ui.value.route!!.maneuvers.first().instruction)
+        assertTrue(speaker.said.any { it.contains("Go2") })
+        assertFalse(speaker.said.any { it.contains("Stop1") })
+        guarded.shutdown()
     }
 
     @Test fun permissionLossDuringADetourPreservesTheErrorAndReleasesGuidance() {

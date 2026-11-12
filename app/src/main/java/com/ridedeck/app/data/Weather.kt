@@ -1,5 +1,6 @@
 package com.ridedeck.app.data
 
+import android.os.SystemClock
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.Locale
@@ -95,8 +96,13 @@ object WeatherMath {
             "&current=temperature_2m,weather_code,wind_gusts_10m&minutely_15=precipitation&forecast_minutely_15=8&timezone=auto"
 }
 
-class WeatherRepository {
-    suspend fun fetch(at: GeoPoint, nowMs: Long = System.currentTimeMillis()): Result<WeatherSnapshot> =
+/** The forecast lookup, injectable so freshness and reply ordering can be tested without a server. */
+interface WeatherLookup {
+    suspend fun fetch(at: GeoPoint, nowMs: Long = System.currentTimeMillis()): Result<WeatherSnapshot>
+}
+
+class WeatherRepository : WeatherLookup {
+    override suspend fun fetch(at: GeoPoint, nowMs: Long): Result<WeatherSnapshot> =
         withContext(Dispatchers.IO) {
             safely("weather") {
                 WeatherMath.parse(Http.get(WeatherMath.url(at.lat, at.lon), connectMs = 8_000, readMs = 10_000), nowMs)
@@ -113,7 +119,9 @@ class WeatherController(
     private val scope: CoroutineScope,
     private val location: StateFlow<LocationState>,
     private val enabled: StateFlow<Boolean>,
-    private val repo: WeatherRepository = WeatherRepository(),
+    private val repo: WeatherLookup = WeatherRepository(),
+    /** Monotonic milliseconds that also advance in deep sleep, so snapshot age survives wall-clock changes. */
+    private val elapsedMs: () -> Long = { SystemClock.elapsedRealtime() },
     private val onAlert: (WeatherAlert, WeatherSnapshot) -> Unit,
 ) {
     private val _snapshot = MutableStateFlow<WeatherSnapshot?>(null)
@@ -123,8 +131,19 @@ class WeatherController(
     private var lastFetchPoint: GeoPoint? = null
     private var rainAnnounced = false
     private var iceAnnounced = false
+    private var snapshotAtMs = 0L
+    /** Bumped when weather is disabled, so a reply from the old session can never be shown or announced. */
+    private var generation = 0L
+    private var inFlight = false
+    private var started = false
+
+    init {
+        scope.launch { enabled.collect { if (!it) clear() } }
+    }
 
     fun start() {
+        if (started) return
+        started = true
         scope.launch {
             while (true) {
                 tick()
@@ -134,25 +153,66 @@ class WeatherController(
         }
     }
 
-    private suspend fun tick() {
-        val fix = location.value
+    private fun tick() {
         if (!enabled.value) {
-            _snapshot.value = null
-            lastFetchAt = 0L
+            clear()
             return
         }
+        expireIfNeeded()
+        val fix = location.value
         if (fix.fixAtMs == 0L) return
         val here = GeoPoint(fix.lat, fix.lon)
-        val now = System.currentTimeMillis()
+        val now = elapsedMs()
         val moved = lastFetchPoint?.let { Geo.distance(it, here) } ?: Double.MAX_VALUE
         if (now - lastFetchAt < REFRESH_MS && moved < REFRESH_MOVE_M) return
-        repo.fetch(here, now).onSuccess { s ->
-            lastFetchAt = now
-            lastFetchPoint = here
-            _snapshot.value = s
-            announce(s)
+        refresh(here, now)
+    }
+
+    private fun refresh(here: GeoPoint, now: Long) {
+        if (inFlight) return
+        val requestGeneration = generation
+        val requestedAt = now
+        inFlight = true
+        scope.launch {
+            val result = repo.fetch(here)
+            // Weather was turned off and on again while the request was on the wire.
+            if (requestGeneration != generation) return@launch
+            inFlight = false
+            val completedAt = elapsedMs()
+            // A backwards clock, a reply older than the snapshot lifetime, or a disabled switch is not current weather.
+            val requestAge = completedAt - requestedAt
+            if (requestAge < 0 || requestAge > SNAPSHOT_TTL_MS || !enabled.value) return@launch
+            result.onSuccess { s ->
+                _snapshot.value = s
+                snapshotAtMs = requestedAt
+                lastFetchAt = completedAt
+                lastFetchPoint = here
+                announce(s)
+            }
+            // A failed fetch keeps the old snapshot until its lifetime ends, then tries again on the next tick.
         }
-        // A failed fetch keeps the old snapshot and tries again on the next tick.
+    }
+
+    private fun expireIfNeeded() {
+        if (_snapshot.value == null) return
+        val age = elapsedMs() - snapshotAtMs
+        if (age < 0 || age > SNAPSHOT_TTL_MS) clearSnapshot()
+    }
+
+    /** Weather is off: forget the reading and invalidate any reply still in flight, without delaying the tick loop. */
+    private fun clear() {
+        generation++
+        inFlight = false
+        lastFetchAt = 0L
+        lastFetchPoint = null
+        clearSnapshot()
+    }
+
+    private fun clearSnapshot() {
+        _snapshot.value = null
+        snapshotAtMs = 0L
+        rainAnnounced = false
+        iceAnnounced = false
     }
 
     private fun announce(s: WeatherSnapshot) {
@@ -162,10 +222,12 @@ class WeatherController(
         else if (!iceAnnounced) { iceAnnounced = true; onAlert(WeatherAlert.ICE, s) }
     }
 
-    private companion object {
-        const val TICK_MS = 60_000L
-        const val FIRST_TICK_MS = 5_000L
-        const val REFRESH_MS = 15 * 60_000L
-        const val REFRESH_MOVE_M = 10_000.0
+    companion object {
+        /** A forecast is no longer shown as current after this long, even if every refresh since has failed. */
+        const val SNAPSHOT_TTL_MS = 30 * 60_000L
+        private const val TICK_MS = 60_000L
+        private const val FIRST_TICK_MS = 5_000L
+        private const val REFRESH_MS = 15 * 60_000L
+        private const val REFRESH_MOVE_M = 10_000.0
     }
 }

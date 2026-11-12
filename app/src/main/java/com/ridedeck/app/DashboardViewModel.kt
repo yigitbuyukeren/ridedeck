@@ -22,7 +22,14 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ridedeck.app.data.BatteryRepository
 import com.ridedeck.app.data.CallPhase
+import com.ridedeck.app.data.DetourQuoteController
+import com.ridedeck.app.data.DetourQuoteSnapshot
+import com.ridedeck.app.data.DetourRouteContextKey
 import com.ridedeck.app.data.LocationState
+import com.ridedeck.app.data.RouteQuoteRouting
+import com.ridedeck.app.data.RouteRepository
+import com.ridedeck.app.data.bindDetourQuoteSignals
+import com.ridedeck.app.data.routeRequestBodyBuilder
 import com.ridedeck.app.data.hasFreshFix
 import com.ridedeck.app.data.PhoneMath
 import com.ridedeck.app.data.PhoneRepository
@@ -79,6 +86,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val readMessagesAloud = MutableStateFlow(Prefs.readMessagesAloud(app))
     val voiceTtsNames = navigation.voiceTtsNames
     val selectedTtsVoice = navigation.selectedTtsVoice
+    val voiceFacts = navigation.voice.runtimeFacts
     private val announcer = navigation.voice
 
     fun setTtsVoice(name: String?) {
@@ -222,6 +230,8 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         nav.startNavigation()
     }
 
+    fun retryCachedRouteRestore(): Boolean = navigation.retryCachedRouteRestore()
+
     /** Bumped on every onResume so permission-dependent UI re-checks its state. */
     val resumeTick = MutableStateFlow(0)
 
@@ -234,6 +244,8 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     private val motionTracker = com.ridedeck.app.data.MotionTracker()
     private var inputLocked = false
+    private val motionInputProvider: () -> Boolean = { gps.value.inputLocked }
+    private var motionInputToken: Any? = null
 
     val gps: StateFlow<GpsUi> = combine(location.state, ticker) { loc, now ->
         val fresh = loc.hasFreshFix(now, android.os.SystemClock.elapsedRealtime())
@@ -242,6 +254,57 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         inputLocked = com.ridedeck.app.data.MotionTracker.inputLocked(inputLocked, motion)
         GpsUi(if (fresh) loc.speedKmh else 0, fresh, loc.accuracyM, loc.fixAgeMs, loc.fixIntervalMs, loc.speedAccuracyMps, shown?.roundToInt(), motion, inputLocked)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, GpsUi())
+
+    // VM-owned quote wiring; no app-scoped controller and no GPS subscription beyond existing gps.
+    private val quoteRouteRepo = RouteRepository(miles = { Units.miles })
+    private val quoteRouting = RouteQuoteRouting(
+        requestBody = routeRequestBodyBuilder(quoteRouteRepo),
+        delegate = quoteRouteRepo,
+        miles = { Units.miles },
+    )
+    private var detourContextGeneration = 0L
+    private val detourInitialContextKey = DetourRouteContextKey.from(nav.ui.value, nav.options.value)
+    internal val detourQuotes = DetourQuoteController(
+        scope = viewModelScope,
+        routing = quoteRouting,
+        currentContext = {
+            DetourQuoteSnapshot.from(
+                nav = nav.ui.value,
+                location = location.state.value,
+                options = nav.options.value,
+                contextGeneration = detourContextGeneration,
+                maxStops = MAX_DETOUR_STOPS,
+            )
+        },
+        motionLocked = { gps.value.inputLocked },
+    )
+
+    init {
+        bindDetourQuoteSignals(
+            scope = viewModelScope,
+            navUi = nav.ui,
+            options = nav.options,
+            motionLocked = gps.map { it.inputLocked },
+            initialKey = detourInitialContextKey,
+            onContextChanged = {
+                detourContextGeneration++
+                detourQuotes.invalidate()
+            },
+            onMotionChanged = detourQuotes::onMotionLockChanged,
+        )
+    }
+
+    /** Explicit UI action; builds the snapshot inside the VM, never from mutable UI/Prefs. */
+    fun requestDetourQuote(station: Place): Boolean {
+        val snapshot = DetourQuoteSnapshot.from(
+            nav = nav.ui.value,
+            location = location.state.value,
+            options = nav.options.value,
+            contextGeneration = detourContextGeneration,
+            maxStops = MAX_DETOUR_STOPS,
+        ) ?: return false
+        return detourQuotes.request(snapshot, station)
+    }
 
     val thermalEnabled = MutableStateFlow(Prefs.thermalGuard(app))
     val thermal = ThermalGuard(
@@ -270,6 +333,8 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     fun removeSosContact(contact: com.ridedeck.app.data.SosContact) = safety.removeContact(contact)
 
     init {
+        // Reuse the existing MotionTracker/DashboardViewModel input lock; app-lifetime owner keeps only a weak ref.
+        motionInputToken = navigation.registerMotionInputLocked(motionInputProvider)
         weather.start()
         viewModelScope.launch {
             MessageBridge.latest.filterNotNull().collect { message ->
@@ -311,11 +376,16 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     override fun onCleared() {
+        detourQuotes.dispose()
+        motionInputToken?.let(navigation::unregisterMotionInputLocked)
+        motionInputToken = null
         battery.stop()
         theme.stop()
+        super.onCleared()
     }
 
     private companion object {
         const val FRESH_MESSAGE_MS = 30_000L
+        const val MAX_DETOUR_STOPS = 3
     }
 }

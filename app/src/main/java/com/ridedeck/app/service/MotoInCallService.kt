@@ -17,9 +17,9 @@ import android.os.OutcomeReceiver
 import android.os.Handler
 import android.os.Looper
 import androidx.annotation.RequiresApi
-import androidx.core.app.NotificationCompat
 import com.ridedeck.app.MainActivity
 import com.ridedeck.app.R
+import com.ridedeck.app.data.CallNotificationPolicy
 import com.ridedeck.app.data.CallPhase
 import com.ridedeck.app.data.CallState
 import com.ridedeck.app.data.TelecomCallPolicy
@@ -68,7 +68,7 @@ class MotoInCallService : InCallService() {
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
         calls.forEach { runCatching { it.stopDtmfTone(); it.unregisterCallback(callback) } }
-        getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
+        getSystemService(NotificationManager::class.java).cancel(IncomingCallNotification.ID)
         InCallHub.service = null
         InCallHub.call = null
         InCallHub.state.value = null
@@ -84,17 +84,18 @@ class MotoInCallService : InCallService() {
         if (incoming) {
             // A full-screen notification is how the system lets a dialer come up over whatever is on screen.
             val nm = getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(NotificationChannel(CHANNEL, getString(R.string.call_incoming), NotificationManager.IMPORTANCE_HIGH))
+            nm.createNotificationChannel(NotificationChannel(IncomingCallNotification.CHANNEL, getString(R.string.call_incoming), NotificationManager.IMPORTANCE_HIGH))
             val pi = PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-            nm.notify(NOTIFICATION_ID, NotificationCompat.Builder(this, CHANNEL)
-                .setSmallIcon(R.drawable.ic_stat_call)
-                .setContentTitle(getString(R.string.call_incoming))
-                .setContentText(CallBridge.callerName.value ?: getString(R.string.phone_unknown))
-                .setCategory(NotificationCompat.CATEGORY_CALL)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setOngoing(true)
-                .setFullScreenIntent(pi, true)
-                .build())
+            // Android 14 can deny the full-screen intent (user switch / missing role). The ordinary
+            // content intent is kept either way, so a tap still reaches the call screen.
+            val systemAllows = if (Build.VERSION.SDK_INT >= 34) nm.canUseFullScreenIntent() else false
+            val fullScreenAllowed = CallNotificationPolicy.fullScreenIntentAllowed(Build.VERSION.SDK_INT, systemAllows)
+            nm.notify(IncomingCallNotification.ID, IncomingCallNotification.build(
+                context = this,
+                caller = CallBridge.callerName.value,
+                contentIntent = pi,
+                fullScreenIntent = if (fullScreenAllowed) pi else null,
+            ))
         }
         try { startActivity(open) } catch (_: RuntimeException) { }
     }
@@ -102,7 +103,7 @@ class MotoInCallService : InCallService() {
     override fun onCallRemoved(call: Call) {
         runCatching { call.stopDtmfTone() }
         call.unregisterCallback(callback)
-        getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
+        getSystemService(NotificationManager::class.java).cancel(IncomingCallNotification.ID)
         publish()
     }
 
@@ -167,7 +168,7 @@ class MotoInCallService : InCallService() {
         if (main !== InCallHub.call) routeRequests.reset()
         InCallHub.call = main
         // The "incoming call" notification is for ringing only; once answered or ended it must not hang on.
-        if (main?.state != Call.STATE_RINGING) getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
+        if (main?.state != Call.STATE_RINGING) getSystemService(NotificationManager::class.java).cancel(IncomingCallNotification.ID)
         if (main == null) {
             InCallHub.state.value = CallState(CallPhase.IDLE, managed = true)
             CallBridge.callerName.value = null
@@ -202,10 +203,5 @@ class MotoInCallService : InCallService() {
         } catch (_: RuntimeException) {
             null
         }
-    }
-
-    private companion object {
-        const val CHANNEL = "calls"
-        const val NOTIFICATION_ID = 42
     }
 }

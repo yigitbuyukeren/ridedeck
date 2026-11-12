@@ -19,6 +19,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -48,11 +49,18 @@ class MultiStopTest {
         assertTrue(route.isUsable())
     }
 
-    private class ViaRouting : Routing {
+    private class ViaRouting(private val offerAlternative: Boolean = false) : Routing {
         val vias = mutableListOf<List<GeoPoint>>()
-        override suspend fun route(from: GeoPoint, to: GeoPoint, options: RouteOptions) = Result.success(lShapedRoute(start = from))
+        val optionsSeen = mutableListOf<RouteOptions>()
+        override suspend fun route(from: GeoPoint, to: GeoPoint, options: RouteOptions): Result<Route> {
+            optionsSeen += options
+            return Result.success(lShapedRoute(start = from))
+        }
+        override suspend fun alternatives(from: GeoPoint, to: GeoPoint, options: RouteOptions): Result<List<Route>> =
+            if (offerAlternative) Result.success(listOf(lShapedRoute(kmStraight = 1.5, start = from))) else Result.success(emptyList())
         override suspend fun routeVia(points: List<GeoPoint>, options: RouteOptions): Result<Route> {
             vias += points
+            optionsSeen += options
             val base = lShapedRoute(start = points.first())
             return Result.success(base.copy(stopIndices = listOf(base.shape.size / 2)))
         }
@@ -162,6 +170,154 @@ class MultiStopTest {
         assertEquals(3, routing.vias.last().size)
         assertNotNull(nav.ui.value.route)
         assertTrue(!nav.ui.value.navigating)
+        nav.shutdown(); scope.cancel()
+    }
+
+    @Test
+    fun restoredTripAppliesSavedChoicesWithoutWritingGlobalPreferences() {
+        val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        val loc = MutableStateFlow(LocationState(speedKmh = 0, fixAtMs = 5, lat = 41.0, lon = 29.0))
+        val routing = ViaRouting()
+        val changed = mutableListOf<RouteOptions>()
+        val nav = NavigationController(
+            { "t$it" }, scope, loc, silent, routing, noFuel,
+            initialOptions = RouteOptions(avoidHighways = false, avoidTolls = false),
+            onOptionsChanged = { changed += it },
+            nowMs = { 5 },
+        )
+        val dest = Place("D", "", GeoPoint(41.03, 29.01))
+        val saved = RouteOptions(avoidHighways = true, avoidTolls = true)
+        nav.restoreTrip(dest, null, listOf(Place("S2", "", GeoPoint(41.02, 29.0))), saved)
+        assertEquals(saved, nav.options.value)
+        assertEquals(saved, routing.optionsSeen.last())
+        assertTrue(changed.isEmpty())
+        assertFalse(nav.ui.value.navigating)
+        nav.shutdown(); scope.cancel()
+    }
+
+    @Test
+    fun legacyRestoredTripKeepsCurrentChoicesWhenNoneWereSaved() {
+        val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        val loc = MutableStateFlow(LocationState(speedKmh = 0, fixAtMs = 5, lat = 41.0, lon = 29.0))
+        val routing = ViaRouting()
+        val changed = mutableListOf<RouteOptions>()
+        val current = RouteOptions(avoidTolls = true)
+        val nav = NavigationController(
+            { "t$it" }, scope, loc, silent, routing, noFuel,
+            initialOptions = current,
+            onOptionsChanged = { changed += it },
+            nowMs = { 5 },
+        )
+        val dest = Place("D", "", GeoPoint(41.03, 29.01))
+        nav.restoreTrip(dest, null, listOf(Place("S2", "", GeoPoint(41.02, 29.0))), options = null)
+        assertEquals(current, nav.options.value)
+        assertEquals(current, routing.optionsSeen.last())
+        assertTrue(changed.isEmpty())
+        nav.shutdown(); scope.cancel()
+    }
+
+    @Test
+    fun restoredFuelDetourPreviewsTheFinalDestinationAndRemainingStops() {
+        val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        val loc = MutableStateFlow(LocationState(speedKmh = 0, fixAtMs = 5, lat = 41.0, lon = 29.0))
+        val routing = ViaRouting()
+        val nav = NavigationController({ "t$it" }, scope, loc, silent, routing, noFuel, nowMs = { 5 })
+        val pump = Place("Opet", "", GeoPoint(41.005, 29.0))
+        val dest = Place("D", "", GeoPoint(41.03, 29.01))
+        val stop = Place("S2", "", GeoPoint(41.02, 29.0))
+        val saved = RouteOptions(avoidHighways = true)
+
+        nav.restoreTrip(pump, dest, listOf(stop), saved)
+
+        // A fuel stop is not re-planned; the post-pump leg is previewed with its remaining stops.
+        assertEquals(dest, nav.ui.value.destination)
+        assertEquals(null, nav.ui.value.finalDestination)
+        assertEquals(listOf(stop), nav.ui.value.stops)
+        assertEquals(listOf(GeoPoint(41.0, 29.0), stop.point, dest.point), routing.vias.last())
+        assertEquals(saved, routing.optionsSeen.last())
+        assertFalse(nav.ui.value.navigating)
+        nav.shutdown(); scope.cancel()
+    }
+
+    @Test
+    fun restoreTripRejectsActiveGuidanceWithoutChangingOptions() {
+        val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        val loc = MutableStateFlow(LocationState(speedKmh = 40, fixAtMs = 5, lat = 41.0, lon = 29.0))
+        val routing = ViaRouting()
+        val initial = RouteOptions(avoidTolls = true)
+        val nav = NavigationController({ "t$it" }, scope, loc, silent, routing, noFuel, initialOptions = initial, nowMs = { 5 })
+        val dest = Place("D", "", GeoPoint(41.03, 29.01))
+        nav.selectPlace(dest)
+        nav.startNavigation()
+
+        nav.restoreTrip(Place("X", "", GeoPoint(41.04, 29.02)), null, emptyList(), RouteOptions(avoidHighways = true))
+
+        assertEquals(initial, nav.options.value)
+        assertEquals(dest, nav.ui.value.destination)
+        assertTrue(nav.ui.value.navigating)
+        nav.shutdown(); scope.cancel()
+    }
+
+    @Test
+    fun restoreTripWithoutAFixDoesNotChangeOptions() {
+        val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        val loc = MutableStateFlow(LocationState(speedKmh = 0, fixAtMs = 0, lat = 41.0, lon = 29.0))
+        val routing = ViaRouting()
+        val initial = RouteOptions(avoidTolls = true)
+        val nav = NavigationController({ "t$it" }, scope, loc, silent, routing, noFuel, initialOptions = initial, nowMs = { 5 })
+        val dest = Place("D", "", GeoPoint(41.03, 29.01))
+
+        nav.restoreTrip(dest, null, listOf(Place("S2", "", GeoPoint(41.02, 29.0))), RouteOptions(avoidHighways = true))
+
+        assertEquals(initial, nav.options.value)
+        assertEquals(null, nav.ui.value.destination)
+        assertFalse(nav.ui.value.navigating)
+        nav.shutdown(); scope.cancel()
+    }
+
+    @Test
+    fun allExplicitRouteCommandsAreCountedButRestoreIsNotAChoice() {
+        val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        val loc = MutableStateFlow(LocationState(speedKmh = 0, fixAtMs = 5, lat = 41.0, lon = 29.0))
+        val routing = ViaRouting(offerAlternative = true)
+        val nav = NavigationController({ "t$it" }, scope, loc, silent, routing, noFuel, nowMs = { 5 })
+        val dest = Place("D", "", GeoPoint(41.03, 29.01))
+        val stop = Place("S1", "", GeoPoint(41.01, 29.0))
+        assertEquals(0L, nav.userRouteChoiceCount())
+
+        // A delayed process-death restore is not the rider's choice.
+        nav.restoreTrip(dest, null)
+        assertEquals(0L, nav.userRouteChoiceCount())
+
+        // An accepted alternative pick is a choice (the preview offers the main route plus one).
+        assertTrue(nav.ui.value.choices.size >= 2)
+        nav.chooseRoute(1)
+        assertEquals(1L, nav.userRouteChoiceCount())
+
+        nav.addStop(stop)
+        assertEquals(2L, nav.userRouteChoiceCount())
+        nav.removeStop(0)
+        assertEquals(3L, nav.userRouteChoiceCount())
+        nav.setOptions(RouteOptions(avoidTolls = true))
+        assertEquals(4L, nav.userRouteChoiceCount())
+        nav.startNavigation()
+        assertEquals(5L, nav.userRouteChoiceCount())
+        nav.stopNavigation()
+        assertEquals(6L, nav.userRouteChoiceCount())
+
+        // After Finish there is nothing left to pick or edit: these no-ops must not count.
+        nav.chooseRoute(0)
+        nav.addStop(stop)
+        nav.removeStop(0)
+        nav.setOptions(RouteOptions(avoidTolls = true))
+        assertEquals(6L, nav.userRouteChoiceCount())
+
+        nav.detourVia(stop)
+        assertEquals(7L, nav.userRouteChoiceCount())
+        nav.continueToFinal()
+        assertEquals(8L, nav.userRouteChoiceCount())
+        nav.selectPlace(dest)
+        assertEquals(9L, nav.userRouteChoiceCount())
         nav.shutdown(); scope.cancel()
     }
 

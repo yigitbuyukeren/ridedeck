@@ -4,18 +4,27 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.dp
 
-/** A click that squeezes the element a little while the finger is down, so a tap with gloves still feels answered. */
+/** A click that squeezes the element while pressed; large cards can share a lighter press state. */
 @OptIn(ExperimentalFoundationApi::class)
 fun Modifier.pressClickable(
     enabled: Boolean = true,
@@ -23,13 +32,16 @@ fun Modifier.pressClickable(
     onLongClick: (() -> Unit)? = null,
     onLongClickLabel: String? = null,
     role: Role? = Role.Button,
+    pressedScale: Float = 0.92f,
+    interactionSource: MutableInteractionSource? = null,
     onClick: () -> Unit,
 ): Modifier = composed {
-    val source = remember { MutableInteractionSource() }
+    val source = remember(interactionSource) { interactionSource ?: MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
+    val focused by source.collectIsFocusedAsState()
     val haptics = rememberRideHaptics()
     val scale by animateFloatAsState(
-        if (pressed) 0.92f else 1f,
+        if (pressed) pressedScale else 1f,
         spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "press",
     )
@@ -49,7 +61,7 @@ fun Modifier.pressClickable(
             }
         } else null,
         onLongClickLabel = onLongClickLabel,
-    )
+    ).focusRing(enabled && focused, LocalMotoPalette.current.text)
 }
 
 /** A key that squeezes while pressed, with an optional long-press action. */
@@ -57,6 +69,7 @@ fun Modifier.pressClickable(
 internal fun Modifier.pressKey(enabled: Boolean, onClick: () -> Unit, onLongClick: (() -> Unit)?): Modifier = composed {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
+    val focused by source.collectIsFocusedAsState()
     val haptics = rememberRideHaptics()
     val scale by animateFloatAsState(if (pressed) 0.94f else 1f, label = "key")
     this.graphicsLayer { scaleX = scale; scaleY = scale }
@@ -74,7 +87,29 @@ internal fun Modifier.pressKey(enabled: Boolean, onClick: () -> Unit, onLongClic
                 }
             } else null,
         )
+        .focusRing(enabled && focused, LocalMotoPalette.current.text)
 }
+
+/**
+ * A static, palette-coloured focus ring. It changes no layout, semantics, pointer input or haptic
+ * path: the existing `combinedClickable` remains the only focus/click node.
+ */
+private fun Modifier.focusRing(visible: Boolean, color: Color): Modifier =
+    if (!visible) this else drawWithContent {
+        drawContent()
+        val stroke = 2.dp.toPx()
+        if (size.width <= stroke || size.height <= stroke) return@drawWithContent
+        val inset = stroke / 2f
+        // Conservative inset indicator: deliberately not shape-aware. A fixed small radius stays
+        // visible on rounded rows, pills and cards without pretending to follow their exact clip.
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(inset, inset),
+            size = Size(size.width - stroke, size.height - stroke),
+            cornerRadius = CornerRadius(12.dp.toPx()),
+            style = Stroke(stroke),
+        )
+    }
 
 /**
  * A plain [clickable] with the same ripple as before, plus a short haptic. Use it for rows and cards
@@ -86,9 +121,17 @@ fun Modifier.hapticClickable(
     haptic: RideHaptic = RideHaptic.Tap,
     onClick: () -> Unit,
 ): Modifier = composed {
+    val source = remember { MutableInteractionSource() }
+    val focused by source.collectIsFocusedAsState()
     val haptics = rememberRideHaptics()
-    this.clickable(enabled = enabled, role = role) {
-        haptics.perform(haptic)
-        onClick()
-    }
+    this.focusRing(enabled && focused, LocalMotoPalette.current.text)
+        .clickable(
+            interactionSource = source,
+            indication = LocalIndication.current,
+            enabled = enabled,
+            role = role,
+        ) {
+            haptics.perform(haptic)
+            onClick()
+        }
 }

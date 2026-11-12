@@ -6,10 +6,13 @@ import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -21,12 +24,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -48,6 +54,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -55,15 +62,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
@@ -172,10 +187,7 @@ fun SettingsScreen(
     val current = SettingsCategory.entries.firstOrNull { it.ordinal == selectedOrdinal } ?: SettingsCategory.GENERAL
     val page = pages.firstOrNull { it.category == current } ?: pages.firstOrNull()
     val listState = rememberLazyListState()
-    val railState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-
-    LaunchedEffect(current) { railState.animateScrollToItem(current.ordinal) }
 
     Box(modifier = Modifier.fillMaxSize().background(palette.scrim).clickable(enabled = false) {}) {
         Column(
@@ -204,39 +216,14 @@ fun SettingsScreen(
             }
 
             // The rail is the only navigation; one line of 64 dp targets, scrollable on any width.
-            LazyRow(
-                state = railState,
-                modifier = Modifier.fillMaxWidth().padding(top = 10.dp).testTag("settings-tabs"),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(end = 16.dp),
-            ) {
-                items(SettingsCategory.entries) { category ->
-                    val active = category == current
-                    Row(
-                        modifier = Modifier.height(64.dp).clip(RoundedCornerShape(32.dp))
-                            .background(if (active) MotoColors.Blue else palette.cardHigh)
-                            .semantics { selected = active }
-                            .hapticClickable(haptic = RideHaptic.Select) {
-                                selectedOrdinal = category.ordinal
-                                scope.launch { listState.scrollToItem(0) }
-                            }
-                            .padding(horizontal = 18.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Icon(
-                            category.icon, null,
-                            tint = if (active) Color.White else palette.text,
-                            modifier = Modifier.size(22.dp),
-                        )
-                        Text(
-                            stringResource(category.label),
-                            fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
-                            color = if (active) Color.White else palette.text,
-                        )
-                    }
-                }
-            }
+            SettingsCategoryRail(
+                selected = current,
+                onSelect = { category ->
+                    selectedOrdinal = category.ordinal
+                    scope.launch { listState.scrollToItem(0) }
+                },
+                modifier = Modifier.padding(top = 10.dp),
+            )
 
             if (page == null) return@Column
             Box(modifier = Modifier.fillMaxSize().padding(top = 10.dp)) {
@@ -260,29 +247,116 @@ fun SettingsScreen(
     }
 }
 
+/**
+ * The one-line category rail. It is internal so UI tests can drive selection on a narrow width and
+ * a large font without building the whole settings page stack.
+ *
+ * A tab is capped to the rail width minus its end content padding, so `animateScrollToItem` always
+ * leaves the selected tab wholly visible. The trailing fade appears only while more tabs wait in
+ * the scroll direction, doubling as the horizontal scroll hint. TR/EN layouts are LTR; the hint's
+ * fade and edge follow `LocalLayoutDirection`.
+ */
+@Composable
+internal fun SettingsCategoryRail(
+    selected: SettingsCategory,
+    onSelect: (SettingsCategory) -> Unit,
+    modifier: Modifier = Modifier,
+    state: LazyListState = rememberLazyListState(),
+) {
+    val palette = LocalMotoPalette.current
+    val density = LocalDensity.current
+    val direction = LocalLayoutDirection.current
+
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        // Never wider than the visible rail: the 16 dp end padding must stay outside the tab too.
+        val tabMaxWidth = (maxWidth - 16.dp).coerceAtLeast(64.dp)
+        // Keyed on the measured rail width, so an embedded/resized rail re-aligns without a
+        // screen-size change, and on the font scale, which changes tab widths.
+        LaunchedEffect(selected, maxWidth, density.fontScale) {
+            state.animateScrollToItem(selected.ordinal)
+        }
+
+        LazyRow(
+            state = state,
+            modifier = Modifier.fillMaxWidth().selectableGroup().testTag("settings-tabs"),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(end = 16.dp),
+        ) {
+            items(SettingsCategory.entries) { category ->
+                val active = category == selected
+                Row(
+                    modifier = Modifier.height(64.dp).widthIn(max = tabMaxWidth)
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(if (active) MotoColors.Blue else palette.cardHigh)
+                        .semantics { this.selected = active }
+                        .testTag("settings-tab-${category.name.lowercase()}")
+                        .hapticClickable(role = Role.Tab, haptic = RideHaptic.Select) { onSelect(category) }
+                        .padding(horizontal = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        category.icon, null,
+                        tint = if (active) Color.White else palette.text,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Text(
+                        stringResource(category.label),
+                        // The rail is a fixed 64 dp control, so the label scales like the dock does
+                        // (up to 140%) instead of growing wider than the screen and clipping.
+                        fontSize = cappedSp(16f, maxScale = 1.4f),
+                        fontWeight = FontWeight.SemiBold, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = if (active) Color.White else palette.text,
+                    )
+                }
+            }
+        }
+        // The rail's own horizontal scroll hint: a fade only while unseen tabs remain that way.
+        if (state.canScrollForward) {
+            val ltr = direction == LayoutDirection.Ltr
+            Box(
+                Modifier.align(Alignment.CenterEnd).width(24.dp).height(64.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            if (ltr) listOf(Color.Transparent, palette.scrim)
+                            else listOf(palette.scrim, Color.Transparent),
+                        ),
+                    )
+                    .testTag("settings-tabs-forward-hint"),
+            )
+        }
+    }
+}
+
 @Composable
 fun ToggleRow(t: ToggleItem) {
-    // The whole row toggles, not just the small switch: much easier to hit with gloves.
-    val haptics = rememberRideHaptics()
+    // The whole row is the single toggle target; the switch is decorative so tapping it cannot
+    // create a second focus/click node or toggle twice.
     Row(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card)
-            .hapticClickable(enabled = t.enabled, haptic = if (t.checked) RideHaptic.ToggleOff else RideHaptic.ToggleOn) {
+        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)
+            .clip(RoundedCornerShape(20.dp)).background(MotoColors.Card)
+            .testTag("settings-toggle-row")
+            .hapticClickable(
+                enabled = t.enabled, role = Role.Switch,
+                haptic = if (t.checked) RideHaptic.ToggleOff else RideHaptic.ToggleOn,
+            ) {
                 t.onChange(!t.checked)
             }
+            .semantics { toggleableState = ToggleableState(t.checked) }
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
-            Text(t.title, fontSize = 19.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
-            Text(t.description, fontSize = 14.sp, color = LocalMotoPalette.current.muted)
+            Text(t.title, fontSize = 19.sp, lineHeight = 24.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
+            Text(t.description, fontSize = 14.sp, lineHeight = 19.sp, color = LocalMotoPalette.current.muted)
         }
         Switch(
             checked = t.checked,
-            onCheckedChange = {
-                if (t.enabled) haptics.perform(if (it) RideHaptic.ToggleOn else RideHaptic.ToggleOff)
-                t.onChange(it)
-            },
+            onCheckedChange = null,
             enabled = t.enabled,
+            modifier = Modifier.testTag("settings-toggle-switch")
+                .semantics { if (!t.enabled) disabled() },
         )
     }
 }
@@ -295,34 +369,37 @@ fun ToggleRow(t: ToggleItem) {
 fun ToggleGroupRow(title: String, description: String, toggles: List<ToggleItem>) {
     if (toggles.isEmpty()) return
     val palette = LocalMotoPalette.current
-    val haptics = rememberRideHaptics()
     Column(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text(title, fontSize = 19.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
-        Text(description, fontSize = 14.sp, color = palette.muted)
+        Text(title, fontSize = 19.sp, lineHeight = 24.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
+        Text(description, fontSize = 14.sp, lineHeight = 19.sp, color = palette.muted)
         toggles.forEach { t ->
             Box(Modifier.fillMaxWidth().height(1.dp).background(palette.track))
             Row(
                 modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)
-                    .hapticClickable(haptic = if (t.checked) RideHaptic.ToggleOff else RideHaptic.ToggleOn) {
+                    .hapticClickable(
+                        enabled = t.enabled, role = Role.Switch,
+                        haptic = if (t.checked) RideHaptic.ToggleOff else RideHaptic.ToggleOn,
+                    ) {
                         t.onChange(!t.checked)
-                    },
+                    }
+                    .semantics { toggleableState = ToggleableState(t.checked) },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    t.title, fontSize = 18.sp, color = palette.text, fontWeight = FontWeight.SemiBold,
+                    t.title, fontSize = 18.sp, lineHeight = 22.sp, color = palette.text, fontWeight = FontWeight.SemiBold,
                     maxLines = 2, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).padding(end = 10.dp),
                 )
                 Switch(
                     checked = t.checked,
-                    onCheckedChange = { on ->
-                        haptics.perform(if (on) RideHaptic.ToggleOn else RideHaptic.ToggleOff)
-                        t.onChange(on)
-                    },
+                    onCheckedChange = null,
+                    enabled = t.enabled,
+                    modifier = Modifier.testTag("settings-toggle-switch")
+                        .semantics { if (!t.enabled) disabled() },
                 )
             }
         }
@@ -332,16 +409,18 @@ fun ToggleGroupRow(title: String, description: String, toggles: List<ToggleItem>
 @Composable
 fun SettingRow(item: SettingItem) {
     Row(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(16.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)
+            .clip(RoundedCornerShape(20.dp)).background(MotoColors.Card)
+            .testTag("settings-setting-row").padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(item.title, fontSize = 19.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
-            Text(item.description, fontSize = 14.sp, color = LocalMotoPalette.current.muted)
+            Text(item.title, fontSize = 19.sp, lineHeight = 24.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
+            Text(item.description, fontSize = 14.sp, lineHeight = 19.sp, color = LocalMotoPalette.current.muted)
             item.progress?.let { progress ->
                 if (progress < 0f) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
                 else LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
-                item.progressLabel?.let { Text(it, fontSize = 13.sp, color = LocalMotoPalette.current.muted) }
+                item.progressLabel?.let { Text(it, fontSize = 13.sp, lineHeight = 18.sp, color = LocalMotoPalette.current.muted) }
             }
         }
         if (item.granted) {
@@ -434,7 +513,54 @@ fun VoiceControlsRow(speechRate: Float, onSpeechRate: (Float) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(stringResource(R.string.voice_speech_rate, (speechRate * 100).toInt()), fontSize = 19.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
-        Slider(speechRate, onSpeechRate, valueRange = 0.75f..1.25f)
+        // Material's inner Slider remains the visual/semantic control at its 48 dp minimum.
+        // This 64 dp host handles only the top/bottom edge strips itself; the centre is delegated
+        // untouched to Slider so TalkBack SetProgress and the original drag path still work.
+        val direction = LocalLayoutDirection.current
+        val latestOnSpeechRate by rememberUpdatedState(onSpeechRate)
+        Box(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)
+                .testTag("settings-speech-slider")
+                .pointerInput(direction) {
+                    val range = 0.75f..1.25f
+                    val edge = 10.dp.toPx()
+                    fun valueAt(x: Float): Float {
+                        val fraction = (x / size.width).coerceIn(0f, 1f)
+                        val directional = if (direction == LayoutDirection.Rtl) 1f - fraction else fraction
+                        return range.start + directional * (range.endInclusive - range.start)
+                    }
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        // Central 48 dp belongs to the inner Slider; do not consume or duplicate it.
+                        if (down.position.y > edge && down.position.y < size.height - edge) {
+                            return@awaitEachGesture
+                        }
+                        var lastX = down.position.x
+                        var moved = false
+                        var horizontal = false
+                        var event = awaitPointerEvent()
+                        while (event.changes.any { it.pressed }) {
+                            val change = event.changes.firstOrNull() ?: break
+                            lastX = change.position.x
+                            val dx = change.position.x - down.position.x
+                            val dy = change.position.y - down.position.y
+                            if (!moved && dx * dx + dy * dy > viewConfiguration.touchSlop * viewConfiguration.touchSlop) {
+                                moved = true
+                                horizontal = kotlin.math.abs(dx) >= kotlin.math.abs(dy)
+                                if (!horizontal) return@awaitEachGesture
+                            }
+                            if (horizontal) {
+                                latestOnSpeechRate(valueAt(change.position.x))
+                                change.consume()
+                            }
+                            event = awaitPointerEvent()
+                        }
+                        if (!moved) latestOnSpeechRate(valueAt(lastX))
+                    }
+                },
+        ) {
+            Slider(speechRate, onSpeechRate, valueRange = 0.75f..1.25f, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp))
+        }
     }
 }
 

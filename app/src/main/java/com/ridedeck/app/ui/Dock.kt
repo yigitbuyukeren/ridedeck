@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Call
@@ -33,6 +35,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ridedeck.app.data.BatteryState
@@ -51,16 +54,18 @@ fun Dock(
     active: DockTab = DockTab.NONE,
 ) {
     // The column down the left side of the landscape dashboard.
-    BoxWithConstraints(modifier = Modifier.fillMaxHeight().width(96.dp).padding(vertical = 8.dp)) {
-        // Tiles take whatever height the status block leaves, up to a glove-sized 76dp (never below 62dp).
+    BoxWithConstraints(modifier = Modifier.fillMaxHeight().width(96.dp).padding(vertical = 8.dp).testTag("dock")) {
+        // Tiles take whatever height the status block leaves, up to a glove-sized 76dp (never below the 64dp target).
         val gap = 8.dp
-        val tile = ((maxHeight - STATUS_HEIGHT - gap * 4) / 4).coerceIn(62.dp, 76.dp)
-        Column(
-            modifier = Modifier.fillMaxHeight(),
-            verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(gap), horizontalAlignment = Alignment.CenterHorizontally) {
+        val tile = ((maxHeight - STATUS_HEIGHT - gap * 4) / 4).coerceIn(64.dp, 76.dp)
+        Column(modifier = Modifier.fillMaxHeight()) {
+            // Glove-sized 64 dp targets are never shrunk; when a short screen cannot hold all four,
+            // the rail scrolls while the status block stays pinned and readable.
+            Column(
+                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(gap),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
                 DockTile(Icons.Rounded.Navigation, MotoColors.Blue, tile, onNavigation, active == DockTab.NAV, label = stringResource(R.string.nav_title))
                 DockTile(Icons.Rounded.MusicNote, MotoColors.Red, tile, onMusic, active == DockTab.MUSIC, label = stringResource(R.string.dock_music))
                 DockTile(Icons.Rounded.Call, Color(0xFF34C759), tile, onPhone, active == DockTab.PHONE, label = stringResource(R.string.perm_phone))

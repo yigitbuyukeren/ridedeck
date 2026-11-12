@@ -213,7 +213,7 @@ private suspend fun firstAnswerOf(query: String, mirrors: List<String>): String 
     val requests = mirrors.map { url ->
         launch(Dispatchers.IO) {
             val outcome = try {
-                Result.success(Http.postForm(url, body, connectMs = 5_000, readMs = 10_000))
+                Result.success(Http.postFormCancellable(url, body, connectMs = 5_000, readMs = 10_000))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

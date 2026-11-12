@@ -23,6 +23,8 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.offset
 import androidx.compose.material.icons.automirrored.rounded.VolumeDown
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
@@ -39,6 +41,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -75,6 +78,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -89,6 +93,7 @@ fun NowPlayingScreen(
     state: MediaState,
     media: MediaRepository,
     onGrantAccess: () -> Unit,
+    onResumeLast: () -> Unit = { media.resumeLast() },
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalMotoPalette.current
@@ -100,42 +105,105 @@ fun NowPlayingScreen(
             .border(1.dp, palette.border, RoundedCornerShape(28.dp))
     ) {
         if (!state.hasAccess) {
-            Empty(stringResource(R.string.media_grant_prompt), stringResource(R.string.grant_access), onGrantAccess)
+            Empty(
+                text = stringResource(R.string.media_grant_prompt),
+                hint = stringResource(R.string.media_access_settings_hint),
+                button = stringResource(R.string.grant_access),
+                onClick = onGrantAccess,
+            )
+            return@Box
+        }
+        if (!state.hasSession) {
+            Empty(
+                text = stringResource(R.string.media_not_playing),
+                hint = stringResource(R.string.media_empty_hint),
+                button = stringResource(R.string.play),
+                onClick = onResumeLast,
+            )
             return@Box
         }
         val k = 1f
         val controls: @Composable () -> Unit = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                RoundButton(Icons.AutoMirrored.Rounded.VolumeDown, (60 * k).toInt(), palette.track, onClick = media::volumeDown)
-                RoundButton(Icons.Rounded.SkipPrevious, (68 * k).toInt(), Color.Transparent, enabled = state.hasSession) { media.previous() }
-                RoundButton(
-                    if (state.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    (84 * k).toInt(), palette.strong, dark = true,
-                    haptic = if (state.playing) RideHaptic.ToggleOff else RideHaptic.ToggleOn, onClick = media::togglePlay,
-                )
-                RoundButton(Icons.Rounded.SkipNext, (68 * k).toInt(), Color.Transparent, enabled = state.hasSession) { media.next() }
-                RoundButton(Icons.AutoMirrored.Rounded.VolumeUp, (60 * k).toInt(), palette.track, onClick = media::volumeUp)
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                // The cover eats into this column on narrow screens. Keep the three transport
+                // targets whole and move volume to hardware keys rather than clipping the row.
+                val compact = maxWidth < FULL_CONTROLS_WIDTH
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (!compact) {
+                        RoundButton(Icons.AutoMirrored.Rounded.VolumeDown, stringResource(R.string.volume_down), (64 * k).toInt(), palette.track, onClick = media::volumeDown)
+                    }
+                    RoundButton(Icons.Rounded.SkipPrevious, stringResource(R.string.media_previous), (68 * k).toInt(), Color.Transparent) { media.previous() }
+                    RoundButton(
+                        if (state.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        stringResource(if (state.playing) R.string.media_pause else R.string.play),
+                        (84 * k).toInt(), palette.strong, dark = true,
+                        haptic = if (state.playing) RideHaptic.ToggleOff else RideHaptic.ToggleOn, onClick = media::togglePlay,
+                    )
+                    RoundButton(Icons.Rounded.SkipNext, stringResource(R.string.media_next), (68 * k).toInt(), Color.Transparent) { media.next() }
+                    if (!compact) {
+                        RoundButton(Icons.AutoMirrored.Rounded.VolumeUp, stringResource(R.string.volume_up), (64 * k).toInt(), palette.track, onClick = media::volumeUp)
+                    }
+                }
             }
         }
-        Row(
-            modifier = Modifier.fillMaxSize().padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(Modifier.fillMaxHeight().aspectRatio(0.88f), contentAlignment = Alignment.Center) {
-                Cover(state, direction = { media.skipDirection }, onNext = { media.next() }, onPrevious = { media.previous() })
+        BoxWithConstraints(Modifier.fillMaxSize().padding(20.dp)) {
+            val reflow = maxWidth < FULL_WIDTH_REFLOW_BELOW
+
+            val cover: @Composable () -> Unit = {
+                Box(Modifier.fillMaxHeight().aspectRatio(0.88f), contentAlignment = Alignment.Center) {
+                    Cover(state, direction = { media.skipDirection }, onNext = { media.next() }, onPrevious = { media.previous() })
+                }
             }
-            Spacer(Modifier.width(28.dp))
-            Column(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                verticalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Box(Modifier.padding(end = 56.dp)) { TrackTitle(state) }
-                if (state.hasSession) Progress(state, media::seekTo) else Spacer(Modifier.height(1.dp))
-                controls()
+            val metadata: @Composable RowScope.(Boolean) -> Unit = { withControls ->
+                Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                    // Title, artist and progress live in a scrollable information region; the
+                    // control bar is reserved as a fixed child so a constrained height can never
+                    // coerce a target. On narrow layouts the bar moves below the cover instead.
+                    Column(
+                        modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Box(Modifier.padding(end = 56.dp)) { TrackTitle(state) }
+                        Spacer(Modifier.height(8.dp))
+                        Progress(state, media::seekTo)
+                    }
+                    if (withControls) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(84.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            controls()
+                        }
+                    }
+                }
+            }
+
+            if (reflow) {
+                Column(Modifier.fillMaxSize()) {
+                    Row(Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        cover()
+                        Spacer(Modifier.width(28.dp))
+                        metadata(false)
+                    }
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(84.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        // Full-width bar: the three transport targets keep their width with room
+                        // to spare; volume stays available when this width also allows it.
+                        controls()
+                    }
+                }
+            } else {
+                Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                    cover()
+                    Spacer(Modifier.width(28.dp))
+                    metadata(true)
+                }
             }
         }
     }
@@ -286,8 +354,8 @@ private fun Progress(state: MediaState, onSeek: (Long) -> Unit) {
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             val shown = if (touched != null) (touched!! * state.durationMs).toLong() else clamped
-            Text(clock(shown), fontSize = 14.sp, color = palette.textTertiary)
-            if (state.durationMs > 0) Text(clock(state.durationMs), fontSize = 14.sp, color = palette.textTertiary)
+            Text(clock(shown), fontSize = 15.sp, color = palette.textSecondary)
+            if (state.durationMs > 0) Text(clock(state.durationMs), fontSize = 15.sp, color = palette.textSecondary)
         }
     }
 }
@@ -300,6 +368,7 @@ private fun clock(ms: Long): String {
 @Composable
 private fun RoundButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    description: String,
     size: Int,
     background: Color,
     dark: Boolean = false,
@@ -317,7 +386,7 @@ private fun RoundButton(
     ) {
         Crossfade(icon, animationSpec = tween(200), label = "icon") { shown ->
             Icon(
-                shown, null,
+                shown, description,
                 tint = (if (dark) LocalMotoPalette.current.onStrong else LocalMotoPalette.current.text).copy(alpha = if (enabled) 1f else 0.35f),
                 modifier = Modifier.size((size * 0.55f).dp),
             )
@@ -326,14 +395,43 @@ private fun RoundButton(
 }
 
 @Composable
-private fun Empty(text: String, button: String, onClick: () -> Unit) {
+private fun Empty(text: String, hint: String?, button: String, onClick: () -> Unit) {
+    val palette = LocalMotoPalette.current
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(text, fontSize = 18.sp, color = LocalMotoPalette.current.textSecondary)
-        Spacer(Modifier.size(12.dp))
-        PillButton(button, MotoColors.Blue, onClick)
+        // The action keeps a fixed 72 dp target; only the informative text scrolls when a short
+        // card (or a large font) leaves less room, so the explanation is never silently dropped.
+        Box(
+            modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold,
+                    color = palette.text, textAlign = TextAlign.Center,
+                )
+                if (!hint.isNullOrBlank()) {
+                    Spacer(Modifier.size(4.dp))
+                    Text(
+                        hint, fontSize = 14.sp, lineHeight = 18.sp, color = palette.textSecondary,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.size(8.dp))
+        PillButton(
+            button, MotoColors.Blue, onClick,
+            horizontalPadding = 20.dp, minHeight = 72.dp,
+            fontSize = cappedSp(20f, maxScale = 1.25f), singleLine = true,
+        )
     }
 }
+
+/** Full five-control row needs this much width inside the text column. */
+private val FULL_CONTROLS_WIDTH = 348.dp
+
+/** Below this content width the metadata column is too narrow; put controls in a full-width bar. */
+private val FULL_WIDTH_REFLOW_BELOW = 720.dp

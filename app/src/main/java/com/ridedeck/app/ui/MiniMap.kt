@@ -1,6 +1,11 @@
 package com.ridedeck.app.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -8,7 +13,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ridedeck.app.data.LocationState
@@ -111,13 +119,27 @@ fun MiniMap(
     )
 }
 
-/** The map data credit that OpenFreeMap and OpenStreetMap ask for, small and quiet. */
+/**
+ * The map data credit that OpenFreeMap and OpenStreetMap ask for. It always draws its own dark
+ * backing so it stays readable over light day tiles, and caps font scaling so the fixed footer
+ * cannot grow into the navigation content.
+ */
 @Composable
 fun MapCredit(modifier: Modifier = Modifier) {
-    androidx.compose.material3.Text(
-        "OpenFreeMap © OpenMapTiles · © OpenStreetMap",
-        fontSize = 9.sp,
-        color = androidx.compose.ui.graphics.Color(0x99FFFFFF),
-        modifier = modifier,
-    )
+    val density = LocalDensity.current
+    val scale = minOf(density.fontScale, 1.2f)
+    val fontSize = with(density) { (9f * scale / density.fontScale).sp }
+    val lineHeight = with(density) { (12f * scale / density.fontScale).sp }
+    Box(
+        modifier = modifier
+            .background(Color(0xE6000000), RoundedCornerShape(3.dp))
+            .padding(horizontal = 4.dp, vertical = 1.dp),
+    ) {
+        Text(
+            "OpenFreeMap © OpenMapTiles · © OpenStreetMap",
+            fontSize = fontSize,
+            lineHeight = lineHeight,
+            color = Color.White,
+        )
+    }
 }

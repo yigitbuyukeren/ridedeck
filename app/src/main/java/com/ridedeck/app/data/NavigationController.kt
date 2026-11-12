@@ -14,6 +14,19 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 enum class NavigationTermination { NONE, USER_CANCELLED, ARRIVED, LOCATION_DISABLED, LOCATION_PERMISSION_REVOKED, TRACKING_ERROR }
 
+/** OFFLINE MAP SUFFICIENCY IS UNKNOWN for a cached route; never render this as ready. */
+enum class CachedRouteMapCoverage { UNKNOWN }
+
+data class CachedRoutePreview(
+    val destination: Place,
+    val remainingStops: List<Place>,
+    val options: RouteOptions,
+    val route: Route,
+)
+
+/** Explicit rider route commands that can invalidate a pending startup record. */
+enum class RouteChoiceReason { DESTINATION, ADD_STOP, REMOVE_STOP, ALTERNATIVE, OPTIONS, CACHED_REFRESH, START, STOP }
+
 data class NavUi(
     val query: String = "",
     val results: List<Place> = emptyList(),
@@ -48,6 +61,17 @@ data class NavUi(
     val suggestion: String? = null,
     /** Set when [results] come from a corrected spelling of the query, so the panel can say so. */
     val resultsFor: String? = null,
+    /** Geometry came from the verified local cache rather than a fresh routing request. */
+    val cachedRoute: Boolean = false,
+    /** A cached route is currently shown as a preview; Start may be blocked by source-position safety. */
+    val cachedPreview: Boolean = false,
+    /** True when the rider is not close enough to the cached route start/progress; UI must disable Start. */
+    val cachedPreviewStartBlocked: Boolean = false,
+    /** Explicit online refresh was requested and failed; the cached route remains visible. */
+    val cachedPreviewRefreshFailed: Boolean = false,
+    /** A saved trip exists but its geometry is missing/invalid and validated network is unavailable. */
+    val cachedRouteNeedsNetwork: Boolean = false,
+    val cachedPreviewMapCoverage: CachedRouteMapCoverage = CachedRouteMapCoverage.UNKNOWN,
 )
 
 data class FuelUi(
@@ -85,17 +109,24 @@ class NavigationController(
     /** Nominatim allows one request per second: the pause between a query and its corrected spellings. */
     private val searchGapMs: Long = SEARCH_GAP_MS,
     private val nowMs: () -> Long = System::currentTimeMillis,
+    /** Optional elapsed-realtime clock for native fix age; null keeps pure unit tests on the wall clock only. */
+    private val nowElapsedMs: (() -> Long)? = null,
     private val beforeStart: () -> Boolean = { true },
     /** Spoken distances follow the rider's unit choice. */
     private val miles: () -> Boolean = { false },
     /** A phone call is on: spoken prompts are replaced by a vibration cue and read once the call ends (N10). */
     private val inCall: () -> Boolean = { false },
     private val cue: () -> Unit = {},
+    /** Any explicit rider route command; owner decides whether a pending startup record is still current. */
+    private val onUserRouteChoice: (RouteChoiceReason) -> Unit = {},
 ) {
     private val _options = MutableStateFlow(initialOptions)
     val options: StateFlow<RouteOptions> = _options
     private var routeJob: Job? = null
+    private var cachedEligibilityJob: Job? = null
     private var routeGeneration = 0L
+    /** Monotonic count of explicit route commands; startup restore must not override a rider action. */
+    private var userRouteChoices = 0L
     private data class DetourRequest(val stop: Place, val final: Place, val from: GeoPoint, val generation: Long, val stopsAhead: List<Place>)
 
     private val _ui = MutableStateFlow(NavUi())
@@ -132,12 +163,12 @@ class NavigationController(
     private var missedPrompt = -1
 
     private fun here(): GeoPoint? =
-        location.value.takeIf { it.hasFreshFix(nowMs()) }?.let { GeoPoint(it.lat, it.lon) }
+        location.value.takeIf { it.hasFreshFix(nowMs(), nowElapsedMs?.invoke()) }?.let { GeoPoint(it.lat, it.lon) }
 
     /** The direction of travel for a route request, or null when standing still (then the heading is noise). */
     private fun heading(): Double? {
         val fix = location.value
-        if (!fix.hasFreshFix(nowMs()) || fix.speedKmh / 3.6 < RouteMatcher.MIN_HEADING_SPEED) return null
+        if (!fix.hasFreshFix(nowMs(), nowElapsedMs?.invoke()) || fix.speedKmh / 3.6 < RouteMatcher.MIN_HEADING_SPEED) return null
         return fix.bearing?.toDouble()?.takeIf { it.isFinite() }
     }
 
@@ -221,22 +252,184 @@ class NavigationController(
     }
 
     fun selectPlace(place: Place) {
+        userRouteChoices++
+        onUserRouteChoice(RouteChoiceReason.DESTINATION)
         rememberChosen(place)
         val request = preparePlaceRoute(place) ?: return
         routeJob = scope.launch { calculatePlaceRoute(place, request.first, request.second) }
     }
 
     /**
+     * All explicit route commands made in this process: selection, stops, route choice/options, start/stop,
+     * fuel detour and continue. A delayed process-death restore must not override any of them.
+     */
+    fun userRouteChoiceCount(): Long = userRouteChoices
+
+    /**
      * After a process kill: routes to the saved destination through the stops that were still ahead, as a preview
      * ("Start" resumes guidance); a saved fuel stop is not re-planned.
+     *
+     * [options] restores the choices stored with the trip. They stay session-local so a preview does not overwrite
+     * the rider's global preference; null (legacy record) keeps the current choices.
      */
-    fun restoreTrip(destination: Place, finalDestination: Place?, stops: List<Place> = emptyList()) {
+    fun restoreTrip(destination: Place, finalDestination: Place?, stops: List<Place> = emptyList(), options: RouteOptions? = null) {
+        if (_ui.value.navigating) return
         val target = finalDestination ?: destination
         val request = preparePlaceRoute(target) ?: return
+        // Only mutate session choices after the preview was accepted; a missing fix or active guidance changes nothing.
+        if (options != null && _options.value != options) _options.value = options
         val ahead = stops.take(maxStops)
         _ui.update { it.copy(stops = ahead) }
         routeJob = scope.launch { calculatePlaceRoute(target, request.first, request.second, ahead) }
     }
+
+    /**
+     * Shows a previously validated local geometry as a preview without any routing HTTP.
+     * Start is only enabled when the current fresh fix is close to the route start/progress corridor.
+     */
+    fun restoreCachedPreview(preview: CachedRoutePreview): Boolean {
+        val state = _ui.value
+        if (state.navigating || state.finalDestination != null) return false
+        if (preview.remainingStops.size > maxStops) return false
+        if (!preview.route.isUsable()) return false
+        if (!RouteGeometrySnapshot.linkageValid(preview.destination, null, preview.remainingStops, preview.route)) return false
+
+        stopCachedEligibility()
+        if (_options.value != preview.options) _options.value = preview.options
+        val blocked = !cachedStartEligible(preview.route)
+        _ui.update {
+            it.copy(
+                query = preview.destination.name,
+                results = emptyList(),
+                searching = false,
+                suggestion = null,
+                resultsFor = null,
+                destination = preview.destination,
+                finalDestination = null,
+                stops = preview.remainingStops,
+                stopsPassed = 0,
+                route = preview.route,
+                choices = emptyList(),
+                loading = false,
+                error = null,
+                navigating = false,
+                rerouting = false,
+                guidanceDegraded = false,
+                etaDrift = false,
+                arrived = false,
+                termination = NavigationTermination.NONE,
+                maneuverIndex = 0,
+                progressIndex = 0,
+                progressFraction = 0.0,
+                distToNextM = 0,
+                remainingM = preview.route.distanceM.toInt(),
+                remainingS = preview.route.durationS.toInt(),
+                cachedRoute = true,
+                cachedPreview = true,
+                cachedPreviewStartBlocked = blocked,
+                cachedPreviewRefreshFailed = false,
+                cachedRouteNeedsNetwork = false,
+                cachedPreviewMapCoverage = CachedRouteMapCoverage.UNKNOWN,
+            )
+        }
+        watchCachedEligibility(preview.route)
+        return true
+    }
+
+    /** Explicit rider action only: replaces the cached preview with a fresh route; failure keeps the cache. */
+    fun refreshCachedPreview(): Boolean {
+        userRouteChoices++
+        val state = _ui.value
+        if (state.route == null) return false
+        val destination = state.destination ?: return false
+        if (!state.cachedPreview || state.navigating || state.loading || state.rerouting || state.finalDestination != null) return false
+        val from = here()
+        if (from == null) {
+            _ui.update { it.copy(cachedPreviewRefreshFailed = true, error = text(R.string.gps_waiting)) }
+            return false
+        }
+
+        stopCachedEligibility()
+        val ahead = state.stops.drop(state.stopsPassed)
+        val generation = invalidateRoute()
+        _ui.update { it.copy(loading = true, error = null, cachedPreviewRefreshFailed = false) }
+        routeJob = scope.launch {
+            val result = try {
+                routeResult(from, destination.point, stops = ahead)
+            } catch (cancelled: CancellationException) {
+                if (generation == routeGeneration) _ui.update { it.copy(loading = false) }
+                throw cancelled
+            }
+            if (generation != routeGeneration) return@launch
+            if (result == null || result.isFailure) {
+                _ui.update { it.copy(loading = false, cachedPreviewRefreshFailed = true, error = text(R.string.route_failed)) }
+                return@launch
+            }
+            val fresh = result.getOrThrow()
+            onUserRouteChoice(RouteChoiceReason.CACHED_REFRESH)
+            _ui.update {
+                it.copy(
+                    route = fresh,
+                    choices = emptyList(),
+                    loading = false,
+                    error = null,
+                    cachedRoute = false,
+                    cachedPreview = false,
+                    cachedPreviewStartBlocked = false,
+                    cachedPreviewRefreshFailed = false,
+                    cachedRouteNeedsNetwork = false,
+                    progressIndex = 0,
+                    progressFraction = 0.0,
+                    maneuverIndex = 0,
+                )
+            }
+            loadChoices(generation, from, destination.point, fresh)
+        }
+        return true
+    }
+
+    private fun watchCachedEligibility(route: Route) {
+        cachedEligibilityJob = scope.launch {
+            locationUpdates.collect {
+                val state = _ui.value
+                if (!state.cachedPreview || state.navigating || state.route !== route) return@collect
+                val blocked = !cachedStartEligible(route)
+                if (state.cachedPreviewStartBlocked != blocked) {
+                    _ui.update { current -> if (current.route === route) current.copy(cachedPreviewStartBlocked = blocked) else current }
+                }
+            }
+        }
+    }
+
+    /** The saved trip cannot be previewed locally; UI must offer an explicit online retry later. */
+    fun markCachedRouteNeedsNetwork() {
+        _ui.update { it.copy(cachedRouteNeedsNetwork = true) }
+    }
+
+    private fun stopCachedEligibility() {
+        cachedEligibilityJob?.cancel()
+        cachedEligibilityJob = null
+    }
+
+    /** Fresh current fix must match the first stretch of the cached route, not its old starting position. */
+    private fun cachedStartProgress(route: Route): Int? {
+        val fix = location.value
+        // Cached Start needs an observed fine-location GPS fix; null/coarse state must not pass as fresh.
+        if (fix.locationPermissionGranted != true || fix.gpsProviderEnabled != true) return null
+        if (!fix.hasFreshFix(nowMs(), nowElapsedMs?.invoke()) || route.shape.size < 2) return null
+        val speedMps = fix.speedKmh / 3.6
+        val bearing = fix.bearing?.toDouble()?.takeIf { it.isFinite() && speedMps >= RouteMatcher.MIN_HEADING_SPEED }
+        val match = RouteMatcher.match(route.shape, GeoPoint(fix.lat, fix.lon), 0, CACHED_START_SEARCH_SEGMENTS, bearing, speedMps)
+        val alongM = route.cumulative[match.index] +
+            match.projection.fraction * (route.cumulative[match.index + 1] - route.cumulative[match.index])
+        if (route.stopIndices.any { it <= match.index }) return null
+        return match.index.takeIf {
+            match.projection.distanceM <= RouteMatcher.offRouteM(speedMps, fix.accuracyM) &&
+                alongM <= CACHED_START_MAX_ALONG_M
+        }
+    }
+
+    private fun cachedStartEligible(route: Route): Boolean = cachedStartProgress(route) != null
 
     private fun rememberChosen(place: Place) {
         if (place.name != text(R.string.selected_place)) onPlaceChosen(place)
@@ -244,6 +437,7 @@ class NavigationController(
 
     private fun preparePlaceRoute(place: Place): Pair<GeoPoint, Long>? {
         searchJob?.cancel()
+        stopCachedEligibility()
         closeFuel()
         val generation = invalidateRoute()
         val from = here()
@@ -256,7 +450,9 @@ class NavigationController(
         _ui.update {
             it.copy(destination = place, finalDestination = null, stops = emptyList(), stopsPassed = 0, route = null, choices = emptyList(), query = place.name,
                 results = emptyList(), searching = false, loading = true, error = null,
-                navigating = false, rerouting = false, arrived = false, termination = NavigationTermination.NONE)
+                navigating = false, rerouting = false, arrived = false, termination = NavigationTermination.NONE,
+                cachedRoute = false, cachedPreview = false, cachedPreviewStartBlocked = false, cachedPreviewRefreshFailed = false,
+                cachedRouteNeedsNetwork = false)
         }
         return from to generation
     }
@@ -331,27 +527,29 @@ class NavigationController(
     }
 
     /** Most intermediate stops one trip may have. */
-    private val maxStops = 3
+    private val maxStops = ActiveTrip.MAX_STOPS
 
     /** Adds an intermediate stop before the destination, in the preview or while guiding (the route is re-planned from here). */
     fun addStop(place: Place) {
+        if (_ui.value.cachedPreview) return
         val state = _ui.value
         // While heading for a fuel stop the stops belong to the leg after it; they are edited once the trip continues.
         if (state.destination == null || state.finalDestination != null || state.stops.size - state.stopsPassed >= maxStops) return
         closeFuel()
         searchJob?.cancel()
-        applyStops(state.stops.drop(state.stopsPassed) + place)
+        applyStops(state.stops.drop(state.stopsPassed) + place, RouteChoiceReason.ADD_STOP)
     }
 
     /** Removes the [index]th stop still ahead. */
     fun removeStop(index: Int) {
+        if (_ui.value.cachedPreview) return
         if (_ui.value.finalDestination != null) return
         val ahead = _ui.value.stops.drop(_ui.value.stopsPassed)
         if (index !in ahead.indices) return
-        applyStops(ahead.filterIndexed { i, _ -> i != index })
+        applyStops(ahead.filterIndexed { i, _ -> i != index }, RouteChoiceReason.REMOVE_STOP)
     }
 
-    private fun applyStops(newStops: List<Place>) {
+    private fun applyStops(newStops: List<Place>, reason: RouteChoiceReason) {
         val state = _ui.value
         val dest = state.destination ?: return
         val from = here()
@@ -359,6 +557,8 @@ class NavigationController(
             _ui.update { it.copy(error = text(R.string.gps_waiting)) }
             return
         }
+        userRouteChoices++
+        onUserRouteChoice(reason)
         val guiding = state.navigating
         val previous = state
         val generation = invalidateRoute()
@@ -392,10 +592,12 @@ class NavigationController(
 
     /** Picks one of the previewed alternatives. */
     fun chooseRoute(index: Int) {
-        _ui.update {
-            val picked = it.choices.getOrNull(index) ?: return@update it
-            if (it.navigating) it else it.copy(route = picked)
-        }
+        val state = _ui.value
+        if (state.cachedPreview || state.navigating) return
+        val picked = state.choices.getOrNull(index) ?: return
+        userRouteChoices++
+        onUserRouteChoice(RouteChoiceReason.ALTERNATIVE)
+        _ui.update { it.copy(route = picked) }
     }
 
     private fun invalidateRoute(): Long {
@@ -410,7 +612,10 @@ class NavigationController(
      * during guidance the new choice applies to the next re-route.
      */
     fun setOptions(options: RouteOptions) {
+        if (_ui.value.cachedPreview) return
         if (options == _options.value) return
+        userRouteChoices++
+        onUserRouteChoice(RouteChoiceReason.OPTIONS)
         _options.value = options
         onOptionsChanged(options)
         val state = _ui.value
@@ -434,8 +639,18 @@ class NavigationController(
     }
 
     fun startNavigation() {
+        userRouteChoices++
         if (_ui.value.navigating || _ui.value.loading || _ui.value.rerouting) return
         val route = _ui.value.route ?: return
+        val cachedStart = if (_ui.value.cachedPreview) {
+            val progress = cachedStartProgress(route) ?: run {
+                _ui.update { it.copy(cachedPreviewStartBlocked = true) }
+                return
+            }
+            stopCachedEligibility()
+            _ui.update { it.copy(cachedPreview = false, cachedPreviewStartBlocked = false, cachedPreviewRefreshFailed = false) }
+            progress
+        } else 0
         if (here() == null) {
             _ui.update { it.copy(error = text(R.string.gps_waiting)) }
             return
@@ -444,8 +659,9 @@ class NavigationController(
             _ui.update { it.copy(error = text(R.string.ride_start_error)) }
             return
         }
+        onUserRouteChoice(RouteChoiceReason.START)
         _ui.update { it.copy(choices = emptyList()) }
-        begin(route, 0)
+        begin(route, cachedStart)
     }
 
     private fun begin(route: Route, startIndex: Int) {
@@ -502,6 +718,9 @@ class NavigationController(
     }
 
     fun stopNavigation() {
+        userRouteChoices++
+        onUserRouteChoice(RouteChoiceReason.STOP)
+        stopCachedEligibility()
         searchJob?.cancel()
         trackJob?.cancel()
         // A route still being computed (re-route, stop detour) must not come back to life after "Finish".
@@ -549,6 +768,7 @@ class NavigationController(
 
     /** Turns the trip into "fuel stop first, then the original destination". */
     fun detourVia(stop: Place) {
+        userRouteChoices++
         val request = prepareDetour(stop) ?: return
         routeJob = scope.launch { calculateDetour(request) }
     }
@@ -595,6 +815,7 @@ class NavigationController(
 
     /** At the fuel stop: route on to the original destination and keep guiding. */
     fun continueToFinal() {
+        userRouteChoices++
         if (_ui.value.loading || _ui.value.navigating) return
         val final = _ui.value.finalDestination ?: return
         val from = here() ?: return
@@ -639,7 +860,7 @@ class NavigationController(
             trackJob?.cancel()
             return
         }
-        if (!state.navigating || !fix.hasFreshFix(nowMs()) || route.shape.size < 2) return
+        if (!state.navigating || !fix.hasFreshFix(nowMs(), nowElapsedMs?.invoke()) || route.shape.size < 2) return
         val p = GeoPoint(fix.lat, fix.lon)
 
         // Match to the best segment near the last known position, preferring the direction of travel.
@@ -824,6 +1045,7 @@ class NavigationController(
     }
 
     fun shutdown() {
+        stopCachedEligibility()
         searchJob?.cancel()
         trackJob?.cancel()
         fuelJob?.cancel()
@@ -854,5 +1076,8 @@ class NavigationController(
         const val STOP_REACH_M = 40.0
         const val STOP_DWELL_MS = 10_000L
         const val STOP_SKIPPED_M = 300.0
+        /** Cached preview may only start near the beginning of the saved route, never at an old stale position. */
+        const val CACHED_START_MAX_ALONG_M = 50.0
+        const val CACHED_START_SEARCH_SEGMENTS = 20
     }
 }

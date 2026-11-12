@@ -1,9 +1,12 @@
 package com.ridedeck.app.data
 
+import android.os.SystemClock
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -31,12 +34,17 @@ object SpeedLimitMath {
     fun shouldWarn(speedKmh: Int, limit: Int?): Boolean = limit != null && speedKmh > limit + WARN_TOLERANCE_KMH
 }
 
+/** The speed-limit lookup, injectable so the controller's reply ordering can be tested without a server. */
+interface SpeedLimitLookup {
+    suspend fun limitAt(trail: List<GeoPoint>): Result<Int?>
+}
+
 /** Posted speed limit of the road under the last few GPS fixes, from the public Valhalla server. */
 class SpeedLimitRepository(
     /** Valhalla costing that matches the vehicle, so the trail snaps to roads the vehicle may use. */
     private val costing: () -> String = { "motorcycle" },
-) {
-    suspend fun limitAt(trail: List<GeoPoint>): Result<Int?> = withContext(Dispatchers.IO) {
+) : SpeedLimitLookup {
+    override suspend fun limitAt(trail: List<GeoPoint>): Result<Int?> = withContext(Dispatchers.IO) {
         try {
             val shape = JSONArray().also { arr -> trail.forEach { arr.put(JSONObject().put("lat", it.lat).put("lon", it.lon)) } }
             val body = JSONObject()
@@ -63,7 +71,9 @@ class SpeedLimitController(
     private val scope: CoroutineScope,
     location: StateFlow<LocationState>,
     private val active: StateFlow<Boolean>,
-    private val repo: SpeedLimitRepository = SpeedLimitRepository(),
+    private val repo: SpeedLimitLookup = SpeedLimitRepository(),
+    /** Monotonic milliseconds that also advance in deep sleep, so freshness survives wall-clock changes. */
+    private val elapsedMs: () -> Long = { SystemClock.elapsedRealtime() },
     private val onWarn: (Int) -> Unit,
 ) {
     private val _limit = MutableStateFlow<Int?>(null)
@@ -77,8 +87,14 @@ class SpeedLimitController(
     private var inFlight = false
     private var overSince = 0L
     private var lastWarnAt = 0L
+    /** Bumped whenever guidance stops, so a reply from the old session can never be shown. */
+    private var generation = 0L
+    /** Bounds how long an accepted limit stays on screen when no further GPS fix arrives. */
+    private var expiryJob: Job? = null
+    private var expiryToken = 0L
 
     init {
+        scope.launch { active.collect { if (!it) reset() } }
         scope.launch { location.collect { onFix(it) } }
     }
 
@@ -105,15 +121,50 @@ class SpeedLimitController(
     }
 
     private fun query(now: Long, here: GeoPoint, points: List<GeoPoint>) {
+        val requestGeneration = generation
+        val issuedAt = elapsedMs()
+        val requestFixAt = now
         inFlight = true
         lastQueryAt = now
         lastQueryPoint = here
         scope.launch {
             val result = repo.limitAt(points)
+            // Guidance stopped or restarted while the request was on the wire: this answer belongs to the old session.
+            if (requestGeneration != generation) return@launch
             inFlight = false
+            // A negative age means the clock went backwards; either way this reply is no longer current.
+            val ageMs = elapsedMs() - issuedAt
+            if (ageMs < 0 || ageMs > STALE_MS || !active.value) return@launch
             result.onSuccess { found ->
+                expiryJob?.cancel()
+                expiryToken++
                 _limit.value = found
-                if (found != null) lastKnownAt = lastFixAt
+                if (found != null) {
+                    // The road was measured at the request's fix, not at whatever fix happens to arrive with the reply.
+                    lastKnownAt = requestFixAt
+                    scheduleExpiry(requestGeneration, expiryToken, issuedAt)
+                }
+            }
+        }
+    }
+
+    /**
+     * Clears a limit whose request-origin measurement has aged out even if GPS fixes stop arriving.
+     * Short checks of the real elapsed clock are used instead of one long delay: a delay based on
+     * handler uptime would keep a limit on screen for another minute after a long deep sleep.
+     */
+    private fun scheduleExpiry(requestGeneration: Long, token: Long, requestIssuedAt: Long) {
+        expiryJob = scope.launch {
+            while (true) {
+                if (token != expiryToken || requestGeneration != generation) return@launch
+                val age = elapsedMs() - requestIssuedAt
+                // A backwards clock makes the reading's age unknowable: hide it rather than show it indefinitely.
+                if (age < 0 || age > STALE_MS) {
+                    _limit.value = null
+                    return@launch
+                }
+                // Near the boundary check more often than the normal one-second cadence.
+                delay(minOf(EXPIRY_CHECK_MS, (STALE_MS - age).coerceAtLeast(1L)))
             }
         }
     }
@@ -132,6 +183,11 @@ class SpeedLimitController(
     }
 
     private fun reset() {
+        generation++
+        expiryToken++
+        expiryJob?.cancel()
+        expiryJob = null
+        inFlight = false
         trail.clear()
         _limit.value = null
         lastQueryPoint = null
@@ -146,6 +202,7 @@ class SpeedLimitController(
         const val MIN_INTERVAL_MS = 8_000L
         const val MIN_MOVE_M = 60.0
         const val STALE_MS = 60_000L
+        const val EXPIRY_CHECK_MS = 1_000L
         const val WARN_AFTER_MS = 3_000L
         const val WARN_COOLDOWN_MS = 60_000L
     }
