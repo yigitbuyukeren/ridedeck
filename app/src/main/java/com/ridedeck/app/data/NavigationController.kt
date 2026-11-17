@@ -646,6 +646,7 @@ class NavigationController(
             }
             if (guiding) {
                 progressIndex = 0
+                resetArrivalProgress()
                 offRouteFixes = 0
                 spoken.clear()
                 lastNext = -1
@@ -762,6 +763,18 @@ class NavigationController(
         begin(route, startIndex)
     }
 
+    /**
+     * Route replacement must not inherit the old route's arrival counters. Otherwise a freeze
+     * taken while stopped on the previous route can satisfy the new route's distance guard.
+     */
+    private fun resetArrivalProgress() {
+        stillSinceMs = 0L
+        stillRemainingM = Double.MAX_VALUE
+        lastFixAtMs = 0L
+        lastNearEndM = Double.MAX_VALUE
+        lastRemainingM = Double.MAX_VALUE
+    }
+
     private fun begin(route: Route, startIndex: Int) {
         progressIndex = startIndex
         offRouteFixes = 0
@@ -785,11 +798,7 @@ class NavigationController(
         rerouteFailures = 0
         eta.reset()
         missedPrompt = -1
-        stillSinceMs = 0L
-        stillRemainingM = Double.MAX_VALUE
-        lastFixAtMs = 0L
-        lastNearEndM = Double.MAX_VALUE
-        lastRemainingM = Double.MAX_VALUE
+        resetArrivalProgress()
         wrongWayFixes = 0
         wrongWayAnnounced = false
         visitedStops.clear()
@@ -910,6 +919,7 @@ class NavigationController(
         }
         val route = result.getOrThrow()
         progressIndex = 0
+        resetArrivalProgress()
         offRouteFixes = 0
         spoken.clear()
         markRouteComputed()
@@ -992,7 +1002,9 @@ class NavigationController(
         val nearEnd = minOf(Geo.distance(p, route.shape.last()), state.destination?.let { Geo.distance(p, it.point) } ?: Double.MAX_VALUE)
         lastNearEndM = nearEnd
         lastFixAtMs = fix.fixAtMs
-        if (fix.speedKmh < STILL_KMH) {
+        // A fix without a speed value is unknown, not zero: a tunnel/mock fix must not start the
+        // standstill timer while the bike may still be moving.
+        if (fix.hasSpeed && fix.speedKmh < STILL_KMH) {
             if (stillSinceMs == 0L) {
                 stillSinceMs = fix.fixAtMs
                 // Freeze what was left when the bike stopped: a re-route during the pause must not hide the door.
@@ -1183,6 +1195,8 @@ class NavigationController(
             (result ?: Result.failure(IllegalStateException("routing timeout")))
                 .onSuccess { route ->
                     progressIndex = 0
+                    // Keep the frozen door distance: a reroute to the same destination during a
+                    // stop must not hide arrival at the car park beside the road.
                     offRouteFixes = 0
                     nextRerouteAtMs = 0L
                     rerouteFailures = 0
