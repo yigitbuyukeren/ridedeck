@@ -110,7 +110,9 @@ class RideTrackingService : Service() {
     /**
      * Posts a valid foreground notification and returns null, or returns the failure that should end
      * the ride. A location foreground service without while-in-use location throws on Android 14+;
-     * the untyped placeholder still satisfies the startForegroundService() obligation before we stop.
+     * a best-effort untyped placeholder still meets the startForegroundService() deadline. The
+     * failure is PERMISSION even if that placeholder is refused: the missing location grant is the
+     * actionable cause, not an internal start failure.
      */
     private fun promote(token: Long): RideFailure? {
         val notification = notification(token)
@@ -119,12 +121,11 @@ class RideTrackingService : Service() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION else 0)
             null
         } catch (_: SecurityException) {
-            try {
-                ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, 0)
-                RideFailure.PERMISSION
-            } catch (_: RuntimeException) {
-                RideFailure.START_FAILED
-            }
+            // Deadline first, then report the real cause. Some target-36 builds also reject an
+            // untyped start while the manifest declares a location type; that must not turn into
+            // a misleading START_FAILED error.
+            runCatching { ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, 0) }
+            RideFailure.PERMISSION
         } catch (_: RuntimeException) {
             RideFailure.START_FAILED
         }

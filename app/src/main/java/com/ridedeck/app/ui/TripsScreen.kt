@@ -207,8 +207,8 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.trips_title), fontSize = 30.sp, fontWeight = FontWeight.Bold, color = palette.text)
-                    if (recording) Text(stringResource(R.string.trip_recording), fontSize = 16.sp, color = MotoColors.Red)
-                    if (storageError) Text(stringResource(R.string.trip_storage_error), fontSize = 16.sp, color = MotoColors.Red)
+                    if (recording) Text(stringResource(R.string.trip_recording), fontSize = 16.sp, color = dangerColor(palette))
+                    if (storageError) Text(stringResource(R.string.trip_storage_error), fontSize = 16.sp, color = dangerColor(palette))
                 }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -225,7 +225,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                         ) {
                             Text(
                                 stringResource(R.string.data_trips_delete_all),
-                                color = MotoColors.Red,
+                                color = dangerColor(palette),
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.SemiBold,
                             )
@@ -251,7 +251,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                     RidePhase.IDLE -> R.string.ride_idle
                 }), color = palette.muted, fontSize = 15.sp, modifier = Modifier.weight(1f))
             }
-            ride.failure?.let { Text(stringResource(it.textId()), color = MotoColors.Red, fontSize = 15.sp) }
+            ride.failure?.let { Text(stringResource(it.textId()), color = dangerColor(palette), fontSize = 15.sp) }
             if (ride.running && !recordingAllowed) Text(stringResource(R.string.ride_recording_off), color = palette.muted, fontSize = 14.sp)
             if (ride.running && !NotificationManagerCompat.from(context).areNotificationsEnabled()) {
                 Text(stringResource(R.string.ride_notifications_off), color = palette.muted, fontSize = 14.sp)
@@ -386,7 +386,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                         }
                     },
                 ) {
-                    Text(stringResource(R.string.data_trips_delete_all_confirm_action), color = MotoColors.Red)
+                    Text(stringResource(R.string.data_trips_delete_all_confirm_action), color = dangerColor(palette))
                 }
             },
             dismissButton = {
@@ -417,6 +417,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
 /** Confirmation for ending an active ride; [onConfirm] runs at most once per dialog instance. */
 @Composable
 internal fun RideStopConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val palette = LocalMotoPalette.current
     var submitted by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -438,7 +439,7 @@ internal fun RideStopConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> Unit)
                     }
                 },
             ) {
-                Text(stringResource(R.string.data_ride_stop_confirm_action), color = MotoColors.Red)
+                Text(stringResource(R.string.data_ride_stop_confirm_action), color = dangerColor(palette))
             }
         },
         dismissButton = {
@@ -669,7 +670,7 @@ internal fun TripDetail(
                         }
                     },
                 ) {
-                    Text(stringResource(R.string.trip_delete_confirm_action), color = MotoColors.Red)
+                    Text(stringResource(R.string.trip_delete_confirm_action), color = dangerColor(palette))
                 }
             },
             dismissButton = {
