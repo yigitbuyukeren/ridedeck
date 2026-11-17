@@ -17,4 +17,5 @@
     <string name="sos_fsi_title">Full-screen alert permission is off</string>
     <string name="sos_fsi_desc">The countdown will not open full screen on the lock screen. The notification, voice alert and SMS still work.</string>
     <string name="sos_fsi_action">Full-screen access</string>
+    <string name="readiness_detail_sos_sim_missing">No SIM or no usable default SMS SIM; an emergency message cannot be sent.</string>
 </resources>

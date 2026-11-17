@@ -17,4 +17,5 @@
     <string name="sos_fsi_title">Tam ekran uyarı izni kapalı</string>
     <string name="sos_fsi_desc">Geri sayım kilit ekranında tam ekran açılmaz. Bildirim, sesli uyarı ve SMS yine çalışır.</string>
     <string name="sos_fsi_action">Tam ekran izni</string>
+    <string name="readiness_detail_sos_sim_missing">SIM yok veya varsayılan SMS SIM\'i kullanılamıyor; acil durum mesajı gönderilemez.</string>
 </resources>

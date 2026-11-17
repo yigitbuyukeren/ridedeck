@@ -100,16 +100,22 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
                 }
         }
         scope.launch {
-            sos.ui.map { it.phase }.distinctUntilChanged().collect { phase ->
-                when (phase) {
-                    SosPhase.IDLE -> cancelAlert()
-                    // Screen off or another app in front: bring the countdown up so "I am fine" can be pressed.
-                    SosPhase.COUNTDOWN -> if (screens.value == 0) showCountdownAlert(sos.ui.value.reason) else cancelAlert()
-                    SosPhase.SENDING -> if (screens.value == 0) showSendingAlert() else cancelAlert()
-                    SosPhase.SENT, SosPhase.PARTIAL, SosPhase.UNKNOWN, SosPhase.FAILED ->
-                        if (screens.value == 0) showResultAlert(sos.ui.value) else cancelAlert()
+            // React to BOTH the phase and screen visibility. A countdown can start while the
+            // dashboard is visible and the screen can go dark a second later; a phase-only
+            // collector would miss that transition and never post the lock-screen alert.
+            combine(sos.ui.map { it.phase }.distinctUntilChanged(), screens) { phase, visible -> phase to visible }
+                .distinctUntilChanged()
+                .collect { (phase, visible) ->
+                    val ui = sos.ui.value
+                    when {
+                        phase == SosPhase.IDLE -> cancelAlert()
+                        visible > 0 -> cancelAlert()
+                        // Screen off or another app in front: bring the countdown up so "I am fine" can be pressed.
+                        phase == SosPhase.COUNTDOWN -> showCountdownAlert(ui.reason)
+                        phase == SosPhase.SENDING -> showSendingAlert()
+                        phase in setOf(SosPhase.SENT, SosPhase.PARTIAL, SosPhase.UNKNOWN, SosPhase.FAILED) -> showResultAlert(ui)
+                    }
                 }
-            }
         }
     }
 

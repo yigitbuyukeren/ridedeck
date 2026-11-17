@@ -234,7 +234,9 @@ private fun smsResultDetail(ui: SosUi): String = listOfNotNull(
 
 @Composable
 private fun Countdown(ui: SosUi, contactNames: List<String>, onCancel: () -> Unit) {
-    val narrow = isNarrowScreen()
+    // A short landscape screen (small phone, split screen, large font) needs the same pinned
+    // cancel button and scrollable words as an upright phone; width alone is not enough.
+    val narrow = isNarrowScreen() || LocalConfiguration.current.screenHeightDp < 420
     val align = if (narrow) TextAlign.Center else TextAlign.Start
     val number: @Composable (Modifier) -> Unit = { m ->
         Text(
@@ -425,7 +427,7 @@ fun SosSettingsCard(
                 }
             })
         }
-        if (radioProblem != null) Text(stringResource(R.string.sos_sim_missing), fontSize = 14.sp, color = MotoColors.Orange)
+        if (radioProblem != null) Text(stringResource(R.string.sos_sim_missing), fontSize = 14.sp, color = warningColor(palette))
         if (!smsOk) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -476,7 +478,7 @@ fun SosSettingsCard(
                 )
             }
         }
-        if (contacts.isEmpty()) Text(stringResource(R.string.sos_no_contacts), fontSize = 14.sp, color = MotoColors.Orange)
+        if (contacts.isEmpty()) Text(stringResource(R.string.sos_no_contacts), fontSize = 14.sp, color = warningColor(palette))
         SosToggle(stringResource(R.string.sos_crash_title), stringResource(R.string.sos_crash_desc), crashEnabled && ready, ready, onCrashEnabled)
         SosToggle(stringResource(R.string.sos_button_title), stringResource(R.string.sos_button_desc), buttonEnabled && ready, ready, onButtonEnabled)
         PillButton(stringResource(R.string.sos_test), palette.cardHigh, onTest, textColor = palette.text)
@@ -534,7 +536,7 @@ private fun SosWarning(title: String, desc: String, action: String, onAction: ()
     val palette = LocalMotoPalette.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontSize = 18.sp, color = MotoColors.Orange, fontWeight = FontWeight.Medium)
+            Text(title, fontSize = 18.sp, color = warningColor(palette), fontWeight = FontWeight.Medium)
             Text(desc, fontSize = 14.sp, color = palette.muted)
         }
         PillButton(action, MotoColors.Blue, onAction)
