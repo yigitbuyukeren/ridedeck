@@ -1,10 +1,15 @@
 package com.ridedeck.app.ui
 
+import android.content.ActivityNotFoundException
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -13,12 +18,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.ridedeck.app.R
 import com.ridedeck.app.data.LocationState
 import com.ridedeck.app.data.Place
 import com.ridedeck.app.data.Route
@@ -119,10 +134,26 @@ fun MiniMap(
     )
 }
 
+private const val OSM_COPYRIGHT_URL = "https://www.openstreetmap.org/copyright"
+private const val OSM_FIXTHEMAP_URL = "https://www.openstreetmap.org/fixthemap"
+
+private fun openHttps(handler: UriHandler, url: String) {
+    try {
+        handler.openUri(url)
+    } catch (_: ActivityNotFoundException) {
+        // No browser on this device: the credit stays readable, and nothing else is affected.
+    }
+}
+
 /**
  * The map data credit that OpenFreeMap and OpenStreetMap ask for. It always draws its own dark
  * backing so it stays readable over light day tiles, and caps font scaling so the fixed footer
  * cannot grow into the navigation content.
+ *
+ * OSM's attribution guidelines also ask for a path to the copyright page and to fixthemap, so the
+ * compact credit is tappable: it opens a two-link menu instead of squeezing extra lines into the
+ * footer. The touch target stays the credit's own compact bounds by design (it is passive text over
+ * a map, not a primary control), but both menu rows keep a comfortable 64 dp height.
  */
 @Composable
 fun MapCredit(modifier: Modifier = Modifier) {
@@ -130,16 +161,46 @@ fun MapCredit(modifier: Modifier = Modifier) {
     val scale = minOf(density.fontScale, 1.2f)
     val fontSize = with(density) { (9f * scale / density.fontScale).sp }
     val lineHeight = with(density) { (12f * scale / density.fontScale).sp }
-    Box(
-        modifier = modifier
-            .background(Color(0xE6000000), RoundedCornerShape(3.dp))
-            .padding(horizontal = 4.dp, vertical = 1.dp),
-    ) {
-        Text(
-            "OpenFreeMap © OpenMapTiles · © OpenStreetMap",
-            fontSize = fontSize,
-            lineHeight = lineHeight,
-            color = Color.White,
-        )
+    val handler = LocalUriHandler.current
+    var menuOpen by remember { mutableStateOf(false) }
+    val description = stringResource(R.string.map_credit_a11y)
+    val actionLabel = stringResource(R.string.map_credit_action)
+    val copyrightLabel = stringResource(R.string.map_credit_copyright)
+    val fixthemapLabel = stringResource(R.string.map_credit_fixthemap)
+    Box {
+        Box(
+            modifier = modifier
+                .clip(RoundedCornerShape(3.dp))
+                .background(Color(0xE6000000))
+                .clickable(
+                    onClickLabel = actionLabel,
+                    role = Role.Button,
+                    onClick = { menuOpen = true },
+                )
+                .semantics(mergeDescendants = true) {
+                    contentDescription = description
+                    role = Role.Button
+                }
+                .padding(horizontal = 4.dp, vertical = 1.dp),
+        ) {
+            Text(
+                "OpenFreeMap © OpenMapTiles · © OpenStreetMap",
+                fontSize = fontSize,
+                lineHeight = lineHeight,
+                color = Color.White,
+            )
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenuItem(
+                text = { Text(copyrightLabel, fontSize = 15.sp) },
+                modifier = Modifier.heightIn(min = 64.dp).testTag("map-credit-copyright"),
+                onClick = { menuOpen = false; openHttps(handler, OSM_COPYRIGHT_URL) },
+            )
+            DropdownMenuItem(
+                text = { Text(fixthemapLabel, fontSize = 15.sp) },
+                modifier = Modifier.heightIn(min = 64.dp).testTag("map-credit-fixthemap"),
+                onClick = { menuOpen = false; openHttps(handler, OSM_FIXTHEMAP_URL) },
+            )
+        }
     }
 }

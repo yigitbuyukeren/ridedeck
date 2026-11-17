@@ -292,7 +292,7 @@ private fun ReadinessRow(item: ReadinessItem, onAction: (ReadinessAction) -> Uni
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(kindLabel(item.kind), fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold, color = palette.text, modifier = Modifier.weight(1f))
-            Text(statusLabel(item.status), fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, color = statusColor(item.status))
+            Text(statusLabel(item.status), fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, color = statusColor(item.status, palette))
         }
         Text(detailText(item.detail), fontSize = 14.sp, lineHeight = 18.sp, color = palette.muted)
         val action = readinessAction(item)
@@ -325,11 +325,11 @@ private fun statusLabel(status: ReadinessStatus): String = stringResource(when (
     ReadinessStatus.UNKNOWN -> R.string.readiness_status_unknown
 })
 
-private fun statusColor(status: ReadinessStatus): androidx.compose.ui.graphics.Color = when (status) {
-    ReadinessStatus.READY -> MotoColors.Green
-    ReadinessStatus.MISSING -> MotoColors.Red
-    ReadinessStatus.OPTIONAL -> MotoColors.Orange
-    ReadinessStatus.UNKNOWN -> MotoColors.Gray
+private fun statusColor(status: ReadinessStatus, palette: MotoPalette): androidx.compose.ui.graphics.Color = when (status) {
+    ReadinessStatus.READY -> successColor(palette)
+    ReadinessStatus.MISSING -> dangerColor(palette)
+    ReadinessStatus.OPTIONAL -> warningColor(palette)
+    ReadinessStatus.UNKNOWN -> palette.muted
 }
 
 @Composable

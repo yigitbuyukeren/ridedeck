@@ -132,10 +132,14 @@ fun SpeedCard(
             val inset = stroke / 2
             val arcSize = Size(size.width - stroke, size.height - stroke)
             val topLeft = Offset(inset, inset)
+            // The day card is light: the amber/red arc uses the readable day variants, while night keeps
+            // the bright accents. Blue already clears the 3:1 graphical-object threshold on both.
+            val arcWarm = if (palette.isDay) warningColor(palette) else MotoColors.Orange
+            val arcHot = if (palette.isDay) dangerColor(palette) else MotoColors.Red
             val progressColor = when {
                 fraction < 0.4f -> lerp(MotoColors.Cyan, MotoColors.Blue, fraction / 0.4f)
-                fraction < 0.65f -> lerp(MotoColors.Blue, MotoColors.Orange, (fraction - 0.4f) / 0.25f)
-                else -> lerp(MotoColors.Orange, MotoColors.Red, ((fraction - 0.65f) / 0.25f).coerceAtMost(1f))
+                fraction < 0.65f -> lerp(MotoColors.Blue, arcWarm, (fraction - 0.4f) / 0.25f)
+                else -> lerp(arcWarm, arcHot, ((fraction - 0.65f) / 0.25f).coerceAtMost(1f))
             }
             // Ticks and numbers sit just inside the track; they never change, so they cost nothing per frame beyond the draw.
             val centre = Offset(size.width / 2, size.height / 2)
@@ -167,17 +171,17 @@ fun SpeedCard(
                 fontSize = cappedSp(fit.sp),
                 lineHeight = (fit.sp * GaugeFit.LINE).let { if (fit.sp < 92f) cappedSp(it) else androidx.compose.ui.unit.TextUnit.Unspecified },
                 fontWeight = FontWeight.Bold,
-                color = if (unknown) LocalMotoPalette.current.muted else if (SpeedLimitMath.isOver(gps.speedKmh, limit)) MotoColors.Red else LocalMotoPalette.current.text,
+                color = if (unknown) palette.muted else if (SpeedLimitMath.isOver(gps.speedKmh, limit)) dangerColor(palette) else palette.text,
             )
-            Text(stringResource(if (Units.miles) R.string.speed_unit_mph else R.string.speed_unit), fontSize = cappedSp(22f), color = LocalMotoPalette.current.muted, fontWeight = FontWeight.Medium)
+            Text(stringResource(if (Units.miles) R.string.speed_unit_mph else R.string.speed_unit), fontSize = cappedSp(22f), color = palette.muted, fontWeight = FontWeight.Medium)
             if (!gps.hasFix && !locationGranted) {
-                Text(stringResource(R.string.speed_location_needed), fontSize = cappedSp(16f), color = MotoColors.Orange, modifier = Modifier.padding(top = 8.dp))
+                Text(stringResource(R.string.speed_location_needed), fontSize = cappedSp(16f), color = warningColor(palette), modifier = Modifier.padding(top = 8.dp))
                 PillButton(
                     stringResource(R.string.action_allow), MotoColors.Blue, onGrantLocation,
                     Modifier.padding(top = 8.dp), minHeight = 56.dp, fontSize = 17.sp, horizontalPadding = 20.dp, singleLine = true,
                 )
             } else if (unknown) {
-                Text(stringResource(if (hadSpeed) R.string.gps_lost else R.string.gps_waiting), fontSize = cappedSp(16f), color = MotoColors.Orange, modifier = Modifier.padding(top = 8.dp))
+                Text(stringResource(if (hadSpeed) R.string.gps_lost else R.string.gps_waiting), fontSize = cappedSp(16f), color = warningColor(palette), modifier = Modifier.padding(top = 8.dp))
             } else {
                 GpsInfo(gps, showDebug, { showDebug = !showDebug }, Modifier.padding(top = 10.dp))
             }
@@ -190,12 +194,13 @@ fun SpeedCard(
 /** How good the GPS fix is: the accuracy radius turned into a word and a colour. */
 @Composable
 private fun GpsInfo(gps: GpsUi, showDebug: Boolean, onToggleDebug: () -> Unit, modifier: Modifier = Modifier) {
-    val muted = LocalMotoPalette.current.muted
+    val palette = LocalMotoPalette.current
+    val muted = palette.muted
     val (label, color) = when {
-        gps.accuracyM == null -> R.string.gps_fair to MotoColors.Orange
-        gps.accuracyM <= GPS_GOOD_M -> R.string.gps_good to MotoColors.Green
-        gps.accuracyM <= GPS_FAIR_M -> R.string.gps_fair to MotoColors.Orange
-        else -> R.string.gps_poor to MotoColors.Red
+        gps.accuracyM == null -> R.string.gps_fair to warningColor(palette)
+        gps.accuracyM <= GPS_GOOD_M -> R.string.gps_good to successColor(palette)
+        gps.accuracyM <= GPS_FAIR_M -> R.string.gps_fair to warningColor(palette)
+        else -> R.string.gps_poor to dangerColor(palette)
     }
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {

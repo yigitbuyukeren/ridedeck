@@ -73,18 +73,26 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -255,6 +263,9 @@ fun MapScreen(
     var centeredOnce by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf<Place?>(null) }
     var typing by remember { mutableStateOf(false) }
+    // Ending an active ride is destructive and must not be one stray tap at speed.
+    var confirmStop by remember { mutableStateOf(false) }
+    val requestStop: () -> Unit = { confirmStop = true }
     LaunchedEffect(inputLocked) { if (inputLocked) typing = false }
 
     // A hot phone gets a calmer map: fewer frames per second; otherwise use the display's rate.
@@ -312,8 +323,11 @@ fun MapScreen(
         }
     }
 
-    // Route line: grey behind the rider, blue ahead.
-    LaunchedEffect(styleReady, ui.route, ui.progressIndex, ui.progressFraction) {
+    // Route line: grey behind the rider, blue ahead. The effect is keyed on the segment index only:
+    // progressFraction moves at GPS rate (1 Hz) and re-serialising the whole remaining route GeoJSON
+    // on the main thread for each fix is wasted work. The split can lag by at most one segment; the
+    // marker and chase camera keep using the precise fraction. A style/route change still redraws.
+    LaunchedEffect(styleReady, ui.route, ui.progressIndex) {
         val style = map?.style?.takeIf { styleReady } ?: return@LaunchedEffect
         showRoute(style, ui.route, ui.progressIndex, ui.progressFraction)
     }
@@ -459,7 +473,7 @@ fun MapScreen(
                 ui.arrived -> ArrivedCard(
                     next = ui.finalDestination,
                     onContinue = onContinueNavigation,
-                    onDone = nav::stopNavigation,
+                    onDone = requestStop,
                 )
                 ui.cachedRouteNeedsNetwork && ui.route == null -> CachedRouteNeedsNetworkNotice(onRetry = onRetryCachedNetwork)
                 addingStop && ui.route != null && !ui.navigating -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -520,7 +534,7 @@ fun MapScreen(
         if (ui.navigating) {
             Column(
                 modifier = Modifier.align(Alignment.BottomStart).padding(12.dp).width(panelWidth),
-            ) { TripBar(ui, onStop = nav::stopNavigation) }
+            ) { TripBar(ui, onStop = requestStop) }
         }
 
         Column(
@@ -565,7 +579,14 @@ fun MapScreen(
                 SpeedChip(speedShown, over = SpeedLimitMath.isOver(speedKmh, speedLimit))
             }
         }
+        // The credit owns its accessibility description and the copyright/fixthemap links.
         MapCredit(Modifier.align(Alignment.BottomEnd).padding(end = 8.dp, bottom = 4.dp))
+
+        StopConfirmDialog(
+            visible = confirmStop,
+            onConfirm = { confirmStop = false; nav.stopNavigation() },
+            onCancel = { confirmStop = false },
+        )
 
         // The app's own keyboard: it covers the lower part of the map, never resizes anything.
         if (typing && !inputLocked) {
@@ -912,7 +933,20 @@ internal fun RouteCard(
 ) {
     val route = ui.route ?: return
     val context = LocalContext.current
-    val externalApps = remember(externalNavApps) { externalNavApps ?: context.installedNavApps() }
+    // PackageManager is a binder query; running it during composition delayed the first preview frame.
+    // The test seam stays synchronous, and production starts with an empty list for one frame.
+    val externalApps = if (externalNavApps != null) {
+        externalNavApps
+    } else {
+        val installed by produceState(initialValue = emptyList<NavApp>(), context) {
+            // A destroyed test/window context must not turn a failed package query into a process
+            // crash inside the composition coroutine: the fallback is an empty list and a Save-only card.
+            value = withContext(Dispatchers.IO) {
+                runCatching { context.installedNavApps() }.getOrDefault(emptyList())
+            }
+        }
+        installed
+    }
     val debuggable = remember { (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0 }
     var menuOpen by remember { mutableStateOf(false) }
     val now by rememberNowMs()
@@ -1198,6 +1232,48 @@ private fun OptionChip(label: String, selected: Boolean, onClick: () -> Unit, mo
     }
 }
 
+/**
+ * Confirmation before ending an active ride or guidance. Both the guiding trip bar and the arrival
+ * card route their stop action through this dialog, including while the input is motion-locked.
+ */
+@Composable
+internal fun StopConfirmDialog(visible: Boolean, onConfirm: () -> Unit, onCancel: () -> Unit) {
+    if (!visible) return
+    AlertDialog(
+        onDismissRequest = onCancel,
+        modifier = Modifier.testTag("stop-confirm-dialog"),
+        title = {
+            Text(stringResource(R.string.stop_confirm_title), fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Text(stringResource(R.string.stop_confirm_message))
+        },
+        confirmButton = {
+            PillButton(
+                text = stringResource(R.string.stop_confirm_action),
+                color = MotoColors.Red,
+                onClick = onConfirm,
+                modifier = Modifier.testTag("stop-confirm"),
+                horizontalPadding = 20.dp,
+                minHeight = 64.dp,
+                singleLine = true,
+            )
+        },
+        dismissButton = {
+            PillButton(
+                text = stringResource(R.string.stop_confirm_cancel),
+                color = MotoColors.PanelHigh,
+                onClick = onCancel,
+                modifier = Modifier.testTag("stop-cancel"),
+                textColor = Color.White,
+                horizontalPadding = 20.dp,
+                minHeight = 64.dp,
+                singleLine = true,
+            )
+        },
+    )
+}
+
 @Composable
 internal fun ArrivedCard(next: Place?, onContinue: () -> Unit, onDone: () -> Unit) {
     GlassPanel(Modifier.fillMaxWidth().testTag("map-arrived-card")) {
@@ -1452,6 +1528,8 @@ private fun Chip(text: String, color: Color) {
             .heightIn(max = 140.dp)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 14.dp, vertical = 8.dp)
+            // A changing reroute/error line: announce it once when it appears, never on every frame.
+            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }
             .testTag("map-status-chip"),
     ) {
         Text(text, fontSize = 15.sp, color = color, fontWeight = FontWeight.Medium)
@@ -1482,14 +1560,19 @@ private fun RoundIconButton(icon: androidx.compose.ui.graphics.vector.ImageVecto
 }
 
 @Composable
-private fun SpeedChip(shown: Int?, over: Boolean) {
+internal fun SpeedChip(shown: Int?, over: Boolean) {
+    val value = if (shown != null) Units.speed(shown).toString() else "--"
+    val unit = stringResource(if (Units.miles) R.string.speed_unit_mph else R.string.speed_unit)
+    val description = stringResource(R.string.speed_readout_desc, value, unit)
     Column(
-        modifier = Modifier.size(72.dp).clip(CircleShape).background(Color(0xE6101114)).border(1.dp, Color(0x26FFFFFF), CircleShape),
+        modifier = Modifier.size(72.dp).clip(CircleShape).background(Color(0xE6101114)).border(1.dp, Color(0x26FFFFFF), CircleShape)
+            // The number and unit are one readout for TalkBack, not two separate labels.
+            .clearAndSetSemantics { contentDescription = description },
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(if (shown != null) Units.speed(shown).toString() else "--", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = if (shown == null) MotoColors.Gray else if (over) MotoColors.Red else Color.White)
-        Text(stringResource(if (Units.miles) R.string.speed_unit_mph else R.string.speed_unit), fontSize = 11.sp, color = MotoColors.Gray)
+        Text(value, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = if (shown == null) MotoColors.Gray else if (over) MotoColors.Red else Color.White)
+        Text(unit, fontSize = 11.sp, color = MotoColors.Gray)
     }
 }
 

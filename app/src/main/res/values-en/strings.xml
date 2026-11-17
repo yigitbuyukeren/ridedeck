@@ -291,7 +291,7 @@
     <string name="msg_app_desc">Turn off to hide this app\'s messages on the dashboard and stop reading them aloud.</string>
     <string name="perm_intro_title">Location permission needed</string>
     <string name="perm_intro_sub">The speedometer runs on GPS. This screen asks for location only and does not guarantee that other permissions are ready. Phone, music, SMS and notification permissions are requested by their features and all appear in Settings > Permissions and system.</string>
-    <string name="perm_intro_location_why">Precise location is needed for speed, routes and trip recording. Location is processed only on your device.</string>
+    <string name="perm_intro_location_why">Speed and trip recording stay on your device. Route, search, weather and fuel features send the necessary location or query to public map services; details are in the privacy section.</string>
     <string name="perm_location_denied">Location permission was denied. The speedometer will not work; you can enable it in system settings.</string>
     <string name="perm_intro_later">Later</string>
     <string name="perm_intro_done">Done</string>
