@@ -9,6 +9,8 @@ body:
         Fikrini paylaştığın için teşekkürler. Önce [açık issue'larda](https://github.com/yigitbuyukeren/ridedeck/issues?q=is%3Aissue) benzer bir öneri olup olmadığına bak.
 
         RideDeck **yalnız motosiklet** için tasarlanır. Sürerken yazı girişi yoktur; dokunma hedefleri büyük ve eldivenle kullanılabilir olmalıdır. Yeni dış servisler ücretsiz ve anahtarsız olmalı, kullanım koşullarına uymalıdır.
+
+        Lütfen gerçek konum, telefon numarası, kişi adı veya başka kişisel veri paylaşma.
   - type: textarea
     id: problem
     attributes:

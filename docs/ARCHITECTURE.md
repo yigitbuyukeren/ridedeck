@@ -22,6 +22,8 @@ RideDeck is a single-module Kotlin/Jetpack Compose Android app (`minSdk 26`, `co
 | Kullanım | Yatay gidon düzeni; hız, harita, müzik, telefon ve SOS tek panelde |
 | Rota | Her zaman Valhalla `motorcycle` costing; motosiklet sabitleri `VehicleProfile.MOTORCYCLE.config` (`ProfileConfig`) içinde |
 
+Kodda görülen `VehicleProfile` yalnız motosiklet sabitlerini taşır; ikinci bir profil veya araç seçici yoktur.
+
 Uygulamanın amacı, telefonu eldivenle kullanılabilen bir motosiklet sürüş paneline çevirmektir. Bu yüzden mimari kararların bir kısmı doğrudan sürüş güvenliğidir: sürerken yazı girişi yoktur, dokunma hedefleri büyüktür ve hız bilinmiyorsa sahte `0` gösterilmez.
 
 ## 2. Çalışma zamanı giriş noktaları

@@ -120,7 +120,7 @@ Tek bir test sınıfı:
 ```
 
 - Yeni mantık için `app/src/test` altında birim testi ekle. Hata düzeltiyorsan hatayı önce yakalayan bir regresyon testi yaz.
-- Compose/Android davranışı için `app/src/androidTest` altında instrumentation testi ekleyebilirsin. CI bu testleri API 35 x86_64 emülatörde çalıştırır; fiziksel cihaz/emülatör denemesi yine ayrı bir kanıttır. Yerelde `./gradlew connectedDebugAndroidTest` ile çalıştır.
+- Compose/Android davranışı için `app/src/androidTest` altında instrumentation testi ekleyebilirsin. CI bu testleri API 35 x86_64 emülatörde çalıştırır; elle emülatör/cihaz denemesi yine ayrı bir kanıttır. Yerelde `./gradlew connectedDebugAndroidTest` ile çalıştır.
 - Arayüz değişikliğinde ekran görüntüsü ekle. Emülatörde alınan görüntüyü "gerçek cihazda doğrulandı" diye sunma; hangi ortamda alındığını yaz.
 - Testleri gevşetme, başarısız testi silme veya yalnızca testi geçirmek için üretim davranışını değiştirme.
 - Navigasyon, GPS, SOS, arama ve müzik gibi kritik yolları değiştirdiysen ilgili testleri ve varsa emülatör/cihaz denemesini PR'da ayrıca belirt.
@@ -170,6 +170,6 @@ RideDeck is a motorcycle-only Android dashboard (Kotlin, Jetpack Compose, minSdk
 7. Never commit `local.properties`, `keystore.properties`, `*.jks`, or secrets. Report vulnerabilities privately via [SECURITY.md](SECURITY.md).
 8. Open a PR with the problem, the change, and test evidence. Link the issue with `Closes #123`.
 
-Read [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the code map, and [SUPPORT.md](SUPPORT.md) for where to ask questions. By contributing, you agree that your work is licensed under Apache 2.0.
+Read [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the code map, and [SUPPORT.md](SUPPORT.md) for where to ask questions. Follow the [code of conduct](CODE_OF_CONDUCT.md). By contributing, you agree that your work is licensed under Apache 2.0.
 
 </details>

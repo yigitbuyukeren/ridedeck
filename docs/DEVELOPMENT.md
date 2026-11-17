@@ -87,7 +87,7 @@ Raporlar:
 - Instrumentation: `app/build/reports/androidTests/connected/debug/index.html`
 - Lint: `app/build/reports/lint-results-debug.html`, `lint-results-release.html`
 
-CI, instrumentation testlerini ayrı bir işte API 35 x86_64 emülatörde çalıştırır; fiziksel cihaz/emülatör koşusu yine ayrı bir doğrulamadır. Bir testi geçirmek için üretim kodunu veya test beklentisini gevşetme.
+CI, instrumentation testlerini ayrı bir işte API 35 x86_64 emülatörde çalıştırır; elle fiziksel cihaz/emülatör koşusu yine ayrı bir doğrulamadır. Bir testi geçirmek için üretim kodunu veya test beklentisini gevşetme.
 
 ## 4. Proje düzeni
 
@@ -243,6 +243,7 @@ Bu alanlar sürüş güvenliğini doğrudan etkiler.
 | Emülatörde konum yok | `adb emu geo fix <boylam> <enlem>` gönder; uygulamanın konum izni açık mı bak. |
 | Harita boş / karo yüklenmiyor | İnternet bağlantısını ve OpenFreeMap erişimini kontrol et; ilk karo yüklemesi biraz sürebilir. |
 | `connectedDebugAndroidTest` cihaz bulamıyor | `adb devices` ile cihazı doğrula; emülatör açık ve yetkilendirilmiş olmalı. |
+| Instrumentation testi çöküyor / süreç izolasyonu gerekiyor | `./gradlew connectedDebugAndroidTest -PrdOrchestrator=true -Pandroid.testInstrumentationRunnerArguments.clearPackageData=true` (daha yavaş; yalnız hata ayıklama için). |
 | Gradle daemon bellek hatası | `./gradlew --stop`; gerekiyorsa `gradle.properties` içindeki `-Xmx3g` değerini artır, ancak bunu PR'da gerekçelendir. |
 | Tuhaf önbellek davranışı | Önce `./gradlew --stop`, sonra gerekirse `./gradlew clean`; clean'i alışkanlık haline getirme. |
 | `keystore.properties` hatası | Release imzası için isteğe bağlıdır; dosyayı düzelt veya kaldır. Anahtar/parola commit etme. |
