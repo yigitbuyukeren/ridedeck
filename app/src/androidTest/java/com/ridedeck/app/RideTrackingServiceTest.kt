@@ -92,7 +92,7 @@ class RideTrackingServiceTest {
         scenario = null
         manager.removeTestProvider(LocationManager.GPS_PROVIDER)
         main { tracking.setRecording(oldRecording) }
-        shell("input keyevent KEYCODE_WAKEUP")
+        wakeScreen()
         shell("appops set ${context.packageName} android:mock_location default")
         shell("appops set --uid ${context.packageName} POST_NOTIFICATION default")
     }
@@ -130,6 +130,47 @@ class RideTrackingServiceTest {
         SystemClock.sleep(1_050) // Respect the production listener's one-second minimum interval.
     }
 
+    private fun isInteractive(): Boolean = context.getSystemService(PowerManager::class.java).isInteractive
+
+    /**
+     * The power keys only queue an asynchronous transition. Waiting here keeps the following test
+     * from launching an activity while the display is still switching and its window is not yet
+     * available to UiAutomation on a slow emulator.
+     */
+    private fun sleepScreen() {
+        shell("input keyevent KEYCODE_SLEEP")
+        await { !isInteractive() }
+    }
+
+    private fun wakeScreen() {
+        shell("input keyevent KEYCODE_WAKEUP")
+        await { isInteractive() }
+        shell("wm dismiss-keyguard")
+    }
+
+    /** A first-run full-screen confirmation can appear after the one-shot click on a slow emulator. */
+    private fun awaitStartButton(label: String) {
+        val deadline = SystemClock.elapsedRealtime() + 20_000
+        while (SystemClock.elapsedRealtime() < deadline) {
+            val root = instrumentation.uiAutomation.rootInActiveWindow
+            if (findText(root, label) != null) return
+            findText(root, "Got it")?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+            SystemClock.sleep(30)
+        }
+        throw AssertionError("Start button missing (phase=${tracking.session.state.value.phase}); texts=${visibleTexts()}")
+    }
+
+    private fun visibleTexts(): List<String> {
+        val out = mutableListOf<String>()
+        fun walk(node: android.view.accessibility.AccessibilityNodeInfo?) {
+            node ?: return
+            node.text?.toString()?.takeIf { it.isNotBlank() }?.let { out += it }
+            for (i in 0 until node.childCount) walk(node.getChild(i))
+        }
+        walk(instrumentation.uiAutomation.rootInActiveWindow)
+        return out.take(12)
+    }
+
     @Test fun screenOffAndActivityDestructionKeepOneGpsRecorderUntilNotificationStop() {
         val store = TripStore(context)
         try {
@@ -139,8 +180,9 @@ class RideTrackingServiceTest {
             }
             instrumentation.waitForIdleSync()
             findText(instrumentation.uiAutomation.rootInActiveWindow, "Got it")?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-            await { findText(instrumentation.uiAutomation.rootInActiveWindow, context.getString(R.string.ride_start)) != null }
-            val button = findText(instrumentation.uiAutomation.rootInActiveWindow, context.getString(R.string.ride_start))!!
+            val startLabel = context.getString(R.string.ride_start)
+            awaitStartButton(startLabel)
+            val button = findText(instrumentation.uiAutomation.rootInActiveWindow, startLabel)!!
             val bounds = android.graphics.Rect()
             button.getBoundsInScreen(bounds)
             val touchAt = SystemClock.uptimeMillis()
@@ -161,8 +203,7 @@ class RideTrackingServiceTest {
             }
             scenario!!.close() // ViewModel.onCleared cannot own or stop this session.
             scenario = null
-            shell("input keyevent KEYCODE_SLEEP")
-            await { !context.getSystemService(PowerManager::class.java).isInteractive }
+            sleepScreen()
             fix(5)
             fix(6)
             assertTrue(store.points(id).size > count)
@@ -225,9 +266,9 @@ class RideTrackingServiceTest {
         scenario!!.onActivity { assertSame(old.nav, ViewModelProvider(it)[DashboardViewModel::class.java].nav) }
         scenario!!.close()
         scenario = null
-        shell("input keyevent KEYCODE_SLEEP")
+        sleepScreen()
         main { old.nav.onQueryChange("Changed without a screen") }
-        shell("input keyevent KEYCODE_WAKEUP")
+        wakeScreen()
         scenario = ActivityScenario.launch(MainActivity::class.java)
         scenario!!.onActivity {
             val next = ViewModelProvider(it)[DashboardViewModel::class.java]
@@ -282,8 +323,7 @@ class RideTrackingServiceTest {
             val before = nav.ui.value.remainingM
             scenario!!.close()
             scenario = null
-            shell("input keyevent KEYCODE_SLEEP")
-            await { !context.getSystemService(PowerManager::class.java).isInteractive }
+            sleepScreen()
             fix(5)
             assertTrue(nav.ui.value.navigating)
             assertTrue(nav.ui.value.remainingM < before)
