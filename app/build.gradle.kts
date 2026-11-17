@@ -27,7 +27,7 @@ android {
         applicationId = "com.ridedeck.app"
         minSdk = 26
         targetSdk = 36
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "com.ridedeck.app.RideDeckTestRunner"
         versionCode = 6
         versionName = "0.6.0"
     }

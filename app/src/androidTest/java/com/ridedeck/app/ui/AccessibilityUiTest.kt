@@ -143,7 +143,10 @@ class AccessibilityUiTest {
         compose.setContent {
             MotoTheme { MapStatusChips(rerouting = true, degraded = false, error = null, navigating = true) }
         }
-        compose.onNodeWithTag("map-status-chip").assert(
+        // The live region belongs to the changing text, not the bounded scrolling container:
+        // merging it into the container would make the semantics bounds report the full text
+        // height and defeat the 140 dp panel limit.
+        compose.onNodeWithText(context.getString(R.string.rerouting_chip)).assert(
             SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite)
         )
     }

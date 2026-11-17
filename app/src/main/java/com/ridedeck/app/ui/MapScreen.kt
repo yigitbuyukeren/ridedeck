@@ -1528,11 +1528,15 @@ private fun Chip(text: String, color: Color) {
             .heightIn(max = 140.dp)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 14.dp, vertical = 8.dp)
-            // A changing reroute/error line: announce it once when it appears, never on every frame.
-            .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }
             .testTag("map-status-chip"),
     ) {
-        Text(text, fontSize = 15.sp, color = color, fontWeight = FontWeight.Medium)
+        // A changing reroute/error line: announce it once when it appears, never on every frame.
+        // Keep the live region on the text, not merged into the chip: merging would make the
+        // semantics node report the full unclipped text height instead of the 140 dp viewport.
+        Text(
+            text, fontSize = 15.sp, color = color, fontWeight = FontWeight.Medium,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        )
     }
 }
 
