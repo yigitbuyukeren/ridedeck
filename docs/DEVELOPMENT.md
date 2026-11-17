@@ -104,8 +104,8 @@ app/
     ui/                         Compose ekranları ve bileşenleri
     service/                    Ön plan servisi, bildirimler, çağrı ekranı
     util/                       Birimler, tercihler, paylaşım, metin yardımcıları
-  src/main/res/values/          Türkçe metinler ve temel kaynaklar
-  src/main/res/values-en/       İngilizce metinler
+  src/main/res/values/          İngilizce metinler (varsayılan) ve temel kaynaklar
+  src/main/res/values-tr/       Türkçe metinler
   src/test/                     JVM birim testleri
   src/androidTest/              Compose/Android instrumentation testleri
 docs/                           Mimari, durum, sürüm kapıları, ekran görüntüleri
@@ -183,7 +183,7 @@ Logcat ve ekran görüntülerini paylaşmadan önce konum, telefon numarası, ki
 
 ### Metin ekleme veya düzeltme
 
-1. Anahtarı ilgili `app/src/main/res/values/strings*.xml` (Türkçe) ve `values-en/strings*.xml` (İngilizce) dosyasına ekle. Gruplar: `strings.xml`, `strings_data.xml`, `strings_nav.xml`, `strings_sos.xml`, `strings_ui.xml`.
+1. Anahtarı ilgili `app/src/main/res/values/strings*.xml` (İngilizce, varsayılan) ve `values-tr/strings*.xml` (Türkçe) dosyasına ekle. Gruplar: `strings.xml`, `strings_data.xml`, `strings_nav.xml`, `strings_sos.xml`, `strings_ui.xml`.
 2. `stringResource(R.string.yeni_anahtar)` ile kullan; kullanıcıya görünen metni koda gömme.
 3. Biçim yer tutucularını (`%1$s`, `%2$d`) iki dilde aynı sırayla koru.
 4. Uzun metni dar ekranda ve 2,0× yazı boyutunda dene.
@@ -215,7 +215,7 @@ Bu alanlar sürüş güvenliğini doğrudan etkiler.
 
 ### Yeni dil veya çeviri
 
-[docs/TRANSLATING.md](TRANSLATING.md) rehberini izle. Yeni dil için `values-<dil>` dizini ve tüm anahtarlar gerekir; eksik anahtar varsayılan Türkçe metne düşer. Çeviriyi ana dili konuşan biriyle gözden geçir.
+[docs/TRANSLATING.md](TRANSLATING.md) rehberini izle. Yeni dil için `values-<dil>` dizini ve tüm anahtarlar gerekir; eksik anahtar varsayılan İngilizce metne düşer. Çeviriyi ana dili konuşan biriyle gözden geçir.
 
 ### Belge güncelleme
 

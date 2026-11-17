@@ -188,7 +188,7 @@ Tüm veri telefonda kalır. `android:allowBackup="false"` olduğu için Android 
 - **Yüksek kontrast.** Gündüz ve gece paletleri ayrıdır; metin, uyarı ve harita işaretleri arka plandan net ayrılır.
 - **Sığdırma.** `isNarrowScreen()` ekran genişliği 560 dp altındaysa kompakt düzeni seçer. `cappedSp()` sistem yazı ölçeğini varsayılan olarak 1.15 ile sınırlar; kadran ve dock gibi sabit alanlarda metin taşmaz.
 - **Yatay gidon düzeni.** Manifest `sensorLandscape` kullanır; telefon 180° çevrildiğinde çentik tarafı değişse de içerik kaymasın diye simetrik güvenli boşluk uygulanır.
-- **TR/EN.** Kullanıcıya görünen her metin ilgili `values/strings*.xml` (Türkçe) ve `values-en/strings*.xml` (İngilizce) dosyalarında birlikte güncellenir; `strings.xml`, `strings_data.xml`, `strings_nav.xml`, `strings_sos.xml` ve `strings_ui.xml` gibi gruplar vardır. Sesli yönlendirme telefon diline göre Türkçe veya İngilizce konuşur (`GuidanceLanguage`).
+- **TR/EN.** Kullanıcıya görünen her metin ilgili `values/strings*.xml` (İngilizce, varsayılan) ve `values-tr/strings*.xml` (Türkçe) dosyalarında birlikte güncellenir; `strings.xml`, `strings_data.xml`, `strings_nav.xml`, `strings_sos.xml` ve `strings_ui.xml` gibi gruplar vardır. Sesli yönlendirme telefon diline göre Türkçe veya İngilizce konuşur (`GuidanceLanguage`).
 
 ## 8. Test edilebilirlik
 
@@ -224,7 +224,7 @@ Burada `test` debug ve release JVM testlerini çalıştırır. Ayrı CI işi x86
 | Yolculuk kaydı / geçmiş | `data/TripRecorder.kt`, `data/TripStore.kt`, `data/TripStats.kt` | `ui/TripsScreen.kt`, `ui/TripMap.kt`; `TripRecorderTest` (JVM), `TripStoreTest` (instrumentation) |
 | Yeni ekran | `ui/DashboardScreen.kt` (yerel ekran durumu) | Yeni `ui/*.kt` bileşeni; gerekirse `DashboardViewModel.kt`; iki dilde string |
 | Yeni ağ çağrısı | `data/Http.kt`/`ProviderHttp` | `data/` altında repository + `ServiceHttp` test seam'i; sağlayıcı sınırı/politikası ve gizlilik/atıf metni |
-| String / çeviri | `app/src/main/res/values/strings*.xml`, `app/src/main/res/values-en/strings*.xml` | Konuşma metniyse `data/GuidanceLanguage.kt` ve TTS akışı |
+| String / çeviri | `app/src/main/res/values/strings*.xml`, `app/src/main/res/values-tr/strings*.xml` | Konuşma metniyse `data/GuidanceLanguage.kt` ve TTS akışı |
 | İzin / servis | `AndroidManifest.xml` | `MainActivity.kt`, `ui/DashboardScreen.kt` izin akışları, `service/`, gerekirse `RideTrackingService` |
 | Harita / çevrimdışı bölge | `ui/MapScreen.kt`, `data/OfflineMaps.kt`, `data/OfflinePlan.kt` | `OfflineRegions.kt`, `ui/OfflineMapsCard.kt`; sağlayıcı politikası olmadan indirmeyi açmayın |
 
