@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SOS strings added by the safety audit; kept out of strings.xml to avoid merge conflicts. -->
 <resources>
-    <string name="sos_action_fine">İyiyim</string>
-    <string name="sos_action_close">Kapat</string>
-    <string name="sos_button_action">SOS acil durum mesajını başlat</string>
-    <string name="sos_button_hold_state">Basılı tutuluyor: %1$d%%</string>
-    <string name="sos_channel_desc">Kaza geri sayımı ve SOS sonucu. Ses ve konum bildirimi kilit ekranında görünür.</string>
-    <string name="sos_sim_missing">SIM yok veya varsayılan SMS SIM\'i seçili değil; acil durum SMS\'i gönderilemez. Otomatik kaza algılama ve SOS düğmesi bu yüzden kapalı.</string>
-    <string name="sos_open_settings">Ayarları aç</string>
-    <string name="sos_sms_denied">SMS izni kalıcı olarak reddedildi. İzni telefon ayarlarından vermen gerekir.</string>
-    <string name="sos_notif_off_title">Bildirimler kapalı</string>
-    <string name="sos_notif_off_desc">Kaza geri sayımı kilit ekranında görünmez. Sesli uyarı ve SMS yine çalışır.</string>
-    <string name="sos_notif_settings">Bildirim ayarları</string>
-    <string name="sos_notif_perm_title">Bildirim izni yok</string>
-    <string name="sos_notif_perm_desc">Geri sayımı kilit ekranında görmek için bildirim izni gerekir. İzin olmadan da sesli uyarı ve SMS çalışır.</string>
-    <string name="sos_fsi_title">Tam ekran uyarı izni kapalı</string>
-    <string name="sos_fsi_desc">Geri sayım kilit ekranında tam ekran açılmaz. Bildirim, sesli uyarı ve SMS yine çalışır.</string>
-    <string name="sos_fsi_action">Tam ekran izni</string>
-    <string name="readiness_detail_sos_sim_missing">SIM yok veya varsayılan SMS SIM\'i kullanılamıyor; acil durum mesajı gönderilemez.</string>
+    <string name="sos_action_fine">I\'m OK</string>
+    <string name="sos_action_close">Close</string>
+    <string name="sos_button_action">Start the SOS emergency message</string>
+    <string name="sos_button_hold_state">Holding: %1$d%%</string>
+    <string name="sos_channel_desc">Crash countdown and SOS result. Sound and location are visible on the lock screen.</string>
+    <string name="sos_sim_missing">No SIM, or no default SMS SIM is selected; the emergency SMS cannot be sent. Automatic crash detection and the SOS button stay off.</string>
+    <string name="sos_open_settings">Open settings</string>
+    <string name="sos_sms_denied">SMS permission was denied permanently. Grant it from the phone settings.</string>
+    <string name="sos_notif_off_title">Notifications are off</string>
+    <string name="sos_notif_off_desc">The crash countdown will not show on the lock screen. The voice alert and the SMS still work.</string>
+    <string name="sos_notif_settings">Notification settings</string>
+    <string name="sos_notif_perm_title">No notification permission</string>
+    <string name="sos_notif_perm_desc">The countdown needs notification permission to appear on the lock screen. The voice alert and the SMS still work without it.</string>
+    <string name="sos_fsi_title">Full-screen alert permission is off</string>
+    <string name="sos_fsi_desc">The countdown will not open full screen on the lock screen. The notification, voice alert and SMS still work.</string>
+    <string name="sos_fsi_action">Full-screen access</string>
+    <string name="readiness_detail_sos_sim_missing">No SIM or no usable default SMS SIM; an emergency message cannot be sent.</string>
 </resources>
