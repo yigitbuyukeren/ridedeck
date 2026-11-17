@@ -399,11 +399,12 @@ private fun ActionPill(
     haptic: RideHaptic = RideHaptic.Tap,
     enabled: Boolean = true,
 ) {
-    val foreground = callActionForeground(color)
+    val background = if (enabled) color else MotoColors.Gray
+    val foreground = callActionForeground(background)
     Row(
         modifier = Modifier
             .fillMaxWidth().height(80.dp).clip(RoundedCornerShape(40.dp))
-            .background(if (enabled) color else MotoColors.Gray)
+            .background(background)
             .pressClickable(haptic = haptic, enabled = enabled, onClick = onClick),
         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
@@ -446,6 +447,5 @@ private fun RoutePicker(route: Int, routes: Int, onRoute: (Int) -> Unit) {
     }
 }
 
-/** Green call actions need black content; red/other call actions keep white. */
-internal fun callActionForeground(background: Color): Color =
-    if (background == MotoColors.Green) Color.Black else Color.White
+/** Call actions need the higher-contrast content colour, including the disabled grey state. */
+internal fun callActionForeground(background: Color): Color = readableOn(background)
