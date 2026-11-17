@@ -1,26 +1,57 @@
 name: Geri bildirim / deneme raporu
 description: Denedin mi? Ne çalıştı, ne çalışmadı? Kısa bir not yeter.
 title: "Geri bildirim: "
-labels: [geri-bildirim]
+labels: ["geri-bildirim"]
 body:
   - type: markdown
     attributes:
-      value: "Kullanım deneyimini paylaştığın için teşekkürler. Lütfen kişisel veri, konum, fotoğraf veya sohbet içeriği paylaşma; gerekiyorsa örneği anonimleştir."
+      value: "Kullanım deneyimini paylaştığın için teşekkürler. Lütfen kişisel veri, gerçek konum, telefon numarası, SMS/kişi içeriği veya fotoğraf paylaşma; gerekiyorsa örneği anonimleştir. **Güvenlik açığı mı?** Herkese açık issue açma; [SECURITY.md](https://github.com/yigitbuyukeren/ridedeck/blob/main/SECURITY.md) adımlarını izle."
   - type: input
+    id: device
     attributes:
       label: "Telefon modeli ve Android sürümü"
       description: "Örn. Pixel 7, Android 15"
+      placeholder: "Örn. Pixel 7, Android 15"
     validations:
       required: true
   - type: input
+    id: version
     attributes:
       label: "RideDeck sürümü"
-      description: "Ayarlar veya sürüm sayfasından"
+      description: "APK dosya adındaki veya uygulama içindeki sürüm."
+      placeholder: "Örn. 0.6.0"
     validations:
       required: true
   - type: dropdown
+    id: install_source
+    attributes:
+      label: "Kurulum kaynağı"
+      description: "RideDeck'i nereden kurdun?"
+      options:
+        - "GitHub Releases'ten APK"
+        - "Kaynaktan kendim derledim"
+        - "Başka bir kaynak veya mağaza"
+        - "Emin değilim"
+    validations:
+      required: true
+  - type: dropdown
+    id: usage_duration
+    attributes:
+      label: "Ne kadar süre kullandın?"
+      description: "İsteğe bağlı."
+      options:
+        - "İlk kez deniyorum"
+        - "Birkaç gün"
+        - "Birkaç hafta"
+        - "1 aydan uzun"
+        - "Düzenli kullanıyorum"
+    validations:
+      required: false
+  - type: dropdown
+    id: vehicle
     attributes:
       label: "Araç"
+      description: "RideDeck yalnız motosiklet için tasarlanmıştır; farklı bir araçta denediysen yine de belirt."
       options:
         - "Motosiklet"
         - "Araba"
@@ -28,20 +59,32 @@ body:
     validations:
       required: true
   - type: textarea
+    id: tried
     attributes:
       label: "Neyi denedin?"
       description: "Navigasyon, SOS, telefon, müzik vb. Gerçek sürüşte mi, park halinde mi denedin?"
     validations:
       required: true
   - type: textarea
+    id: result
     attributes:
       label: "Ne çalıştı, ne çalışmadı?"
       description: "Beklenen ve gerçekleşen davranış. SOS veya kaza algılama için gerçek bir olay bildirmek zorunda değilsin; sadece test ettiysen yaz."
     validations:
       required: true
   - type: textarea
+    id: suggestion
     attributes:
       label: "Önerin var mı?"
       description: "Hiçbir şey yazmasan da olur."
     validations:
       required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "Son kontroller"
+      options:
+        - label: "Paylaştığım metin, log ve ekran görüntülerinde kişisel veri yok; gerekiyorsa anonimleştirdim."
+          required: true
+        - label: "Bu bir güvenlik açığı değil; güvenlik açıklarını SECURITY.md'deki yolla bildireceğim."
+          required: true

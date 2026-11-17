@@ -1,5 +1,7 @@
 # 1.0 yayın hazırlığı — güncel durum
 
+> **Kanıt yolları:** Metindeki `/tmp/...` yolları yerel kanıt dosyalarıdır; repoda yer almaz.
+
 > **17 Kasım 2026 — bu bölüm günceldir; aşağıdaki tarihli notlar tarihsel denetim kaydıdır.** Ürün sürümü `0.6.0` / `versionCode 6`; 1.0 sürümü, etiketi veya mağaza yayını yoktur. Değişiklikler `fix/audit-1.0-hardening` dalasında, PR #13 kapsamındadır. Önceki 0.4.0/344, 470/21, 526/526 + 55/55, 709/709 ve 742/742 sayıları o tarihli koşulara aittir; bu çalışma ağacının güncel kanıtı değildir.
 
 **17 Kasım 2026 yerel sonuçlar:**
@@ -26,6 +28,8 @@
 **Karar: kamuya açık 1.0 için NO-GO.** Koşullu beta ancak yukarıdaki saha kapıları gerçek cihaz/gerçek SMS/gerçek sürüş kanıtıyla kapandıktan sonra değerlendirilebilir. APK'lar yalnız kontrollü test içindir; mevcut sürüm/commit/push/yayın değişmedi.
 
 ## 29 Ekim 2026 tarihsel denetim ve sonraki ara notlar
+
+> **Kanıt yolları:** Metindeki `/tmp/...` yolları yerel kanıt dosyalarıdır; repoda yer almaz.
 
 > **11 Kasım 2026 güncellik notu:** Aşağıdaki 0.4.0/344 test ve cihaz sonuçları tarihsel denetimdir; güncel 0.6.0 (`versionCode 6`) çalışma ağacının yeniden doğrulaması değildir. Güncel uygulama/test kanıtı [STATUS.md](STATUS.md), bekleyen kabul kapıları [PLAN.md](PLAN.md) içindedir. 11 Kasım başlangıç koşusunda debug birim testleri 436/436 geçti; bu tek başına tam CI, emülatör regresyonu veya yayın onayı değildir. Arka plan SOS ve süreç sonrası hedef önizlemesi gibi davranışlar sonradan değişti; aşağıdaki tarihsel mimari sınırlamaları güncel kodun yerine kullanma. Fiziksel cihaz, gerçek SMS/arama, interkom ve yayın kapıları kapanmadı.
 

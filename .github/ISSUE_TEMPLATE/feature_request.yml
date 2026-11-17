@@ -1,0 +1,93 @@
+name: Özellik isteği
+description: Yeni bir özellik veya iyileştirme öner. Sürüş güvenliği etkisini de anlat.
+title: "[Özellik]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fikrini paylaştığın için teşekkürler. Önce [açık issue'larda](https://github.com/yigitbuyukeren/ridedeck/issues?q=is%3Aissue+is%3Aopen) benzer bir öneri olup olmadığına bak.
+
+        RideDeck **yalnız motosiklet** için tasarlanır. Sürerken yazı girişi yoktur; dokunma hedefleri büyük ve eldivenle kullanılabilir olmalıdır. Yeni dış servisler ücretsiz ve anahtarsız olmalı, kullanım koşullarına uymalıdır.
+
+        Lütfen gerçek konum, telefon numarası, kişi adı veya başka kişisel veri paylaşma. **Güvenlik açığı mı?** Herkese açık issue açma; [SECURITY.md](https://github.com/yigitbuyukeren/ridedeck/blob/main/SECURITY.md) adımlarını izle.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Hangi problem?
+      description: Sürüşte hangi iş zor veya eksik? Kim, hangi durumda yaşıyor? Mümkünse şu anki çözümünü de anlat.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Önerin
+      description: Nasıl çalışmasını istersin? Kısa ve anlaşılır anlat.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatifler
+      description: Denediğin veya düşündüğün başka çözümler. İsteğe bağlı.
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Uygulama alanı
+      description: Önerinin en çok hangi bölümle ilgili olduğunu seç.
+      options:
+        - "Navigasyon"
+        - "Harita"
+        - "SOS / kaza algılama"
+        - "Telefon / arama"
+        - "Müzik / medya"
+        - "Yolculuklar"
+        - "Ayarlar"
+        - "Arayüz"
+        - "Derleme / CI"
+        - "Diğer"
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Sürüş güvenliği ve dikkat etkisi
+      description: "Sürerken nasıl kullanılacak? Dokunma hedefi yaklaşık kaç dp olmalı, kaç saniyelik bakış gerektirir, eldivenle kullanılabilir mi? Yazı girişi gerekiyorsa yalnızca park halinde olmalı."
+      placeholder: "Örn. Tek 72 dp düğme; sürerken yalnız tek dokunuş, yazı girişi yok."
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Tahmini kapsam
+      description: İşin büyüklüğü hakkında yaklaşık bir fikir yeter.
+      options:
+        - "Küçük (tek ekran veya ayar)"
+        - "Orta (mevcut bir akış)"
+        - "Büyük (yeni servis, veri modeli veya mimari)"
+        - "Emin değilim"
+    validations:
+      required: true
+  - type: dropdown
+    id: willingness
+    attributes:
+      label: Uygulamaya istekli misin?
+      options:
+        - "Evet, PR açabilirim"
+        - "Belki, önce yönlendirme isterim"
+        - "Hayır, yalnızca fikir paylaşıyorum"
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Son kontrol
+      options:
+        - label: Aynı öneri için açılmış bir issue olup olmadığına baktım.
+          required: true
+        - label: Önerimin motosiklet-only ve sürüş güvenliği ilkelerine uyduğunu okudum.
+          required: true
+        - label: Bu bir güvenlik açığı değil; güvenlik açıklarını SECURITY.md'deki yolla bildireceğim.
+          required: true

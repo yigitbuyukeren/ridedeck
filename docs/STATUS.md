@@ -2,6 +2,8 @@
 
 Güncel kurallar kökteki `AGENTS.md`, saha/yayın kapıları [RELEASE_READINESS.md](RELEASE_READINESS.md) ve denetim maddeleri [AUDIT-TRACKING.md](AUDIT-TRACKING.md) içindedir. Aşağıdaki tarihli kayıtlar yeniden çalıştırılmış test sonucu değildir.
 
+> **Kanıt yolları:** Metindeki `/tmp/...` yolları yerel kanıt dosyalarıdır; repoda yer almaz.
+
 **Son güncelleme:** 2026-11-17
 
 ## Güncel özet

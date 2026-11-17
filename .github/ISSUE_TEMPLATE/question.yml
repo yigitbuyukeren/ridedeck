@@ -1,0 +1,58 @@
+name: Soru
+description: Kurulum, kullanım veya katkı hakkında soru sor.
+title: "[Soru]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sorunu paylaşmadan önce [README](https://github.com/yigitbuyukeren/ridedeck/blob/main/README.md), [geliştirme rehberi](https://github.com/yigitbuyukeren/ridedeck/blob/main/docs/DEVELOPMENT.md) ve [destek](https://github.com/yigitbuyukeren/ridedeck/blob/main/SUPPORT.md) bölümlerine bak.
+
+        Hata için **Hata bildirimi**, özellik fikri için **Özellik isteği**, güvenlik açığı için [SECURITY.md](https://github.com/yigitbuyukeren/ridedeck/blob/main/SECURITY.md) yolunu kullan. Kişisel veri, gerçek konum, telefon numarası veya SMS içeriği paylaşma.
+  - type: textarea
+    id: question
+    attributes:
+      label: Sorun
+      description: Ne öğrenmek veya çözmek istiyorsun? Kısa ve net yaz.
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: Neyi denedin?
+      description: Okuduğun belge, denediğin adım veya aldığın hata mesajı.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Konu alanı
+      options:
+        - "Kurulum / derleme"
+        - "Navigasyon / harita"
+        - "SOS / kaza algılama"
+        - "Telefon / müzik"
+        - "Yolculuklar / ayarlar"
+        - "Katkı / belge / çeviri"
+        - "Diğer"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Ortam (isteğe bağlı)
+      description: RideDeck sürümü, telefon/emülatör ve Android sürümü.
+      placeholder: "Örn. 0.6.0, Pixel 7, Android 15"
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Son kontroller
+      options:
+        - label: İlgili belgeleri ve açık issue'ları kontrol ettim.
+          required: true
+        - label: Paylaştığım metin ve ekran görüntülerinde kişisel veri yok.
+          required: true
+        - label: Bu bir güvenlik açığı değil; güvenlik açıklarını SECURITY.md'deki yolla bildireceğim.
+          required: true

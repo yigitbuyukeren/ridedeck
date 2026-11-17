@@ -33,7 +33,7 @@ Telefonu gidona veya motosiklet üstüne takınca **hız, harita, müzik ve tele
 
 | 🧭 **Sesli yönlendirme** | 📞 **Telefon ve müzik** | 🆘 **SOS ve kaza algılama** |
 |:---:|:---:|:---:|
-| OpenStreetMap haritası, motosiklet rotası, ara durak ve benzinlik | Uygulama içi telefon (son aramalar, rehber, tuş takımı), müzik kontrolü, mesajları sesli okuma | Sert darbe ve hareketsizlikte geri sayım, sonra kişi başına konum linkli tek SMS |
+| OpenStreetMap haritası, motosiklet rotası, ara durak ve benzinlik | Uygulama içi telefon (son aramalar, rehber, tuş takımı), müzik kontrolü, mesajları sesli okuma | Sert darbe ve hareketsizlikte geri sayım, sonra en fazla 3 kişiye birer konum linkli SMS |
 | 🗺️ **Çevrimdışı harita** | 🌦️ **Uyarılar** | 🔒 **Gizlilik** |
 | Önceden indirilen alanlar korunur; yeni indirmeler sağlayıcı uyumluluğu doğrulanana kadar kapalıdır. Rota, arama ve hava durumu internet ister | Yağmur ve buzlanma uyarısı; telefon ısınınca ekran kısılır | Yolculuklar ve ayarlar telefonda kalır; harita, rota, arama, hava ve hız limiti sorguları dış sağlayıcılara gider. Sesli yönlendirme Android'in metin okuma motoruyla yapılır |
 
@@ -155,6 +155,8 @@ Ayrıntılar için başlıklara dokun.
 
 ### 🛠️ Derleme ve test
 
+Ayrıntılı kurulum, test, emülatör ve sorun giderme: [geliştirme rehberi](docs/DEVELOPMENT.md).
+
 ```bash
 export JAVA_HOME=/yol/jdk-17        # JDK 17 gerekir
 ./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease
@@ -198,7 +200,18 @@ Bunlar ücretsiz, garantisiz genel servislerdir. Yoğun veya ticari kullanım i�
 
 ### 🤝 Katkı
 
-Issue ve PR'lar açık; RideDeck'i denediysen [geri bildirim formunu](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=geri-bildirim.yml) doldurman çok işime yarar (hangi telefon, neyi denedin, ne çalıştı). Başlamak için [CONTRIBUTING.md](CONTRIBUTING.md), güncel durum için [docs/STATUS.md](docs/STATUS.md) ve yayın kapıları için [docs/RELEASE_READINESS.md](docs/RELEASE_READINESS.md) dosyalarına bak. Fikirler: yeni dil çevirileri, çevrimdışı rota hesaplama (büyük iş), tablet ve katlanabilir ekran düzenleri.
+Issue ve PR'lar açık; RideDeck'i denediysen [geri bildirim formunu](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=geri-bildirim.yml) doldurman çok işime yarar (hangi telefon, neyi denedin, ne çalıştı).
+
+Başlamak için:
+
+- [Katkı rehberi](CONTRIBUTING.md) — ortam, dal/commit ve PR süreci
+- [Geliştirme rehberi](docs/DEVELOPMENT.md) — derleme, test, emülatör ve sık iş akışları
+- [Mimari](docs/ARCHITECTURE.md) — paketler, veri akışı ve "nerede ne değiştirilir?"
+- [Çeviri rehberi](docs/TRANSLATING.md) — yeni dil ve mevcut metin düzeltmeleri
+- [Destek](SUPPORT.md) ve [güvenlik politikası](SECURITY.md)
+- [`good first issue`](https://github.com/yigitbuyukeren/ridedeck/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) etiketli açık işler
+
+Güncel durum ve saha kapıları [docs/STATUS.md](docs/STATUS.md) ve [docs/RELEASE_READINESS.md](docs/RELEASE_READINESS.md) içindedir. Fikirler: yeni dil çevirileri, çevrimdışı rota hesaplama (büyük iş), tablet ve katlanabilir ekran düzenleri.
 
 ### 📜 Lisans
 
@@ -213,7 +226,7 @@ Issue ve PR'lar açık; RideDeck'i denediysen [geri bildirim formunu](https://gi
 
 | 🧭 **Voice guidance** | 📞 **Phone and music** | 🆘 **SOS and crash detection** |
 |:---:|:---:|:---:|
-| OpenStreetMap, motorcycle routing, waypoints and fuel stops | In-app phone (recents, contacts, keypad), music control, messages read aloud | Countdown after a hard impact and no movement, then one SMS per contact with your location |
+| OpenStreetMap, motorcycle routing, waypoints and fuel stops | In-app phone (recents, contacts, keypad), music control, messages read aloud | Countdown after a hard impact and no movement, then one SMS per contact (up to 3) with your location |
 | 🗺️ **Offline map** | 🌦️ **Alerts** | 🔒 **Privacy** |
 | Existing offline areas are preserved; new downloads are paused until provider compliance is verified. Routing, search and weather need internet | Rain and ice alerts; the screen dims when the phone overheats | Trips and settings stay on the phone; map, routing, search, weather and speed-limit queries go to public providers. Spoken guidance uses Android text-to-speech |
 
@@ -233,6 +246,6 @@ adb shell settings put global cached_apps_freezer disabled   # emulator freezer,
 
 `local.properties` must set `sdk.dir` (not committed). The debug APK carries x86_64 and ARM natives for the emulator; release APK/AAB are ARM-only. CI runs unit tests, both lint variants, APK/AAB builds, alignment/ABI checks, gated signing and an x86_64 API 35 instrumentation job. Release APKs need a local `keystore.properties` (not committed); without it the release APK is unsigned.
 
-RideDeck is a free, open-source Android app (Kotlin, Jetpack Compose, minSdk 26) that turns a phone into a CarPlay-style landscape dashboard for motorcycles: GPS speedometer, voice-guided OpenStreetMap navigation, fuel stops, weather alerts, music, an in-app phone and crash-detecting SOS. It is motorcycle-only; there is no vehicle picker. No accounts, API keys or RideDeck backend; navigation queries use free public map services, and map/routing/search/weather/speed-limit requests leave the phone as described in the privacy section. The UI has Turkish and English; spoken guidance follows the phone language (Turkish or English). Settings are grouped into six pages (General, Appearance, Map, Sound and alerts, Safety, Permissions and system) with a scrollable category rail and a single centered column, at most 820 dp wide. Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md). Technical write-up: [case study](docs/CASE-STUDY.en.md). Known limits: crash-detection thresholds and real SMS sending are not field-tested; screenshots and the demo GIF come from an emulator with simulated GPS; navigation, search and weather need a network connection (offline map downloads are subject to provider limits, and routing does not work offline); explicitly started rides use a location foreground service to keep GPS and recording active with the screen off, independently of the overlay; location permission and GPS must be enabled, and system-stopped rides do not automatically restart; SMS send results distinguish confirmed, failed and unknown recipients; recipient delivery is not confirmed and there are no automatic retries. A countdown that starts with the screen off is raised over the keyguard with a notification, full-screen intent and wake lock; if there is no notification the app is launched when the OS permits a background activity start (overlay access on Android 10+), and if FSI is denied the high-priority notification remains, while sound/vibration/SMS still run. This is not verified on a real locked device or OEM build. Speech pauses during calls and music does not automatically resume after a headset disconnects. SOS is an aid, not a safety guarantee.
+RideDeck is a free, open-source Android app (Kotlin, Jetpack Compose, minSdk 26) that turns a phone into a CarPlay-style landscape dashboard for motorcycles: GPS speedometer, voice-guided OpenStreetMap navigation, fuel stops, weather alerts, music, an in-app phone and crash-detecting SOS. It is motorcycle-only; there is no vehicle picker. No accounts, API keys or RideDeck backend; navigation queries use free public map services, and map/routing/search/weather/speed-limit requests leave the phone as described in the privacy section. The UI has Turkish and English; spoken guidance follows the phone language (Turkish or English). Settings are grouped into six pages (General, Appearance, Map, Sound and alerts, Safety, Permissions and system) with a scrollable category rail and a single centered column, at most 820 dp wide. Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md), the [development guide](docs/DEVELOPMENT.md), the [architecture map](docs/ARCHITECTURE.md) and the [translation guide](docs/TRANSLATING.md); questions go to [SUPPORT.md](SUPPORT.md), and vulnerabilities should be reported via [SECURITY.md](SECURITY.md). Please follow the [code of conduct](CODE_OF_CONDUCT.md). Technical write-up: [case study](docs/CASE-STUDY.en.md). Known limits: crash-detection thresholds and real SMS sending are not field-tested; screenshots and the demo GIF come from an emulator with simulated GPS; navigation, search and weather need a network connection (offline map downloads are subject to provider limits, and routing does not work offline); explicitly started rides use a location foreground service to keep GPS and recording active with the screen off, independently of the overlay; location permission and GPS must be enabled, and system-stopped rides do not automatically restart; SMS send results distinguish confirmed, failed and unknown recipients; recipient delivery is not confirmed and there are no automatic retries. A countdown that starts with the screen off is raised over the keyguard with a notification, full-screen intent and wake lock; if there is no notification the app is launched when the OS permits a background activity start (overlay access on Android 10+), and if FSI is denied the high-priority notification remains, while sound/vibration/SMS still run. This is not verified on a real locked device or OEM build. Speech pauses during calls and music does not automatically resume after a headset disconnects. SOS is an aid, not a safety guarantee.
 
 </details>

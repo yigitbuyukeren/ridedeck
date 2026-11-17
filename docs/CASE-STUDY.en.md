@@ -40,7 +40,7 @@ The app once had a Turkish voice assistant (command parser, multi-turn dialogue,
 
 ## 6. SOS / crash detection and its limits
 
-`CrashDetector` needs recent riding speed **and** an impact above the motorcycle threshold, followed by a quiet phone and a stopped vehicle. Potholes, hard stops and a bike knocked over in a car park stay quiet; on two wheels a tilt change (≥ 25°) or an impact twice the threshold is also required. After a countdown, one SMS per contact with a location link is sent; no call is placed.
+`CrashDetector` needs recent riding speed **and** an impact above the motorcycle threshold, followed by a quiet phone and a stopped vehicle. Potholes, hard stops and a motorcycle knocked over in a car park stay quiet; on two wheels a tilt change (≥ 25°) or an impact twice the threshold is also required. After a countdown, one SMS per contact (up to 3) with a location link is sent; no call is placed.
 
 **This is not a safety guarantee.** The 4 g motorcycle threshold is a design assumption and **has not been tuned in the field or tested in a real crash**. The feature is off by default; sensors listen while the app is on screen or a started ride's foreground service runs. A countdown that starts with the screen off is raised over the keyguard with a notification, full-screen intent and wake lock; the notification offers **I'm OK** for the countdown and **Close** for the result. If there is no notification the app is launched when the OS permits a background activity start (overlay access on Android 10+); if FSI is denied the high-priority notification remains while sound/vibration/SMS still run. Real locked-device behaviour, OEM FSI denial and SIM/operator delivery remain unverified; carrier SMS charges may apply. False alarms and missed events are both possible.
 
@@ -58,7 +58,7 @@ GitHub Actions runs `test lintDebug lintRelease assembleDebug assembleRelease as
 | One process GPS stream with a reference-counted `LocationArbiter` | Screen, started ride service and overlay share one listener; no second subscription, and one owner leaving cannot cut GPS for the others. |
 | Display speed ≠ decision speed | A steady gauge and an undelayed safety decision are not traded against each other. |
 | `--` instead of a fake 0 | No false confidence when the signal is lost. |
-| Lock text entry and settings above 5 km/h | Riding safety. |
+| Lock text entry and settings at or above 5 km/h | Riding safety. |
 | Voice assistant removed | Reliable wake and recognition could not be achieved; removed rather than shown broken. |
 | No offline routing; map downloads stay behind a provider gate | Routing and search stay online. New downloads/resume remain **BLOCKED** until OpenFreeMap terms and aggregate compliance are proven; existing areas are preserved. |
 | OBD, maintenance log, GPX dropped | Unusable while riding or unverifiable. |

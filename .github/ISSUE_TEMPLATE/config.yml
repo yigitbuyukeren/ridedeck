@@ -1,5 +1,14 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
-  - name: E-posta
-    url: mailto:mail@yigitbuyukeren.com
-    about: Herkese açık yazmak istemediğin konular için
+  - name: Katkı rehberi
+    url: https://github.com/yigitbuyukeren/ridedeck/blob/main/CONTRIBUTING.md
+    about: Geliştirme ortamı, testler ve PR kuralları
+  - name: Destek ve sorular
+    url: https://github.com/yigitbuyukeren/ridedeck/blob/main/SUPPORT.md
+    about: Soru, kurulum ve kullanım desteği
+  - name: İyi ilk işler
+    url: https://github.com/yigitbuyukeren/ridedeck/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22
+    about: Yeni katkıcılar için etiketlenmiş açık görevler
+  - name: Güvenlik açığı bildir
+    url: https://github.com/yigitbuyukeren/ridedeck/blob/main/SECURITY.md
+    about: Güvenlik açıklarını herkese açık issue olarak açma; gizli bildirim adımlarını izle.

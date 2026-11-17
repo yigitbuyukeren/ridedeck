@@ -25,7 +25,7 @@ RideDeckApplication (uygulama ömrü)
  │       referans sayımıyla paylaşır; ilk sahip başlatır, son sahip durdurur
  ├─ RideNavigation: tek NavigationController + Routing (Valhalla) + Speaker + FuelFinder
  │    └─ NavigationRideLifecycle: açık yolculukta rehberlik ekran/Activity'den bağımsız
- ├─ RideSafety: CrashDetector + SosController ─► tek SMS + kilit ekranı bildirimi
+ ├─ RideSafety: CrashDetector + SosController ─► kişi başına tek SMS (en fazla 3) + kilit ekranı bildirimi
  └─ DashboardViewModel: ekran durumunun bağlama noktası (repository sahibi değil)
 ProviderHttp : tüm genel servis çağrılarında iptal + sağlayıcı bazlı eşzamanlılık/aralık
 ```
@@ -69,7 +69,7 @@ Uygulamada bir dönem Türkçe sesli asistan vardı (komut ayrıştırıcı, ço
 
 ## 6. Güvenlik özellikleri (SOS) ve sınırı
 
-Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sürüş hızı **ve** eşiği aşan darbe, ardından telefonun sakin kalması ve aracın durması. Çukur (darbe var, araç yuvarlanıyor), sert fren (darbe yok) ve park yerinde devrilen motosiklet (hiç sürülmedi) sessiz kalır. İki tekerlekte ek olarak telefonun yönünün değişmiş (≥ 25°) ya da darbenin eşiğin 2 katı olması istenir; böylece "çukur + kırmızı ışık" yanlış alarmı azalır. Sonrasında geri sayım, geri sayım bitince kişi başına **tek** SMS (konum bağlantılı); arama yapılmaz.
+Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sürüş hızı **ve** eşiği aşan darbe, ardından telefonun sakin kalması ve aracın durması. Çukur (darbe var, araç yuvarlanıyor), sert fren (darbe yok) ve park yerinde devrilen motosiklet (hiç sürülmedi) sessiz kalır. İki tekerlekte ek olarak telefonun yönünün değişmiş (≥ 25°) ya da darbenin eşiğin 2 katı olması istenir; böylece "çukur + kırmızı ışık" yanlış alarmı azalır. Sonrasında geri sayım, geri sayım bitince en fazla 3 kişiye birer SMS (konum bağlantılı); arama yapılmaz.
 
 **Bu bir güvenlik garantisi değildir.** Motosiklet eşiği (4 g) tasarım varsayımıdır ve **sahada ayarlanmamıştır**; gerçek bir kazada veya düşüşte test edilmedi. Özellik varsayılan kapalıdır. Sensör, uygulama ekrandayken veya başlatılmış bir yolculuğun ön plan servisi sürerken dinler. Ekran kapalıyken başlayan geri sayım kilit ekranı üstünde bildirim, tam ekran bildirim ve uyandırma kilidiyle öne alınmaya çalışılır; bildirimde **İyiyim** (geri sayım) / **Kapat** (sonuç) eylemleri vardır. Bildirim yoksa uygulama açılmaya çalışılır (Android 10+ yalnız üstte gösterme izni varsa); FSI reddedilirse yüksek öncelikli bildirim kalır, ses/titreşim ve SMS yolu sürer. Gerçek kilitli cihaz, OEM FSI reddi, SIM/operatör teslimi **doğrulanmadı**; operatör SMS ücreti uygulanabilir. Yanlış alarm ve kaçırılmış kaza ikisi de mümkündür. README'de ve uygulamada bu şekilde sunulur.
 
@@ -91,7 +91,7 @@ Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sür�
 | Tüm servisler anahtarsız genel servis + merkezi `ProviderHttp` | "Hesap, anahtar, sunucu yok" sözünü korur. Bedeli: servis kararsızlığı için yedek/geri çekilme; uygulama içi sınır sağlayıcı global kotasını kanıtlamaz. |
 | Gösterim hızı ≠ karar hızı | Titremeyen kadran ile gecikmeyen güvenlik kararı birbirine feda edilmedi. |
 | Sahte 0 yok, `--` var | Sinyal kaybında yanlış güven vermemek. |
-| Sürerken yazı girişi/ayar kilidi (5 km/sa üstü) | Güvenlik; kendi Türkçe klavyesi park halinde arama içindir. |
+| Sürerken yazı girişi/ayar kilidi (5 km/sa ve üzeri) | Güvenlik; kendi Türkçe klavyesi park halinde arama içindir. |
 | Sesli asistan kaldırıldı | Güvenilir uyandırma ve tanıma sağlanamadı; çalışmayan özelliği göstermek yerine kaldırıldı. |
 | Çevrimdışı rota yok; harita indirmeleri sağlayıcı kapısında | Rota ve arama canlı hizmete bağlı kalır. Yeni indirme/resume, OpenFreeMap koşulları ve global uyum kanıtlanana kadar **BLOCKED**; mevcut alanlar korunur. |
 | OBD, bakım takibi, eğim, GPX çıkarıldı | Sürerken kullanılamayan veya doğrulanamayan özelliklerden kaçınmak; odak sürüş panelinde. |
