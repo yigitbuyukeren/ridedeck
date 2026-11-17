@@ -180,7 +180,7 @@ private class BlockingHttp : ServiceHttp {
     val started = CountDownLatch(1)
     val cancelled = CountDownLatch(1)
 
-    override suspend fun get(url: String, connectMs: Int, readMs: Int): String =
+    override suspend fun get(url: String, connectMs: Int, readMs: Int, headers: Map<String, String>): String =
         block(RecordedRequest(Verb.GET, url, null, connectMs, readMs))
 
     override suspend fun postJson(
@@ -189,9 +189,10 @@ private class BlockingHttp : ServiceHttp {
         connectMs: Int,
         readMs: Int,
         emptyOn400: Boolean,
+        headers: Map<String, String>,
     ): String = block(RecordedRequest(Verb.POST_JSON, url, body, connectMs, readMs, emptyOn400))
 
-    override suspend fun postForm(url: String, body: String, connectMs: Int, readMs: Int): String =
+    override suspend fun postForm(url: String, body: String, connectMs: Int, readMs: Int, headers: Map<String, String>): String =
         block(RecordedRequest(Verb.POST_FORM, url, body, connectMs, readMs))
 
     private suspend fun block(request: RecordedRequest): String {

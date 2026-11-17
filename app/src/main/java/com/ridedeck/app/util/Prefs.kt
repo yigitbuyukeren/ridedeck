@@ -21,6 +21,8 @@ object Prefs {
     private const val KEY_SOS_CONTACTS = "sos_contacts"
     private const val KEY_SOS_CRASH = "sos_crash"
     private const val KEY_SOS_BUTTON = "sos_button"
+    private const val KEY_SOS_SMS_ASKED = "sos_sms_asked"
+    private const val KEY_SOS_NOTIFICATION_ASKED = "sos_notification_asked"
     private const val KEY_THERMAL = "thermal_guard"
     private const val KEY_WEATHER = "weather_enabled"
     private const val KEY_RAIN_VOICE = "rain_voice"
@@ -213,6 +215,22 @@ object Prefs {
 
     fun setSosButton(context: Context, enabled: Boolean) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_SOS_BUTTON, enabled).apply()
+    }
+
+    /** Persists that the SMS permission was requested once, so a permanent denial still offers Settings. */
+    fun sosSmsAsked(context: Context): Boolean =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_SOS_SMS_ASKED, false)
+
+    fun setSosSmsAsked(context: Context) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_SOS_SMS_ASKED, true).apply()
+    }
+
+    /** Same for POST_NOTIFICATIONS; rememberSaveable alone forgot it on a cold start. */
+    fun sosNotificationAsked(context: Context): Boolean =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_SOS_NOTIFICATION_ASKED, false)
+
+    fun setSosNotificationAsked(context: Context) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_SOS_NOTIFICATION_ASKED, true).apply()
     }
 
     /** The alarm volume to put back after an SOS countdown that was cut short by the process dying; -1 when none. */

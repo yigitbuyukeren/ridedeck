@@ -3,7 +3,6 @@ package com.ridedeck.app.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +33,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -140,16 +141,37 @@ fun NavCard(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     // The whole card opens the map; the arrow says so.
                     Text(stringResource(R.string.nav_title) + "  ›", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = palette.text)
-                    // One tap from the dashboard to a route home or to work.
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                        places.filter { it.kind != PlaceKind.FAVORITE }.forEach { sp ->
+                    // One tap from the dashboard to a route home or to work. The row is bounded rather
+                    // than horizontally scrollable: at font 2 a scroll row measured the second button
+                    // past the card's right edge (401.9 dp on a 380 dp card). At most two equal columns
+                    // stay inside it, and the label scales down with cappedSp instead of leaving the card.
+                    val quickActions = remember(places) {
+                        places.filter { it.kind != PlaceKind.FAVORITE }.take(2)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        quickActions.forEach { sp ->
+                            val label = stringResource(
+                                if (sp.kind == PlaceKind.HOME) R.string.go_home else R.string.go_work
+                            )
+                            val destination = sp.place.name.trim()
+                            val description = if (destination.isEmpty()) {
+                                label
+                            } else {
+                                stringResource(R.string.nav_quick_action_desc, label, destination)
+                            }
                             PillButton(
-                                stringResource(
-                                    if (sp.kind == PlaceKind.HOME) R.string.go_home else R.string.go_work
-                                ),
-                                if (palette.isDay) palette.cardHigh else Color(0x33FFFFFF), { onGoTo(sp.place) },
-                                horizontalPadding = 16.dp,
+                                text = label,
+                                color = if (palette.isDay) palette.cardHigh else Color(0x33FFFFFF),
+                                onClick = { onGoTo(sp.place) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag(if (sp.kind == PlaceKind.HOME) "nav-quick-home" else "nav-quick-work")
+                                    .semantics { contentDescription = description },
                                 textColor = palette.text,
+                                horizontalPadding = 8.dp,
+                                minHeight = 64.dp,
+                                fontSize = cappedSp(20f, maxScale = 1.2f),
+                                singleLine = true,
                             )
                         }
                     }

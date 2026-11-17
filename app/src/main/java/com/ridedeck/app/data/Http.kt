@@ -30,30 +30,52 @@ import okhttp3.Response
 object Http {
     const val USER_AGENT = "RideDeck/${BuildConfig.VERSION_NAME} (+https://github.com/yigitbuyukeren/ridedeck)"
 
-    fun get(url: String, connectMs: Int = 10_000, readMs: Int = 12_000): String =
-        request(url, null, null, connectMs, readMs, emptyOn400 = false)
+    /** The public Valhalla demo server asks clients to identify themselves; this is not a secret or an API key. */
+    const val VALHALLA_CLIENT_ID = "ridedeck"
 
-    fun postJson(url: String, body: String, connectMs: Int = 10_000, readMs: Int = 12_000, emptyOn400: Boolean = false): String =
-        request(url, body, "application/json", connectMs, readMs, emptyOn400)
+    private const val VALHALLA_HOST = "valhalla1.openstreetmap.de"
 
-    fun postForm(url: String, body: String, connectMs: Int = 10_000, readMs: Int = 30_000): String =
-        request(url, body, "application/x-www-form-urlencoded", connectMs, readMs, emptyOn400 = false)
+    /**
+     * Headers the central layer adds for a host. Valhalla's demo deployment asks for an identifying
+     * `X-Client-Id`; other public services keep their existing User-Agent-only shape. This is local
+     * client identification, not proof of any provider's aggregate usage compliance.
+     */
+    internal fun clientHeaders(url: String): Map<String, String> {
+        val host = runCatching { java.net.URI(url).host }.getOrNull()?.lowercase() ?: return emptyMap()
+        return if (host == VALHALLA_HOST) mapOf("X-Client-Id" to VALHALLA_CLIENT_ID) else emptyMap()
+    }
+
+    fun get(url: String, connectMs: Int = 10_000, readMs: Int = 12_000, headers: Map<String, String> = emptyMap()): String =
+        request(url, null, null, connectMs, readMs, emptyOn400 = false, headers = headers)
+
+    fun postJson(
+        url: String, body: String, connectMs: Int = 10_000, readMs: Int = 12_000, emptyOn400: Boolean = false,
+        headers: Map<String, String> = emptyMap(),
+    ): String = request(url, body, "application/json", connectMs, readMs, emptyOn400, headers)
+
+    fun postForm(
+        url: String, body: String, connectMs: Int = 10_000, readMs: Int = 30_000,
+        headers: Map<String, String> = emptyMap(),
+    ): String = request(url, body, "application/x-www-form-urlencoded", connectMs, readMs, emptyOn400 = false, headers = headers)
 
     /**
      * Suspending variants for callers that can be cancelled. They send exactly the same request and
      * status handling as the blocking functions, but close the connection as soon as the calling
      * coroutine is cancelled, so a slow server cannot hold the caller until its read timeout.
+     * [headers] are extra per-request headers; provider defaults are still applied centrally.
      */
-    suspend fun getCancellable(url: String, connectMs: Int = 10_000, readMs: Int = 12_000): String =
-        requestCancellable(url, null, null, connectMs, readMs, emptyOn400 = false)
+    suspend fun getCancellable(
+        url: String, connectMs: Int = 10_000, readMs: Int = 12_000, headers: Map<String, String> = emptyMap(),
+    ): String = requestCancellable(url, null, null, connectMs, readMs, emptyOn400 = false, headers = headers)
 
     suspend fun postJsonCancellable(
         url: String, body: String, connectMs: Int = 10_000, readMs: Int = 12_000, emptyOn400: Boolean = false,
-    ): String = requestCancellable(url, body, "application/json", connectMs, readMs, emptyOn400)
+        headers: Map<String, String> = emptyMap(),
+    ): String = requestCancellable(url, body, "application/json", connectMs, readMs, emptyOn400, headers)
 
     suspend fun postFormCancellable(
-        url: String, body: String, connectMs: Int = 10_000, readMs: Int = 30_000,
-    ): String = requestCancellable(url, body, "application/x-www-form-urlencoded", connectMs, readMs, emptyOn400 = false)
+        url: String, body: String, connectMs: Int = 10_000, readMs: Int = 30_000, headers: Map<String, String> = emptyMap(),
+    ): String = requestCancellable(url, body, "application/x-www-form-urlencoded", connectMs, readMs, emptyOn400 = false, headers = headers)
 
     /** Download a public model archive without routing binary bytes through a text API. */
     fun download(url: String, target: File, onProgress: (Long, Long) -> Unit = { _, _ -> }) {
@@ -87,12 +109,14 @@ object Http {
     /** [emptyOn400] turns a 400 into "{}": Valhalla uses it for "could not snap to a road", not an outage. */
     private fun request(
         url: String, postBody: String?, contentType: String?, connectMs: Int, readMs: Int, emptyOn400: Boolean,
+        headers: Map<String, String> = emptyMap(),
     ): String {
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
             conn.connectTimeout = connectMs
             conn.readTimeout = readMs
             conn.setRequestProperty("User-Agent", USER_AGENT)
+            (clientHeaders(url) + headers).forEach { (name, value) -> conn.setRequestProperty(name, value) }
             if (postBody != null) {
                 conn.requestMethod = "POST"
                 conn.doOutput = true
@@ -117,10 +141,13 @@ object Http {
      */
     private suspend fun requestCancellable(
         url: String, postBody: String?, contentType: String?, connectMs: Int, readMs: Int, emptyOn400: Boolean,
+        headers: Map<String, String> = emptyMap(),
     ): String {
-        val request = Request.Builder()
+        val builder = Request.Builder()
             .url(url)
             .header("User-Agent", USER_AGENT)
+        (clientHeaders(url) + headers).forEach { (name, value) -> builder.header(name, value) }
+        val request = builder
             .apply {
                 if (postBody != null) {
                     // Keep the exact header the blocking path sent; OkHttp would otherwise append a charset.

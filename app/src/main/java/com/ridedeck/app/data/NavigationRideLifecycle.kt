@@ -17,6 +17,9 @@ class NavigationRideLifecycle(
             nav.ui.collect { state ->
                 // A planned stop is still part of the guided ride, including a retryable continuation.
                 val guiding = state.navigating || (state.finalDestination != null && state.termination == NavigationTermination.ARRIVED)
+                // The terminal state clears `navigating`, so remember whether the previous state was guiding:
+                // cancelling a mere route preview must not stop a ride the rider started manually from Trips.
+                val wasGuiding = previousGuidance == true
                 if (guiding != previousGuidance) {
                     previousGuidance = guiding
                     guidanceChanged(guiding)
@@ -28,7 +31,7 @@ class NavigationRideLifecycle(
                 if (end == previousEnd) return@collect
                 previousEnd = end
                 when (end) {
-                    NavigationTermination.USER_CANCELLED -> ride.stop()
+                    NavigationTermination.USER_CANCELLED -> if (wasGuiding) ride.stop()
                     NavigationTermination.ARRIVED -> if (state.finalDestination == null) ride.stop()
                     NavigationTermination.LOCATION_DISABLED -> ride.stop(RideFailure.GPS_DISABLED)
                     NavigationTermination.LOCATION_PERMISSION_REVOKED -> ride.stop(RideFailure.PERMISSION)

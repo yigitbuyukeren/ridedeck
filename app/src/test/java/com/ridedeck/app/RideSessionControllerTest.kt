@@ -151,10 +151,38 @@ class RideSessionControllerTest {
         r.controller.serviceDestroyed(old)
         runCurrent()
         assertEquals(RideFailure.INTERRUPTED, r.controller.state.value.failure)
+        assertEquals(1, r.released)
+        assertEquals(1, r.closed)
         assertEquals(1, r.launches)
         r.start()
         r.controller.serviceDestroyed(old)
+        runCurrent()
         assertEquals(RidePhase.ACTIVE, r.controller.state.value.phase)
+        // The stale onDestroy must not release the newer service's GPS owner or close it.
+        assertEquals(1, r.released)
+        assertEquals(1, r.closed)
+        assertEquals(2, r.acquired)
+    }
+
+    @Test fun destructionDuringFinishFlushDoesNotDoubleReleaseOrWriteToTheStoppedRide() = runTest {
+        val r = Rig(this)
+        r.start()
+        val old = r.token
+        r.finishGate = CompletableDeferred()
+        r.controller.stop()
+        runCurrent()
+        r.controller.serviceDestroyed(old)
+        runCurrent()
+        assertEquals(RidePhase.STOPPING, r.controller.state.value.phase)
+        assertEquals(1, r.released)
+        assertEquals(0, r.closed)
+        assertFalse(r.controller.requestStart(true)) // A new visible start is rejected until the flush completes.
+        assertEquals(1, r.launches)
+        r.finishGate!!.complete(Unit)
+        runCurrent()
+        assertEquals(1, r.finished)
+        assertEquals(1, r.closed)
+        assertEquals(RideSessionState(), r.controller.state.value)
     }
 
     @Test fun failedFlushStillStopsServiceAndReportsStorageError() = runTest {

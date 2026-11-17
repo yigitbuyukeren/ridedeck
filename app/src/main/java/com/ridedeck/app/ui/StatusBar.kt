@@ -56,12 +56,12 @@ fun DockStatus(battery: BatteryState) {
         }
     }
     val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(now))
-    val tempColor = when {
-        battery.tempC >= 45f -> MotoColors.Red
-        battery.tempC >= 40f -> MotoColors.Orange
-        else -> LocalMotoPalette.current.text.copy(alpha = 0.85f)
-    }
     val palette = LocalMotoPalette.current
+    val tempColor = when {
+        battery.tempC >= 45f -> dangerColor(palette)
+        battery.tempC >= 40f -> warningColor(palette)
+        else -> palette.text.copy(alpha = 0.85f)
+    }
     val level = battery.percent.coerceIn(0, 100)
     val severityColor = batterySeverityColor(level, battery.hasReading, palette)
     val percentColor = severityColor ?: palette.text.copy(alpha = 0.85f)
@@ -87,7 +87,7 @@ fun DockStatus(battery: BatteryState) {
                     "!",
                     fontSize = cappedSp(13f),
                     fontWeight = FontWeight.Bold,
-                    color = severityColor ?: MotoColors.Red,
+                    color = severityColor ?: dangerColor(palette),
                     maxLines = 1,
                     softWrap = false,
                     modifier = Modifier.padding(start = 1.dp),
@@ -104,14 +104,10 @@ private const val BATTERY_CRITICAL_PERCENT = 15
 private const val BATTERY_LOW_PERCENT = 30
 private const val BATTERY_ALERT_PERCENT = 5
 
-/** Deeper warning colors on the day palette keep the small text readable on light wallpaper. */
-private val DayBatteryOrange = Color(0xFFB45309)
-private val DayBatteryRed = Color(0xFFC0271D)
-
 private fun batterySeverityColor(level: Int, hasReading: Boolean, palette: MotoPalette): Color? = when {
     !hasReading -> null
-    level <= BATTERY_CRITICAL_PERCENT -> if (palette.isDay) DayBatteryRed else MotoColors.Red
-    level <= BATTERY_LOW_PERCENT -> if (palette.isDay) DayBatteryOrange else MotoColors.Orange
+    level <= BATTERY_CRITICAL_PERCENT -> dangerColor(palette)
+    level <= BATTERY_LOW_PERCENT -> warningColor(palette)
     else -> null
 }
 
@@ -125,7 +121,7 @@ private fun BatteryIndicator(level: Int, charging: Boolean, hasReading: Boolean)
     val palette = LocalMotoPalette.current
     val fillColor = batterySeverityColor(level, hasReading, palette) ?: palette.text.copy(alpha = 0.92f)
     val frameColor = palette.muted.copy(alpha = 0.55f)
-    val boltColor = if (palette.isDay) Color(0xFF087443) else MotoColors.Green
+    val boltColor = successColor(palette)
     Box(modifier = Modifier.size(width = 28.dp, height = 15.dp)) {
         Canvas(Modifier.matchParentSize()) {
             val stroke = 1.4.dp.toPx()

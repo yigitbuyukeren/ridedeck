@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.pow
 
 /** Palette that changes between day and night. Fixed accent colors live in [MotoColors]. */
 @Immutable
@@ -111,6 +112,49 @@ object MotoColors {
     val CardHigh: Color @Composable get() = LocalMotoPalette.current.cardHigh
 }
 
+/**
+ * WCAG 2.x relative luminance of an opaque colour. Colours with alpha are treated as if they were
+ * opaque; every surface that uses this helper is a painted fill, not a translucent overlay.
+ */
+fun relativeLuminance(color: Color): Float {
+    fun channel(value: Float): Float =
+        if (value <= 0.03928f) value / 12.92f else ((value + 0.055f) / 1.055f).pow(2.4f)
+    return 0.2126f * channel(color.red) + 0.7152f * channel(color.green) + 0.0722f * channel(color.blue)
+}
+
+/** WCAG contrast ratio between two opaque colours; 1 is equal, 21 is black on white. */
+fun contrastRatio(a: Color, b: Color): Float {
+    val la = relativeLuminance(a)
+    val lb = relativeLuminance(b)
+    return (maxOf(la, lb) + 0.05f) / (minOf(la, lb) + 0.05f)
+}
+
+/**
+ * The readable text/icon colour for a filled button or chip. Black on the light accents (green,
+ * orange, blue, red in the day palette) and white on the dark fills, chosen by measured luminance
+ * rather than by hue. Explicit `textColor` overrides still win at every call site.
+ */
+fun readableOn(background: Color): Color =
+    if (contrastRatio(background, Color.Black) >= contrastRatio(background, Color.White)) Color.Black else Color.White
+
+/**
+ * Warning text on a themed card. [MotoColors.Orange] is tuned for the dark map panels; on the light
+ * day cards it drops below WCAG AA, so the day variant uses a darker burnt amber.
+ */
+fun warningColor(palette: MotoPalette): Color =
+    if (palette.isDay) Color(0xFF8A4B00) else MotoColors.Orange
+
+/** Positive/confirmation text on a themed card; the bright green only works on dark surfaces. */
+fun successColor(palette: MotoPalette): Color =
+    if (palette.isDay) Color(0xFF0B6B2E) else MotoColors.Green
+
+/** Destructive text on a themed card; the night red is too light on white. */
+fun dangerColor(palette: MotoPalette): Color =
+    if (palette.isDay) Color(0xFFB3261E) else MotoColors.Red
+
+/** The active palette without going through composition, for pure contrast checks and previews. */
+internal fun motoPalette(isDay: Boolean): MotoPalette = if (isDay) DayPalette else NightPalette
+
 /** Shared measurements for settings cards, so the six pages keep one card rhythm. */
 object SettingsCardDefaults {
     val Radius = 20.dp
@@ -126,7 +170,7 @@ fun Modifier.settingsCard(): Modifier = composed {
 
 @Composable
 fun MotoTheme(isDay: Boolean = false, content: @Composable () -> Unit) {
-    val palette = if (isDay) DayPalette else NightPalette
+    val palette = motoPalette(isDay)
     CompositionLocalProvider(LocalMotoPalette provides palette) {
         MaterialTheme(
             colorScheme = if (isDay) {

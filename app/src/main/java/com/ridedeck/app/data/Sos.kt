@@ -105,6 +105,97 @@ object SosMath {
 }
 
 /**
+ * What a starting countdown needs from the phone: a visible notification, a full-screen intent, a
+ * screen wake and — when notifications are unavailable — a best-effort activity start. Pure booleans
+ * so every combination is covered by JVM tests; [RideSafety] only supplies the platform facts.
+ */
+data class SosAlertPlan(
+    val postNotification: Boolean,
+    val fullScreenIntent: Boolean,
+    val wakeScreen: Boolean,
+    val launchApp: Boolean,
+)
+
+object SosAlertPolicy {
+    fun plan(
+        notificationsEnabled: Boolean,
+        notificationPermission: Boolean,
+        fullScreenIntentAllowed: Boolean,
+        screenOff: Boolean,
+        canStartActivity: Boolean,
+    ): SosAlertPlan {
+        val notifications = notificationsEnabled && notificationPermission
+        return SosAlertPlan(
+            postNotification = notifications,
+            // A full-screen intent without a notification has nothing to attach to.
+            fullScreenIntent = notifications && fullScreenIntentAllowed,
+            // Waking the screen only helps when there is a countdown to show: a notification or a
+            // permitted activity launch. Otherwise it would light an empty lock screen.
+            wakeScreen = screenOff && (notifications || canStartActivity),
+            launchApp = !notifications && canStartActivity,
+        )
+    }
+}
+
+/** Why SMS cannot leave the phone right now, so Settings can say it plainly. */
+enum class SosBlocker { NO_CONTACTS, NO_SMS_PERMISSION, NO_TELEPHONY, NO_SIM }
+
+/**
+ * The SOS countdown must be readable over the keyguard and light the screen; everything else —
+ * the dashboard, a result screen — must not, or the dashboard would sit on the lock screen.
+ */
+object SosLockScreenPolicy {
+    fun showOverKeyguard(phase: SosPhase): Boolean = phase == SosPhase.COUNTDOWN
+}
+
+/** Warnings about how visible the countdown can be; none of them blocks the SMS or the alarm. */
+enum class SosAlertWarning { NOTIFICATIONS_OFF, POST_NOTIFICATIONS_DENIED, FULL_SCREEN_INTENT_DENIED }
+
+/**
+ * Lock-screen visibility is a warning, not a gate: with notifications off the beep, the voice and the
+ * SMS still run. The card shows every problem so the rider can fix it before a ride.
+ */
+data class SosAlertPermissionFacts(
+    val notificationsEnabled: Boolean = true,
+    /** Always true below API 33, where POST_NOTIFICATIONS does not exist. */
+    val postNotificationsGranted: Boolean = true,
+    /** Always true below API 34, where full-screen intents are not user-restricted. */
+    val fullScreenIntentAllowed: Boolean = true,
+) {
+    val warnings: List<SosAlertWarning>
+        get() = buildList {
+            if (!notificationsEnabled) add(SosAlertWarning.NOTIFICATIONS_OFF)
+            else if (!postNotificationsGranted) add(SosAlertWarning.POST_NOTIFICATIONS_DENIED)
+            // The full-screen intent is a separate special access; name it whenever it is refused.
+            if (!fullScreenIntentAllowed) add(SosAlertWarning.FULL_SCREEN_INTENT_DENIED)
+        }
+}
+
+/**
+ * Honest readiness: a saved contact and the SMS permission are not enough when the device has no
+ * telephony or the default SMS subscription is unusable. The triggers stay off in that case instead
+ * of promising a message the phone cannot send.
+ */
+object SosReadiness {
+    /** True when a message could be handed to the radio at all. */
+    fun sendable(smsPermission: Boolean, telephony: Boolean, defaultSmsUsable: Boolean): Boolean =
+        smsPermission && telephony && defaultSmsUsable
+
+    /** Crash detection and the SOS button only make sense when somebody can be reached. */
+    fun triggersReady(contacts: Int, smsPermission: Boolean, telephony: Boolean, defaultSmsUsable: Boolean): Boolean =
+        contacts > 0 && sendable(smsPermission, telephony, defaultSmsUsable)
+
+    /** The SIM/telephony warning, independent of contacts and permission; null when the radio looks usable. */
+    fun blocker(contacts: Int, smsPermission: Boolean, telephony: Boolean, defaultSmsUsable: Boolean): SosBlocker? = when {
+        contacts <= 0 -> SosBlocker.NO_CONTACTS
+        !telephony -> SosBlocker.NO_TELEPHONY
+        !defaultSmsUsable -> SosBlocker.NO_SIM
+        !smsPermission -> SosBlocker.NO_SMS_PERMISSION
+        else -> null
+    }
+}
+
+/**
  * Decides from accelerometer samples and GPS speed whether a rider has crashed:
  * a hard impact while riding, followed by the phone staying still and the motorcycle not moving. A pothole
  * (impact but the motorcycle rolls on), a hard stop (no impact) and a motorcycle knocked over while parked (never
@@ -136,6 +227,20 @@ class CrashDetector(
         impactAt = 0L; quietSince = 0L; armed = false
         slow = null; fast = null; baseline = null; lastVectorAt = 0L; peakG = 0f; lastSampleAt = null
         // Preserve the cooldown: pausing the screen must not enable another automatic alert.
+    }
+
+    /**
+     * The rider saw the alert and pressed "I am fine". The cooldown only exists so one crash cannot
+     * alert twice; keeping it would swallow a *second* real crash in the next five minutes. Clearing it
+     * is safe because everything belonging to the first crash is dropped too: a new alert still needs a
+     * fresh riding-speed window and a new impact, so the same recorded samples cannot fire again.
+     */
+    fun acknowledgeCancel() {
+        lastRidingAt = Long.MIN_VALUE
+        impactAt = 0L; quietSince = 0L; armed = false
+        cooldownUntil = 0L
+        slow = null; fast = null; baseline = null; lastVectorAt = 0L; peakG = 0f
+        // lastSampleAt stays: the stream keeps advancing, so replayed samples cannot re-arm the detector.
     }
 
     /** @param g acceleration magnitude in g, gravity included (about 1 at rest); [gx] [gy] [gz] the same as a vector, or zeros when unknown. */
@@ -263,6 +368,8 @@ class SosController(
     private val message: (SosReason, String?, Boolean) -> String,
     private val tick: suspend () -> Unit = { delay(1000) },
     private val now: () -> Long = System::currentTimeMillis,
+    /** Countdown cancelled by the rider ("I am fine" on screen or in the notification). */
+    private val onCancelled: () -> Unit = {},
 ) {
     private val _ui = MutableStateFlow(SosUi())
     val ui: StateFlow<SosUi> = _ui
@@ -271,7 +378,11 @@ class SosController(
     private var closed = false
 
     fun trigger(reason: SosReason) {
-        if (closed || _ui.value.phase != SosPhase.IDLE) return
+        // A finished result screen must not become a permanent latch: an unconscious rider cannot
+        // dismiss it, and a second crash still has to start a new countdown. Only an in-progress
+        // countdown or an SMS already on the wire may not be superseded.
+        val phase = _ui.value.phase
+        if (closed || phase == SosPhase.COUNTDOWN || phase == SosPhase.SENDING) return
         val original = contacts.value.fold(emptyList<SosContact>()) { list, contact -> SosMath.addContact(list, contact) }
         if (reason != SosReason.TEST) {
             val problem = when {
@@ -317,6 +428,8 @@ class SosController(
         job?.cancel()
         runCatching { alarm.stop() }
         _ui.value = SosUi()
+        // Only a cancel the rider chose re-arms crash detection; dismiss/close must not.
+        runCatching { onCancelled() }
     }
 
     /** Closes the "sent" / "failed" screen. */

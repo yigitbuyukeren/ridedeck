@@ -1,5 +1,38 @@
 RideDeck
 Copyright 2026 Yiğit Eren Büyükeren
 
-Bu ürün Apache License 2.0 altında lisanslanmıştır.
-Harita verisi © OpenStreetMap katkıda bulunanları (ODbL).
+Bu ürün Apache License 2.0 altında lisanslanmıştır (bkz. LICENSE). Uygulamanın kendi kaynak kodu bu lisansla sunulur; aşağıdaki üçüncü taraf bileşenler ve veriler kendi lisanslarına ve hizmet koşullarına tabidir.
+
+## Üçüncü taraf yazılım bileşenleri
+
+- **MapLibre Native** — harita motoru. BSD 2-Clause lisansı. https://github.com/maplibre/maplibre-native
+- **AndroidX / Jetpack Compose** — Android UI ve yaşam döngüsü kitaplıkları. Apache License 2.0. https://developer.android.com/jetpack/androidx
+- **OkHttp** — HTTP istemcisi. Apache License 2.0. https://square.github.io/okhttp/
+- **Kotlin standard library ve kotlinx.coroutines** — Apache License 2.0. https://kotlinlang.org/
+- **OpenMapTiles** — harita şeması/stil üretimi. Kod BSD 3-Clause; şemanın kartografi/görsel tasarımı CC BY 4.0 ve "OpenMapTiles" atfı gerektirir. https://github.com/openmaptiles/openmaptiles
+
+Bu bileşenlerin lisans metinleri kendi projelerinde ve dağıtılan bağımlılık bildirimlerinde bulunur. RideDeck'in Apache 2.0 lisansı bu üçüncü taraf bileşenlerin lisanslarını değiştirmez.
+
+## Harita verisi ve stilleri
+
+- **OpenStreetMap verisi** © OpenStreetMap katkıda bulunanlar. Open Database License (ODbL) 1.0 altında sunulur. https://www.openstreetmap.org/copyright
+- **OpenFreeMap** — harita karoları ve barındırma hizmeti. Harita verisi OpenStreetMap'e, stil ve şema OpenMapTiles/OpenFreeMap kaynaklarına dayanır. Hizmet kendi kullanım koşullarına tabidir: https://openfreemap.org ve https://openfreemap.org/tos/
+- RideDeck haritada OpenStreetMap atfını ve ilgili sağlayıcı atıflarını gösterir. OpenFreeMap/OpenMapTiles veya OpenStreetMap, RideDeck'i onaylamaz veya desteklemez.
+
+## Genel servisler ve kullanım koşulları
+
+Aşağıdaki servisler anahtarsız genel hizmetlerdir; RideDeck'in kendi sunucusu değildir. Kullanım, ilgili sağlayıcının güncel koşullarına tabidir. Uygulama içi hız sınırlama ve önbellek, sağlayıcının tüm kullanıcılar toplamındaki kotasını garanti etmez.
+
+- **Nominatim** (adres/yer arama) — OpenStreetMap Foundation kullanım politikası: en çok 1 istek/sn, geçerli User-Agent, uygulama genelinde toplam kullanım ve önbellekleme. https://operations.osmfoundation.org/policies/nominatim/
+- **FOSSGIS / Valhalla** (`valhalla1.openstreetmap.de`; rota, hız limiti) — FOSSGIS kullanım koşulları: en çok iki bağlantı, Valhalla için en çok 1 istek/sn, geçerli User-Agent, atıf ve `fixthemap` bağlantısı; Valhalla `X-Client-Id` ister. https://www.fossgis.de/arbeitsgruppen/osm-server/nutzungsbedingungen/ · https://valhalla.github.io/valhalla/
+- **FOSSGIS / Overpass API** (`overpass-api.de`; benzinlik sorguları) — aynı FOSSGIS koşulları; en çok iki bağlantı ve uygulama User-Agent'ı. https://overpass-api.de/
+- **Open-Meteo** (hava durumu) — ücretsiz/ticari olmayan kullanım koşulları ve atıf. https://open-meteo.com/en/terms
+
+## Veri kaynakları
+
+- Yol, adres, benzinlik ve hız limiti verisi: OpenStreetMap katkıda bulunanları (ODbL 1.0).
+- Harita karoları ve stilleri: OpenFreeMap ve OpenMapTiles.
+- Hava durumu: Open-Meteo.
+- Kullanıcı yolculuk kayıtları, ayarlar ve kayıtlı yerler: yalnız cihazda; RideDeck'e ait hesap, analitik veya backend yoktur.
+
+Sorular ve lisans bildirimleri için proje deposundaki issue kanalını kullanabilirsiniz: https://github.com/yigitbuyukeren/ridedeck

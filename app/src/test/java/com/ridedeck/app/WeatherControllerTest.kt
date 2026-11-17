@@ -6,6 +6,7 @@ import com.ridedeck.app.data.WeatherAlert
 import com.ridedeck.app.data.WeatherController
 import com.ridedeck.app.data.WeatherLookup
 import com.ridedeck.app.data.WeatherSnapshot
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,10 +23,16 @@ class WeatherControllerTest {
     /** Each call stays pending until the test answers it, so fetch overlap is explicit. */
     private class ControlledWeather : WeatherLookup {
         val pending = mutableListOf<CompletableDeferred<Result<WeatherSnapshot>>>()
+        var cancelled = 0
         override suspend fun fetch(at: GeoPoint, nowMs: Long): Result<WeatherSnapshot> {
             val reply = CompletableDeferred<Result<WeatherSnapshot>>()
             pending += reply
-            return reply.await()
+            try {
+                return reply.await()
+            } catch (e: CancellationException) {
+                cancelled++
+                throw e
+            }
         }
     }
 
@@ -207,5 +214,87 @@ class WeatherControllerTest {
         tickAfter(5_000)
         tickAfter(5_000)
         assertEquals(1, rig.lookup.pending.size)
+    }
+
+    @Test
+    fun failedFetchesBackOffInsteadOfRetryingEveryTick() = runTest {
+        val rig = Rig(this)
+        rig.controller.start()
+        runCurrent()
+        rig.lookup.pending[0].complete(Result.failure(IllegalStateException("offline")))
+        runCurrent()
+        assertEquals(1, rig.lookup.pending.size)
+
+        // First failure: 5 s.
+        rig.clock += 4_999
+        tickAfter(5_000)
+        assertEquals(1, rig.lookup.pending.size)
+        rig.clock += 1
+        tickAfter(5_000)
+        assertEquals(2, rig.lookup.pending.size)
+
+        // Second failure: 15 s.
+        rig.lookup.pending[1].complete(Result.failure(IllegalStateException("offline")))
+        runCurrent()
+        rig.clock += 14_999
+        tickAfter(5_000)
+        assertEquals(2, rig.lookup.pending.size)
+        rig.clock += 1
+        tickAfter(5_000)
+        assertEquals(3, rig.lookup.pending.size)
+
+        // Third and later failures: capped at 60 s.
+        rig.lookup.pending[2].complete(Result.failure(IllegalStateException("offline")))
+        runCurrent()
+        rig.clock += 30_000
+        tickAfter(5_000)
+        assertEquals(3, rig.lookup.pending.size)
+        rig.clock += 30_001
+        tickAfter(5_000)
+        assertEquals(4, rig.lookup.pending.size)
+    }
+
+    @Test
+    fun aSuccessfulFetchResetsTheFailureBackoff() = runTest {
+        val rig = Rig(this)
+        rig.controller.start()
+        runCurrent()
+        rig.lookup.pending[0].complete(Result.failure(IllegalStateException("offline")))
+        runCurrent()
+        rig.clock += 5_001
+        tickAfter(5_000)
+        assertEquals(2, rig.lookup.pending.size)
+
+        rig.lookup.pending[1].complete(Result.success(dry()))
+        runCurrent()
+        assertEquals(18, rig.controller.snapshot.value?.tempC)
+
+        // Let the successful snapshot expire, then fail again: with a reset counter the retry is 5 s,
+        // not the 15 s step a second consecutive failure would have used.
+        rig.clock += WeatherController.SNAPSHOT_TTL_MS + 1
+        tickAfter(60_000)
+        assertEquals(3, rig.lookup.pending.size)
+        assertEquals(null, rig.controller.snapshot.value)
+        rig.lookup.pending[2].complete(Result.failure(IllegalStateException("offline")))
+        runCurrent()
+        rig.clock += 5_001
+        tickAfter(5_000)
+        assertEquals(4, rig.lookup.pending.size)
+    }
+
+    @Test
+    fun disablingCancelsTheInFlightFetch() = runTest {
+        val rig = Rig(this)
+        rig.controller.start()
+        runCurrent()
+        assertEquals(1, rig.lookup.pending.size)
+
+        rig.enabled.value = false
+        runCurrent()
+
+        assertEquals(1, rig.lookup.cancelled)
+        rig.lookup.pending[0].complete(Result.success(rainy()))
+        runCurrent()
+        assertNull(rig.controller.snapshot.value)
     }
 }

@@ -1,4 +1,31 @@
-# 1.0 yayın hazırlığı — 2026-10-29
+# 1.0 yayın hazırlığı — güncel durum
+
+> **17 Kasım 2026 — bu bölüm günceldir; aşağıdaki tarihli notlar tarihsel denetim kaydıdır.** Ürün sürümü `0.6.0` / `versionCode 6`; 1.0 sürümü, etiketi veya mağaza yayını yoktur. Değişiklikler `fix/audit-1.0-hardening` dalasında, PR #13 kapsamındadır. Önceki 0.4.0/344, 470/21, 526/526 + 55/55, 709/709 ve 742/742 sayıları o tarihli koşulara aittir; bu çalışma ağacının güncel kanıtı değildir.
+
+**17 Kasım 2026 yerel sonuçlar:**
+
+- Debug + release JVM birim testleri (son tam yerel `test` koşusu): her varyantta **831/831 PASS** (toplam 1662), 0 hata, 0 atlama.
+- Lint: **0 hata**; debug **121**, release **120** uyarı; uyarılar bastırılmadı.
+- Debug APK x86_64/ARM64/ARMv7 yerellerini taşır; release APK ve AAB ARM-only'dir.
+- Release APK yerel olarak v2 imzalı; sertifika SHA-256 `9d9164ef8c679f2909e2a851d1327839c684cad238ca0932488a9f8d0f622427`. AAB `jarsigner` ile doğrulandı.
+- 16 KB ELF LOAD ve `zipalign -c -P 16 4` **PASS**; bu yalnız statik kontroldür, fiziksel 16 KB runtime değildir.
+- Instrumentation: **204 test**; tek `connectedDebugAndroidTest` koşusunda **203 PASS + 1 atlandı**, atlanan izin testi ayrı PASS (toplam 204 doğrulandı). `RideDeckTestRunner` sonuçtan sonra test sürecini kapatır; emülatörde cached-app freezer kapatılmalıdır.
+
+**Gerçek CI kapıları (`.github/workflows/ci.yml`):** `test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease`; debug/release test raporu özeti; release APK hizalama (`check-apk-alignment.py` + `zipalign -c -P 16 4`); debug APK'da x86_64 ve ARM MapLibre yerelleri; yalnız-debug probe asset'i; release AAB varlığı; release APK'da x86_64 ve probe asset'i olmaması; `keystore.properties` varsa imza doğrulaması; ayrı x86_64 API 35 emülatör işinde instrumentation; KVM udev erişimi, Pixel 6 profili, tek cold boot, 20 dk adım zaman aşımı ve ayrı izin-reddi `am instrument` koşusu. CI artık instrumentation'ı yalnız derlemez, emülatörde çalıştırır. Uzak CI PR #13 üzerinde çalıştırılır; sonuç bu bölümde güncellenir.
+
+| 1.0 kapısı | Durum | Not |
+|---|---|---|
+| Fiziksel cihaz, gerçek GPS/sürüş, ekran kilidi/Doze/OEM | **OPEN/UNVERIFIED** | Emülatör ve sentetik GPS yerine geçmez |
+| Gerçek SMS/SIM/operatör, gerçek arama, interkom | **OPEN/UNVERIFIED** | Sahte gateway/emülatör teslim kanıtı değildir |
+| Kaza algılama eşikleri ve yanlış alarm oranı | **OPEN/UNVERIFIED** | Saha verisi gerekir |
+| 16 KB runtime | **OPEN/UNVERIFIED** | Yalnız statik ELF/ZIP kontrolü var |
+| Mağaza/Data safety, lisans/ticari karar | **OPEN** | Ayrı ürün/mağaza kararı |
+| Sağlayıcı toplam (global) kota uyumu | **BLOCKED/UNVERIFIED** | Uygulama içi throttle global kanıt değildir; yeni indirme/resume kapalı |
+| Uzak CI ve 1.0 yayın izlenebilirliği | **OPEN** | Push/merge/release açık talimat gerektirir |
+
+**Karar: kamuya açık 1.0 için NO-GO.** Koşullu beta ancak yukarıdaki saha kapıları gerçek cihaz/gerçek SMS/gerçek sürüş kanıtıyla kapandıktan sonra değerlendirilebilir. APK'lar yalnız kontrollü test içindir; mevcut sürüm/commit/push/yayın değişmedi.
+
+## 29 Ekim 2026 tarihsel denetim ve sonraki ara notlar
 
 > **11 Kasım 2026 güncellik notu:** Aşağıdaki 0.4.0/344 test ve cihaz sonuçları tarihsel denetimdir; güncel 0.6.0 (`versionCode 6`) çalışma ağacının yeniden doğrulaması değildir. Güncel uygulama/test kanıtı [STATUS.md](STATUS.md), bekleyen kabul kapıları [PLAN.md](PLAN.md) içindedir. 11 Kasım başlangıç koşusunda debug birim testleri 436/436 geçti; bu tek başına tam CI, emülatör regresyonu veya yayın onayı değildir. Arka plan SOS ve süreç sonrası hedef önizlemesi gibi davranışlar sonradan değişti; aşağıdaki tarihsel mimari sınırlamaları güncel kodun yerine kullanma. Fiziksel cihaz, gerçek SMS/arama, interkom ve yayın kapıları kapanmadı.
 
@@ -54,7 +81,7 @@ Gizlilik açıklamasındaki eksik OpenFreeMap harita karosu/IP ve ağ gerektiren
 
 Release manifestine bağımlılıkların eklediği `ACCESS_WIFI_STATE` ve AndroidX dışa kapalı receiver izin tanımı da dahil edildi. `RECORD_AUDIO`, `ACCESS_BACKGROUND_LOCATION` ve Bluetooth tarama/bağlanma izni bulunmuyor.
 
-## Gerçek doğrulama sonuçları
+## 29 Ekim gerçek doğrulama sonuçları (tarihsel)
 
 JDK 17 + Gradle wrapper 8.14.3 ile:
 
@@ -96,7 +123,7 @@ Yerel raporlar:
 - Ham oturum çıktıları: `/tmp/ridedeck-readiness-validation.log`, `/tmp/ridedeck-readiness-device-tests.log`, `/tmp/ridedeck-readiness-notification-denied.log`, `/tmp/ridedeck-readiness-unsigned-release.log` (geçici dosyalar).
 - Navigasyon takibinin güncel çıktıları: `/tmp/ridedeck-navigation-validation.log`, `/tmp/ridedeck-navigation-focused.log`, `/tmp/ridedeck-navigation-device-tests.log` (geçici dosyalar). Güncel birim test/lint raporları yukarıdaki `app/build/reports/` yollarındadır.
 
-## APK'lar ve CI
+## APK'lar ve CI — 29 Ekim durumu (tarihsel)
 
 **Güncel navigasyon derlemeleri:** `app/build/outputs/apk/debug/app-debug.apk`, `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk`, `app/build/outputs/apk/release/app-release.apk`. Release imzası, ELF64 LOAD ve ZIP 16 KB statik hizalaması bu dosyada yeniden doğrulandı.
 
@@ -111,7 +138,7 @@ Yeni CI `test` ile iki birim test varyantını, iki lint'i, debug/release ve And
 
 **Uzak CI: UNVERIFIED (mevcut çalışma ağacı).** Okunan son üç uzak CI koşusu başarılı; en yenisi eski `d4c1bb3` HEAD'ine aittir ve bu değişiklikleri kapsamaz. Push/dispatch yapılmadı. Yerel unsigned kaynak kopyası kontrolü Linux/GitHub koşusunun yerine geçmez. Workflow Android testlerini **derler**, emülatörde çalıştırmaz; ürünün ARM ABI'ları nedeniyle uygun ARM cihaz/emülatör doğrulaması ayrıca korunmalıdır. Bütün yeni kaynak/test/script dosyalarının ilerideki checkout'a dahil edilmesi gerekir.
 
-## 1.0 için kapanması gereken kapılar
+## 29 Ekim'de kapanması gereken kapılar (tarihsel; güncel tablo yukarıda)
 
 1. **UNVERIFIED — fiziksel sürüş:** overlay kapalı, ekran kilitli uzun GPS/kayıt; Doze ve OEM pil kısıtı; tünel/fix kaybı, GPS/izin kapatma, bildirim reddi; normal Bitir, görevden kaldırma, süreç öldürme ve yeniden açılma. DB ve servis/konum aboneliği sonuçları birlikte kontrol edilmeli.
 2. **UNVERIFIED — görüşme/interkom:** gerçek Bluetooth kaskında A2DP/HFP/LE, mikrofon mute/unmute, DTMF, çağrı bekletme/bitirme, iki BT cihazı, kopma/yeniden bağlanma ve Türkçe TTS/müzik odağı. API 26–33 eski ses yolu ve API 34–36 yeni endpoint yolu ayrıca denenmeli. Full-screen intent erişimi/bildirim kapalıyken gerçek gelen çağrı sunumu da buna dahil.
@@ -122,7 +149,7 @@ Yeni CI `test` ile iki birim test varyantını, iki lint'i, debug/release ve And
 
 Genel 1.0 için GO kararı bu kapılarda gerçek kanıt oluştuğunda yeniden verilmeli. Mevcut APK'lar kontrollü test için hazırdır.
 
-## Başvurulan güncel kurallar
+## Başvurulan kurallar
 
 - Konum servisi görünür kullanıcı eyleminden başlatılır; arka plandan while-in-use servis oluşturma kısıtları [Android foreground servis kurallarına](https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start) göre değerlendirildi.
 - API 34+ mute/endpoint callback ayrımı [InCallService API belgesinden](https://developer.android.com/reference/android/telecom/InCallService) doğrulandı.

@@ -11,11 +11,17 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The cancellable HTTP calls used by the service repositories. Production uses [CancellableServiceHttp];
- * tests inject a transport so no request leaves the JVM.
+ * The cancellable HTTP calls used by the service repositories. Production uses [ProviderHttp];
+ * tests inject a transport so no request leaves the JVM. [headers] are optional extra request
+ * headers; the transport still applies the common User-Agent and provider defaults centrally.
  */
 interface ServiceHttp {
-    suspend fun get(url: String, connectMs: Int = 10_000, readMs: Int = 12_000): String
+    suspend fun get(
+        url: String,
+        connectMs: Int = 10_000,
+        readMs: Int = 12_000,
+        headers: Map<String, String> = emptyMap(),
+    ): String
 
     suspend fun postJson(
         url: String,
@@ -23,14 +29,21 @@ interface ServiceHttp {
         connectMs: Int = 10_000,
         readMs: Int = 12_000,
         emptyOn400: Boolean = false,
+        headers: Map<String, String> = emptyMap(),
     ): String
 
-    suspend fun postForm(url: String, body: String, connectMs: Int = 10_000, readMs: Int = 30_000): String
+    suspend fun postForm(
+        url: String,
+        body: String,
+        connectMs: Int = 10_000,
+        readMs: Int = 30_000,
+        headers: Map<String, String> = emptyMap(),
+    ): String
 }
 
 object CancellableServiceHttp : ServiceHttp {
-    override suspend fun get(url: String, connectMs: Int, readMs: Int): String =
-        Http.getCancellable(url, connectMs, readMs)
+    override suspend fun get(url: String, connectMs: Int, readMs: Int, headers: Map<String, String>): String =
+        Http.getCancellable(url, connectMs, readMs, headers)
 
     override suspend fun postJson(
         url: String,
@@ -38,10 +51,11 @@ object CancellableServiceHttp : ServiceHttp {
         connectMs: Int,
         readMs: Int,
         emptyOn400: Boolean,
-    ): String = Http.postJsonCancellable(url, body, connectMs, readMs, emptyOn400)
+        headers: Map<String, String>,
+    ): String = Http.postJsonCancellable(url, body, connectMs, readMs, emptyOn400, headers)
 
-    override suspend fun postForm(url: String, body: String, connectMs: Int, readMs: Int): String =
-        Http.postFormCancellable(url, body, connectMs, readMs)
+    override suspend fun postForm(url: String, body: String, connectMs: Int, readMs: Int, headers: Map<String, String>): String =
+        Http.postFormCancellable(url, body, connectMs, readMs, headers)
 }
 
 data class Place(val name: String, val detail: String, val point: GeoPoint)
@@ -162,9 +176,12 @@ object PlaceNames {
 
 private const val METRES_PER_MILE = 1609.344
 
+/** Identifying header requested by the public Valhalla demo server; not a credential. */
+internal val VALHALLA_HEADERS: Map<String, String> = mapOf("X-Client-Id" to Http.VALHALLA_CLIENT_ID)
+
 /** Valhalla (OSM) motorcycle routing and Nominatim geocoding, both public no-key services. */
 class RouteRepository(
-    private val http: ServiceHttp = CancellableServiceHttp,
+    private val http: ServiceHttp = ProviderHttp,
     /** Spoken and written route texts follow the rider's unit choice; lengths are converted back to metres. */
     private val miles: () -> Boolean = { false },
 ) : Routing {
@@ -174,7 +191,10 @@ class RouteRepository(
         safely("route") {
             val useMiles = miles()
             val body = requestBody(listOf(from, to), options, useMiles, alternates = 0, headingDeg = headingDeg)
-            parseTrip(http.postJson("https://valhalla1.openstreetmap.de/route", body.toString()), if (useMiles) METRES_PER_MILE else 1000.0)
+            parseTrip(
+                http.postJson("https://valhalla1.openstreetmap.de/route", body.toString(), headers = VALHALLA_HEADERS),
+                if (useMiles) METRES_PER_MILE else 1000.0,
+            )
         }
     }
 
@@ -184,7 +204,10 @@ class RouteRepository(
         safely("routeVia") {
             val useMiles = miles()
             val body = requestBody(points, options, useMiles, alternates = 0, headingDeg = headingDeg)
-            parseTrip(http.postJson("https://valhalla1.openstreetmap.de/route", body.toString()), if (useMiles) METRES_PER_MILE else 1000.0)
+            parseTrip(
+                http.postJson("https://valhalla1.openstreetmap.de/route", body.toString(), headers = VALHALLA_HEADERS),
+                if (useMiles) METRES_PER_MILE else 1000.0,
+            )
         }
     }
 
@@ -192,7 +215,7 @@ class RouteRepository(
         safely("alternatives") {
             val useMiles = miles()
             val body = requestBody(from, to, options, useMiles, alternates = 2)
-            val reply = http.postJson("https://valhalla1.openstreetmap.de/route", body.toString())
+            val reply = http.postJson("https://valhalla1.openstreetmap.de/route", body.toString(), headers = VALHALLA_HEADERS)
             val unit = if (useMiles) METRES_PER_MILE else 1000.0
             val json = JSONObject(reply)
             val out = mutableListOf(parseTripObject(json.getJSONObject("trip"), unit))

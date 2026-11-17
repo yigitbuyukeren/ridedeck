@@ -8,9 +8,9 @@ RideDeck'e katkılarını bekliyoruz. Kod, hata bildirimi, fikir ve çeviri heps
 3. Derle ve test et:
    ```bash
    export JAVA_HOME=/yol/jdk-17
-   ./gradlew testDebugUnitTest assembleDebug
+   ./gradlew test lintDebug assembleDebug
    ```
-4. APK: `app/build/outputs/apk/debug/app-debug.apk`. Emülatörde veya telefonda dene. Sahte GPS için emülatörde `adb emu geo fix <boylam> <enlem> <irtifa> <uydu> <hız>` kullanabilirsin.
+4. APK: `app/build/outputs/apk/debug/app-debug.apk`. Emülatörde veya telefonda dene. Sahte GPS için emülatörde `adb emu geo fix <boylam> <enlem> <irtifa> <uydu> <hız>` kullanabilirsin. Instrumentation için emülatör uygulama dondurucusunu kapat: `adb shell settings put global cached_apps_freezer disabled`, sonra `./gradlew :app:connectedDebugAndroidTest`.
 
 ## Pull request açmak
 - Küçük ve tek konulu PR'lar tercih edilir. Büyük bir değişiklik için önce issue aç.
@@ -20,14 +20,14 @@ RideDeck'e katkılarını bekliyoruz. Kod, hata bildirimi, fikir ve çeviri heps
 - PR'ın CI'dan (derleme ve test) geçmeli.
 
 ## Sürüş için tasarım ilkeleri
-- Motosiklet, araba ve bisiklet için tasarlıyoruz: sürüş sırasında yazı girişi yok. Büyük dokunma hedefleri (64-84dp), eldivenle kullanılabilir.
-- Araca göre değişen her şey (rota türü, eşikler, durak türleri) `ProfileConfig` içinde durur; yeni davranışı koda `if` serpiştirmeden oraya ekle.
-- Yeni ekranlar yatay ve dik çalışmalı (`isNarrowScreen()` ile dar ekranda alt alta diz) ve sistem yazı boyutu büyükken taşmamalı (sabit alanlarda `cappedSp`).
+- Yalnız motosiklet için tasarlıyoruz; araç/bisiklet profili yoktur. Sürüş sırasında yazı girişi yok. Büyük dokunma hedefleri (64-84dp), eldivenle kullanılabilir.
+- Motosiklete özel sabitler ve saf mantık Android'den ayrı tutulur; yeni davranışı koda `if` serpiştirmeden ilgili saf sınıfa/teste ekle.
+- Arayüz yatay gidon düzenine sabittir; yeni ekranlar sistem yazı boyutu büyükken taşmamalı (sabit alanlarda `cappedSp`).
 - Düşük dikkat gerektirir: kısa metin, yüksek kontrast, tek dokunuşla işlem.
-- Ağ servisleri ücretsiz ve anahtarsız olmalı. Yeni bir harici servis eklemeden önce issue'da tartış.
+- Ağ servisleri ücretsiz ve anahtarsız olmalı; merkezi `ProviderHttp` sınırını atlayan yeni bir çağrı ekleme. Yeni bir harici servis eklemeden önce issue'da tartış.
 
 ## Nereden başlamalı?
-Açık issue yoksa [docs/STATUS.md](docs/STATUS.md) içindeki "Sıradaki işler" ve "Bilinen sorunlar" listelerinden birini seç, başlamadan bir issue aç.
+Güncel durum ve açık saha/yayın kapıları [docs/STATUS.md](docs/STATUS.md) ve [docs/RELEASE_READINESS.md](docs/RELEASE_READINESS.md) içindedir. Başlamadan önce bir issue aç.
 
 ## Davranış kuralları
 Saygılı ol. Bkz. [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).

@@ -66,6 +66,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.sp
 import android.telecom.CallAudioState
 import com.ridedeck.app.R
+import com.ridedeck.app.data.CallCapability
 import com.ridedeck.app.data.CallPhase
 import com.ridedeck.app.data.CallState
 import kotlinx.coroutines.delay
@@ -84,6 +85,8 @@ fun CallScreen(
     onVolumeUp: () -> Unit = {},
     onVolumeDown: () -> Unit = {},
     onDigit: (Char) -> Boolean = { false },
+    /** Null keeps old callers/test doubles enabled; production supplies the platform capability. */
+    hangUpSupport: CallCapability.HangUpSupport? = null,
 ) {
     val elapsed by produceState(0L, call.startedAtMs, call.phase) {
         while (call.phase == CallPhase.ACTIVE) {
@@ -95,6 +98,12 @@ fun CallScreen(
     val name = callerName?.takeIf { it.isNotBlank() } ?: unknown
     val initial = name.firstOrNull()?.takeIf { it.isLetter() }?.uppercase()
     val ringing = call.phase == CallPhase.RINGING
+    val hangUpEnabled = hangUpSupport?.supported ?: true
+    val hangUpExplanation = when (hangUpSupport?.mode) {
+        CallCapability.HangUpMode.NEEDS_DEFAULT_PHONE_APP -> stringResource(R.string.call_hangup_needs_dialer)
+        CallCapability.HangUpMode.MISSING_PERMISSION -> stringResource(R.string.call_hangup_permission_missing)
+        else -> null
+    }
     var keys by remember { mutableStateOf(false) }
     var typed by remember { mutableStateOf("") }
 
@@ -113,6 +122,7 @@ fun CallScreen(
                     onDigit = { if (onDigit(it)) typed += it },
                     onHide = { keys = false },
                     onHangUp = onHangUp,
+                    hangUpEnabled = hangUpEnabled,
                     modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 12.dp),
                 )
             } else {
@@ -150,7 +160,10 @@ fun CallScreen(
                     when {
                         ringing -> {
                             ActionPill(Icons.Rounded.Call, stringResource(R.string.call_answer), MotoColors.Green, onAnswer, RideHaptic.Confirm)
-                            ActionPill(Icons.Rounded.CallEnd, stringResource(R.string.call_decline), MotoColors.Red, onHangUp, RideHaptic.Reject)
+                            ActionPill(
+                                Icons.Rounded.CallEnd, stringResource(R.string.call_decline), MotoColors.Red,
+                                onHangUp, RideHaptic.Reject, enabled = hangUpEnabled,
+                            )
                         }
                         else -> {
                             if (call.managed && call.phase == CallPhase.ACTIVE) {
@@ -161,8 +174,20 @@ fun CallScreen(
                                 RoutePicker(call.route, call.routes, onRoute)
                             }
                             if (call.routeError) Text(stringResource(R.string.call_route_failed), color = MotoColors.Red, fontSize = 16.sp)
-                            ActionPill(Icons.Rounded.CallEnd, stringResource(R.string.call_hangup), MotoColors.Red, onHangUp, RideHaptic.Reject)
+                            ActionPill(
+                                Icons.Rounded.CallEnd, stringResource(R.string.call_hangup), MotoColors.Red,
+                                onHangUp, RideHaptic.Reject, enabled = hangUpEnabled,
+                            )
                         }
+                    }
+                    if (!hangUpEnabled && hangUpExplanation != null) {
+                        Text(
+                            hangUpExplanation,
+                            color = MotoColors.Gray,
+                            fontSize = 15.sp,
+                            lineHeight = 20.sp,
+                            textAlign = TextAlign.Center,
+                        )
                     }
                 } },
             )
@@ -262,6 +287,7 @@ internal fun InCallKeysPane(
     onHide: () -> Unit,
     onHangUp: () -> Unit,
     modifier: Modifier = Modifier,
+    hangUpEnabled: Boolean = true,
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
@@ -289,8 +315,8 @@ internal fun InCallKeysPane(
             // Ending the call stays available while the digits are open.
             Row(
                 modifier = Modifier.weight(1f).height(64.dp).clip(RoundedCornerShape(32.dp))
-                    .background(MotoColors.Red).testTag("call-hangup-keys")
-                    .pressClickable(haptic = RideHaptic.Reject, onClick = onHangUp),
+                    .background(if (hangUpEnabled) MotoColors.Red else MotoColors.Gray).testTag("call-hangup-keys")
+                    .pressClickable(haptic = RideHaptic.Reject, enabled = hangUpEnabled, onClick = onHangUp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -371,12 +397,15 @@ private fun ActionPill(
     color: Color,
     onClick: () -> Unit,
     haptic: RideHaptic = RideHaptic.Tap,
+    enabled: Boolean = true,
 ) {
-    val foreground = callActionForeground(color)
+    val background = if (enabled) color else MotoColors.Gray
+    val foreground = callActionForeground(background)
     Row(
         modifier = Modifier
-            .fillMaxWidth().height(80.dp).clip(RoundedCornerShape(40.dp)).background(color)
-            .pressClickable(haptic = haptic, onClick = onClick),
+            .fillMaxWidth().height(80.dp).clip(RoundedCornerShape(40.dp))
+            .background(background)
+            .pressClickable(haptic = haptic, enabled = enabled, onClick = onClick),
         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -418,6 +447,5 @@ private fun RoutePicker(route: Int, routes: Int, onRoute: (Int) -> Unit) {
     }
 }
 
-/** Green call actions need black content; red/other call actions keep white. */
-internal fun callActionForeground(background: Color): Color =
-    if (background == MotoColors.Green) Color.Black else Color.White
+/** Call actions need the higher-contrast content colour, including the disabled grey state. */
+internal fun callActionForeground(background: Color): Color = readableOn(background)

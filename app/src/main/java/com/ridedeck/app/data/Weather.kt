@@ -6,6 +6,7 @@ import java.time.ZoneOffset
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -101,7 +102,7 @@ interface WeatherLookup {
     suspend fun fetch(at: GeoPoint, nowMs: Long = System.currentTimeMillis()): Result<WeatherSnapshot>
 }
 
-class WeatherRepository(private val http: ServiceHttp = CancellableServiceHttp) : WeatherLookup {
+class WeatherRepository(private val http: ServiceHttp = ProviderHttp) : WeatherLookup {
     override suspend fun fetch(at: GeoPoint, nowMs: Long): Result<WeatherSnapshot> =
         withContext(Dispatchers.IO) {
             safely("weather") {
@@ -136,6 +137,10 @@ class WeatherController(
     private var generation = 0L
     private var inFlight = false
     private var started = false
+    /** Consecutive failed fetches: the next try waits a little longer instead of hammering every tick. */
+    private var failures = 0
+    private var nextAttemptAt = 0L
+    private var fetchJob: Job? = null
 
     init {
         scope.launch { enabled.collect { if (!it) clear() } }
@@ -163,6 +168,7 @@ class WeatherController(
         if (fix.fixAtMs == 0L) return
         val here = GeoPoint(fix.lat, fix.lon)
         val now = elapsedMs()
+        if (now < nextAttemptAt) return
         val moved = lastFetchPoint?.let { Geo.distance(it, here) } ?: Double.MAX_VALUE
         if (now - lastFetchAt < REFRESH_MS && moved < REFRESH_MOVE_M) return
         refresh(here, now)
@@ -173,7 +179,7 @@ class WeatherController(
         val requestGeneration = generation
         val requestedAt = now
         inFlight = true
-        scope.launch {
+        fetchJob = scope.launch {
             val result = repo.fetch(here)
             // Weather was turned off and on again while the request was on the wire.
             if (requestGeneration != generation) return@launch
@@ -183,14 +189,27 @@ class WeatherController(
             val requestAge = completedAt - requestedAt
             if (requestAge < 0 || requestAge > SNAPSHOT_TTL_MS || !enabled.value) return@launch
             result.onSuccess { s ->
+                failures = 0
+                nextAttemptAt = 0L
                 _snapshot.value = s
                 snapshotAtMs = requestedAt
                 lastFetchAt = completedAt
                 lastFetchPoint = here
                 announce(s)
+            }.onFailure {
+                // Keep the old snapshot until its lifetime ends, but do not ask again every five seconds.
+                failures++
+                nextAttemptAt = completedAt + backoffMs(failures)
             }
-            // A failed fetch keeps the old snapshot until its lifetime ends, then tries again on the next tick.
         }
+    }
+
+    /** A failed forecast is retried after 5 s, then 15 s, then at most once a minute. */
+    private fun backoffMs(failures: Int): Long = when {
+        failures <= 0 -> 0L
+        failures == 1 -> FIRST_RETRY_MS
+        failures == 2 -> SECOND_RETRY_MS
+        else -> RETRY_CAP_MS
     }
 
     private fun expireIfNeeded() {
@@ -199,10 +218,14 @@ class WeatherController(
         if (age < 0 || age > SNAPSHOT_TTL_MS) clearSnapshot()
     }
 
-    /** Weather is off: forget the reading and invalidate any reply still in flight, without delaying the tick loop. */
+    /** Weather is off: forget the reading and cancel any reply still in flight, without delaying the tick loop. */
     private fun clear() {
         generation++
         inFlight = false
+        fetchJob?.cancel()
+        fetchJob = null
+        failures = 0
+        nextAttemptAt = 0L
         lastFetchAt = 0L
         lastFetchPoint = null
         clearSnapshot()
@@ -229,5 +252,8 @@ class WeatherController(
         private const val FIRST_TICK_MS = 5_000L
         private const val REFRESH_MS = 15 * 60_000L
         private const val REFRESH_MOVE_M = 10_000.0
+        private const val FIRST_RETRY_MS = 5_000L
+        private const val SECOND_RETRY_MS = 15_000L
+        private const val RETRY_CAP_MS = 60_000L
     }
 }

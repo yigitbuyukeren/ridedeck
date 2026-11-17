@@ -1,0 +1,5 @@
+<resources>
+    <string name="wrong_way_uturn_voice">You are going the wrong way. Make a U-turn when it is safe.</string>
+    <string name="route_stale_error">This route is more than 10 minutes old. Refresh the route before starting.</string>
+    <string name="route_start_far_error">You are not at the start of this route. Recalculate the route.</string>
+</resources>

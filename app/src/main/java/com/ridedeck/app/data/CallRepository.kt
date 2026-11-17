@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 enum class CallPhase { IDLE, RINGING, DIALING, ACTIVE, HELD }
@@ -51,6 +52,21 @@ class CallRepository(private val context: Context, private val scope: CoroutineS
             else -> phone
         }
     }.stateIn(scope, SharingStarted.Eagerly, CallState())
+
+    private fun currentHangUpSupport(): CallCapability.HangUpSupport = CallCapability.hangUp(
+        sdkInt = Build.VERSION.SDK_INT,
+        managedCallPresent = InCallHub.call != null,
+        hasAnswerPhoneCallsPermission = context.hasPermission(Manifest.permission.ANSWER_PHONE_CALLS),
+    )
+
+    /**
+     * Drives the hang-up button's enabled/explanation state. On API 26/27 without the default-phone
+     * role this stays [CallCapability.HangUpMode.NEEDS_DEFAULT_PHONE_APP] instead of silently
+     * failing after a tap.
+     */
+    val hangUpCapability: StateFlow<CallCapability.HangUpSupport> =
+        state.map { currentHangUpSupport() }
+            .stateIn(scope, SharingStarted.Eagerly, currentHangUpSupport())
 
     /** Called the moment a call is placed from RideDeck so its call screen is up before the system reports anything. */
     fun markDialing() {
@@ -140,6 +156,8 @@ class CallRepository(private val context: Context, private val scope: CoroutineS
 
     @Suppress("DEPRECATION")
     fun hangUp(): Boolean {
+        // Never report a hang-up that this platform cannot perform; the UI reads hangUpCapability.
+        if (!currentHangUpSupport().supported) return false
         InCallHub.call?.let { call ->
             if (TelecomCallPolicy.priority(call.state) == null) return false
             return runCatching {

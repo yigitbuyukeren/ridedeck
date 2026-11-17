@@ -43,6 +43,9 @@ class RideTrackingServiceTest {
     private var scenario: ActivityScenario<MainActivity>? = null
     private var oldRecording = true
     private var ready = false
+    /** Revoke fine+coarse location before starting this instrumentation; the default run grants them. */
+    private val locationDenied
+        get() = InstrumentationRegistry.getArguments().getString("locationPermissionDenied") == "true"
 
     private fun shell(command: String) {
         instrumentation.uiAutomation.executeShellCommand(command).use { fd -> FileInputStream(fd.fileDescriptor).use { it.readBytes() } }
@@ -66,8 +69,10 @@ class RideTrackingServiceTest {
     @Before fun setup() {
         assumeTrue(Build.HARDWARE == "ranchu" || Build.HARDWARE == "goldfish")
         shell("settings put secure immersive_mode_confirmations confirmed")
-        shell("pm grant ${context.packageName} ${Manifest.permission.ACCESS_COARSE_LOCATION}")
-        shell("pm grant ${context.packageName} ${Manifest.permission.ACCESS_FINE_LOCATION}")
+        if (!locationDenied) {
+            shell("pm grant ${context.packageName} ${Manifest.permission.ACCESS_COARSE_LOCATION}")
+            shell("pm grant ${context.packageName} ${Manifest.permission.ACCESS_FINE_LOCATION}")
+        }
         if (Build.VERSION.SDK_INT >= 33 && InstrumentationRegistry.getArguments().getString("notificationPermissionDenied") != "true") {
             shell("pm grant ${context.packageName} ${Manifest.permission.POST_NOTIFICATIONS}")
         }
@@ -100,6 +105,15 @@ class RideTrackingServiceTest {
 
     private fun isForeground(): Boolean = context.getSystemService(ActivityManager::class.java)
         .getRunningServices(100).any { it.service.className == RideTrackingService::class.java.name && it.foreground }
+
+    private fun serviceCount(): Int = context.getSystemService(ActivityManager::class.java)
+        .getRunningServices(100).count { it.service.className == RideTrackingService::class.java.name }
+
+    /** Delivers a command exactly like a startForegroundService() caller (notification action or app code). */
+    private fun command(action: String, token: Long = 0L) {
+        context.startForegroundService(Intent(context, RideTrackingService::class.java)
+            .setAction(action).putExtra(RideTrackingService.EXTRA_REQUEST, token))
+    }
 
     private fun fix(index: Int) {
         val measured = SystemClock.elapsedRealtimeNanos()
@@ -194,6 +208,7 @@ class RideTrackingServiceTest {
         context.stopService(Intent(context, RideTrackingService::class.java))
         await { tracking.session.state.value.phase == RidePhase.IDLE }
         assertEquals(RideFailure.INTERRUPTED, tracking.session.state.value.failure)
+        assertNull(tracking.closeService) // A destroyed service cannot close a newer ride later.
         scenario!!.close()
         scenario = null
         main { assertFalse(tracking.requestStart(false)) }
@@ -296,5 +311,75 @@ class RideTrackingServiceTest {
         } finally {
             main { if (created) nav.shutdown(); scope.cancel() }
         }
+    }
+
+    @Test fun stopBeforeAnyStartNeverLeavesAWaitingForegroundService() {
+        command(RideTrackingService.ACTION_STOP)
+        await { tracking.session.state.value.phase == RidePhase.IDLE && !isForeground() && serviceCount() == 0 }
+    }
+
+    @Test fun unacceptedStartWithoutSessionDoesNotLeakANonForegroundService() {
+        command(RideTrackingService.ACTION_START, token = 99L) // No STARTING session accepts this token.
+        await { tracking.session.state.value.phase == RidePhase.IDLE && !isForeground() && serviceCount() == 0 }
+    }
+
+    @Test fun unknownIntentDoesNotLeaveANonForegroundService() {
+        command("com.ridedeck.app.UNKNOWN")
+        await { tracking.session.state.value.phase == RidePhase.IDLE && !isForeground() && serviceCount() == 0 }
+    }
+
+    @Test fun duplicateAndStaleStartsKeepTheActiveRideAndOneService() {
+        start()
+        command(RideTrackingService.ACTION_START, token = 99L)
+        fix(0)
+        await { tracking.location.state.value.fixAtMs > 0 }
+        assertEquals(RidePhase.ACTIVE, tracking.session.state.value.phase)
+        assertTrue(isForeground())
+        assertEquals(1, serviceCount())
+        main { tracking.session.stop() }
+        await { !isForeground() }
+    }
+
+    @Test fun startStopStartIgnoresAnOldRidesStopCommand() {
+        start()
+        main { tracking.session.stop() }
+        await { tracking.session.state.value.phase == RidePhase.IDLE }
+        await { !isForeground() }
+        start()
+        // A stop from any ended ride carries a different token; it must not end the new one.
+        command(RideTrackingService.ACTION_STOP, token = Long.MAX_VALUE)
+        SystemClock.sleep(1_500)
+        assertEquals(RidePhase.ACTIVE, tracking.session.state.value.phase)
+        assertTrue(isForeground())
+        fix(0)
+        await { tracking.location.state.value.fixAtMs > 0 }
+        main { tracking.session.stop() }
+        await { !isForeground() }
+    }
+
+    @Test fun prerequisiteFailureAfterPromotionStopsTheServiceInsteadOfLeakingIt() {
+        scenario!!.onActivity {
+            assertTrue(tracking.requestStart(true))
+            // Race the service: the session accepted, then GPS disappears before its command arrives.
+            manager.setTestProviderEnabled(LocationManager.GPS_PROVIDER, false)
+        }
+        await { tracking.session.state.value.phase == RidePhase.IDLE }
+        assertEquals(RideFailure.GPS_DISABLED, tracking.session.state.value.failure)
+        await { !isForeground() }
+    }
+
+    /**
+     * Android 14+ refuses a location foreground service without while-in-use location. revoke the
+     * permissions before the instrumentation starts (revoking from inside kills the test process):
+     * `adb shell pm revoke com.ridedeck.app android.permission.ACCESS_FINE_LOCATION`
+     * `adb shell pm revoke com.ridedeck.app android.permission.ACCESS_COARSE_LOCATION`
+     * then run with `-e locationPermissionDenied true`.
+     */
+    @Test fun permissionDeniedStartStillPromotesAndStopsInsteadOfCrashing() {
+        assumeTrue(locationDenied)
+        assertFalse(context.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION))
+        assertFalse(context.hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION))
+        command(RideTrackingService.ACTION_START, token = 77L)
+        await { tracking.session.state.value.phase == RidePhase.IDLE && !isForeground() && serviceCount() == 0 }
     }
 }

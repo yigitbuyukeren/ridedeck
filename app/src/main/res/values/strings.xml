@@ -292,7 +292,7 @@
 
     <string name="perm_intro_title">Konum izni gerekiyor</string>
     <string name="perm_intro_sub">Hız göstergesi GPS\'le çalışır. Bu ekran yalnız konum iznini ister ve diğer izinlerin hazır olduğunu garanti etmez. Telefon, müzik, SMS ve bildirim izinleri ilgili özellikte istenir; tümü Ayarlar > İzinler ve sistem\'de görünür.</string>
-    <string name="perm_intro_location_why">Hız, rota ve yolculuk kaydı için kesin konum gerekir. Konum yalnız cihazında işlenir.</string>
+    <string name="perm_intro_location_why">Hız ve yolculuk kaydı cihazında kalır. Rota, arama, hava ve yakıt özellikleri gerekli konum veya sorguyu herkese açık harita servislerine gönderir; ayrıntılar gizlilik bölümünde.</string>
     <string name="perm_location_denied">Konum izni verilmedi. Hız göstergesi çalışmaz; izni sistem ayarlarından açabilirsin.</string>
     <string name="perm_intro_later">Sonra</string>
     <string name="perm_intro_done">Tamam</string>

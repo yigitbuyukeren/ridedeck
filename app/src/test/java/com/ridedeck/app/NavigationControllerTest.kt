@@ -23,6 +23,7 @@ import com.ridedeck.app.data.Speaker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
@@ -33,6 +34,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -76,7 +78,16 @@ private class FakeRouting(private val routes: ArrayDeque<Route>) : Routing {
         return Result.success(searchResults)
     }
     var address: Place? = null
-    override suspend fun reverse(point: GeoPoint): Result<Place?> = Result.success(address)
+    var reverseHandler: (suspend (GeoPoint) -> Result<Place?>)? = null
+    override suspend fun reverse(point: GeoPoint): Result<Place?> {
+        reverseHandler?.let { return it(point) }
+        return Result.success(address)
+    }
+    var alternativesHandler: (suspend (GeoPoint, GeoPoint) -> Result<List<Route>>)? = null
+    override suspend fun alternatives(from: GeoPoint, to: GeoPoint, options: RouteOptions): Result<List<Route>> {
+        alternativesHandler?.let { return it(from, to) }
+        return Result.success(emptyList())
+    }
 }
 
 private class RecordingSpeaker : Speaker {
@@ -1171,6 +1182,199 @@ class NavigationControllerTest {
         assertTrue(speaker.said.any { it.contains("Go2") })
         assertFalse(speaker.said.any { it.contains("Stop1") })
         guarded.shutdown()
+    }
+
+    private fun oppositeFix(index: Int) = LocationState(
+        speedKmh = 50, fixAtMs = ++clock, lat = start.lat + index * STEP, lon = start.lon, bearing = 180f,
+        gpsProviderEnabled = true, locationPermissionGranted = true,
+    )
+
+    @Test fun wrongWayRidingAnnouncesUTurnOnceAndRecomputesTheRoute() {
+        startGuidance()
+        speaker.said.clear()
+        val before = routing.requests.size
+        location.value = oppositeFix(1)
+        location.value = oppositeFix(2)
+        assertEquals("two wrong-way fixes are not enough", before, routing.requests.size)
+        location.value = oppositeFix(3)
+        assertEquals("wrong-way must trigger one re-route", before + 1, routing.requests.size)
+        assertEquals(1, speaker.said.count { it == "t${R.string.wrong_way_uturn_voice}" })
+        // The episode is announced once, not on every further reversed fix.
+        location.value = oppositeFix(4)
+        location.value = oppositeFix(5)
+        assertEquals(1, speaker.said.count { it == "t${R.string.wrong_way_uturn_voice}" })
+    }
+
+    @Test fun wrongWayMatchBehindProgressCountsAsOffRouteWithoutRewinding() {
+        startGuidance()
+        for (i in 1..10) drive(i)
+        val progress = nav.ui.value.progressIndex
+        assertTrue(progress >= 8)
+        val behind = (progress - 3).coerceAtLeast(0)
+        location.value = fixAt(GeoPoint(start.lat + behind * STEP, start.lon))
+        assertEquals("a match three segments back must not move progress", progress, nav.ui.value.progressIndex)
+        assertFalse(nav.ui.value.arrived)
+        assertTrue(nav.ui.value.navigating)
+    }
+
+    @Test fun midRouteStandstillNearTheDestinationDoesNotArrive() {
+        val mid = Place("Mid", "", GeoPoint(start.lat + 10 * STEP + 0.0004, start.lon))
+        routing.routeHandler = { _, _ -> Result.success(straightRoute()) }
+        nav.selectPlace(mid)
+        nav.startNavigation()
+        for (i in 1..10) drive(i)
+        assertFalse(nav.ui.value.arrived)
+        repeat(17) {
+            clock += 1_000
+            location.value = LocationState(
+                speedKmh = 0, fixAtMs = clock, lat = mid.point.lat, lon = mid.point.lon,
+                gpsProviderEnabled = true, locationPermissionGranted = true,
+            )
+        }
+        assertFalse("standing near the destination mid-route is not arrival", nav.ui.value.arrived)
+        assertTrue(nav.ui.value.navigating)
+    }
+
+    @Test fun standingStillAtTheRoutesEndStillArrives() {
+        routing.routeHandler = { _, _ -> Result.success(straightRoute()) }
+        nav.selectPlace(dest)
+        nav.startNavigation()
+        for (i in 1..19) drive(i)
+        assertFalse(nav.ui.value.arrived)
+        repeat(17) {
+            clock += 1_000
+            location.value = LocationState(
+                speedKmh = 0, fixAtMs = clock, lat = start.lat + 20 * STEP, lon = start.lon,
+                gpsProviderEnabled = true, locationPermissionGranted = true,
+            )
+        }
+        assertTrue(nav.ui.value.arrived)
+        assertFalse(nav.ui.value.navigating)
+    }
+
+    @Test fun losingGpsNearTheDestinationMidRouteDoesNotArrive() {
+        val mid = Place("Mid", "", GeoPoint(start.lat + 10 * STEP + 0.0004, start.lon))
+        routing.routeHandler = { _, _ -> Result.success(straightRoute()) }
+        nav.selectPlace(mid)
+        nav.startNavigation()
+        for (i in 1..10) drive(i)
+        location.value = fixAt(GeoPoint(mid.point.lat, mid.point.lon))
+        nav.checkArrivalWithoutFix(clock + 5_000)
+        assertEquals(1000.0, nav.ui.value.remainingM.toDouble(), 100.0)
+        nav.checkArrivalWithoutFix(clock + 21_000)
+        assertFalse("a mid-route pass near the destination is not arrival", nav.ui.value.arrived)
+        assertTrue(nav.ui.value.navigating)
+    }
+
+    @Test fun anOldRouteCannotStartUntilItIsRefreshed() {
+        nav.selectPlace(dest)
+        assertNotNull(nav.ui.value.route)
+        clock += NavigationController.ROUTE_STALE_MS + 1
+        location.value = fixAt(start)
+        nav.startNavigation()
+        assertFalse(nav.ui.value.navigating)
+        assertEquals("t${R.string.route_stale_error}", nav.ui.value.error)
+        assertEquals(1, routing.requests.size)
+    }
+
+    @Test fun aRouteWhoseStartIsFarAwayCannotStart() {
+        nav.selectPlace(dest)
+        location.value = fixAt(GeoPoint(start.lat, start.lon + 0.005))
+        nav.startNavigation()
+        assertFalse(nav.ui.value.navigating)
+        assertEquals("t${R.string.route_start_far_error}", nav.ui.value.error)
+        assertEquals(1, routing.requests.size)
+    }
+
+    @Test fun cachedPreviewKeepsItsOwnStartRulesEvenWhenTheSavedRouteIsOld() {
+        val route = straightRoute()
+        val guarded = NavigationController(
+            text, scope, location, speaker, routing, fuel,
+            beforeStart = { true }, nowMs = { clock },
+        )
+        assertTrue(guarded.restoreCachedPreview(CachedRoutePreview(dest, emptyList(), RouteOptions(), route)))
+        clock += NavigationController.ROUTE_STALE_MS + 1
+        location.value = fixAt(start)
+        guarded.startNavigation()
+        assertTrue(guarded.ui.value.navigating)
+        guarded.shutdown()
+    }
+
+    @Test fun stoppingCancelsPendingChoiceRequestsAndLateRepliesCannotPublish() = runBlocking {
+        var cancelled = false
+        val pending = CompletableDeferred<Result<List<Route>>>()
+        routing.alternativesHandler = { _, _ ->
+            try {
+                pending.await()
+            } catch (e: CancellationException) {
+                cancelled = true
+                throw e
+            }
+        }
+        nav.selectPlace(dest)
+        nav.stopNavigation()
+        pending.complete(Result.success(listOf(straightRoute(GeoPoint(41.4, 29.0)))))
+        yield()
+        assertTrue("the pending alternatives request must be cancelled", cancelled)
+        assertTrue(nav.ui.value.choices.isEmpty())
+        assertNull(nav.ui.value.route)
+    }
+
+    @Test fun stoppingCancelsAPendingAddressLookup() = runBlocking {
+        var cancelled = false
+        val pending = CompletableDeferred<Result<Place?>>()
+        routing.reverseHandler = {
+            try {
+                pending.await()
+            } catch (e: CancellationException) {
+                cancelled = true
+                throw e
+            }
+        }
+        nav.selectPoint(dest.point)
+        nav.stopNavigation()
+        pending.complete(Result.success(Place("Late address", "", dest.point)))
+        yield()
+        assertTrue("the pending reverse lookup must be cancelled", cancelled)
+        assertNull(nav.ui.value.destination)
+        assertEquals("", nav.ui.value.query)
+    }
+
+    @Test fun selectingANewPlaceCancelsTheOldAlternativeRequest() = runBlocking {
+        var cancelled = false
+        val pending = CompletableDeferred<Result<List<Route>>>()
+        routing.alternativesHandler = { _, _ ->
+            try {
+                pending.await()
+            } catch (e: CancellationException) {
+                cancelled = true
+                throw e
+            }
+        }
+        nav.selectPlace(dest)
+        routing.alternativesHandler = null
+        nav.selectPlace(Place("Second", "", GeoPoint(41.03, 29.0)))
+        assertTrue("choosing a new place must cancel the old alternatives", cancelled)
+        pending.complete(Result.success(listOf(straightRoute(GeoPoint(41.4, 29.0)))))
+        yield()
+        assertTrue(nav.ui.value.choices.isEmpty())
+        assertEquals("Second", nav.ui.value.destination?.name)
+    }
+
+    @Test fun cancellingARoutePreviewDoesNotStopAManuallyStartedRide() {
+        val ride = bindRide()
+        assertEquals(RidePhase.ACTIVE, ride.state.value.phase)
+        nav.selectPlace(dest)
+        nav.stopNavigation()
+        assertEquals(RidePhase.ACTIVE, ride.state.value.phase)
+        assertTrue(ride.state.value.running)
+    }
+
+    @Test fun finishingGuidanceStopsTheRide() {
+        val ride = bindRide()
+        startGuidance()
+        nav.stopNavigation()
+        assertEquals(RidePhase.IDLE, ride.state.value.phase)
     }
 
     @Test fun permissionLossDuringADetourPreservesTheErrorAndReleasesGuidance() {

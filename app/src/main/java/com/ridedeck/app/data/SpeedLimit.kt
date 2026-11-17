@@ -41,7 +41,7 @@ interface SpeedLimitLookup {
 
 /** Posted speed limit of the road under the last few GPS fixes, from the public Valhalla server. */
 class SpeedLimitRepository(
-    private val http: ServiceHttp = CancellableServiceHttp,
+    private val http: ServiceHttp = ProviderHttp,
     /** Valhalla costing that matches the vehicle, so the trail snaps to roads the vehicle may use. */
     private val costing: () -> String = { "motorcycle" },
 ) : SpeedLimitLookup {
@@ -53,7 +53,18 @@ class SpeedLimitRepository(
                 .put("costing", costing())
                 .put("shape_match", "map_snap")
                 .put("filters", JSONObject().put("attributes", JSONArray().put("edge.speed_limit")).put("action", "include"))
-            Result.success(SpeedLimitMath.parseLimit(http.postJson("https://valhalla1.openstreetmap.de/trace_attributes", body.toString(), connectMs = 8_000, readMs = 10_000, emptyOn400 = true)))
+            Result.success(
+                SpeedLimitMath.parseLimit(
+                    http.postJson(
+                        "https://valhalla1.openstreetmap.de/trace_attributes",
+                        body.toString(),
+                        connectMs = 8_000,
+                        readMs = 10_000,
+                        emptyOn400 = true,
+                        headers = VALHALLA_HEADERS,
+                    ),
+                ),
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -86,6 +97,9 @@ class SpeedLimitController(
     private var lastQueryPoint: GeoPoint? = null
     private var lastKnownAt = 0L
     private var inFlight = false
+    private var queryJob: Job? = null
+    private var failures = 0
+    private var nextAttemptAt = 0L
     private var overSince = 0L
     private var lastWarnAt = 0L
     /** Bumped whenever guidance stops, so a reply from the old session can never be shown. */
@@ -113,7 +127,8 @@ class SpeedLimitController(
         }
         val movedSinceQuery = lastQueryPoint?.let { Geo.distance(it, here) } ?: Double.MAX_VALUE
         if (!inFlight && trail.size >= 3 && fix.speedKmh >= MIN_SPEED_KMH &&
-            fix.fixAtMs - lastQueryAt >= MIN_INTERVAL_MS && movedSinceQuery >= MIN_MOVE_M
+            fix.fixAtMs - lastQueryAt >= MIN_INTERVAL_MS && movedSinceQuery >= MIN_MOVE_M &&
+            fix.fixAtMs >= nextAttemptAt
         ) {
             query(fix.fixAtMs, here, trail.toList())
         }
@@ -128,7 +143,7 @@ class SpeedLimitController(
         inFlight = true
         lastQueryAt = now
         lastQueryPoint = here
-        scope.launch {
+        queryJob = scope.launch {
             val result = repo.limitAt(points)
             // Guidance stopped or restarted while the request was on the wire: this answer belongs to the old session.
             if (requestGeneration != generation) return@launch
@@ -137,6 +152,8 @@ class SpeedLimitController(
             val ageMs = elapsedMs() - issuedAt
             if (ageMs < 0 || ageMs > STALE_MS || !active.value) return@launch
             result.onSuccess { found ->
+                failures = 0
+                nextAttemptAt = 0L
                 expiryJob?.cancel()
                 expiryToken++
                 _limit.value = found
@@ -145,8 +162,18 @@ class SpeedLimitController(
                     lastKnownAt = requestFixAt
                     scheduleExpiry(requestGeneration, expiryToken, issuedAt)
                 }
+            }.onFailure {
+                // A failing public server must not be asked every eight seconds: back off from the request's own fix time.
+                failures++
+                nextAttemptAt = requestFixAt + failureBackoffMs(failures)
             }
         }
+    }
+
+    /** A failed lookup is retried after 30 s, then at most once a minute. */
+    private fun failureBackoffMs(failures: Int): Long = when {
+        failures <= 1 -> FAILURE_RETRY_MS
+        else -> FAILURE_RETRY_CAP_MS
     }
 
     /**
@@ -188,6 +215,10 @@ class SpeedLimitController(
         expiryToken++
         expiryJob?.cancel()
         expiryJob = null
+        queryJob?.cancel()
+        queryJob = null
+        failures = 0
+        nextAttemptAt = 0L
         inFlight = false
         trail.clear()
         _limit.value = null
@@ -206,5 +237,7 @@ class SpeedLimitController(
         const val EXPIRY_CHECK_MS = 1_000L
         const val WARN_AFTER_MS = 3_000L
         const val WARN_COOLDOWN_MS = 60_000L
+        const val FAILURE_RETRY_MS = 30_000L
+        const val FAILURE_RETRY_CAP_MS = 60_000L
     }
 }

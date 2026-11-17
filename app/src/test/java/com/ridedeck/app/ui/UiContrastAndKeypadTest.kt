@@ -8,10 +8,10 @@ import org.junit.Test
 
 /** Pure contrast/geometry helpers used by the phone and call screens; no Android or calls. */
 class UiContrastAndKeypadTest {
-    @Test fun greenCallActionUsesBlackContentAndOtherActionsKeepWhite() {
-        assertEquals(Color.Black, callActionForeground(MotoColors.Green))
-        assertEquals(Color.White, callActionForeground(MotoColors.Red))
-        assertEquals(Color.White, callActionForeground(MotoColors.Blue))
+    @Test fun everyCallActionUsesTheHigherContrastContentColour() {
+        listOf(MotoColors.Green, MotoColors.Red, MotoColors.Blue, MotoColors.Gray).forEach { fill ->
+            assertEquals(fill.toString(), readableOn(fill), callActionForeground(fill))
+        }
     }
 
     @Test fun phoneCallButtonUsesBlackWhenEnabledAndMutedWhenDisabled() {

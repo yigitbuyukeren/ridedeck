@@ -288,5 +288,12 @@ class RideReadinessTest {
         ).item(ReadinessKind.SOS)
         assertEquals(ReadinessStatus.UNKNOWN, smsUnknown.status)
         assertEquals(ReadinessDetail.SOS_PERMISSION_UNKNOWN, smsUnknown.detail)
+
+        val noSim = RideReadinessAssessment.assess(
+            RideReadinessInput(sosContactsConfigured = true, sosSmsGranted = true, sosSimUsable = false)
+        ).item(ReadinessKind.SOS)
+        assertEquals(ReadinessStatus.OPTIONAL, noSim.status)
+        assertEquals(ReadinessDetail.SOS_SIM_MISSING, noSim.detail)
+        assertFalse(noSim.status == ReadinessStatus.READY)
     }
 }

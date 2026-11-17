@@ -30,7 +30,7 @@ Uygulama yatay kilitlidir (`sensorLandscape`); telefon yatay tutulmalı.
 
 | Süre | Ne gösterilir | Not |
 |---|---|---|
-| 0–8 sn | Araç seçimi, ana panel (hız, saat, müzik kartı) | Gerçek GPS ile hız göstergesi hareket etsin; park halindeysen "hız 0" gerçek durumdur |
+| 0–8 sn | Ana panel (hız, saat, müzik kartı) | Araç seçimi yoktur; gerçek GPS ile hız göstergesi hareket etsin, park halindeysen "hız 0" gerçek durumdur |
 | 8–25 sn | Hedef arama ("Ara" ile), rota önizleme, "Başla" | Arama sürerken kilitlenir; bunu da göster |
 | 25–45 sn | Sesli navigasyon kartı, bir dönüş anonsu, mini harita | Gerçek sürüşte değil de park halinde sahte konumla çekiliyorsa altyazıda belirt |
 | 45–55 sn | ⛽ benzinlik listesi, ara durak ekleme | |
