@@ -13,8 +13,8 @@ gerektiren maddeler ayrıca **ENGEL** olarak işaretlenir.
 | P0-4 | P0 | SOS | Gerçek SIM üzerinden SMS teslimi ve gerçek arama doğrulanmadı | ENGEL | Sahte gateway/emülatör kullanılacak |
 | P0-5 | P0 | Yayın | 1.0 yayın kanıtı ve Go/No-Go kararı | ENGEL | Push/PR/release yapılmayacak |
 | P1-1 | P1 | SOS | Kullanıcı "İyiyim" dedikten sonra 5 dk cooldown yeni gerçek kazayı bastırıyor | KAPALI | acknowledgeCancel + regresyon testi |
-| P1-2 | P1 | SOS | Ekran kapalı/kilitliyken geri sayım görünmüyor; bildirim/FSI reddi sessizce yutuluyor | KAPALI | public bildirim, FSI, wake lock, activity fallback; ekran kapanınca yeniden post |
-| P1-3 | P1 | SOS | Bildirimden "İyiyim" (geri sayım) / "Kapat" (sonuç) eylemi yok | KAPALI | SosActionReceiver + İyiyim/Kapat |
+| P1-2 | P1 | SOS | Ekran kapalı/kilitliyken geri sayım görünmüyor; bildirim/FSI reddi sessizce yutuluyor | KAPALI | public bildirim, FSI, wake lock, activity fallback; görünürlük/ekran kapanınca yeniden post; gerçek kilit ekranı cihaz testi |
+| P1-3 | P1 | SOS | Bildirimden "İyiyim" (geri sayım) / "Kapat" (sonuç) eylemi yok | KAPALI | SosActionReceiver + İyiyim/Kapat; gerçek bildirim eylemi cihaz testi |
 | P1-4 | P1 | Erişilebilirlik | SOS düğmesi pointerInput kullanıyor; TalkBack/D-pad tıklama semantiği yok | KAPALI | Role.Button + onClick; Compose semantics/emülatör testi (gerçek TalkBack P2-4) |
 | P1-5 | P1 | SOS | SMS izni/SIM yokken "hazır" görünümü yanıltıcı; kalıcı redde ayar yolu yok | KAPALI | SosReadiness + SIM/telefon + kalıcı red ayarı |
 | P1-6 | P1 | Servis | FGS başlatma/durdurma yarışı; erken stop foreground yükseltmesi yapmıyor | KAPALI | promote-first + startId; RideTrackingServiceTest |
@@ -40,7 +40,7 @@ gerektiren maddeler ayrıca **ENGEL** olarak işaretlenir.
 | P1-26 | P1 | Build | ARM-only APK CI emülatöründe çalışmıyor | KAPALI | debug x86_64; batch suite |
 | P2-1 | P2 | UI | Küçük ekran/taşma ve kırpılmalar | KAPALI | hedefli UI testleri |
 | P2-2 | P2 | UI | Büyük yazı ölçeğinde diğer kartlar | KISMİ | NavCard ve birçok kart; tam 43 ekran matrisi yok |
-| P2-3 | P2 | UI | Gündüz teması düşük kontrast (turuncu/yeşil) | KAPALI | readableOn + gündüz kontrast testleri |
+| P2-3 | P2 | UI | Gündüz teması düşük kontrast (turuncu/yeşil) | KAPALI | readableOn + gündüz kontrast testleri; ActionPill/SOS gerçek bileşen |
 | P2-4 | P2 | Erişilebilirlik | TalkBack/D-pad semantiği ve odak | KISMİ | semantics/focus testleri; gerçek TalkBack/D-pad yok |
 | P2-5 | P2 | Erişilebilirlik | 64 dp altı dokunma hedefleri | KISMİ | hedefli 64 dp testleri; tüm ekranlar taranmadı |
 | P2-6 | P2 | UI | Mesaj banner'ı navigasyonu kapatıyor | KAPALI | haritada rehberlik sırasında banner gizli |
@@ -52,7 +52,7 @@ gerektiren maddeler ayrıca **ENGEL** olarak işaretlenir.
 | P2-12 | P2 | Veri | Zaman/saklama/hata sonrası toparlanma | KAPALI | veri testleri; gerçek bozulma yok |
 | P2-13 | P2 | Çevrimdışı | Harita arayüzünde yanıltıcı işlemler | KAPALI | ölü indirme düğmeleri kaldırıldı |
 | P2-14 | P2 | Build | Gradle/Kotlin/Actions uyarıları | KISMİ | 0 hata; 121/120 uyarı bilinçli olarak kaldı |
-| P2-15 | P2 | Yayın | AAB/R8 runtime doğrulaması | KAPALI | AAB + imza + R8 smoke |
+| P2-15 | P2 | Yayın | AAB/R8 runtime doğrulaması | KAPALI | AAB + imza; R8 açılış smoke yerel |
 | P2-16 | P2 | Yayın | 16 KB runtime | ENGEL | Statik kontrol var, runtime yok |
 | P2-17 | P2 | Tedarik | Bağımlılık/supply-chain doğrulaması | KISMİ | sürümler sabit; dependency verification yok |
 | P2-18 | P2 | Lisans | NOTICE/lisans eksikleri | KAPALI | NOTICE lisansları eklendi |

@@ -1,17 +1,17 @@
 # 1.0 yayın hazırlığı — güncel durum
 
-> **17 Kasım 2026 — bu bölüm günceldir; aşağıdaki tarihli notlar tarihsel denetim kaydıdır.** Ürün sürümü `0.6.0` / `versionCode 6`; 1.0 sürümü, etiketi, push'u, merge'i, PR'ı veya mağaza yayını yoktur. Belge dalı `audit/docs`, taban `ac02278`. Önceki 0.4.0/344, 470/21, 526/526 + 55/55, 709/709 ve 742/742 sayıları o tarihli koşulara aittir; bu çalışma ağacının güncel kanıtı değildir.
+> **17 Kasım 2026 — bu bölüm günceldir; aşağıdaki tarihli notlar tarihsel denetim kaydıdır.** Ürün sürümü `0.6.0` / `versionCode 6`; 1.0 sürümü, etiketi veya mağaza yayını yoktur. Değişiklikler `fix/audit-1.0-hardening` dalasında, PR #13 kapsamındadır. Önceki 0.4.0/344, 470/21, 526/526 + 55/55, 709/709 ve 742/742 sayıları o tarihli koşulara aittir; bu çalışma ağacının güncel kanıtı değildir.
 
 **17 Kasım 2026 yerel sonuçlar:**
 
-- Debug + release JVM birim testleri (son tam yerel `test` koşusu): her varyantta **829/829 PASS** (toplam 1658), 0 hata, 0 atlama.
+- Debug + release JVM birim testleri (son tam yerel `test` koşusu): her varyantta **831/831 PASS** (toplam 1662), 0 hata, 0 atlama.
 - Lint: **0 hata**; debug **121**, release **120** uyarı; uyarılar bastırılmadı.
 - Debug APK x86_64/ARM64/ARMv7 yerellerini taşır; release APK ve AAB ARM-only'dir.
 - Release APK yerel olarak v2 imzalı; sertifika SHA-256 `9d9164ef8c679f2909e2a851d1327839c684cad238ca0932488a9f8d0f622427`. AAB `jarsigner` ile doğrulandı.
 - 16 KB ELF LOAD ve `zipalign -c -P 16 4` **PASS**; bu yalnız statik kontroldür, fiziksel 16 KB runtime değildir.
 - Instrumentation: **204 test**; tek `connectedDebugAndroidTest` koşusunda **203 PASS + 1 atlandı**, atlanan izin testi ayrı PASS (toplam 204 doğrulandı). `RideDeckTestRunner` sonuçtan sonra test sürecini kapatır; emülatörde cached-app freezer kapatılmalıdır.
 
-**Gerçek CI kapıları (`.github/workflows/ci.yml`):** `test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease`; debug/release test raporu özeti; release APK hizalama (`check-apk-alignment.py` + `zipalign -c -P 16 4`); debug APK'da x86_64 ve ARM MapLibre yerelleri; yalnız-debug probe asset'i; release AAB varlığı; release APK'da x86_64 ve probe asset'i olmaması; `keystore.properties` varsa imza doğrulaması; ayrı x86_64 API 35 emülatör işinde instrumentation. CI artık instrumentation'ı yalnız derlemez, emülatörde çalıştırır. Uzak CI bu belge dalgası için **UNVERIFIED**'dır; push yapılmadı.
+**Gerçek CI kapıları (`.github/workflows/ci.yml`):** `test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease`; debug/release test raporu özeti; release APK hizalama (`check-apk-alignment.py` + `zipalign -c -P 16 4`); debug APK'da x86_64 ve ARM MapLibre yerelleri; yalnız-debug probe asset'i; release AAB varlığı; release APK'da x86_64 ve probe asset'i olmaması; `keystore.properties` varsa imza doğrulaması; ayrı x86_64 API 35 emülatör işinde instrumentation; KVM udev erişimi, Pixel 6 profili, tek cold boot, 20 dk adım zaman aşımı ve ayrı izin-reddi `am instrument` koşusu. CI artık instrumentation'ı yalnız derlemez, emülatörde çalıştırır. Uzak CI PR #13 üzerinde çalıştırılır; sonuç bu bölümde güncellenir.
 
 | 1.0 kapısı | Durum | Not |
 |---|---|---|

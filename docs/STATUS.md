@@ -6,7 +6,7 @@ Güncel kurallar kökteki `AGENTS.md`, saha/yayın kapıları [RELEASE_READINESS
 
 ## Güncel özet
 
-- **17 Kasım 2026 — 1.0 denetim düzeltme dalgası (güncel):** Ürün kaynağı main'de güncellendi; sürüm `0.6.0` / `versionCode 6` kaldı, 1.0 yayını/ push/ merge/ PR yapılmadı. Son yerel tam JVM koşusu debug **829/829** + release **829/829** (toplam 1658; 0 hata, 0 atlama), lint **0 hata** (debug 121 / release 120 uyarı, bastırılmadı). Instrumentation **204 test**: tek `connectedDebugAndroidTest` koşusunda **203 PASS + 1 atlandı**; atlanan izin testi ayrı PASS (toplam 204). Fiziksel cihaz, gerçek SMS/arama/interkom, Doze/OEM, 16 KB runtime, mağaza/Data safety ve sağlayıcı toplam uyumu açık olduğu için genel karar **NO-GO**. Ayrıntı aşağıdaki 17 Kasım bölümünde; önceki dalga sayıları tarihseldir.
+- **17 Kasım 2026 — 1.0 denetim düzeltme dalgası (güncel):** Ürün kaynağı `fix/audit-1.0-hardening` dalasında PR #13 kapsamında güncellendi; sürüm `0.6.0` / `versionCode 6` kaldı, 1.0 yayını yapılmadı. Son yerel tam JVM koşusu debug **831/831** + release **831/831** (toplam 1662; 0 hata, 0 atlama), lint **0 hata** (debug 121 / release 120 uyarı, bastırılmadı). Instrumentation **204 test**: tek `connectedDebugAndroidTest` koşusunda **203 PASS + 1 atlandı**; atlanan izin testi ayrı PASS (toplam 204). Fiziksel cihaz, gerçek SMS/arama/interkom, Doze/OEM, 16 KB runtime, mağaza/Data safety ve sağlayıcı toplam uyumu açık olduğu için genel karar **NO-GO**. Ayrıntı aşağıdaki 17 Kasım bölümünde; önceki dalga sayıları tarihseldir.
 - Uygulama yalnız motosiklet içindir: araç seçimi yoktur; rota, benzinlik, kaza eşikleri ve yatay düzen motosiklete sabittir. Eski araç/asistan/widget verisi için göç kodu kaldırıldı (yayınlanmış kullanıcı yok).
 - Kod sürümü: `versionName 0.6.0`, `versionCode 6` (`app/build.gradle.kts`); v0.6.0 2026-11-10'da yayınlandı. Release imzası 2026-11-08'de yenilendi; 0.5.0'dan geçiş için kaldırıp kurma gerekir.
 - 5 Kasım yayın ve emülatör kayıtları aşağıdadır; tarihsel test sayıları yeni koşu değildir.
@@ -18,19 +18,19 @@ Güncel kurallar kökteki `AGENTS.md`, saha/yayın kapıları [RELEASE_READINESS
 
 ## 2026-11-17 — 1.0 denetim düzeltme dalgası
 
-**Kapsam ve taban:** 1.0 denetiminde açılan maddelerin büyük düzeltme dalgası main ürün kaynağına indi. Bu belge dalı `audit/docs`, taban `ac02278`; ürün sürümü `0.6.0` / `versionCode 6` değişmedi. Bu turda yalnız belgeler güncellendi; push, merge, PR, issue, release, etiket veya mağaza dağıtımı yapılmadı. Aşağıdaki önceki tarihli bölümler tarihsel kayıttır; bu bölüm onların yerine güncel durumu verir.
+**Kapsam ve taban:** 1.0 denetiminde açılan maddelerin büyük düzeltme dalgası `fix/audit-1.0-hardening` dalasında, PR #13 kapsamında uygulandı. Ürün sürümü `0.6.0` / `versionCode 6` değişmedi; 1.0 yayını, release, etiket veya mağaza dağıtımı yapılmadı. Aşağıdaki önceki tarihli bölümler tarihsel kayıttır; bu bölüm onların yerine güncel durumu verir.
 
 **Değişen alanlar (özet):**
 
-- **SOS:** Ekran kapalıyken başlayan geri sayım için kilit ekranı üstünde bildirim, tam ekran bildirim (FSI) ve uyandırma kilidi; bildirimden **İyiyim** (geri sayım) / **Kapat** (sonuç) eylemleri; bildirim yoksa uygulama açma yedeği; SMS izni/SIM/telefon hazırlığı ve erişilebilir SOS düğmesi. Gerçek SIM, gerçek SMS teslimi, fiziksel kilit ekranı ve OEM FSI davranışı **doğrulanmadı**.
+- **SOS:** Ekran kapalıyken başlayan geri sayım için kilit ekranı üstünde bildirim, tam ekran bildirim (FSI) ve uyandırma kilidi; bildirimden **İyiyim** (geri sayım) / **Kapat** (sonuç) eylemleri; bildirim yoksa uygulama açma yedeği (Android 10+ yalnız üstte gösterme izni varsa); SMS izni/SIM/telefon hazırlığı ve erişilebilir SOS düğmesi. Gerçek SIM, gerçek SMS teslimi, fiziksel kilit ekranı ve OEM FSI davranışı **doğrulanmadı**.
 - **Navigasyon:** Yanlış yön/U dönüşü algılama, erken varış koruması, rota tazeliği ve başlangıç koridoru denetimi, merkezi `ProviderHttp` hız sınırlama, hava durumu ve hız limitinde hata sonrası geri çekilme. Gerçek GPS/rota/sürüş davranışı **doğrulanmadı**.
 - **Servis:** Ön plan servisi yükseltme/durdurma yarışı düzeltmesi; ekran, açık yolculuk ve overlay arasında referans sayımlı tek GPS akışı (`LocationArbiter`); `Palette` hesabının ana iş parçacığından çıkarılması. Doze/OEM süreç öldürme **doğrulanmadı**.
 - **Gizlilik/veri:** Bildirim görünürlüğü ve kilit ekranı politikası (`MessagePrivacy`), `dataExtractionRules`, toplu yolculuk silme, SQLite v2 indeks geçişi ve bozulma yedeği. Gerçek OEM/kilit ekranı ve uygulama düzeyinde şifreleme **doğrulanmadı**.
-- **CI/paketleme:** x86_64 API 35 emülatör instrumentation işi; birim testleri, iki lint, APK/AAB, hizalama, AAB varlığı, debug ABI, release ARM-only ve koşullu imza kontrolleri. Emülatörde cached-app freezer kapatılır; `RideDeckTestRunner` sonuçtan sonra test sürecini kapatır.
+- **CI/paketleme:** x86_64 API 35 emülatör instrumentation işi; KVM udev erişimi, Pixel 6 profili, tek cold boot ve 20 dk adım zaman aşımı; ayrı izin-reddi testi. Birim testleri, iki lint, APK/AAB, hizalama, AAB varlığı, debug ABI, release ARM-only ve koşullu imza kontrolleri. Emülatörde cached-app freezer kapatılır; `RideDeckTestRunner` sonuçtan sonra test sürecini kapatır.
 
 | Güncel yerel kontrol | Gerçek sonuç |
 |---|---|
-| Debug + release JVM birim testleri (son tam yerel `test` koşusu) | Her varyantta **829/829 PASS** (toplam 1658), 0 hata, 0 atlama |
+| Debug + release JVM birim testleri (son tam yerel `test` koşusu) | Her varyantta **831/831 PASS** (toplam 1662), 0 hata, 0 atlama |
 | Debug / release lint | **0 hata**; debug **121**, release **120** uyarı; bastırılmadı |
 | Debug APK | x86_64 + ARM64 + ARMv7 yerelleri var; emülatör instrumentation için x86_64 |
 | Release APK / AAB | ARM-only; release APK yerel olarak v2 imzalı, sertifika SHA-256 `9d9164ef8c679f2909e2a851d1327839c684cad238ca0932488a9f8d0f622427`; AAB `jarsigner` ile doğrulandı |
@@ -41,7 +41,7 @@ Güncel kurallar kökteki `AGENTS.md`, saha/yayın kapıları [RELEASE_READINESS
 
 **BLOCKED / UNVERIFIED:** fiziksel cihaz ve gerçek sürüş, gerçek SMS/arama/interkom, Doze/OEM ve fiziksel kilit ekranı, 16 KB runtime, mağaza/Data safety beyanları ve sağlayıcı toplam kotası. Emülatör ve sentetik testler bunların yerine geçmez.
 
-**Karar:** Kamuya açık 1.0 için **NO-GO**; koşullu beta ancak saha doğrulamasından sonra değerlendirilebilir. Sürüm, ürün commit'i, push ve yayın değişmedi.
+**Karar:** Kamuya açık 1.0 için **NO-GO**; koşullu beta ancak saha doğrulamasından sonra değerlendirilebilir. Sürüm ve yayın değişmedi.
 
 ## 2026-11-11 — Ana plan ilk dalga: yerel kabul
 
