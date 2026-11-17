@@ -49,7 +49,7 @@ Güvenlik bildirimini issue, PR, tartışma veya sosyal medya üzerinden herkese
 - Yalnızca eski/desteklenmeyen sürümlerde bulunan ve güncel sürümde giderilmiş sorunlar
 - Kişisel veri içermeyen, sömürülemeyen teorik lint/uyarılar
 
-Emin değilsen yine de gizli kanaldan yaz; uygun değilse normal issue'ya yönlendirilir.
+Emin değilsen yine de gizli kanaldan yaz; uygun değilse [SUPPORT.md](SUPPORT.md) üzerinden normal bir soru veya hata formuna yönlendirilir.
 
 ## Yanıt ve açıklama süreci
 

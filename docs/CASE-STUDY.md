@@ -8,9 +8,9 @@ Bu belge RideDeck'in hangi problemi çözdüğünü, nasıl kurulduğunu ve hang
 
 ## 1. Problem
 
-Motosiklet, bisiklet ve araba sürerken telefon üç sorunla gelir: ekran küçük ve eldivenle kullanılmaz, hız ve navigasyon ayrı uygulamalardadır, yazı girişi sürüş güvenliğini bozar. Hazır çözümler (Android Auto, CarPlay) araç ekranı ister ve motosiklette yoktur.
+Motosiklet sürerken telefon üç sorunla gelir: ekran küçük ve eldivenle kullanılmaz, hız ve navigasyon ayrı uygulamalardadır, yazı girişi sürüş güvenliğini bozar. Hazır çözümler (Android Auto, CarPlay) araç ekranı ister ve motosiklette yoktur.
 
-RideDeck telefonun kendisini yatay, büyük hedefli bir sürüş paneline çevirir (aynı zamanda HOME launcher'dır): hız, harita, müzik ve telefon tek ekranda. Hedefler:
+RideDeck telefonun kendisini yatay, büyük hedefli bir sürüş paneline çevirir: hız, harita, müzik ve telefon tek ekranda. Hedefler:
 
 - Hesap, API anahtarı ve kendi sunucusu olmayacak; veri telefonda kalacak.
 - Sürerken yazı girişi olmayacak; her şey büyük hedeflerle veya sesle yapılacak.
@@ -24,17 +24,17 @@ Tek modüllü Android uygulaması (Kotlin, Jetpack Compose, minSdk 26). Tek `Mai
 LocationRepository (ham LocationManager, Play Services yok)
    ├─► SpeedFilter ─► hız göstergesi (yalnızca gösterim)
    ├─► NavigationController ─► Routing (Valhalla) / Speaker / FuelFinder
-   ├─► CrashDetector + SosController ─► tek SMS
+   ├─► CrashDetector + SosController ─► kişi başına bir SMS (en fazla 3 kişi)
    └─► TripRecorder ─► yolculuk geçmişi
 DashboardViewModel  = tüm repository'lerin tek bağlama noktası
-Data/Http.kt : bütün genel servis çağrılarının tek çıkışı
+data/Http.kt : genel HTTP servislerinin tek çıkışı (MapLibre karo istekleri hariç)
 ```
 
 Prensipler:
 
 - **Saf mantık + ince Android kabuğu.** Güvenlik ve konfor modüllerinin (`ThermalGuard`, `CrashDetector`, `SpeedFilter`, `PositionSmoother`, `PhoneMath`, `PinnedApps`, `VehicleProfile` vb.) çekirdeği Android bağımlılığı olmayan sınıflardır; zaman ve sensör verisi dışarıdan verilir. Bu yüzden telefon olmadan testlenir.
 - **Bağımlılık enjeksiyonu elle.** `NavigationController` arama, rota, konuşma ve metin arama bağımlılıklarını kurucudan alır; `NavigationControllerTest` gerçek servis olmadan çalışır.
-- **Tek ağ çıkışı.** Genel servislere (Nominatim, Valhalla, Open-Meteo, Overpass, OpenFreeMap) giden her çağrı `data/Http.kt` içinden geçer: sürüm bilgili tek `User-Agent`, tek `safely()` yardımcısı.
+- **Tek ağ çıkışı.** Genel HTTP servislerine (Nominatim, Valhalla, Open-Meteo, Overpass) giden çağrılar `data/Http.kt` içinden geçer: sürüm bilgili tek `User-Agent`, tek `safely()` yardımcısı. MapLibre'nin OpenFreeMap karo istekleri motorun kendi ağ katmanındadır.
 - **Ömür.** `NavigationController` `viewModelScope` ile yaşar; harita ekranı kapansa da yönlendirme ve ses sürer.
 
 ## 3. GPS filtreleme
@@ -53,11 +53,11 @@ Testler: `SpeedFilterTest`, `PositionSmootherTest`, `GaugeScaleTest`.
 ## 4. Navigasyon
 
 - **Arama:** Nominatim, yalnızca açıkça "Ara"ya basınca (kullanım politikası yazarken-ara'yı yasaklar). Sonuç çıkmazsa `PlaceQuery` düzeltilmiş yazımları (Türkçe harf varyantları, eksik/yer değiştirmiş harf, il/ilçe adlarına bulanık eşleşme) saniyede en çok bir istekle dener; yine yoksa "Bunu mu demek istedin?" der ve **onaysız rotaya girmez**.
-- **Rota:** Valhalla, araca göre `motorcycle`, `auto` veya `bicycle` costing ile; Türkçe talimat. Seçenekler (otoyolsuz, ücretsiz yol, bisiklette yokuşsuz/zemin) `costing_options`'a çevrilir.
+- **Rota:** Valhalla, her zaman `motorcycle` costing ile; Türkçe talimat. Otoyolsuz ve ücretsiz yol seçenekleri `costing_options`'a çevrilir.
 - **Konum eşleme:** her fix, son ilerleme noktasından başlayıp öne doğru **80 segmentlik pencerede** en yakın segmente izdüşürülür (`Geo.project`). Geriye ve çok ileriye atlamak mümkün olmadığından kıvrımlı yolda yanlış segment seçilmez. Rotadan 60 m uzaklık art arda 4 fix sürerse yeniden hesaplama başlar (10 sn yeniden deneme aralığı, "rota yeniden hesaplanıyor" yalnızca bir kez söylenir).
-- **Anons zamanlaması:** 600 m'de ön uyarı, 150 m'de asıl talimat, 25 m'de varış. Her anons bir kez söylenir (`spoken` kümesi).
+- **Anons zamanlaması:** mesafeli ön uyarı, tam talimat ve dönüşte kısa "şimdi" olmak üzere üç kademe; her anons bir kez söylenir (`spoken` kümesi).
 - **İptal ve eski cevaplar:** her rota/arama isteği bir `generation` taşır; kullanıcı vazgeçtiyse veya yeni istek açıldıysa geç gelen cevap yok sayılır. Konum izni kaybı ve GPS kapanması ayrı nedenlerle (`NavigationTermination`) sonlandırır.
-- **Ara durak:** benzinlik, şarj, tamirci, su durağı kendi başına bir rota olarak hesaplanır, asıl hedef `finalDestination`'da tutulur; varınca "Yola devam" eski hedefe döner.
+- **Ara durak:** benzinlik kendi başına bir rota olarak hesaplanır, asıl hedef `finalDestination`'da tutulur; varınca "Yola devam" eski hedefe döner.
 - **Yakıt arama dayanıklılığı:** genel Overpass sunucuları kararsızdır (500, 30 sn cevap). Sorgu birkaç aynaya paralel atılır, ilk cevap alınır, olmazsa Nominatim koridoruna düşülür.
 
 Testler: `NavigationControllerTest`, `GeoTest`, `PlaceQueryTest`, `FuelTest`, `RouteOptionsTest`.
@@ -68,17 +68,17 @@ Uygulamada bir dönem Türkçe sesli asistan vardı (komut ayrıştırıcı, ço
 
 ## 6. Güvenlik özellikleri (SOS) ve sınırı
 
-Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sürüş hızı **ve** eşiği aşan darbe, ardından telefonun sakin kalması ve aracın durması. Çukur (darbe var, araç yuvarlanıyor), sert fren (darbe yok) ve park yerinde devrilen bisiklet (hiç sürülmedi) sessiz kalır. İki tekerlekte ek olarak telefonun yönünün değişmiş (≥ 25°) ya da darbenin eşiğin 2 katı olması istenir; böylece "çukur + kırmızı ışık" yanlış alarmı azalır. Sonrasında geri sayım, geri sayım bitince kişi başına **tek** SMS (konum bağlantılı); arama yapılmaz.
+Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sürüş hızı **ve** eşiği aşan darbe, ardından telefonun sakin kalması ve aracın durması. Çukur (darbe var, araç yuvarlanıyor), sert fren (darbe yok) ve park yerinde devrilen motosiklet (hiç sürülmedi) sessiz kalır. İki tekerlekte ek olarak telefonun yönünün değişmiş (≥ 25°) ya da darbenin eşiğin 2 katı olması istenir; böylece "çukur + kırmızı ışık" yanlış alarmı azalır. Sonrasında geri sayım, geri sayım bitince kişi başına **bir** SMS (konum bağlantılı, en fazla 3 kişi); arama yapılmaz.
 
-**Bu bir güvenlik garantisi değildir.** Eşikler (motosiklet 4 g, araba 5 g, bisiklet 3 g) tasarım varsayımıdır ve **sahada ayarlanmamıştır**; gerçek bir kazada veya düşüşte test edilmedi. Özellik varsayılan kapalıdır, yalnızca uygulama ekrandayken çalışır (Android arka plandaki sensörleri kısıtlar) ve operatör SMS ücreti uygulanabilir. Yanlış alarm ve kaçırılmış kaza ikisi de mümkündür. README'de ve uygulamada bu şekilde sunulur.
+**Bu bir güvenlik garantisi değildir.** Eşik (motosiklet 4 g) tasarım varsayımıdır ve **sahada ayarlanmamıştır**; gerçek bir kazada veya düşüşte test edilmedi. Özellik varsayılan kapalıdır; uygulama ekrandayken veya açıkça başlatılmış bir yolculuk (ön plan servisi) sürerken çalışır. Operatör SMS ücreti uygulanabilir. Yanlış alarm ve kaçırılmış kaza ikisi de mümkündür. README'de ve uygulamada bu şekilde sunulur.
 
 ## 7. Testler ve CI
 
-- **396 birim testi, 48 test sınıfı/dosyası; 0 hata** (JUnit, Gradle `testDebugUnitTest`). Bu belge yazılırken yerelde temiz yeniden çalıştırmayla doğrulandı.
-- Test edilenler: GPS filtresi, konum eşleme ve rota mantığı, yazım toleransı, SOS/kaza algılama, ısınma koruması, araç profilleri, telefon/klavye matematiği, birimler, yolculuk kaydı.
-- **GitHub Actions** (`.github/workflows/ci.yml`): her `main` push'unda ve PR'da Temurin JDK 17 ile `testDebugUnitTest lintDebug assembleDebug assembleRelease`. `assembleRelease` R8 küçültmesini de dener, böylece küçültme hataları PR'da çıkar. Son çalışmalar başarılı.
-- `lintDebug` hatasız tutulur; minSdk 26 ile API 28/30 çağrıları gibi hataları yakalar.
-- Test edilmeyen: arayüz (Compose) ve gerçek sensör/ağ davranışı. Bunlar emülatörde elle görüldü.
+- Bu belge ilk yazıldığında **396 birim testi, 48 test sınıfı/dosyası** vardı; güncel test sayısı ve son sonuçlar [STATUS.md](STATUS.md) içindedir. Testler JUnit ile `testDebugUnitTest` üzerinden çalışır.
+- Test edilenler: GPS filtresi, konum eşleme ve rota mantığı, yazım toleransı, SOS/kaza algılama, ısınma koruması, motosiklet profili, telefon/klavye matematiği, birimler, yolculuk kaydı.
+- **GitHub Actions** (`.github/workflows/ci.yml`): Güncel main'de her `main` push'unda ve PR'da Temurin JDK 17 ile `test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease` çalışır; ayrı bir iş API 35 x86_64 emülatörde instrumentation testlerini koşar. Release AAB, 16 KB hizalama, ABI ve imza kontrolleri de vardır. `assembleRelease` R8 küçültmesini dener, böylece küçültme hataları PR'da çıkar.
+- `lintDebug`/`lintRelease` hatasız tutulur; minSdk 26 ile API 28/30 çağrıları gibi hataları yakalar.
+- Instrumentation testleri Compose ekranlarını ve bazı servis/izin akışlarını kapsar; gerçek sensör/ağ davranışı, fiziksel cihaz ve saha koşulları otomatik test edilmez.
 
 ## 8. Teknik kararlar ve gerekçeleri
 
@@ -90,7 +90,7 @@ Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sür�
 | Sahte 0 yok, `--` var | Sinyal kaybında yanlış güven vermemek. |
 | Sürerken yazı girişi/ayar kilidi (5 km/sa üstü) | Güvenlik; kendi Türkçe klavyesi park halinde arama içindir. |
 | Sesli asistan kaldırıldı | Güvenilir uyandırma ve tanıma sağlanamadı; çalışmayan özelliği göstermek yerine kaldırıldı. |
-| Çevrimdışı rota yok; harita yalnızca bölge olarak indirilir | Rota ve arama canlı hizmete bağlı kalır; çevrimdışı rota hesabı büyük iş ve doğrulanamaz olduğu için bırakıldı. |
+| Çevrimdışı rota yok; mevcut harita bölgeleri korunur | Rota ve arama canlı hizmete bağlı kalır; yeni çevrimdışı indirmeler sağlayıcı uyumluluğu doğrulanana kadar kapalıdır. |
 | OBD, bakım takibi, eğim, GPX çıkarıldı | Sürerken kullanılamayan veya doğrulanamayan özelliklerden kaçınmak; odak sürüş panelinde. |
 
 ## Gerçek cihaz doğrulamaları
@@ -99,6 +99,6 @@ Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sür�
 
 ## Doğrulama durumu
 
-**Doğrulandı (otomatik):** 396 birim test, `lintDebug`, debug ve R8 release derlemesi, CI. **Emülatörde görüldü:** ana ekranlar, araç seçimi, navigasyon, benzinlik, SOS geri sayımı, dik bisiklet düzeni, farklı yazı boyutları. README'deki ekran görüntüleri ve demo GIF'i emülatörden alınmıştır (sahte GPS ile); demo GIF bir ekran görüntüsü geçişidir, ekran kaydı değildir.
+**Doğrulandı (otomatik):** Bu belgenin ilk sürümünde 396 birim test, `lintDebug`, debug ve R8 release derlemesi ve CI; güncel sayılar [STATUS.md](STATUS.md) içindedir. **Emülatörde görüldü:** ana ekranlar, navigasyon, benzinlik, SOS geri sayımı, farklı yazı boyutları. README'deki ekran görüntüleri ve demo GIF'i emülatörden alınmıştır (sahte GPS ile); demo GIF bir ekran görüntüsü geçişidir, ekran kaydı değildir.
 
 **Sahada denenmedi:** kaza algılama eşikleri, gerçek SMS gönderimi, varsayılan telefon uygulamasıyken arama ses yolu, gidonda ısınma ve mini haritanın pil etkisi, Android 8–10 davranışı. Güncel liste: [STATUS.md](STATUS.md).

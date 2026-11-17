@@ -8,7 +8,7 @@ RideDeck'in arayüzü şu anda **Türkçe** (varsayılan) ve **İngilizce**dir. 
 
 | Dil | Dosya |
 |---|---|
-| Türkçe (varsayılan) | `app/src/main/res/values/strings*.xml` (`strings.xml`, `strings_data.xml`) |
+| Türkçe (varsayılan) | `app/src/main/res/values/strings*.xml` (`strings.xml`; varsa `strings_data.xml`) |
 | İngilizce | `app/src/main/res/values-en/strings*.xml` |
 | Yeni dil (örnek Almanca) | `app/src/main/res/values-de/strings*.xml` |
 
@@ -24,7 +24,7 @@ Android, eksik bir anahtar için varsayılan (`values/`) metne düşer. Yine de 
 ## Yeni dil ekleme
 
 1. Önce bir [belge/çeviri issue'su](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=documentation.yml) aç; dili ve kapsamı belirt.
-2. `app/src/main/res/values-en/strings*.xml` dosyalarını yeni dil dizinine kopyala (ör. `values-de/strings.xml` ve `values-de/strings_data.xml`). İngilizceyi kaynak olarak kullanmak, anahtarların eksiksiz kalmasını kolaylaştırır.
+2. `app/src/main/res/values-en/strings*.xml` dosyalarını yeni dil dizinine kopyala (ör. `values-de/strings.xml`; varsa `values-de/strings_data.xml`). İngilizceyi kaynak olarak kullanmak, anahtarların eksiksiz kalmasını kolaylaştırır.
 3. Tüm kullanıcıya görünen metinleri çevir. Teknik adları, marka ve sağlayıcı adlarını (OpenStreetMap, Valhalla, Open-Meteo, MapLibre, Android, SMS, GPS gibi) olduğu gibi bırak.
 4. Biçim yer tutucularını aynen koru: `%1$s`, `%2$d`, `%%`, `\n` gibi. Sıra değişebilirse bile numaralı yer tutucuları koru; numarasız `%s` kullanma.
 5. Uzun metinleri kısalt. Almanca gibi uzun dillerde kart başlıkları ve düğmeler taşabilir; 2,0× yazı boyutunda da dene.

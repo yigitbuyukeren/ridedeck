@@ -10,5 +10,5 @@ contact_links:
     url: https://github.com/yigitbuyukeren/ridedeck/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22
     about: Yeni katkıcılar için etiketlenmiş açık görevler
   - name: Güvenlik açığı bildir
-    url: mailto:mail@yigitbuyukeren.com
-    about: Güvenlik açıklarını herkese açık issue olarak açma; gizli bildir.
+    url: https://github.com/yigitbuyukeren/ridedeck/blob/main/SECURITY.md
+    about: Güvenlik açıklarını herkese açık issue olarak açma; gizli bildirim adımlarını izle.

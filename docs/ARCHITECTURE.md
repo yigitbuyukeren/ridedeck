@@ -185,7 +185,7 @@ Tüm veri telefonda kalır. `android:allowBackup="false"` olduğu için Android 
 - **Yüksek kontrast.** Gündüz ve gece paletleri ayrıdır; metin, uyarı ve harita işaretleri arka plandan net ayrılır.
 - **Sığdırma.** `isNarrowScreen()` ekran genişliği 560 dp altındaysa kompakt düzeni seçer. `cappedSp()` sistem yazı ölçeğini varsayılan olarak 1.15 ile sınırlar; kadran ve dock gibi sabit alanlarda metin taşmaz.
 - **Yatay gidon düzeni.** Manifest `sensorLandscape` kullanır; telefon 180° çevrildiğinde çentik tarafı değişse de içerik kaymasın diye simetrik güvenli boşluk uygulanır.
-- **TR/EN.** Kullanıcıya görünen her metin ilgili `values/strings*.xml` (Türkçe) ve `values-en/strings*.xml` (İngilizce) dosyalarında birlikte güncellenir; çoğu metin `strings.xml`, veri ekranları `strings_data.xml` içindedir. Sesli yönlendirme telefon diline göre Türkçe veya İngilizce konuşur (`GuidanceLanguage`).
+- **TR/EN.** Kullanıcıya görünen her metin ilgili `values/strings*.xml` (Türkçe) ve `values-en/strings*.xml` (İngilizce) dosyalarında birlikte güncellenir; çoğu metin `strings.xml`, ayrı gruplar (varsa) `strings_data.xml` gibi dosyalarda olabilir. Sesli yönlendirme telefon diline göre Türkçe veya İngilizce konuşur (`GuidanceLanguage`).
 
 ## 8. Test edilebilirlik
 
@@ -203,13 +203,13 @@ Test katmanları:
 | JVM birim testleri | `app/src/test/java/com/ridedeck/app/` | Filtre, rota, SOS matematiği, depolama sözleşmeleri, tercihler, UI matematiği |
 | Instrumentation | `app/src/androidTest/java/com/ridedeck/app/` | Compose ekranları, SQLite, servis/izin akışları, harita yaşam döngüsü |
 
-CI şu komutu çalıştırır:
+Güncel main'de CI şu komutu çalıştırır:
 
 ```bash
 ./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease
 ```
 
-Burada `test` debug ve release JVM testlerini çalıştırır. CI ayrı bir işte API 35 x86_64 emülatörde `:app:connectedDebugAndroidTest` çalıştırır; fiziksel cihaz davranışı yine ayrı bir doğrulamadır. Davranış değiştiren katkılarda ilgili JVM testini, arayüz değişikliklerinde ilgili Compose testini güncelleyin; doğrulanmamış cihaz davranışını doğrulanmış gibi anlatmayın.
+Burada `test` debug ve release JVM testlerini çalıştırır. Güncel main'de CI ayrı bir işte API 35 x86_64 emülatörde `:app:connectedDebugAndroidTest` çalıştırır; fiziksel cihaz davranışı yine ayrı bir doğrulamadır. Davranış değiştiren katkılarda ilgili JVM testini, arayüz değişikliklerinde ilgili Compose testini güncelleyin; doğrulanmamış cihaz davranışını doğrulanmış gibi anlatmayın.
 
 ## 9. Nerede ne değiştirilir?
 
