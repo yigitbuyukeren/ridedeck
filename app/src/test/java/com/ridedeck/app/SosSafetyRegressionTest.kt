@@ -65,6 +65,17 @@ class SosSafetyRegressionTest {
         r.gate!!.complete(Unit); runCurrent(); advanceTimeBy(100_000); runCurrent()
         assertEquals(1, r.sends)
     }
+    @Test fun aFinishedResultDoesNotLatchOutTheNextCrash() = runTest {
+        val r = Rig(this)
+        r.controller.trigger(SosReason.MANUAL); runCurrent(); advanceTimeBy(5_001); runCurrent()
+        assertEquals(SosPhase.SENT, r.controller.ui.value.phase)
+        // The rider never taps OK; a second, automatic crash must still start a fresh countdown.
+        r.controller.trigger(SosReason.AUTO); runCurrent()
+        assertEquals(SosPhase.COUNTDOWN, r.controller.ui.value.phase)
+        advanceTimeBy(30_001); runCurrent()
+        assertEquals(2, r.sends)
+    }
+
     @Test fun newlyAddedContactsAreNotSentAnAlertAlreadyInProgress() = runTest {
         val r = Rig(this); r.contacts.value = r.contacts.value.take(1)
         r.controller.trigger(SosReason.MANUAL); runCurrent()

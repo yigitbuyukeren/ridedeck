@@ -53,6 +53,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -185,6 +186,10 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
     val list by produceState(emptyList<Trip>(), version) { value = trips.trips() }
     var selectedId by remember { mutableStateOf<Long?>(null) }
     var deleteFeedback by remember { mutableStateOf<TripDeleteFeedback?>(null) }
+    var confirmDeleteAll by remember { mutableStateOf(false) }
+    /** Null until a bulk delete runs; never a plain "success" from a cancelled dialog. */
+    var deleteAllFeedback by remember { mutableStateOf<Boolean?>(null) }
+    var confirmStopRide by remember { mutableStateOf(false) }
     val selected = list.firstOrNull { it.id == selectedId } ?: list.firstOrNull()
     val dateFormat = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
     val locale = LocalConfiguration.current.locales[0]
@@ -200,21 +205,44 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.trips_title), fontSize = 30.sp, fontWeight = FontWeight.Bold, color = palette.text)
-                    if (recording) Text(stringResource(R.string.trip_recording), fontSize = 16.sp, color = MotoColors.Red)
-                    if (storageError) Text(stringResource(R.string.trip_storage_error), fontSize = 16.sp, color = MotoColors.Red)
+                    if (recording) Text(stringResource(R.string.trip_recording), fontSize = 16.sp, color = dangerColor(palette))
+                    if (storageError) Text(stringResource(R.string.trip_storage_error), fontSize = 16.sp, color = dangerColor(palette))
                 }
-                Box(
-                    modifier = Modifier.size(72.dp).clip(CircleShape).background(palette.cardHigh).hapticClickable(onClick = onClose),
-                    contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Rounded.Close, stringResource(R.string.message_dismiss), tint = palette.text, modifier = Modifier.size(32.dp)) }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    // The active recording is not in `list`, but deleteAll would erase its rows too.
+                    if (list.isNotEmpty() && !recording) {
+                        // One tap only opens a confirmation; the actual erase is a second, explicit tap.
+                        TextButton(
+                            modifier = Modifier.heightIn(min = 64.dp),
+                            onClick = {
+                                deleteAllFeedback = null
+                                confirmDeleteAll = true
+                            },
+                        ) {
+                            Text(
+                                stringResource(R.string.data_trips_delete_all),
+                                color = dangerColor(palette),
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier.size(72.dp).clip(CircleShape).background(palette.cardHigh).hapticClickable(onClick = onClose),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Rounded.Close, stringResource(R.string.message_dismiss), tint = palette.text, modifier = Modifier.size(32.dp)) }
+                }
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 PillButton(
                     stringResource(if (ride.running) R.string.ride_stop else R.string.ride_start),
                     if (ride.running) MotoColors.Red else MotoColors.Green,
-                    { if (ride.running) tracking.session.stop() else startRide() },
+                    { if (ride.running) confirmStopRide = true else startRide() },
                     Modifier.weight(1f),
                 )
                 Text(stringResource(when (ride.phase) {
@@ -224,13 +252,16 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                     RidePhase.IDLE -> R.string.ride_idle
                 }), color = palette.muted, fontSize = 15.sp, modifier = Modifier.weight(1f))
             }
-            ride.failure?.let { Text(stringResource(it.textId()), color = MotoColors.Red, fontSize = 15.sp) }
+            ride.failure?.let { Text(stringResource(it.textId()), color = dangerColor(palette), fontSize = 15.sp) }
             if (ride.running && !recordingAllowed) Text(stringResource(R.string.ride_recording_off), color = palette.muted, fontSize = 14.sp)
             if (ride.running && !NotificationManagerCompat.from(context).areNotificationsEnabled()) {
                 Text(stringResource(R.string.ride_notifications_off), color = palette.muted, fontSize = 14.sp)
             }
             deleteFeedback?.let {
                 TripDeleteFeedbackText(it, Modifier.fillMaxWidth().padding(top = 8.dp))
+            }
+            deleteAllFeedback?.let {
+                TripDeleteAllFeedbackText(it, Modifier.fillMaxWidth().padding(top = 8.dp))
             }
             if (list.isEmpty()) {
                 Column(
@@ -281,6 +312,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                                     .hapticClickable(haptic = RideHaptic.Select) {
                                         selectedId = trip.id
                                         deleteFeedback = null
+                                        deleteAllFeedback = null
                                     }
                                     .padding(16.dp),
                             ) {
@@ -304,6 +336,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                                     if (target != null) {
                                         val tripDate = dateFormat.format(Date(target.startedAt))
                                         deleteFeedback = null
+                                        deleteAllFeedback = null
                                         scope.launch {
                                             val deleted = trips.delete(target.id)
                                             deleteFeedback = TripDeleteFeedback(deleted, tripDate)
@@ -319,6 +352,107 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
             }
         }
     }
+
+    if (confirmDeleteAll) {
+        AlertDialog(
+            onDismissRequest = { confirmDeleteAll = false },
+            title = { Text(stringResource(R.string.data_trips_delete_all_confirm_title)) },
+            text = {
+                Column(
+                    modifier = Modifier.heightIn(max = 220.dp).verticalScroll(rememberScrollState()),
+                ) {
+                    Text(
+                        pluralStringResource(
+                            R.plurals.data_trips_delete_all_confirm_body,
+                            list.size,
+                            list.size,
+                        ),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    modifier = Modifier.heightIn(min = 64.dp),
+                    onClick = {
+                        // Re-check the live state so a double tap cannot start two deletes, and a
+                        // ride that started while the dialog was open is not erased.
+                        if (!recording) {
+                            confirmDeleteAll = false
+                            deleteFeedback = null
+                            deleteAllFeedback = null
+                            scope.launch {
+                                val deleted = trips.deleteAllTrips()
+                                deleteAllFeedback = deleted
+                                if (deleted) selectedId = null
+                            }
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.data_trips_delete_all_confirm_action), color = dangerColor(palette))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    modifier = Modifier.heightIn(min = 64.dp),
+                    onClick = { confirmDeleteAll = false },
+                ) {
+                    Text(stringResource(R.string.data_trips_delete_all_cancel))
+                }
+            },
+        )
+    }
+
+    if (confirmStopRide) {
+        RideStopConfirmDialog(
+            onConfirm = {
+                // Re-check live state as well as the dialog's own guard: two taps stop once.
+                if (confirmStopRide) {
+                    confirmStopRide = false
+                    tracking.session.stop()
+                }
+            },
+            onDismiss = { confirmStopRide = false },
+        )
+    }
+}
+
+/** Confirmation for ending an active ride; [onConfirm] runs at most once per dialog instance. */
+@Composable
+internal fun RideStopConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val palette = LocalMotoPalette.current
+    var submitted by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.data_ride_stop_confirm_title)) },
+        text = {
+            Column(
+                modifier = Modifier.heightIn(max = 220.dp).verticalScroll(rememberScrollState()),
+            ) {
+                Text(stringResource(R.string.data_ride_stop_confirm_body))
+            }
+        },
+        confirmButton = {
+            TextButton(
+                modifier = Modifier.heightIn(min = 64.dp).testTag("ride-stop-confirm"),
+                onClick = {
+                    if (!submitted) {
+                        submitted = true
+                        onConfirm()
+                    }
+                },
+            ) {
+                Text(stringResource(R.string.data_ride_stop_confirm_action), color = dangerColor(palette))
+            }
+        },
+        dismissButton = {
+            TextButton(
+                modifier = Modifier.heightIn(min = 64.dp).testTag("ride-stop-cancel"),
+                onClick = onDismiss,
+            ) {
+                Text(stringResource(R.string.data_ride_stop_confirm_cancel))
+            }
+        },
+    )
 }
 
 /** The trip list and the chosen trip: side by side on a wide screen, one above the other on an upright phone. */
@@ -337,6 +471,21 @@ private fun SplitPane(modifier: Modifier, first: @Composable (Modifier) -> Unit,
     }
 }
 
+/** Deeper feedback colors keep success/failure text readable on the day palette's light scrim. */
+private val DayFeedbackGreen = Color(0xFF0B6B35)
+private val DayFeedbackRed = Color(0xFFB00020)
+
+/** Themed trip feedback color; always-dark map panels keep their fixed [MotoColors]. */
+@Composable
+private fun tripFeedbackColor(succeeded: Boolean): Color {
+    val day = LocalMotoPalette.current.isDay
+    return if (succeeded) {
+        if (day) DayFeedbackGreen else MotoColors.Green
+    } else {
+        if (day) DayFeedbackRed else MotoColors.Red
+    }
+}
+
 /** Explicit per-action result; stays visible even when the deleted trip was the last one. */
 @Composable
 internal fun TripDeleteFeedbackText(feedback: TripDeleteFeedback, modifier: Modifier = Modifier) {
@@ -346,7 +495,21 @@ internal fun TripDeleteFeedbackText(feedback: TripDeleteFeedback, modifier: Modi
             feedback.tripDate,
         ),
         modifier = modifier.testTag("trip-delete-feedback"),
-        color = if (feedback.succeeded) MotoColors.Green else MotoColors.Red,
+        color = tripFeedbackColor(feedback.succeeded),
+        fontSize = 15.sp,
+        fontWeight = FontWeight.SemiBold,
+    )
+}
+
+/** Result of an explicit "delete all"; states the outcome instead of leaving the rider guessing. */
+@Composable
+internal fun TripDeleteAllFeedbackText(succeeded: Boolean, modifier: Modifier = Modifier) {
+    Text(
+        stringResource(
+            if (succeeded) R.string.data_trips_delete_all_success else R.string.data_trips_delete_all_failed,
+        ),
+        modifier = modifier.testTag("trip-delete-all-feedback"),
+        color = tripFeedbackColor(succeeded),
         fontSize = 15.sp,
         fontWeight = FontWeight.SemiBold,
     )
@@ -509,7 +672,7 @@ internal fun TripDetail(
                         }
                     },
                 ) {
-                    Text(stringResource(R.string.trip_delete_confirm_action), color = MotoColors.Red)
+                    Text(stringResource(R.string.trip_delete_confirm_action), color = dangerColor(palette))
                 }
             },
             dismissButton = {

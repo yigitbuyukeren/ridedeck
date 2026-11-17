@@ -3,9 +3,12 @@ package com.ridedeck.app.ui
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.SystemClock
 import android.provider.Settings
+import android.telephony.SubscriptionManager
+import android.telephony.TelephonyManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -58,6 +61,7 @@ import com.ridedeck.app.R
 import com.ridedeck.app.data.GeoPoint
 import com.ridedeck.app.data.LocationState
 import com.ridedeck.app.data.MediaState
+import com.ridedeck.app.data.SmsSubscriptionPolicy
 import com.ridedeck.app.data.OfflineMaps
 import com.ridedeck.app.data.ReadinessDetail
 import com.ridedeck.app.data.ReadinessItem
@@ -199,6 +203,15 @@ internal fun ReadinessPanel(
     val coarse = rememberReadinessFact(refreshKey) { context.hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) }
     val notifications = rememberReadinessFact(refreshKey) { notificationsEnabled(context) }
     val sosSms = rememberReadinessFact(refreshKey) { context.hasPermission(Manifest.permission.SEND_SMS) }
+    // A saved contact + permission is not enough when the phone has no telephony or default SMS SIM.
+    // An unreadable SIM state stays null (unknown), never a false "ready".
+    val sosSim = rememberReadinessFact(refreshKey) {
+        if (!context.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)) {
+            false
+        } else {
+            runCatching { SmsSubscriptionPolicy.usable(SubscriptionManager.getDefaultSmsSubscriptionId()) }.getOrNull()
+        }
+    }
 
     val elapsed = SystemClock.elapsedRealtime()
     val fresh = locationState.hasFreshFix(nowMs, elapsed)
@@ -222,6 +235,7 @@ internal fun ReadinessPanel(
             mediaAccess = mediaState.hasAccess,
             sosContactsConfigured = sosContacts.isNotEmpty(),
             sosSmsGranted = sosSms,
+            sosSimUsable = sosSim,
         )
     )
     ReadinessContent(readiness, onClose, onAction)
@@ -292,7 +306,7 @@ private fun ReadinessRow(item: ReadinessItem, onAction: (ReadinessAction) -> Uni
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(kindLabel(item.kind), fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold, color = palette.text, modifier = Modifier.weight(1f))
-            Text(statusLabel(item.status), fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, color = statusColor(item.status))
+            Text(statusLabel(item.status), fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, color = statusColor(item.status, palette))
         }
         Text(detailText(item.detail), fontSize = 14.sp, lineHeight = 18.sp, color = palette.muted)
         val action = readinessAction(item)
@@ -325,11 +339,11 @@ private fun statusLabel(status: ReadinessStatus): String = stringResource(when (
     ReadinessStatus.UNKNOWN -> R.string.readiness_status_unknown
 })
 
-private fun statusColor(status: ReadinessStatus): androidx.compose.ui.graphics.Color = when (status) {
-    ReadinessStatus.READY -> MotoColors.Green
-    ReadinessStatus.MISSING -> MotoColors.Red
-    ReadinessStatus.OPTIONAL -> MotoColors.Orange
-    ReadinessStatus.UNKNOWN -> MotoColors.Gray
+private fun statusColor(status: ReadinessStatus, palette: MotoPalette): androidx.compose.ui.graphics.Color = when (status) {
+    ReadinessStatus.READY -> successColor(palette)
+    ReadinessStatus.MISSING -> dangerColor(palette)
+    ReadinessStatus.OPTIONAL -> warningColor(palette)
+    ReadinessStatus.UNKNOWN -> palette.muted
 }
 
 @Composable
@@ -371,6 +385,7 @@ private fun detailText(detail: ReadinessDetail): String = stringResource(when (d
     ReadinessDetail.SOS_NOT_CONFIGURED -> R.string.readiness_detail_sos_not_configured
     ReadinessDetail.SOS_PERMISSION_MISSING -> R.string.readiness_detail_sos_permission_missing
     ReadinessDetail.SOS_PERMISSION_UNKNOWN -> R.string.readiness_detail_sos_permission_unknown
+    ReadinessDetail.SOS_SIM_MISSING -> R.string.readiness_detail_sos_sim_missing
     ReadinessDetail.SOS_UNKNOWN -> R.string.readiness_detail_sos_unknown
 })
 

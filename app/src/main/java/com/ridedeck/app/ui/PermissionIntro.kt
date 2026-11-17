@@ -71,7 +71,7 @@ fun PermissionIntro(row: PermissionRow, onClose: () -> Unit, onOpenReadiness: ((
             PillButton(
                 stringResource(if (row.granted) R.string.perm_intro_done else R.string.perm_intro_later),
                 if (row.granted) MotoColors.Blue else palette.track, onClose, Modifier.widthIn(min = 260.dp),
-                textColor = if (row.granted) Color.White else palette.text, minHeight = 64.dp,
+                textColor = if (row.granted) readableOn(MotoColors.Blue) else palette.text, minHeight = 64.dp,
             )
         }
     }
@@ -89,7 +89,7 @@ private fun PermissionCard(row: PermissionRow) {
             Text(row.title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = palette.text)
             Text(row.description, fontSize = 13.sp, lineHeight = 16.sp, color = palette.textSecondary)
         }
-        if (row.granted) Text(stringResource(R.string.perm_granted), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = MotoColors.Green)
+        if (row.granted) Text(stringResource(R.string.perm_granted), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = successColor(palette))
         else PillButton(row.actionLabel, MotoColors.Blue, row.onAction, minHeight = 64.dp, fontSize = 16.sp, horizontalPadding = 18.dp, singleLine = true)
     }
 }

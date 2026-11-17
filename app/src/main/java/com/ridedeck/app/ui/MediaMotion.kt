@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -29,7 +30,9 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import com.ridedeck.app.data.MediaState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /**
  * The cover changes like a page turn: after "next" the old one leaves to the left and the new one comes
@@ -128,6 +131,39 @@ internal fun rememberMediaTint(state: MediaState, palette: MotoPalette): Color {
     // The app icon is only a placeholder; it must not colour the card while the cover loads.
     val realArt = if (state.artIsPlaceholder) null else state.art
     val art = memory.pick(state.title to state.artist, realArt, state.hasSession)
-    val target = remember(art, palette) { mediaTint(art, palette) }
+    val day = palette.isDay
+    val computed = remember { ArtworkTintMemory() }
+    // Palette.from().generate() walks the bitmap's pixels; doing that inside composition blocked the
+    // frame whenever a cover arrived. Compute on Default, keep the previous tint meanwhile, and do
+    // not repeat work for the same artwork/theme on recomposition.
+    val target by produceState(initialValue = palette.card, key1 = art, key2 = day) {
+        if (art == null) {
+            value = palette.card
+            return@produceState
+        }
+        computed.cached(art, day)?.let {
+            value = it
+            return@produceState
+        }
+        val tint = withContext(Dispatchers.Default) { mediaTint(art, palette) }
+        computed.put(art, day, tint)
+        value = tint
+    }
     return animateColorAsState(target, tween(600), label = "tint").value
+}
+
+/** Remembers the palette result per artwork identity and day/night theme so recomposition is free. */
+internal class ArtworkTintMemory {
+    private var art: Any? = null
+    private var day: Boolean? = null
+    private var tint: Color? = null
+
+    fun cached(art: Any, day: Boolean): Color? =
+        if (art === this.art && day == this.day) tint else null
+
+    fun put(art: Any, day: Boolean, tint: Color) {
+        this.art = art
+        this.day = day
+        this.tint = tint
+    }
 }

@@ -24,7 +24,8 @@ fun PillButton(
     color: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    textColor: Color = Color.White,
+    // Black on the light accents, white on dark fills; callers can still override for brand/dark panels.
+    textColor: Color = readableOn(color),
     horizontalPadding: Dp = 24.dp,
     minHeight: Dp = 72.dp,
     fontSize: TextUnit = 20.sp,

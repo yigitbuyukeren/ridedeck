@@ -129,9 +129,13 @@ class NavigationController(
     private val _options = MutableStateFlow(initialOptions)
     val options: StateFlow<RouteOptions> = _options
     private var routeJob: Job? = null
+    private var choicesJob: Job? = null
+    private var reverseJob: Job? = null
     private var cachedEligibilityJob: Job? = null
     private var cachedCoverageJob: Job? = null
     private var routeGeneration = 0L
+    /** Wall clock when the currently previewed/guided route was computed; 0 for an un-stamped route. */
+    private var routeComputedAtMs = 0L
     /** Monotonic count of explicit route commands; startup restore must not override a rider action. */
     private var userRouteChoices = 0L
     private data class DetourRequest(val stop: Place, val final: Place, val from: GeoPoint, val generation: Long, val stopsAhead: List<Place>)
@@ -148,6 +152,9 @@ class NavigationController(
     private var progressIndex = 0
     private var offRouteFixes = 0
     private val spoken = HashSet<Int>()
+    /** Fresh fixes whose bearing points against the matched segment; three in a row is wrong-way riding. */
+    private var wrongWayFixes = 0
+    private var wrongWayAnnounced = false
     /** "Re-routing" is announced once per time off the road, and a failed attempt waits before the next one. */
     private var rerouteSpoken = false
     private var nextRerouteAtMs = 0L
@@ -161,8 +168,12 @@ class NavigationController(
     private var rerouteFailures = 0
     /** For arriving without a precise fix: when the bike came to rest, and how near the end the last fix was. */
     private var stillSinceMs = 0L
+    /** Remaining distance when the current standstill began; a mid-ride pause must not count as arrival. */
+    private var stillRemainingM = Double.MAX_VALUE
     private var lastFixAtMs = 0L
     private var lastNearEndM = Double.MAX_VALUE
+    /** Remaining route distance at the last accepted match; standstill arrival needs this to be small too. */
+    private var lastRemainingM = Double.MAX_VALUE
     /** Stops the rider actually came close to (index into `route.stopIndices`). */
     private val visitedStops = HashSet<Int>()
     private val eta = EtaEstimator()
@@ -246,8 +257,10 @@ class NavigationController(
 
     /** A spot picked on the map: routed at once under a generic name, renamed when its address arrives. */
     fun selectPoint(point: GeoPoint) {
+        reverseJob?.cancel()
+        reverseJob = null
         selectPlace(Place(text(R.string.selected_place), "", point))
-        scope.launch {
+        reverseJob = scope.launch {
             repo.reverse(point).onSuccess { named ->
                 if (named == null) return@onSuccess
                 var stillChosen = false
@@ -259,6 +272,8 @@ class NavigationController(
     }
 
     fun selectPlace(place: Place) {
+        reverseJob?.cancel()
+        reverseJob = null
         userRouteChoices++
         onUserRouteChoice(RouteChoiceReason.DESTINATION)
         rememberChosen(place)
@@ -386,6 +401,7 @@ class NavigationController(
             }
             val fresh = result.getOrThrow()
             onUserRouteChoice(RouteChoiceReason.CACHED_REFRESH)
+            markRouteComputed()
             _ui.update {
                 it.copy(
                     route = fresh,
@@ -520,6 +536,7 @@ class NavigationController(
         return result.fold(
             onSuccess = { route ->
                 if (generation != routeGeneration) return@fold false
+                markRouteComputed()
                 _ui.update { it.copy(route = route, choices = emptyList(), loading = false, error = null) }
                 loadChoices(generation, from, place.point, route)
                 true
@@ -557,7 +574,8 @@ class NavigationController(
     /** Asks for alternative routes after the main one is already on screen; a late or failed reply changes nothing. */
     private fun loadChoices(generation: Long, from: GeoPoint, to: GeoPoint, main: Route) {
         if (_ui.value.stops.isNotEmpty()) return
-        scope.launch {
+        choicesJob?.cancel()
+        choicesJob = scope.launch {
             val options = _options.value
             val found = try {
                 repo.alternatives(from, to, options).getOrNull()
@@ -628,10 +646,12 @@ class NavigationController(
             }
             if (guiding) {
                 progressIndex = 0
+                resetArrivalProgress()
                 offRouteFixes = 0
                 spoken.clear()
                 lastNext = -1
             }
+            markRouteComputed()
             _ui.update { it.copy(route = route, loading = false, rerouting = false, progressIndex = 0, progressFraction = 0.0) }
         }
     }
@@ -650,7 +670,14 @@ class NavigationController(
         routeGeneration++
         routeJob?.cancel()
         routeJob = null
+        choicesJob?.cancel()
+        choicesJob = null
         return routeGeneration
+    }
+
+    /** Remembers when the route now on screen was computed, for the stale-route start check. */
+    private fun markRouteComputed() {
+        routeComputedAtMs = nowMs()
     }
 
     /**
@@ -676,6 +703,7 @@ class NavigationController(
             val result = routeResult(from, dest.point, options, stops = ahead)
             if (generation != routeGeneration) return@launch
             result?.onSuccess { route ->
+                markRouteComputed()
                 _ui.update { it.copy(route = route, choices = emptyList(), loading = false) }
                 loadChoices(generation, from, dest.point, route)
             }
@@ -688,7 +716,8 @@ class NavigationController(
         userRouteChoices++
         if (_ui.value.navigating || _ui.value.loading || _ui.value.rerouting) return
         val route = _ui.value.route ?: return
-        val cachedStart = if (_ui.value.cachedPreview) {
+        val cached = _ui.value.cachedPreview
+        val cachedStart = if (cached) {
             val progress = cachedStartProgress(route) ?: run {
                 _ui.update { it.copy(cachedPreviewStartBlocked = true) }
                 return
@@ -701,13 +730,49 @@ class NavigationController(
             _ui.update { it.copy(error = text(R.string.gps_waiting)) }
             return
         }
+        var startIndex = cachedStart
+        // A route computed long ago may no longer match the rider's current road; the cached-preview
+        // path keeps its own corridor check and its saved route is allowed to be old.
+        if (!cached) {
+            if (routeComputedAtMs > 0L && nowMs() - routeComputedAtMs > ROUTE_STALE_MS) {
+                _ui.update { it.copy(error = text(R.string.route_stale_error)) }
+                return
+            }
+            // Every non-cached route, including a chosen alternative, is checked against the
+            // current fix. An alternative is returned from the requested origin, not from wherever
+            // the rider may be minutes later.
+            val fix = location.value
+            val check = RouteStartGuard.check(
+                route,
+                GeoPoint(fix.lat, fix.lon),
+                fix.speedKmh / 3.6,
+                fix.accuracyM,
+            )
+            if (check.block != RouteStartBlock.NONE) {
+                _ui.update { it.copy(error = text(R.string.route_start_far_error)) }
+                return
+            }
+            startIndex = check.startIndex
+        }
         if (!beforeStart()) {
             _ui.update { it.copy(error = text(R.string.ride_start_error)) }
             return
         }
         onUserRouteChoice(RouteChoiceReason.START)
         _ui.update { it.copy(choices = emptyList()) }
-        begin(route, cachedStart)
+        begin(route, startIndex)
+    }
+
+    /**
+     * Route replacement must not inherit the old route's arrival counters. Otherwise a freeze
+     * taken while stopped on the previous route can satisfy the new route's distance guard.
+     */
+    private fun resetArrivalProgress() {
+        stillSinceMs = 0L
+        stillRemainingM = Double.MAX_VALUE
+        lastFixAtMs = 0L
+        lastNearEndM = Double.MAX_VALUE
+        lastRemainingM = Double.MAX_VALUE
     }
 
     private fun begin(route: Route, startIndex: Int) {
@@ -733,9 +798,9 @@ class NavigationController(
         rerouteFailures = 0
         eta.reset()
         missedPrompt = -1
-        stillSinceMs = 0L
-        lastFixAtMs = 0L
-        lastNearEndM = Double.MAX_VALUE
+        resetArrivalProgress()
+        wrongWayFixes = 0
+        wrongWayAnnounced = false
         visitedStops.clear()
         trackJob?.cancel()
         trackJob = scope.launch {
@@ -768,11 +833,20 @@ class NavigationController(
         onUserRouteChoice(RouteChoiceReason.STOP)
         stopCachedEligibility()
         searchJob?.cancel()
+        reverseJob?.cancel()
+        reverseJob = null
+        choicesJob?.cancel()
+        choicesJob = null
         trackJob?.cancel()
         // A route still being computed (re-route, stop detour) must not come back to life after "Finish".
         invalidateRoute()
         fuelJob?.cancel()
         voice.stop()
+        wrongWayFixes = 0
+        wrongWayAnnounced = false
+        lastRemainingM = Double.MAX_VALUE
+        stillRemainingM = Double.MAX_VALUE
+        routeComputedAtMs = 0L
         _ui.value = NavUi(termination = NavigationTermination.USER_CANCELLED)
         _fuel.value = FuelUi()
     }
@@ -845,8 +919,10 @@ class NavigationController(
         }
         val route = result.getOrThrow()
         progressIndex = 0
+        resetArrivalProgress()
         offRouteFixes = 0
         spoken.clear()
+        markRouteComputed()
         _ui.update {
             it.copy(destination = request.stop, finalDestination = request.final, route = route, rerouting = false,
                 stops = request.stopsAhead, stopsPassed = 0,
@@ -873,6 +949,7 @@ class NavigationController(
             if (generation != routeGeneration) return@launch
             (result ?: Result.failure(IllegalStateException("routing timeout")))
                 .onSuccess { route ->
+                    markRouteComputed()
                     _ui.update { it.copy(destination = final, finalDestination = null, route = route, loading = false,
                         stops = ahead, stopsPassed = 0, arrived = false, termination = NavigationTermination.NONE) }
                     startNavigation()
@@ -912,19 +989,34 @@ class NavigationController(
         // Match to the best segment near the last known position, preferring the direction of travel.
         // A long gap since the last match (tunnel) widens the search by the distance the bike could have covered.
         val speedMps = fix.speedKmh / 3.6
+        val bearing = fix.bearing?.toDouble()?.takeIf { it.isFinite() }
         val gapS = if (lastMatchAtMs > 0L) (fix.fixAtMs - lastMatchAtMs) / 1000.0 else 0.0
         val window = RouteMatcher.windowSegments(route.cumulative, progressIndex, gapS, maxOf(speedMps, lastMatchSpeedMps), MATCH_WINDOW)
-        val match = RouteMatcher.match(route.shape, p, progressIndex, window, fix.bearing?.toDouble(), speedMps)
+        val match = RouteMatcher.match(route.shape, p, progressIndex, window, bearing, speedMps)
         val bestIdx = match.index
         val best = match.projection
 
         // Arrival by coming to rest at the door: the end of the route or the chosen place, whichever is nearer. Checked
-        // before the off-route test, because a car park entrance is often 50 m beside the road.
+        // before the off-route test, because a car park entrance is often 50 m beside the road. A route that merely
+        // passes near the destination mid-route must not arrive: the remaining distance has to be short as well.
         val nearEnd = minOf(Geo.distance(p, route.shape.last()), state.destination?.let { Geo.distance(p, it.point) } ?: Double.MAX_VALUE)
         lastNearEndM = nearEnd
         lastFixAtMs = fix.fixAtMs
-        stillSinceMs = if (fix.speedKmh < STILL_KMH) (stillSinceMs.takeIf { it > 0L } ?: fix.fixAtMs) else 0L
-        if (nearEnd <= ARRIVAL_STILL_M && stillSinceMs > 0L && fix.fixAtMs - stillSinceMs >= ARRIVAL_STILL_MS) {
+        // A fix without a speed value is unknown, not zero: a tunnel/mock fix must not start the
+        // standstill timer while the bike may still be moving.
+        if (fix.hasSpeed && fix.speedKmh < STILL_KMH) {
+            if (stillSinceMs == 0L) {
+                stillSinceMs = fix.fixAtMs
+                // Freeze what was left when the bike stopped: a re-route during the pause must not hide the door.
+                stillRemainingM = lastRemainingM
+            }
+        } else {
+            stillSinceMs = 0L
+            stillRemainingM = Double.MAX_VALUE
+        }
+        if (nearEnd <= ARRIVAL_STILL_M && stillRemainingM <= ARRIVAL_STILL_REMAINING_M &&
+            stillSinceMs > 0L && fix.fixAtMs - stillSinceMs >= ARRIVAL_STILL_MS
+        ) {
             arrive(state, route)
             return
         }
@@ -936,15 +1028,47 @@ class NavigationController(
             }
             return
         }
+        // A match far behind the last accepted one is a GPS jump or riding back along the road, not progress.
+        // Counting it as off-route (rather than rewinding progress) keeps the greyed-out part of the route stable.
+        if (bestIdx < progressIndex - MATCH_BACK_TOLERANCE) {
+            offRouteFixes++
+            if (offRouteFixes >= RouteMatcher.offRouteFixes(speedMps) && !state.rerouting && fix.fixAtMs >= nextRerouteAtMs) {
+                reroute(p)
+            }
+            return
+        }
         offRouteFixes = 0
         rerouteSpoken = false
         progressIndex = bestIdx
+
+        // Riding against the matched segment while moving is wrong-way riding. Three fresh fixes in a row are
+        // needed so a compass glitch does not announce a U-turn; the rider is told once per episode and the route
+        // is re-computed from the current position (subject to the normal reroute/retry gates).
+        val segmentM = Geo.distance(route.shape[bestIdx], route.shape[bestIdx + 1])
+        val wrongWay = bearing != null && speedMps >= RouteMatcher.MIN_HEADING_SPEED && segmentM > 3.0 &&
+            RouteMatcher.angleBetween(Geo.bearing(route.shape[bestIdx], route.shape[bestIdx + 1]), bearing) > WRONG_WAY_DEG
+        if (wrongWay) {
+            wrongWayFixes++
+            if (wrongWayFixes >= WRONG_WAY_FIXES) {
+                if (!wrongWayAnnounced) {
+                    wrongWayAnnounced = true
+                    voice.speak(text(R.string.wrong_way_uturn_voice), SpeechPriority.NAVIGATION)
+                }
+                if (!_ui.value.rerouting && fix.fixAtMs >= nextRerouteAtMs) reroute(p)
+                return
+            }
+        } else {
+            wrongWayFixes = 0
+            wrongWayAnnounced = false
+        }
+
         lastMatchAtMs = fix.fixAtMs
         lastMatchSpeedMps = speedMps
 
         val travelled = route.cumulative[bestIdx] +
             best.fraction * (route.cumulative[bestIdx + 1] - route.cumulative[bestIdx])
         val remaining = (route.distanceM - travelled).coerceAtLeast(0.0)
+        lastRemainingM = remaining
         eta.onFix(fix.fixAtMs, speedMps)
         val plannedS = route.remainingTimeS(travelled)
 
@@ -1036,7 +1160,11 @@ class NavigationController(
         val state = _ui.value
         val route = state.route ?: return
         if (!state.navigating || lastFixAtMs <= 0L) return
-        if (nowMs - lastFixAtMs >= ARRIVAL_GPS_LOST_MS && lastNearEndM <= ARRIVAL_GPS_LOST_M) arrive(state, route)
+        if (nowMs - lastFixAtMs >= ARRIVAL_GPS_LOST_MS && lastNearEndM <= ARRIVAL_GPS_LOST_M &&
+            lastRemainingM <= ARRIVAL_GPS_LOST_REMAINING_M
+        ) {
+            arrive(state, route)
+        }
     }
 
     /** "Turn right now, then left": a second turn closer than [THEN_M] is announced together with the first. */
@@ -1049,6 +1177,7 @@ class NavigationController(
 
     private fun reroute(at: GeoPoint) {
         val dest = _ui.value.destination ?: return
+        wrongWayFixes = 0
         // Ask from where the bike will be when the answer comes, not where it was when it left the road.
         val from = leadPoint(at, location.value)
         _ui.update { it.copy(rerouting = true) }
@@ -1066,12 +1195,17 @@ class NavigationController(
             (result ?: Result.failure(IllegalStateException("routing timeout")))
                 .onSuccess { route ->
                     progressIndex = 0
+                    // Keep the frozen door distance: a reroute to the same destination during a
+                    // stop must not hide arrival at the car park beside the road.
                     offRouteFixes = 0
                     nextRerouteAtMs = 0L
                     rerouteFailures = 0
+                    wrongWayFixes = 0
+                    wrongWayAnnounced = false
                     spoken.clear()
                     lastNext = -1
                     visitedStops.clear()
+                    markRouteComputed()
                     val wasDegraded = _ui.value.guidanceDegraded
                     _ui.update { it.copy(route = route, stops = ahead, stopsPassed = 0, rerouting = false, guidanceDegraded = false, progressIndex = 0, progressFraction = 0.0) }
                     // Back online: say once that the route is current again.
@@ -1093,6 +1227,8 @@ class NavigationController(
     fun shutdown() {
         stopCachedEligibility()
         searchJob?.cancel()
+        reverseJob?.cancel()
+        reverseJob = null
         trackJob?.cancel()
         fuelJob?.cancel()
         invalidateRoute()
@@ -1115,9 +1251,19 @@ class NavigationController(
         const val STILL_KMH = 5
         const val ARRIVAL_STILL_M = 60.0
         const val ARRIVAL_STILL_MS = 15_000L
+        /** A mid-route pass within [ARRIVAL_STILL_M] of the destination is not an arrival unless this little is left. */
+        const val ARRIVAL_STILL_REMAINING_M = 150.0
         const val ARRIVAL_GPS_LOST_M = 100.0
+        const val ARRIVAL_GPS_LOST_REMAINING_M = 200.0
         const val ARRIVAL_GPS_LOST_MS = 20_000L
         const val ARRIVAL_WATCH_MS = 5_000L
+        /** A route preview older than this cannot start: the road it was computed from may be far behind. */
+        const val ROUTE_STALE_MS = 10 * 60_000L
+        /** Matches up to this many segments behind progress are accepted; further back is treated as off-route. */
+        const val MATCH_BACK_TOLERANCE = 2
+        /** Bearing mismatch over this many degrees, for this many fresh fixes in a row, is wrong-way riding. */
+        const val WRONG_WAY_DEG = 120.0
+        const val WRONG_WAY_FIXES = 3
         /** A stop is visited within this distance; passed when left behind, or after dwelling; skipped when this far beyond. */
         const val STOP_REACH_M = 40.0
         const val STOP_DWELL_MS = 10_000L

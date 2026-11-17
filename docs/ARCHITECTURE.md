@@ -5,7 +5,7 @@ Bu belge RideDeck'e kod katkısı yapacaklar için paketleri, çalışma zamanı
 <details>
 <summary><b>English summary</b></summary>
 
-RideDeck is a single-module Kotlin/Jetpack Compose Android app (`minSdk 26`, `compileSdk`/`targetSdk 36`). `MainActivity` hosts one Compose tree; `DashboardViewModel` wires the process-owned `RideTracking`, `RideNavigation` and `RideSafety` objects created by `RideDeckApplication`. Domain logic and repositories live in `data/`, Compose screens in `ui/`, Android foreground services and notifications in `service/`, and small helpers in `util/`. GPS comes from the platform `LocationManager`; display speed is filtered separately from the raw speed used by safety decisions. Public HTTP calls go through `data/Http.kt`, while MapLibre tile requests stay in the map engine. Data stays on the phone, routing is online-only, and crash/SOS detection is an aid, not a guarantee. The Turkish sections below map packages, data flow, the network layer, persistence, UI rules, testing and change locations.
+RideDeck is a single-module Kotlin/Jetpack Compose Android app (`minSdk 26`, `compileSdk`/`targetSdk 36`). `MainActivity` hosts one Compose tree; `DashboardViewModel` is the screen wiring point, while `RideDeckApplication` creates the process-owned `RideTracking` (with `LocationArbiter`), `RideNavigation` and `RideSafety` objects. Domain logic and repositories live in `data/`, Compose screens in `ui/`, Android foreground services and notifications in `service/`, and small helpers in `util/`. GPS comes from the platform `LocationManager`; display speed is filtered separately from the raw speed used by safety decisions. Public HTTP calls go through `data/Http.kt`/`ProviderHttp`, while MapLibre tile requests stay in the map engine. Data stays on the phone, routing is online-only, and crash/SOS detection is an aid, not a guarantee. The Turkish sections below map packages, data flow, the network layer, persistence, UI rules, testing and change locations.
 
 </details>
 
@@ -52,7 +52,7 @@ Süreç ömürlü sahipleri tembel olarak oluşturur:
 
 | Sahip | Görevi |
 |---|---|
-| `rideTracking` | Tek `LocationRepository`, `TripRecorder`, kayıtlı yerler, yolculuk oturumu |
+| `rideTracking` | `LocationArbiter` ile paylaşılan tek `LocationRepository`, `TripRecorder`, kayıtlı yerler, yolculuk oturumu |
 | `rideNavigation` | `NavigationController`, ses/TTS, medya, çağrı durumu, rota ve geometri kalıcılığı |
 | `rideSafety` | Kaza algılama, `SosController`, kişiler ve geri sayım bildirimi |
 
@@ -60,7 +60,7 @@ Süreç ömürlü sahipleri tembel olarak oluşturur:
 
 ### `DashboardViewModel`
 
-`AndroidViewModel`'dir ve ekranın tek bağlama noktasıdır. Uygulama ömürlü `rideTracking`, `rideNavigation` ve `rideSafety` örneklerini kullanır; kendi GPS aboneliğini açmaz. Ekran ömürlü yardımcıları (pil, tema, hava durumu, hız limiti, ısınma koruması, sapma teklifi) burada kurar.
+`AndroidViewModel`'dir ve ekranın bağlama noktasıdır; repository sahibi değildir. Uygulama ömürlü `rideTracking`, `rideNavigation` ve `rideSafety` örneklerini kullanır; kendi GPS aboneliğini açmaz. Ekran ömürlü yardımcıları (pil, tema, hava durumu, hız limiti, ısınma koruması, sapma teklifi) burada kurar.
 
 ViewModel'in ürettiği `gps` akışı üç ayrı bilgi taşır:
 
@@ -82,14 +82,14 @@ ViewModel'in ürettiği `gps` akışı üç ayrı bilgi taşır:
 
 | Grup | Dosyalar | Not |
 |---|---|---|
-| Konum ve hız | `LocationRepository.kt`, `SpeedFilter.kt`, `PositionSmoother.kt`, `Motion.kt` | Ham `LocationManager`; Play Services yok |
+| Konum ve hız | `LocationArbiter.kt`, `LocationRepository.kt`, `SpeedFilter.kt`, `PositionSmoother.kt`, `Motion.kt` | Ham `LocationManager`; ekran/servis/overlay aynı GPS akışını paylaşır |
 | Navigasyon | `NavigationController.kt`, `NavigationRideLifecycle.kt`, `RouteSnap.kt`, `Geo.kt`, `GuidanceMath.kt` | Arama, rota, eşleme, anons ve yeniden rota |
-| Ağ servisleri | `Http.kt`, `RouteRepository.kt`, `Fuel.kt`, `Weather.kt`, `SpeedLimit.kt` | Tek HTTP yardımcısı; servis başına repository |
-| Güvenlik | `RideSafety.kt`, `Sos.kt`, `SosAndroid.kt`, `RideReadiness.kt` | Kaza algılama ve SMS yardımcı özelliği |
+| Ağ servisleri | `Http.kt`, `ProviderThrottle.kt`, `RouteRepository.kt`, `Fuel.kt`, `Weather.kt`, `SpeedLimit.kt` | `ProviderHttp` sınırı; iptal ve sağlayıcı bazlı eşzamanlılık/aralık |
+| Güvenlik | `RideSafety.kt`, `Sos.kt`, `SosAndroid.kt`, `RideReadiness.kt`, `MessagePrivacy.kt` | Kaza algılama, SMS ve bildirim gizliliği |
 | Yolculuklar | `RideTracking.kt`, `TripRecorder.kt`, `TripStore.kt`, `TripStats.kt` | Otomatik kayıt, SQLite geçmişi |
 | Kalıcılık | `SavedPlaces.kt`, `ActiveTrip.kt`, `RouteGeometryStore.kt`, `RouteGeometryPersistence.kt` | Yerel JSON/SQLite/AtomicFile |
 | Harita ve çevrimdışı | `OfflineMaps.kt`, `OfflinePlan.kt`, `OfflineRegions.kt` | Mevcut bölgeler korunur; yeni indirme kapalı |
-| Telefon ve medya | `CallRepository.kt`, `MediaRepository.kt`, `Phone.kt`, `Voice.kt` | Bildirim erişimi ve TTS ile çalışır |
+| Telefon ve medya | `CallRepository.kt`, `MediaRepository.kt`, `Phone.kt`, `Voice.kt`, `CallCapability.kt`, `CallerNamePolicy.kt` | Bildirim erişimi, çağrı yeteneği ve TTS |
 | Yardımcı mantık | `GaugeScale.kt`, `DashLayout.kt`, `PlaceQuery.kt`, `Sos.kt` (`SosMath`) | Android'siz birim testine uygun |
 
 ### `ui/` ve `service/`
@@ -100,7 +100,8 @@ ViewModel'in ürettiği `gps` akışı üç ayrı bilgi taşır:
 
 - `RideTrackingService`: yalnız kullanıcının açıkça başlattığı yolculukta ön plan konum servisi; bildirimden bitirilebilir; önyükleme alıcısı veya kendiliğinden yeniden başlama yoktur.
 - `OverlayService`: başka uygulama öndeyken hız/saat şeridi; RideDeck görünürken gizlenir.
-- `CarNotificationListener`: bildirim erişimiyle müzik, mesaj ve arayan adı bilgisi; son mesaj yalnız bellekte tutulur.
+- `CarNotificationListener`: bildirim erişimiyle müzik, mesaj ve arayan adı bilgisi; gizli bildirimlerde içerik okunmaz, kilitli özel içerik yalnız uygulama adıyla gösterilir; son mesaj yalnız bellekte tutulur.
+- `SosActionReceiver`: kilit ekranı bildirimindeki **İyiyim/Kapat** eylemlerini işler.
 - `MotoInCallService` / `IncomingCallNotification`: RideDeck varsayılan telefon uygulamasıysa görüşme ekranı ve gelen arama bildirimi.
 
 `util/` içinde `Prefs` tüm `SharedPreferences` anahtarlarını, `Units`/`UnitMath` yalnız gösterim dönüşümünü (içte km/sa ve metre), `Launch` dış uygulama ve izin yardımcılarını barındırır.
@@ -110,15 +111,17 @@ ViewModel'in ürettiği `gps` akışı üç ayrı bilgi taşır:
 ```text
 LocationManager (GPS_PROVIDER, ~1 Hz)
   └─► LocationRepository.state  (ham LocationState)
-        ├─► SpeedFilter ──► displayKmh() ──► SpeedCard / OverlayService
-        ├─► PositionSmoother ──► MapScreen imleci ve kamera (kare başına)
-        ├─► NavigationController ──► rota eşleme, anons, yeniden rota
-        │        └─► RideNavigation (süreç) ──► Voice / Media / Call
-        │                 └─► ActiveTrip + RouteGeometry kalıcılığı
-        ├─► RideSafety ──► CrashDetector ──► SosController ──► SMS
-        └─► TripRecorder ──► TripStore (SQLite)
-DashboardViewModel: akışları birleştirir, GpsUi ve inputLocked üretir
+        └─► LocationArbiter (ekran / açık yolculuk servisi / overlay referans sayımı)
+              ├─► SpeedFilter ──► displayKmh() ──► SpeedCard / OverlayService
+              ├─► PositionSmoother ──► MapScreen imleci ve kamera (kare başına)
+              ├─► NavigationController ──► rota eşleme, anons, yeniden rota
+              │        └─► RideNavigation (süreç) ──► Voice / Media / Call
+              │                 └─► ActiveTrip + RouteGeometry kalıcılığı
+              ├─► RideSafety ──► CrashDetector ──► SosController ──► SMS
+              └─► TripRecorder ──► TripStore (SQLite)
+DashboardViewModel: ekran akışlarını birleştirir, GpsUi ve inputLocked üretir
 Compose: DashboardScreen ──► hız kartı, harita, seyahat, ayarlar, SOS
+ProviderHttp: genel HTTP çağrılarında iptal + sağlayıcı bazlı eşzamanlılık/aralık
 ```
 
 **Gösterim hızı ile karar hızı ayrıdır.** `SpeedFilter` yalnız kadran, hız şeridi ve "kaçla gidiyorum" içindir; kaza algılama, yolculuk kaydı ve hız limiti uyarısı ham `speedKmh` değerini kullanır. Filtre güvenlik kararını geciktirmez.
@@ -127,29 +130,29 @@ Compose: DashboardScreen ──► hız kartı, harita, seyahat, ayarlar, SOS
 
 **Navigasyon.** Arama yalnız "Ara"ya basınca çalışır. `NavigationController` Nominatim sonucunu seçilen yere çevirir, Valhalla'dan rota ister, her fix'i rota üzerinde eşler ve anonsları planlar. Her istek bir `generation` taşır; eski veya iptal edilmiş cevap yok sayılır. `RideNavigation` bu oturumu süreçte tutar; ekran kapansa da başlatılmış rehberlik ve ses devam eder.
 
-**Güvenlik.** `RideSafety`, ivmeölçer ve GPS hızını `CrashDetector`'a verir; darbe, yakın zamanda sürüş ve hareketsizlik koşulları (motosiklette ayrıca eğim veya çift eşik) oluşursa `SosController` geri sayım başlatır, ardından kişi başına tek SMS denemesi yapar; arama açmaz. SOS varsayılan kapalıdır; kişi listesi boşsa tetikleyiciler kapanır. Kaza algılama yalnız pano görünürken veya açıkça başlatılmış yolculuk sürerken dinler. **Bu bir güvenlik garantisi değildir:** eşikler sahada ayarlanmamıştır, gerçek SMS teslimi garanti edilmez, yanlış alarm ve kaçırılmış olay mümkündür.
+**Güvenlik.** `RideSafety`, ivmeölçer ve GPS hızını `CrashDetector`'a verir; darbe, yakın zamanda sürüş ve hareketsizlik koşulları (motosiklette ayrıca eğim veya çift eşik) oluşursa `SosController` geri sayım başlatır, ardından kişi başına tek SMS denemesi yapar; arama açmaz. SOS varsayılan kapalıdır; kişi listesi boşsa tetikleyiciler kapanır. Kaza algılama yalnız pano görünürken veya açıkça başlatılmış yolculuk sürerken dinler. Ekran kapalıyken başlayan geri sayım kilit ekranı bildirimi, tam ekran bildirim ve uyandırma kilidiyle öne alınmaya çalışılır; FSI reddedilirse yüksek öncelikli bildirim kalır. **Bu bir güvenlik garantisi değildir:** eşikler sahada ayarlanmamıştır, gerçek SMS teslimi ve kilit ekranı/OEM davranışı garanti edilmez, yanlış alarm ve kaçırılmış olay mümkündür.
 
 **Yolculuk kaydı.** `TripRecorder` art arda üç fix en az `8 km/sa` ise kaydı başlatır, üç dakika hareket yoksa bitirir; `300 m` veya `60 sn` altındaki kayıtları siler. Noktalar geldikçe SQLite'a yazılır; süreç ölürse yarım kayıt sonraki açılışta kapatılır. Kayıt tercihi kapalıysa yalnız GPS takibi yapılır.
 
 ## 5. Ağ katmanı
 
-Genel servis çağrılarının tek çıkışı `data/Http.kt`'dir. Tek `User-Agent` şu biçimdedir:
+Genel servis çağrılarının merkezi sınırı `data/Http.kt` ve `ProviderHttp`'dir. Tek `User-Agent` şu biçimdedir:
 
 ```text
 RideDeck/<sürüm> (+https://github.com/yigitbuyukeren/ridedeck)
 ```
 
-`Http` hem bloklayan (`get`, `postJson`, `postForm`) hem de iptal edilebilir (`getCancellable`, `postJsonCancellable`, `postFormCancellable`) yollar sunar. Servis repository'leri üretimde `CancellableServiceHttp` kullanır; iptal, OkHttp `Call.cancel()` ile açık soketi kapatır. OkHttp yalnız bu dosyada, sınırlı bir iş parçacığı havuzuyla kullanılır. Testler `ServiceHttp` arayüzüne sahte taşıma enjekte eder.
+`Http` hem bloklayan (`get`, `postJson`, `postForm`) hem de iptal edilebilir (`getCancellable`, `postJsonCancellable`, `postFormCancellable`) yollar sunar. `ProviderHttp`, servis başına eşzamanlılık ve istek aralığı sınırını uygular; iptal, OkHttp `Call.cancel()` ile açık soketi kapatır. OkHttp yalnız bu katmanda, sınırlı bir iş parçacığı havuzuyla kullanılır. Testler `ServiceHttp` arayüzüne sahte taşıma enjekte eder. Uygulama içi sınır, sağlayıcının tüm kullanıcılar toplamındaki kotasını kanıtlamaz.
 
 | Servis | Kullanım | Not |
 |---|---|---|
-| Nominatim | Yer arama ve ters geocode | Yalnız açık aramada; yazarken arama yok; düzeltmeler en çok saniyede bir |
-| Valhalla | `motorcycle` rota ve `trace_attributes` hız limiti | Anahtarsız genel sunucu |
+| Nominatim | Yer arama ve ters geocode | Yalnız açık aramada; yazarken arama yok; merkezi sınır en çok 1 istek/sn |
+| Valhalla | `motorcycle` rota ve `trace_attributes` hız limiti | Anahtarsız genel sunucu; `X-Client-Id` başlığı |
 | Open-Meteo | Sıcaklık, yağmur ve buzlanma tahmini | Yaklaşık konum; anahtarsız |
-| Overpass | Benzinlik sorgusu | Birkaç genel ayna; yanıt yoksa Nominatim koridoruna düşer |
-| OpenFreeMap | Harita stilleri ve karoları | MapLibre'nin kendi HTTP motoru; `Http.kt` dışında |
+| Overpass | Benzinlik sorgusu | En çok iki farklı operatöre paralel; yanıt yoksa Nominatim koridoruna düşer |
+| OpenFreeMap | Harita stilleri, karoları ve çevrimdışı indirme | MapLibre'nin kendi HTTP motoru; `Http`/`ProviderHttp` dışında |
 
-**Önemli istisna:** MapLibre'nin canlı stil/karo istekleri render motorunun içindedir ve `Http.kt` iptal katmanından geçmez. Bu nedenle harita çağrılarını `Http` üzerinden geçiyor gibi anlatmayın. Çevrimdışı harita indirmeleri kapalı olduğu için yeni toplu çevrimdışı karo indirmesi başlatılmaz; canlı harita görüntülenen bölgenin karolarını normal biçimde ister.
+**Önemli istisna:** MapLibre'nin canlı stil/karo ve çevrimdışı indirme istekleri render motorunun içindedir ve `Http`/`ProviderHttp` sınırından geçmez. Bu nedenle harita çağrılarını bu katmandan geçiyor gibi anlatmayın. Yeni çevrimdışı indirme/resume, sağlayıcı koşulları ve toplam uyum kanıtlanana kadar kapalıdır; canlı harita görüntülenen bölgenin karolarını normal biçimde ister.
 
 ### Yeni servis ekleme kuralı
 
@@ -185,13 +188,13 @@ Tüm veri telefonda kalır. `android:allowBackup="false"` olduğu için Android 
 - **Yüksek kontrast.** Gündüz ve gece paletleri ayrıdır; metin, uyarı ve harita işaretleri arka plandan net ayrılır.
 - **Sığdırma.** `isNarrowScreen()` ekran genişliği 560 dp altındaysa kompakt düzeni seçer. `cappedSp()` sistem yazı ölçeğini varsayılan olarak 1.15 ile sınırlar; kadran ve dock gibi sabit alanlarda metin taşmaz.
 - **Yatay gidon düzeni.** Manifest `sensorLandscape` kullanır; telefon 180° çevrildiğinde çentik tarafı değişse de içerik kaymasın diye simetrik güvenli boşluk uygulanır.
-- **TR/EN.** Kullanıcıya görünen her metin ilgili `values/strings*.xml` (Türkçe) ve `values-en/strings*.xml` (İngilizce) dosyalarında birlikte güncellenir; çoğu metin `strings.xml`, ayrı gruplar (varsa) `strings_data.xml` gibi dosyalarda olabilir. Sesli yönlendirme telefon diline göre Türkçe veya İngilizce konuşur (`GuidanceLanguage`).
+- **TR/EN.** Kullanıcıya görünen her metin ilgili `values/strings*.xml` (Türkçe) ve `values-en/strings*.xml` (İngilizce) dosyalarında birlikte güncellenir; `strings.xml`, `strings_data.xml`, `strings_nav.xml`, `strings_sos.xml` ve `strings_ui.xml` gibi gruplar vardır. Sesli yönlendirme telefon diline göre Türkçe veya İngilizce konuşur (`GuidanceLanguage`).
 
 ## 8. Test edilebilirlik
 
 Mimari **saf mantık + ince Android kabuğu** üzerine kuruludur:
 
-- `SpeedFilter`, `PositionSmoother`, `CrashDetector`, `SosMath`, `RouteMatcher`, `Geo`, `PlaceQuery`, `TripMath`, `MotionTracker`, `GaugeScale` gibi sınıflar Android API'sine bağımlı değildir.
+- `SpeedFilter`, `PositionSmoother`, `CrashDetector`, `SosMath`, `RouteMatcher`, `Geo`, `PlaceQuery`, `TripMath`, `MotionTracker`, `GaugeScale`, `ProviderThrottle`, `LocationArbiter` gibi sınıflar Android API'sine bağımlı değildir.
 - Zaman ve sensör girdisi dışarıdan verilir: `SpeedFilter` ölçüm zamanını, `PositionSmoother` monotonic nanosaniyeyi, `NavigationController` saat ve rota/ses bağımlılıklarını, `CrashDetector` darbe/eğim sağlayıcılarını alır.
 - `TripStore` `TripStorage` arayüzüyle, ağ repository'leri `ServiceHttp` ile test edilir. Gerçek servis, GPS veya SMS gerekmez.
 - `LocationRepository`, `RideTrackingService`, `OverlayService`, `SosAndroid`, `TripStore` ve `Prefs` Android'e bağlı adaptörlerdir; test edilebilir mantık ayrı sınıflara taşınmıştır.
@@ -206,10 +209,10 @@ Test katmanları:
 CI şu komutu çalıştırır:
 
 ```bash
-./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest
+./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease
 ```
 
-Burada `test` debug ve release JVM testlerini çalıştırır; instrumentation testleri **yalnız derlenir, cihazda çalıştırılmaz**. `connectedDebugAndroidTest` ayrı bir emülatör/cihaz adımıdır. Davranış değiştiren katkılarda ilgili JVM testini, arayüz değişikliklerinde ilgili Compose testini güncelleyin; doğrulanmamış cihaz davranışını doğrulanmış gibi anlatmayın.
+Burada `test` debug ve release JVM testlerini çalıştırır. Ayrı CI işi x86_64 API 35 emülatöründe `:app:connectedDebugAndroidTest` çalıştırır (cached-app freezer kapatılır); toplam 204 instrumentation testi vardır. Davranış değiştiren katkılarda ilgili JVM testini, arayüz değişikliklerinde ilgili Compose testini güncelleyin; doğrulanmamış cihaz davranışını doğrulanmış gibi anlatmayın.
 
 ## 9. Nerede ne değiştirilir?
 
@@ -220,8 +223,8 @@ Burada `test` debug ve release JVM testlerini çalıştırır; instrumentation t
 | SOS / kaza algılama | `data/RideSafety.kt`, `data/Sos.kt`, `data/SosAndroid.kt` | `ui/SosUi.kt`, `ui/SettingsScreen.kt`; `SosTest`, `SosSafetyRegressionTest` |
 | Yolculuk kaydı / geçmiş | `data/TripRecorder.kt`, `data/TripStore.kt`, `data/TripStats.kt` | `ui/TripsScreen.kt`, `ui/TripMap.kt`; `TripRecorderTest` (JVM), `TripStoreTest` (instrumentation) |
 | Yeni ekran | `ui/DashboardScreen.kt` (yerel ekran durumu) | Yeni `ui/*.kt` bileşeni; gerekirse `DashboardViewModel.kt`; iki dilde string |
-| Yeni ağ çağrısı | `data/Http.kt` | `data/` altında repository + `ServiceHttp` test seam'i; gizlilik/atıf metni |
-| String / çeviri | `app/src/main/res/values/strings.xml`, `app/src/main/res/values-en/strings.xml` | Konuşma metniyse `data/GuidanceLanguage.kt` ve TTS akışı |
+| Yeni ağ çağrısı | `data/Http.kt`/`ProviderHttp` | `data/` altında repository + `ServiceHttp` test seam'i; sağlayıcı sınırı/politikası ve gizlilik/atıf metni |
+| String / çeviri | `app/src/main/res/values/strings*.xml`, `app/src/main/res/values-en/strings*.xml` | Konuşma metniyse `data/GuidanceLanguage.kt` ve TTS akışı |
 | İzin / servis | `AndroidManifest.xml` | `MainActivity.kt`, `ui/DashboardScreen.kt` izin akışları, `service/`, gerekirse `RideTrackingService` |
 | Harita / çevrimdışı bölge | `ui/MapScreen.kt`, `data/OfflineMaps.kt`, `data/OfflinePlan.kt` | `OfflineRegions.kt`, `ui/OfflineMapsCard.kt`; sağlayıcı politikası olmadan indirmeyi açmayın |
 
@@ -232,10 +235,10 @@ Burada `test` debug ve release JVM testlerini çalıştırır; instrumentation t
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | Katkı süreci, issue/PR beklentileri, dal ve commit kuralları | Güncel süreç |
 | [docs/DEVELOPMENT.md](DEVELOPMENT.md) | Ortam kurulumu, derleme, test, emülatör ve sorun giderme | Güncel pratik rehber |
 | [docs/TRANSLATING.md](TRANSLATING.md) | Yeni dil ekleme ve mevcut metinleri güncelleme | Güncel çeviri rehberi |
-| [docs/CASE-STUDY.md](CASE-STUDY.md) | Tasarım gerekçeleri ve teknik anlatım | Tarihsel; araç profili gibi kaldırılmış kavramlar ve eski test sayıları bulunabilir |
-| [docs/CASE-STUDY.en.md](CASE-STUDY.en.md) | Vaka analizinin İngilizce özeti | Tarihsel |
-| [docs/STATUS.md](STATUS.md) | Tarihli doğrulama ve iş günlüğü | Tarihsel kanıt; güncel şartname değil |
-| [docs/RELEASE_READINESS.md](RELEASE_READINESS.md) | Yayın/saha kapılarının tarihli kaydı | Tarihsel kanıt; gelecek sürüm garantisi değil |
+| [docs/CASE-STUDY.md](CASE-STUDY.md) | Tasarım gerekçeleri ve teknik anlatım | Güncel teknik anlatım; saha doğrulaması STATUS/RELEASE'te |
+| [docs/CASE-STUDY.en.md](CASE-STUDY.en.md) | Vaka analizinin İngilizce özeti | Güncel özet |
+| [docs/STATUS.md](STATUS.md) | Tarihli doğrulama ve iş günlüğü | Güncel durum/kanıt; eski bölümler tarihsel |
+| [docs/RELEASE_READINESS.md](RELEASE_READINESS.md) | Yayın/saha kapıları | Güncel kapılar; tarihli alt bölümler tarihsel |
 | [README.md](../README.md) | Kullanıcıya dönük özellikler ve sınırlamalar | Güncel ürün özeti |
 
 Güncel işler, açık hatalar ve öneriler GitHub issue'larında izlenir. Eski bir belgedeki davranış ile kod çelişirse **kod ve güncel testler** esas alınır; belgeyi de düzeltin.

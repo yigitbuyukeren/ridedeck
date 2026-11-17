@@ -7,7 +7,7 @@
 
 <div align="center">
 
-**[⬇️ APK indir](https://github.com/yigitbuyukeren/ridedeck/releases/latest)** &nbsp;·&nbsp; **[🌐 Proje sayfası](https://yigitbuyukeren.com/ridedeck/)** &nbsp;·&nbsp; **[📖 Teknik vaka analizi](docs/CASE-STUDY.md)** &nbsp;·&nbsp; **[🧭 Özellikler](#-özellikler)** &nbsp;·&nbsp; **[🛠️ Derleme](#️-derleme)** &nbsp;·&nbsp; **[🤝 Katkı](CONTRIBUTING.md)**
+**[⬇️ APK indir](https://github.com/yigitbuyukeren/ridedeck/releases/latest)** &nbsp;·&nbsp; **[🌐 Proje sayfası](https://yigitbuyukeren.com/ridedeck/)** &nbsp;·&nbsp; **[📖 Teknik vaka analizi](docs/CASE-STUDY.md)** &nbsp;·&nbsp; **[🧭 Özellikler](#-özellikler)** &nbsp;·&nbsp; **[🛠️ Derleme](#️-derleme-ve-test)** &nbsp;·&nbsp; **[🤝 Katkı](CONTRIBUTING.md)**
 
 [![Sürüm](https://img.shields.io/github/v/release/yigitbuyukeren/ridedeck?style=flat-square&labelColor=16150F&color=E8480C&label=s%C3%BCr%C3%BCm)](https://github.com/yigitbuyukeren/ridedeck/releases/latest)
 [![CI](https://img.shields.io/github/actions/workflow/status/yigitbuyukeren/ridedeck/ci.yml?style=flat-square&labelColor=16150F&color=E8480C&label=CI)](https://github.com/yigitbuyukeren/ridedeck/actions/workflows/ci.yml)
@@ -27,13 +27,15 @@
 
 Telefonu gidona veya motosiklet üstüne takınca **hız, harita, müzik ve telefon tek ekranda** toplanır. RideDeck yalnız motosiklet için tasarlanmıştır; rota, uyarılar ve düzen motosiklete göre ayarlanır. Tüm arayüz eldivenle kullanılacak büyüklükte, sürerken yazı girişi yoktur.
 
+> **Durum (17 Kasım 2026):** Kod `0.6.0` / `versionCode 6` olarak kalıyor; 1.0 sürümü yayınlanmadı. Son yerel tam JVM koşusu debug **831/831** + release **831/831** (toplam 1662; 0 hata, 0 atlama); lint **0 hata** (debug 121 / release 120 uyarı, bastırılmadı). Instrumentation **204 test**: tek `connectedDebugAndroidTest` koşusunda **203 PASS + 1 atlandı**; atlanan izin testi ayrı koşuda PASS (toplam 204 doğrulandı). Fiziksel cihaz, gerçek SMS/arama/interkom, Doze/OEM, 16 KB runtime ve sağlayıcı toplam uyumu doğrulanmadığı için genel 1.0 kararı **NO-GO**; koşullu beta ancak saha doğrulamasından sonra.
+
 ### ✨ Öne çıkanlar
 
 | 🧭 **Sesli yönlendirme** | 📞 **Telefon ve müzik** | 🆘 **SOS ve kaza algılama** |
 |:---:|:---:|:---:|
 | OpenStreetMap haritası, motosiklet rotası, ara durak ve benzinlik | Uygulama içi telefon (son aramalar, rehber, tuş takımı), müzik kontrolü, mesajları sesli okuma | Sert darbe ve hareketsizlikte geri sayım, sonra en fazla 3 kişiye birer konum linkli SMS |
 | 🗺️ **Çevrimdışı harita** | 🌦️ **Uyarılar** | 🔒 **Gizlilik** |
-| Önceden indirilen alanlar korunur; yeni indirmeler sağlayıcı uyumluluğu doğrulanana kadar kapalıdır. Rota, arama ve hava durumu internet ister | Yağmur ve buzlanma uyarısı; telefon ısınınca ekran kısılır | Veriler telefonda kalır; yalnızca harita/yer arama, rota, benzinlik ve hava durumu sorguları dış servislere çıkar. Sesli yönlendirme Android TTS ile yapılır; ağ gerektiren ses seçilirse metin TTS sağlayıcısına gidebilir |
+| Önceden indirilen alanlar korunur; yeni indirmeler sağlayıcı uyumluluğu doğrulanana kadar kapalıdır. Rota, arama ve hava durumu internet ister | Yağmur ve buzlanma uyarısı; telefon ısınınca ekran kısılır | Yolculuklar ve ayarlar telefonda kalır; harita, rota, arama, hava ve hız limiti sorguları dış sağlayıcılara gider. Sesli yönlendirme Android'in metin okuma motoruyla yapılır |
 
 ### 📸 Ekran görüntüleri
 
@@ -108,7 +110,7 @@ Ayrıntılar için başlıklara dokun.
 <summary><b>Uygulamalar, kartlar ve ses</b></summary>
 
 - Dock'taki dişli düğmesi Ayarlar'ı açar; sürüş sırasında ayarlar kilitlenir.
-- Ayarlar altı bölüme ayrıldı: Genel, Görünüm, Harita, Ses ve bildirimler, Güvenlik, İzinler ve sistem. Üstteki bölüm şeridi yatay kayar; içerik tek sütunda, geniş ekranda ortalanmış ve en fazla 820 dp genişliğinde gösterilir. Genel'de birim seçimi iki düğmeyle yapılır, Harita'da konum işareti renkleri tek satırdadır; Ses ve bildirimler'de TTS konuşma hızı, mesajları sesli okuma ve yağmur sesi anahtarları ayrı satırlardadır. Yolculuk geçmişi ana ekran hız kartından açılır.
+- Ayarlar altı bölüme ayrıldı: Genel, Görünüm, Harita, Ses ve bildirimler, Güvenlik, İzinler ve sistem. Üstteki bölüm şeridi yatay kayar; içerik tek sütunda, geniş ekranda ortalanmış ve en fazla 820 dp genişliğinde gösterilir. Genel'de birim seçimi iki düğmeyle yapılır, Harita'da konum işareti renkleri tek satırdadır, Ses'te yalnız konuşma hızı ayarlanır; yolculuk geçmişi ana ekran hız kartından açılır.
 - Ana ekran düzeni hız kartının yanında harita ve müzik kartıyla kurulur; kart seçimi Ayarlar'dan kaldırıldı, Görünüm'de yalnız gündüz/gece teması seçilir. Gün batımı kartı kaldırıldı. Yeni uygulama ekleme de kaldırılmıştır.
 - Rota kartında "Navigasyon uygulamasında aç" (Google Haritalar, Waze, Yandex Navi derin bağlantıları, yalnızca dururken); rota hâlâ RideDeck'te hesaplanır, canlı trafik isteyen bu uygulamalara geçer
 - Kilometre/mil seçimi (Ayarlar > Genel): hız, mesafe, hız limiti ve rota sesleri; kilometre veya mil düğmesine doğrudan dokunulur
@@ -123,6 +125,7 @@ Ayrıntılar için başlıklara dokun.
 - Hava durumu: sıcaklık, 1 saat içinde yağmur ve buzlanma uyarısı; başarısız yenilemede eski tahmin süresiz tutulmaz, 30 dakikalık tazelik sınırı sonraki kontrolde uygulanır
 - Isınma koruması: telefon 42°C'yi aşınca ekran kısılır ve harita yavaşlar, motosiklet durunca ekran kararır
 - SOS (varsayılan kapalı): otomatik kaza algılama (sert darbe + hareketsizlik; iki tekerlekte yön değişimi veya çok yüksek darbe aranır) veya uzun basmalı düğme. Çukur/kırmızı ışık kaynaklı yanlış alarmları azaltan filtreler var; bilinmeyen GPS hızı duruş sayılmaz. Geri sayımdan sonra en fazla 3 kişiye konum linkli bir mesaj gönderimi denenir; arama ve otomatik tekrar gönderim yok. Onaylanan, başarısız ve belirsiz sonuçlar kişi bazında ayrılır; alıcıya teslim garantisi verilmez.
+- Geri sayım ekran kapalıyken kilit ekranı üstünde bildirim, tam ekran bildirim ve uyandırma kilidiyle öne alınmaya çalışılır; bildirim yoksa uygulama açılmaya çalışılır (Android 10+ yalnız üstte gösterme izni varsa), FSI reddedilirse yüksek öncelikli bildirim kalır; ses/titreşim ve SMS yolu sürer. Bildirimde geri sayım için **İyiyim**, sonuç için **Kapat** eylemi vardır. SMS izni/SIM yoksa hazırlık paneli bunu açıkça söyler. Gerçek kilit ekranı, SIM ve OEM davranışı doğrulanmadı.
 
 </details>
 
@@ -140,34 +143,44 @@ Ayrıntılar için başlıklara dokun.
 
 ### 🚧 Bilinen sınırlamalar
 
-- **Sahada doğrulanmayanlar:** kaza algılama eşikleri (gerçek düşüşte denenmedi), gerçek SMS gönderimi, varsayılan telefon uygulamasıyken arama ses yolu, gidonda ısınma ve mini harita pil etkisi, Android 8–10 davranışı. Ayrıntılı tarihsel liste: [docs/STATUS.md](docs/STATUS.md).
+- **Sahada doğrulanmayanlar:** kaza algılama eşikleri (gerçek düşüşte denenmedi), gerçek SMS gönderimi ve SIM/operatör davranışı, kilit ekranı/Doze/OEM, varsayılan telefon uygulamasıyken arama ses yolu ve interkom, gidonda ısınma ve mini harita pil etkisi, Android 8–10 davranışı, 16 KB runtime, mağaza/Data safety ve sağlayıcı toplam kotası. Güncel liste: [docs/STATUS.md](docs/STATUS.md) ve [docs/RELEASE_READINESS.md](docs/RELEASE_READINESS.md).
 - **Güncel QA görüntü seti:** 43 kimliğin tamamı toplanmış olsa da bu 43 gerçek sürüş değildir: 24'ü gerçek emülatör, 16'sı bileşen fixture'ı, 3'ü izole native/probe fixture'ıdır. 03 boş source-free altlık olduğu için harita/rota/işaret görünürlüğünü, 10 ise kırpılan ikincil etiket nedeniyle tüm metinlerin taşmasız olduğunu kanıtlamaz; fixture'lar gerçek navigasyon, çağrı, SMS veya medya yolculuğu değildir.
-- Navigasyon, yer arama ve hava durumu **internet gerektirir**. Önceden indirilmiş harita alanları korunur; **yeni çevrimdışı indirmeler ve mevcut bölge devamı kapalıdır**. [OpenFreeMap koşulları](https://openfreemap.org/tos/) indirme başına 3.000 karo veya 50 MB, en çok 4 paralel istek ve uygulamayı tanımlayan User-Agent ister; sağlayıcı toplu uyumluluğu doğrulanmadığı için mevcut SDK yolunda indirme başlatılmaz. Devralınan etkin bir indirme listede **Vazgeç** ile kapatılabilir; bu yeni indirme veya devam başlatmaz. SDK'nın `NATIVE_COMPLETE` durumu karo kullanılabilirliği veya sağlayıcı uyumu kanıtı değildir. Rota hesabı ve arama çevrimdışı çalışmaz. Genel servisler garantisizdir.
+- Navigasyon, yer arama ve hava durumu **internet gerektirir**. Önceden indirilmiş harita alanları korunur; **yeni çevrimdışı indirmeler ve mevcut bölge devamı kapalıdır**. [OpenFreeMap koşulları](https://openfreemap.org/tos/) 17 Kasım 2026'da doğrulandı: indirme başına 3.000 karo veya 50 MB, en çok 4 paralel istek ve uygulamayı tanımlayan User-Agent. Uygulama içi sınırlama sağlayıcının tüm kullanıcılar toplamını kanıtlamadığı için mevcut SDK yolunda indirme başlatılmaz; yeni indirme ve devam **BLOCKED** kalır. Devralınan etkin bir indirme listede **Vazgeç** ile kapatılabilir; bu yeni indirme veya devam başlatmaz. SDK'nın `NATIVE_COMPLETE` durumu karo kullanılabilirliği veya sağlayıcı uyumu kanıtı değildir. Rota hesabı ve arama çevrimdışı çalışmaz. Genel servisler garantisizdir.
 - Arka plan takibi için yolculuğu uygulama görünürken başlatmak gerekir (navigasyondaki **Başlat / Yola devam** da başlatır). Kesin konum izni ve açık GPS gerekir; overlay izni gerekmez. Bildirimler reddedilmişse uygulamadan veya Android Etkin uygulamalar bölümünden durdurulur. Navigasyon yokken 3 dk hareketsizlikte, 3 dk GPS alınamadığında veya izin/depolama hatasında kapanır. Android zorla durdurduğunda kendiliğinden yeniden başlamaz; yarım kalan kayıt sonraki açılışta toparlanır.
 - Açık yolculukta navigasyon ve TTS aynı uygulama süreci içinde ekran/Activity yeniden açılışından bağımsız sürer; ara durakta Yola devam beklenebilir. Bildirimden Bitir rehberliği ve bekleyen rotayı da iptal eder. Süreç ölümü veya zorla durdurma sonrasında geçerli yerel rota geometrisi yalnız önizleme olarak geri gelir; rota kendiliğinden devam etmez. Başlat yalnız taze/hassas GPS ilk 50 m içindeyse açılır; aksi hâlde **Rotayı güncelle** açık eylemi gerekir ve bu çevrimdışı rota hesabı değildir. Çevrimdışı harita indirmesinin gerçek boyutu, süresi ve uçak modunda çizimi ile fiziksel kilit/Doze/OEM ve interkom doğrulaması henüz tamamlanmadı.
 - Canlı trafik, radar uyarısı, iOS ve Android Auto desteği yok.
-- SOS/kaza algılama yardımcı bir özelliktir, güvenlik garantisi değildir; uygulama ekrandayken veya başlatılmış bir yolculuk sürerken çalışır, ekran kapalıysa geri sayım tam ekran bildirimle öne gelir.
+- SOS/kaza algılama yardımcı bir özelliktir, güvenlik garantisi değildir; uygulama ekrandayken veya başlatılmış bir yolculuk (ön plan servisi) sürerken çalışır. Ekran kapalıyken geri sayım kilit ekranı üstünde bildirim, tam ekran bildirim ve uyandırma kilidiyle öne alınmaya çalışılır; bildirim yoksa uygulama açılmaya çalışılır (Android 10+ yalnız üstte gösterme izni varsa), FSI reddedilirse bildirim kalır ve ses/titreşim/SMS yolu sürer. Bu yollar gerçek kilitli cihazda ve OEM yazılımında doğrulanmadı.
 
 📖 Tasarım kararları ve testler: [Teknik vaka analizi](docs/CASE-STUDY.md) · [English](docs/CASE-STUDY.en.md)
 
-### 🛠️ Derleme
+### 🛠️ Derleme ve test
 
-JDK 17 ve Android SDK 36 gerekir. Ayrıntılı kurulum, test ve emülatör adımları: [geliştirme rehberi](docs/DEVELOPMENT.md).
+Ayrıntılı kurulum, test, emülatör ve sorun giderme: [geliştirme rehberi](docs/DEVELOPMENT.md).
 
 ```bash
-export JAVA_HOME=/yol/jdk-17   # JDK 17 kurulumunun yolu
-./gradlew testDebugUnitTest assembleDebug
+export JAVA_HOME=/yol/jdk-17        # JDK 17 gerekir
+./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
-`local.properties` içinde `sdk.dir` ayarlı olmalı (dosya git'e girmez). Emülatörde denemek için **ARM64 system image** gerekir; proje yalnız `arm64-v8a`/`armeabi-v7a` native kütüphaneleri üretir, x86_64 AVD'de kurulum `INSTALL_FAILED_NO_MATCHING_ABIS` ile düşer.
 
-Sürüm APK'sı (R8 ile küçültülmüş, ~10 MB): kök dizine `keystore.properties` koy (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`; dosya git'e girmez) ve `./gradlew assembleRelease` çalıştır. Dosya yoksa APK imzasız çıkar.
+`local.properties` içinde `sdk.dir` ayarlı olmalı (dosya git'e girmez). Son yerel `./gradlew test` koşusu debug **831/831** + release **831/831** birim testiyle geçti (toplam 1662; 0 hata, 0 atlama); bu son koşudur, sürekli yeşil garanti değildir. Lint 0 hata verir (debug 121 / release 120 uyarı; bastırılmadı).
+
+Emülatör instrumentation için önce uygulama dondurucuyu kapat (yoksa test süreci Compose testleri arasında donabilir); `RideDeckTestRunner` sonuçtan sonra test sürecini kapatır:
+
+```bash
+adb shell settings put global cached_apps_freezer disabled
+./gradlew :app:connectedDebugAndroidTest
+```
+
+Toplam **204 instrumentation testi**: tek `connectedDebugAndroidTest` koşusunda **203 PASS + 1 atlandı**; atlanan izin testi ayrı koşuda PASS (toplam 204 doğrulandı). Debug APK x86_64 + ARM yerellerini taşır; release APK/AAB yalnız ARM'dır. CI x86_64 API 35 emülatöründe instrumentation çalıştırır; KVM erişimini açar, Pixel 6 profilinde tek cold boot yapar, emülatör adımına 20 dk sert zaman aşımı koyar ve izin-reddi testini ayrı `am instrument` koşusuyla doğrular. Ayrıca debug/release birim testlerini, iki lint'i, APK/AAB derlemesini, hizalama/ABI kontrollerini ve keystore varsa imza doğrulamasını yapar.
+
+Sürüm APK'sı (R8 ile küçültülmüş): kök dizine `keystore.properties` koy (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`; dosya git'e girmez) ve `./gradlew assembleRelease` çalıştır. Dosya yoksa APK imzasız çıkar.
 
 ### 🔒 Gizlilik ve izinler
 
-RideDeck hesabı veya uygulamaya ait sunucu yok; yolculuk kayıtları ve ayarlar telefonda tutulur, Android yedeklemesi kapalıdır. Çevrimiçi özellikler şu verileri dış servislere gönderir: arama metni (Nominatim, yalnızca Ara'ya basınca), rota uç noktaları ve hız limiti için son konum noktaları (Valhalla), yaklaşık konum (hava durumu için 1 km hassasiyetle, Open-Meteo), çevre veya rota boyunca benzinlik sorgusu (Nominatim / Overpass). Harita stilleri ve görünen bölgenin harita karoları OpenFreeMap'ten indirilir; bu servisler istekle birlikte IP adresini de görebilir. Kayıtlı yolculuğun yeni harita görünümü açılırsa da altlık istekleri görüntülenen bölgeyi sağlayıcıya gösterebilir; kayıtlı iz dosyası dışa aktarılmaz. Sistem TTS motorunda ağ gerektiren bir ses seçilirse okunacak metin motorun sağlayıcısında işlenebilir; çevrimdışı Türkçe ses varsa başlangıçta tercih edilir. Mesajları sesli okuma isteğe bağlıdır.
+RideDeck hesabı veya uygulamaya ait sunucu yok; yolculuk kayıtları ve ayarlar telefonda tutulur, Android yedeklemesi kapalıdır (`dataExtractionRules` ve `allowBackup=false`). Bu, konumun cihazdan hiç çıkmadığı anlamına gelmez. Çevrimiçi özellikler şu verileri dış servislere gönderir: harita karoları ve stilleri için görünen bölge (OpenFreeMap), arama metni (Nominatim, yalnızca Ara'ya basınca), rota uç noktaları ve hız limiti için son konum noktaları (Valhalla; `X-Client-Id` başlığıyla), yaklaşık konum (hava durumu için 1 km hassasiyetle, Open-Meteo), çevre veya rota koridoru boyunca benzinlik sorgusu (Nominatim / Overpass). Bu servisler istekle birlikte IP adresini de görebilir. Kayıtlı yolculuğun yeni harita görünümü açılırsa da altlık istekleri görüntülenen bölgeyi sağlayıcıya gösterebilir; kayıtlı iz dosyası dışa aktarılmaz. Sistem TTS motorunda ağ gerektiren bir ses seçilirse okunacak metin motorun sağlayıcısında işlenebilir; çevrimdışı Türkçe ses varsa başlangıçta tercih edilir. Mesajları sesli okuma isteğe bağlıdır; kilit ekranında gizli bildirim okunmaz, özel içerik yalnız uygulama içinde gösterilir.
 
-SOS yalnızca sen açarsan çalışır ve `SEND_SMS` izni ister; kişiler telefonun kişi seçicisinden eklenir (rehber izni gerekmez). Kaza algılama uygulama ekrandayken veya başlatılmış bir yolculuk (ön plan servisi) sürerken, güncel GPS/sensör verisiyle çalışır; yolculuk başlatılmamışsa ekran kapanınca durur. Varsayılan SMS SIM'i seçili olmalıdır. Uzun metin birden çok SMS parçasına bölünebilir ve operatörün SMS ücreti uygulanabilir. Gönderim onayı alıcıya teslim onayı değildir; belirsiz sonucu yeniden göndermek aynı mesajı çoğaltabilir. Bu özellik bir güvenlik garantisi değildir.
+SOS yalnızca sen açarsan çalışır ve `SEND_SMS` izni ister; kişiler telefonun kişi seçicisinden eklenir (rehber izni gerekmez). Kaza algılama uygulama ekrandayken veya başlatılmış bir yolculuk (ön plan servisi) sürerken, güncel GPS/sensör verisiyle çalışır; yolculuk başlatılmamışsa ekran kapanınca durur. Ekran kapalıyken başlayan geri sayım kilit ekranı üstünde öne alınmaya çalışılır; bildirim yoksa uygulama açılmaya çalışılır (Android 10+ yalnız üstte gösterme izni varsa), FSI reddedilirse bildirim kalır ve ses/titreşim/SMS sürer. Varsayılan SMS SIM'i seçili olmalıdır; SMS izni, SIM veya kişi yoksa hazırlık görünümü bunu söyler. Uzun metin birden çok SMS parçasına bölünebilir ve operatörün SMS ücreti uygulanabilir. Gönderim onayı alıcıya teslim onayı değildir; belirsiz sonucu yeniden göndermek aynı mesajı çoğaltabilir. Bu özellik bir güvenlik garantisi değildir; gerçek SIM/kilit ekranı doğrulanmadı.
 
 ### ⚠️ Güvenlik notu
 
@@ -181,9 +194,9 @@ SOS yalnızca sen açarsan çalışır ve `SEND_SMS` izni ister; kişiler telefo
 - Adres arama: [Nominatim](https://nominatim.org) (genel sunucu; kullanım politikasına uygun olarak yalnızca Ara'ya basınca sorgular)
 - Rota: [Valhalla](https://github.com/valhalla/valhalla) genel sunucusu (`valhalla1.openstreetmap.de`)
 - Hava durumu: [Open-Meteo](https://open-meteo.com) (ücretsiz, anahtarsız; ticari olmayan kullanım)
-- Benzinlikler: [Overpass API](https://overpass-api.de) genel sunucuları (birkaçına birden sorulur) ve Nominatim
+- Benzinlikler: [Overpass API](https://overpass-api.de) genel sunucuları (aynı anda en çok iki farklı operatöre sorulur; ilk iyi yanıt kullanılır) ve Nominatim
 
-Bunlar ücretsiz, garantisiz genel servislerdir. Yoğun veya ticari kullanım için kendi sunucunu kur.
+Bunlar ücretsiz, garantisiz genel servislerdir. Yoğun veya ticari kullanım için kendi sunucunu kur. Uygulama içi hız sınırlama ve önbellek sağlayıcıların tüm kullanıcılar toplamındaki kotasını kanıtlamaz; ayrıntılı üçüncü taraf bildirimleri [NOTICE](NOTICE) içindedir.
 
 ### 🤝 Katkı
 
@@ -196,8 +209,9 @@ Başlamak için:
 - [Mimari](docs/ARCHITECTURE.md) — paketler, veri akışı ve "nerede ne değiştirilir?"
 - [Çeviri rehberi](docs/TRANSLATING.md) — yeni dil ve mevcut metin düzeltmeleri
 - [Destek](SUPPORT.md) ve [güvenlik politikası](SECURITY.md)
+- [`good first issue`](https://github.com/yigitbuyukeren/ridedeck/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) etiketli açık işler
 
-Güncel işler açık issue'larda ve [`good first issue`](https://github.com/yigitbuyukeren/ridedeck/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) etiketinde izlenir; [docs/STATUS.md](docs/STATUS.md) tarihsel durum/kanıt kaydıdır, görev listesi değildir. Fikirler: yeni dil çevirileri, çevrimdışı rota hesaplama (büyük iş), tablet ve katlanabilir ekran düzenleri.
+Güncel durum ve saha kapıları [docs/STATUS.md](docs/STATUS.md) ve [docs/RELEASE_READINESS.md](docs/RELEASE_READINESS.md) içindedir. Fikirler: yeni dil çevirileri, çevrimdışı rota hesaplama (büyük iş), tablet ve katlanabilir ekran düzenleri.
 
 ### 📜 Lisans
 
@@ -214,10 +228,24 @@ Güncel işler açık issue'larda ve [`good first issue`](https://github.com/yig
 |:---:|:---:|:---:|
 | OpenStreetMap, motorcycle routing, waypoints and fuel stops | In-app phone (recents, contacts, keypad), music control, messages read aloud | Countdown after a hard impact and no movement, then one SMS per contact (up to 3) with your location |
 | 🗺️ **Offline map** | 🌦️ **Alerts** | 🔒 **Privacy** |
-| Existing offline areas are preserved; new downloads are paused until provider compliance is verified. Routing, search and weather need internet | Rain and ice alerts; the screen dims when the phone overheats | Data stays on the phone; only map, place-search, routing, fuel and weather queries leave the device. Spoken guidance uses Android TTS; text may reach the TTS provider if a networked voice is selected |
+| Existing offline areas are preserved; new downloads are paused until provider compliance is verified. Routing, search and weather need internet | Rain and ice alerts; the screen dims when the phone overheats | Trips and settings stay on the phone; map, routing, search, weather and speed-limit queries go to public providers. Spoken guidance uses Android text-to-speech |
 
-New offline downloads are temporarily disabled: the current SDK download path has not been verified against [OpenFreeMap's limits](https://openfreemap.org/tos/) (3,000 tiles or 50 MB, at most four concurrent requests, and an app-identifying User-Agent). Existing downloaded areas are preserved. Speed-limit readings expire from their request time (60 seconds); weather is discarded at the next freshness check after 30 minutes instead of being kept indefinitely after failed refreshes.
+New offline downloads are temporarily disabled: the current SDK download path has not been verified against [OpenFreeMap's limits](https://openfreemap.org/tos/) (3,000 tiles or 50 MB per download, at most four concurrent requests, and an app-identifying User-Agent; verified 2026-11-17). Existing downloaded areas are preserved. App-local throttling does not prove aggregate provider compliance, so new downloads and resume remain **BLOCKED**. Speed-limit readings expire from their request time (60 seconds); weather is discarded at the next freshness check after 30 minutes instead of being kept indefinitely after failed refreshes.
 
-RideDeck is a free, open-source Android app (Kotlin, Jetpack Compose, minSdk 26) that turns a phone into a CarPlay-style landscape dashboard for motorcycles: GPS speedometer, voice-guided OpenStreetMap navigation, fuel stops, weather alerts, music, an in-app phone and crash-detecting SOS. It is motorcycle-only; there is no vehicle picker. No accounts, API keys or RideDeck backend; navigation queries use free public map services. The UI has Turkish and English; spoken guidance follows the phone language (Turkish or English). Settings are grouped into six pages (General, Appearance, Map, Sound and alerts, Safety, Permissions and system) with a scrollable category rail and a single centered column, at most 820 dp wide. Build with `./gradlew assembleDebug` (JDK 17 and Android SDK 36). Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md), the [development guide](docs/DEVELOPMENT.md), the [architecture map](docs/ARCHITECTURE.md) and the [translation guide](docs/TRANSLATING.md). Questions go to [SUPPORT.md](SUPPORT.md); report vulnerabilities privately via [SECURITY.md](SECURITY.md). Please follow the [code of conduct](CODE_OF_CONDUCT.md). Technical write-up: [case study](docs/CASE-STUDY.en.md). Known limits: crash-detection thresholds and real SMS sending are not field-tested; screenshots and the demo GIF come from an emulator with simulated GPS; navigation, search and weather need a network connection (new offline map downloads are paused until provider compliance is verified, and routing does not work offline); explicitly started rides use a location foreground service to keep GPS and recording active with the screen off, independently of the overlay; location permission and GPS must be enabled, and system-stopped rides do not automatically restart; SMS send results distinguish confirmed, failed and unknown recipients; recipient delivery is not confirmed and there are no automatic retries. Speech pauses during calls and music does not automatically resume after a headset disconnects. SOS is an aid, not a safety guarantee.
+> **Status (17 November 2026):** the code stays at `0.6.0` / `versionCode 6`; no 1.0 release. The last full local JVM run passed **831/831** on debug and **831/831** on release (1662 total, 0 failures, 0 skipped); lint has **0 errors** (121 debug / 120 release warnings, not suppressed). The **204 instrumentation tests**: one `connectedDebugAndroidTest` run reported **203 passed + 1 skipped**; the skipped permission test passed separately (204 verified in total). Physical device, real SMS/call/intercom, Doze/OEM, 16 KB runtime and aggregate provider compliance are unverified, so the overall 1.0 decision remains **NO-GO**; a conditional beta only follows field validation.
+
+**Build and test (JDK 17):**
+
+```bash
+export JAVA_HOME=/path/to/jdk-17
+./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb shell settings put global cached_apps_freezer disabled   # emulator freezer, else Compose tests can hang
+./gradlew :app:connectedDebugAndroidTest
+```
+
+`local.properties` must set `sdk.dir` (not committed). The debug APK carries x86_64 and ARM natives for the emulator; release APK/AAB are ARM-only. CI runs unit tests, both lint variants, APK/AAB builds, alignment/ABI checks, gated signing and an x86_64 API 35 instrumentation job. Release APKs need a local `keystore.properties` (not committed); without it the release APK is unsigned.
+
+RideDeck is a free, open-source Android app (Kotlin, Jetpack Compose, minSdk 26) that turns a phone into a CarPlay-style landscape dashboard for motorcycles: GPS speedometer, voice-guided OpenStreetMap navigation, fuel stops, weather alerts, music, an in-app phone and crash-detecting SOS. It is motorcycle-only; there is no vehicle picker. No accounts, API keys or RideDeck backend; navigation queries use free public map services, and map/routing/search/weather/speed-limit requests leave the phone as described in the privacy section. The UI has Turkish and English; spoken guidance follows the phone language (Turkish or English). Settings are grouped into six pages (General, Appearance, Map, Sound and alerts, Safety, Permissions and system) with a scrollable category rail and a single centered column, at most 820 dp wide. Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md), the [development guide](docs/DEVELOPMENT.md), the [architecture map](docs/ARCHITECTURE.md) and the [translation guide](docs/TRANSLATING.md); questions go to [SUPPORT.md](SUPPORT.md), and vulnerabilities should be reported via [SECURITY.md](SECURITY.md). Please follow the [code of conduct](CODE_OF_CONDUCT.md). Technical write-up: [case study](docs/CASE-STUDY.en.md). Known limits: crash-detection thresholds and real SMS sending are not field-tested; screenshots and the demo GIF come from an emulator with simulated GPS; navigation, search and weather need a network connection (offline map downloads are subject to provider limits, and routing does not work offline); explicitly started rides use a location foreground service to keep GPS and recording active with the screen off, independently of the overlay; location permission and GPS must be enabled, and system-stopped rides do not automatically restart; SMS send results distinguish confirmed, failed and unknown recipients; recipient delivery is not confirmed and there are no automatic retries. A countdown that starts with the screen off is raised over the keyguard with a notification, full-screen intent and wake lock; if there is no notification the app is launched when the OS permits a background activity start (overlay access on Android 10+), and if FSI is denied the high-priority notification remains, while sound/vibration/SMS still run. This is not verified on a real locked device or OEM build. Speech pauses during calls and music does not automatically resume after a headset disconnects. SOS is an aid, not a safety guarantee.
 
 </details>

@@ -31,6 +31,8 @@ internal class RouteQuoteRouting(
     private val requestBody: RouteRequestBodyBuilder,
     private val delegate: Routing,
     private val miles: () -> Boolean,
+    /** The shared provider gate; a detour quote must not open a third Valhalla connection. */
+    private val http: ServiceHttp = ProviderHttp,
 ) : Routing {
     override suspend fun route(from: GeoPoint, to: GeoPoint, options: RouteOptions): Result<Route> =
         route(from, to, options, null)
@@ -49,7 +51,7 @@ internal class RouteQuoteRouting(
         safely("route-quote") {
             val useMiles = miles()
             val body = requestBody.build(points, options, useMiles, alternates = 0, headingDeg)
-            val reply = Http.postJsonCancellable(VALHALLA_ROUTE, body.toString())
+            val reply = http.postJson(VALHALLA_ROUTE, body.toString())
             TripParser.parse(
                 JSONObject(reply).getJSONObject("trip"),
                 if (useMiles) METRES_PER_MILE else 1000.0,

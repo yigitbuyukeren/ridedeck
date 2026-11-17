@@ -30,7 +30,7 @@ Closes #
 ## Kontrol listesi
 - [ ] Değişiklik tek konuya odaklı; ilgisiz düzeltme yok.
 - [ ] Yeni davranış için birim testi ekledim veya test gerekmediğini açıkladım.
-- [ ] Kullanıcıya görünen metinleri ilgili `app/src/main/res/values/strings*.xml` ve `values-en/strings*.xml` dosyalarında (ör. `strings.xml`, varsa `strings_data.xml`) birlikte güncelledim (veya metin değişikliği yok).
+- [ ] Kullanıcıya görünen metinleri ilgili `app/src/main/res/values/strings*.xml` ve `values-en/strings*.xml` dosyalarında (`strings.xml`, `strings_data.xml`, `strings_nav.xml`, `strings_sos.xml`, `strings_ui.xml`) birlikte güncelledim (veya metin değişikliği yok).
 - [ ] Sürüş güvenliği ve motosiklet-only ilkesi korundu: sürerken yazı girişi yok, yeni dokunma hedefleri 64–84 dp (mevcut istisnalar ayrı), yüksek kontrast.
 - [ ] Yeni genel ağ çağrıları `app/src/main/java/com/ridedeck/app/data/Http.kt` üzerinden (MapLibre karo istekleri hariç); yeni dış servis varsa issue'da tartışıldı.
 - [ ] `local.properties`, `keystore.properties`, `*.jks`, `.env` veya başka gizli dosya/anahtar commit edilmedi.

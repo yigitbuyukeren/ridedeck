@@ -4,6 +4,7 @@ import com.ridedeck.app.data.GeoPoint
 import com.ridedeck.app.data.LocationState
 import com.ridedeck.app.data.SpeedLimitController
 import com.ridedeck.app.data.SpeedLimitLookup
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,10 +21,16 @@ class SpeedLimitControllerTest {
     /** Each call stays pending until the test answers it, so reply order is explicit. */
     private class ControlledLookup : SpeedLimitLookup {
         val pending = mutableListOf<CompletableDeferred<Result<Int?>>>()
+        var cancelled = 0
         override suspend fun limitAt(trail: List<GeoPoint>): Result<Int?> {
             val reply = CompletableDeferred<Result<Int?>>()
             pending += reply
-            return reply.await()
+            try {
+                return reply.await()
+            } catch (e: CancellationException) {
+                cancelled++
+                throw e
+            }
         }
     }
 
@@ -252,6 +259,76 @@ class SpeedLimitControllerTest {
         // Still measured at 12_000, even though a request ran and failed at 20_000.
         rig.fix(72_001, 0.0020)
         runCurrent()
+        assertNull(rig.controller.limit.value)
+    }
+
+    @Test
+    fun failedLookupsBackOffBeforeTryingAgain() = runTest {
+        val rig = Rig(this)
+        runCurrent()
+        requestLimit(rig, 10_000)
+        rig.lookup.pending[0].complete(Result.failure(IllegalStateException("offline")))
+        runCurrent()
+
+        // The failed request was measured at fix 12_000: no retry before 42_000 even though the interval passed.
+        rig.fix(20_000, 0.0020)
+        runCurrent()
+        assertEquals(1, rig.lookup.pending.size)
+        rig.fix(42_000, 0.0030)
+        runCurrent()
+        assertEquals(2, rig.lookup.pending.size)
+
+        // The next failure waits 60 s from 42_000.
+        rig.lookup.pending[1].complete(Result.failure(IllegalStateException("offline")))
+        runCurrent()
+        rig.fix(60_000, 0.0040)
+        runCurrent()
+        assertEquals(2, rig.lookup.pending.size)
+        rig.fix(102_000, 0.0050)
+        runCurrent()
+        assertEquals(3, rig.lookup.pending.size)
+    }
+
+    @Test
+    fun successfulLookupResetsTheFailureBackoff() = runTest {
+        val rig = Rig(this)
+        runCurrent()
+        requestLimit(rig, 10_000)
+        rig.lookup.pending[0].complete(Result.failure(IllegalStateException("offline")))
+        runCurrent()
+        rig.fix(42_000, 0.0030)
+        runCurrent()
+        assertEquals(2, rig.lookup.pending.size)
+
+        rig.lookup.pending[1].complete(Result.success(50))
+        runCurrent()
+        assertEquals(50, rig.controller.limit.value)
+
+        rig.fix(52_000, 0.0040)
+        runCurrent()
+        assertEquals(3, rig.lookup.pending.size)
+        rig.lookup.pending[2].complete(Result.failure(IllegalStateException("offline")))
+        runCurrent()
+        // Back to the first step: 30 s from the request's fix (52_000), not the 60 s cap.
+        rig.fix(81_000, 0.0050)
+        runCurrent()
+        assertEquals(3, rig.lookup.pending.size)
+        rig.fix(82_000, 0.0060)
+        runCurrent()
+        assertEquals(4, rig.lookup.pending.size)
+    }
+
+    @Test
+    fun deactivationCancelsTheInFlightLookup() = runTest {
+        val rig = Rig(this)
+        runCurrent()
+        requestLimit(rig, 10_000)
+        assertEquals(1, rig.lookup.pending.size)
+
+        rig.active.value = false
+        runCurrent()
+
+        assertEquals(1, rig.lookup.cancelled)
         assertNull(rig.controller.limit.value)
     }
 }

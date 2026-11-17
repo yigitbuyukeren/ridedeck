@@ -38,7 +38,7 @@ Gereksinimler:
 - **JDK 17** (Temurin veya Android Studio'nun getirdiği JDK 17)
 - **Android Studio** (son kararlı sürüm) veya komut satırı araçları
 - **Android SDK Platform 36** ve **Build-Tools 36.0.0**
-- **Android SDK Platform-Tools** (`adb`) ve isteğe bağlı bir emülatör (API 35/36, ARM64 system image)
+- **Android SDK Platform-Tools** (`adb`) ve isteğe bağlı bir emülatör (API 35/36; x86_64 veya ARM64)
 - Git
 
 Fork'unu klonla ve upstream'i ekle:
@@ -62,7 +62,7 @@ export JAVA_HOME=/yol/jdk-17
 ./gradlew testDebugUnitTest assembleDebug
 ```
 
-APK: `app/build/outputs/apk/debug/app-debug.apk`. Emülatörde denemek için ARM64 system image gerekir; proje yalnız ARM native kütüphaneleri üretir, x86_64 AVD'de kurulum `INSTALL_FAILED_NO_MATCHING_ABIS` ile düşer. Ayrıntılı kurulum, emülatör, sahte GPS, tek test çalıştırma ve sorun giderme için [geliştirme rehberine](docs/DEVELOPMENT.md) bak.
+APK: `app/build/outputs/apk/debug/app-debug.apk`. Debug APK x86_64 ve ARM native kütüphaneleri taşır; release APK/AAB yalnız ARM'dır. x86_64 AVD debug ve instrumentation için çalışır. Ayrıntılı kurulum, emülatör, sahte GPS, tek test çalıştırma ve sorun giderme için [geliştirme rehberine](docs/DEVELOPMENT.md) bak.
 
 ## Proje yapısı
 
@@ -87,9 +87,9 @@ Mimari ve veri akışı için [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) dosya
 - **Motosiklet odaklı kal.** Araç seçici, araba/bisiklet profili veya araca göre dallanan yeni davranış ekleme. Uygulama tek bir motosiklet deneyimi sunar. Gösterge üst sınırı, kaza eşiği ve durak türü gibi motosiklet sabitleri `data/VehicleProfile.kt` içindeki `ProfileConfig` üzerinden gelir; yeni sabiti oraya ekle, koda dağınık `if` serpiştirme.
 - **Sürüş güvenliği pazarlık konusu değildir.** Sürerken yazı girişi, küçük dokunma hedefi veya dikkat dağıtan animasyon ekleme. Dokunma hedefi kuralı 64–84 dp'dir; yeni hedefler bu aralığın altına inmemeli, mevcut 56 dp istisnaları ayrı iyileştirme olarak ele alınmalı. Kontrast yüksek, metinler kısa olmalı.
 - **Yatay ve büyük yazıyı düşün.** Arayüz yatay gidon düzeninde çalışır; dar ekran için `isNarrowScreen()`, sabit alanlarda taşmayı önlemek için `cappedSp()` kullanılır. Sistem yazı boyutu 2,0× iken de dene.
-- **Kullanıcıya görünen her metin kaynak dosyada olur.** Metinler `app/src/main/res/values/strings*.xml` (Türkçe) ve `app/src/main/res/values-en/strings*.xml` (İngilizce) altındadır; çoğu metin `strings.xml`, ayrı gruplar (varsa) `strings_data.xml` gibi dosyalarda olabilir. Aynı anahtarı iki dilde birlikte güncelle. Çeviri için [docs/TRANSLATING.md](docs/TRANSLATING.md).
+- **Kullanıcıya görünen her metin kaynak dosyada olur.** Metinler `app/src/main/res/values/strings*.xml` (Türkçe) ve `app/src/main/res/values-en/strings*.xml` (İngilizce) altındadır; `strings.xml`, `strings_data.xml`, `strings_nav.xml`, `strings_sos.xml`, `strings_ui.xml` grupları vardır. Aynı anahtarı iki dilde birlikte güncelle. Çeviri için [docs/TRANSLATING.md](docs/TRANSLATING.md).
 - **Saf mantığı Android kabuğundan ayır.** Hız filtresi, rota eşleme, SOS matematiği gibi çekirdekler Android API'sine bağlı olmamalı; saat/sensör girdisi dışarıdan gelmeli ve JVM testi yazılabilmeli.
-- **Tek ağ çıkışı.** Genel servis çağrıları `data/Http.kt` üzerinden yapılır (MapLibre'nin harita karo istekleri motorun kendi ağ katmanındadır). Yeni bir dış servis eklemeden önce issue'da tartış; servis ücretsiz, anahtarsız ve kullanım koşullarına uygun olmalı.
+- **Tek ağ geçidi.** Genel servis çağrıları `data/Http.kt`/`ProviderHttp` üzerinden yapılır (MapLibre'nin harita karo istekleri motorun kendi ağ katmanındadır). Yeni bir dış servis eklemeden önce issue'da tartış; servis ücretsiz, anahtarsız ve kullanım koşullarına uygun olmalı.
 - **Veri telefonda kalır.** Hesap, analitik, reklam veya RideDeck sunucusu yoktur. Yeni bir veri toplama/aktarma yolu ekleme.
 - **Gizli bilgi commit etme.** `local.properties`, `keystore.properties`, `*.jks`, `*.keystore`, `.env` ve imza parolaları depoya girmez.
 - **Yalnız kaynağı commit et.** `build/`, `.gradle/`, `captures/`, `.idea/` ve yerel yapılandırma Git'e girmez; zorla ekleme.
@@ -109,8 +109,8 @@ Değişikliğin büyüklüğüne göre en azından ilgili testleri çalıştır:
 # Debug APK
 ./gradlew assembleDebug
 
-# CI build işindeki ana Gradle komutu (debug + release test/lint, APK'lar, instrumentation derlemesi)
-./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest
+# CI build işindeki ana Gradle komutu (debug + release test/lint, APK'lar, AAB, instrumentation derlemesi)
+./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease
 ```
 
 Tek bir test sınıfı:
@@ -120,7 +120,7 @@ Tek bir test sınıfı:
 ```
 
 - Yeni mantık için `app/src/test` altında birim testi ekle. Hata düzeltiyorsan hatayı önce yakalayan bir regresyon testi yaz.
-- Compose/Android davranışı için `app/src/androidTest` altında instrumentation testi ekleyebilirsin. CI bu testleri **derler**, cihazda çalıştırmaz; elle emülatör/cihaz denemesi ayrı bir kanıttır. Yerelde `./gradlew connectedDebugAndroidTest` ile çalıştır.
+- Compose/Android davranışı için `app/src/androidTest` altında instrumentation testi ekleyebilirsin. CI bu testleri x86_64 API 35 emülatöründe çalıştırır; elle fiziksel cihaz denemesi ayrı bir kanıttır. Yerelde `./gradlew connectedDebugAndroidTest` ile çalıştır.
 - Arayüz değişikliğinde ekran görüntüsü ekle. Emülatörde alınan görüntüyü "gerçek cihazda doğrulandı" diye sunma; hangi ortamda alındığını yaz.
 - Testleri gevşetme, başarısız testi silme veya yalnızca testi geçirmek için üretim davranışını değiştirme.
 - Navigasyon, GPS, SOS, arama ve müzik gibi kritik yolları değiştirdiysen ilgili testleri ve varsa emülatör/cihaz denemesini PR'da ayrıca belirt.
@@ -141,7 +141,7 @@ Tek bir test sınıfı:
 - [`good first issue`](https://github.com/yigitbuyukeren/ridedeck/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) etiketli issue'lara bak; yoksa belge düzeltmesi, çeviri, test kapsamı veya küçük bir arayüz düzeltmesi öner.
 - `help wanted` dışarıdan yardım bekleyen, `accessibility` erişilebilirlik, `documentation` belge/çeviri, `question` ise soru niteliğindeki konular içindir.
 - Navigasyon çekirdeği, SOS/kaza algılama, GPS ve izin akışı yüksek riskli alanlardır. Bu alanlarda çalışmadan önce issue'da yaklaşımı netleştir.
-- `docs/STATUS.md` tarihsel durum ve kanıt kaydıdır; güncel görev listesi değildir. Güncel işler açık issue'larda izlenir.
+- `docs/STATUS.md` güncel durum/kanıt kaydıdır; açık işler GitHub issue'larında izlenir.
 - Emin değilsen issue'ya "bunu almak istiyorum, yaklaşım şu olur mu?" diye yaz. Bu, boşa emek harcamayı önler.
 
 ## Çeviri
@@ -163,10 +163,10 @@ RideDeck is a motorcycle-only Android dashboard (Kotlin, Jetpack Compose, minSdk
 
 1. Fork, clone, add `upstream`, and set `sdk.dir` in `local.properties`.
 2. Use JDK 17 and Android SDK 36. Build with `./gradlew testDebugUnitTest assembleDebug`.
-3. Keep changes focused. Add a JVM test for new logic; add a Compose/instrumentation test when UI behavior changes. The CI compiles instrumentation tests but does not run them on a device; a physical-device check is still separate evidence.
+3. Keep changes focused. Add a JVM test for new logic; add a Compose/instrumentation test when UI behavior changes. CI runs the instrumentation suite on an x86_64 API 35 emulator; a physical-device check is still separate evidence.
 4. Update the relevant `app/src/main/res/values/strings*.xml` and `values-en/strings*.xml` files (for example `strings.xml`, plus `strings_data.xml` if present) for user-facing text.
 5. Preserve the driving-safety rules: no text input while riding, 64–84 dp target touch areas (existing 56 dp exceptions need separate fixes), high contrast, landscape layout, and large-font support.
-6. Route general network calls through `app/src/main/java/com/ridedeck/app/data/Http.kt` (MapLibre tile requests stay in the map engine). Do not add accounts, API keys, analytics, or a new external service without an issue.
+6. Route general network calls through `app/src/main/java/com/ridedeck/app/data/Http.kt`/`ProviderHttp` (MapLibre tile requests stay in the map engine). Do not add accounts, API keys, analytics, or a new external service without an issue.
 7. Never commit `local.properties`, `keystore.properties`, `*.jks`, or secrets. Report vulnerabilities privately via [SECURITY.md](SECURITY.md).
 8. Do not paste real locations, phone numbers, contact names or SMS content; anonymise logs and screenshots.
 9. Open a PR with the problem, the change, and test evidence. Link the issue with `Closes #123`.

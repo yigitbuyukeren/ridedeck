@@ -30,11 +30,11 @@ Gerçek zamanlı acil durum, tıbbi yardım, kaza müdahalesi veya güvenlik gar
 - Kurulum, özellikler ve bilinen sınırlamalar: [README.md](README.md)
 - Derleme, test ve emülatör: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 - Mimari ve kod haritası: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- Tarihsel durum ve doğrulanmamış saha işleri: [docs/STATUS.md](docs/STATUS.md), [docs/RELEASE_READINESS.md](docs/RELEASE_READINESS.md)
+- Güncel durum ve doğrulanmamış saha işleri: [docs/STATUS.md](docs/STATUS.md), [docs/RELEASE_READINESS.md](docs/RELEASE_READINESS.md)
 - Katkı süreci: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Davranış kuralları: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
-`docs/STATUS.md` tarihsel bir durum/kanıt kaydıdır; güncel görev listesi değildir. Güncel işler açık issue'larda izlenir.
+`docs/STATUS.md` güncel durum/kanıt kaydıdır; tarihli eski bölümler tarihseldir ve güncel görev listesi değildir. Güncel işler açık issue'larda izlenir.
 
 ## Yanıt süresi
 

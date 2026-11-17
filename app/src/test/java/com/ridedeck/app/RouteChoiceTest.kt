@@ -42,7 +42,9 @@ class RouteChoiceTest {
     }
 
     private fun shifted(r: Route, lon: Double, extraM: Double) =
-        Route(r.shape.map { GeoPoint(it.lat, it.lon + lon) }, r.maneuvers, r.distanceM + extraM, r.durationS + 60)
+        // Providers return alternatives from the same requested origin; keep the first point
+        // fixed so the start-corridor guard behaves as it does in production.
+        Route(r.shape.mapIndexed { i, p -> if (i == 0) p else GeoPoint(p.lat, p.lon + lon) }, r.maneuvers, r.distanceM + extraM, r.durationS + 60)
 
     @Test
     fun alternativesArePreviewedAndSelectable() {

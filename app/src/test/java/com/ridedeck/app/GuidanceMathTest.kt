@@ -5,6 +5,8 @@ import com.ridedeck.app.data.Maneuver
 import com.ridedeck.app.data.PromptSchedule
 import com.ridedeck.app.data.Route
 import com.ridedeck.app.data.RouteMatcher
+import com.ridedeck.app.data.RouteStartBlock
+import com.ridedeck.app.data.RouteStartGuard
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -110,6 +112,33 @@ class GuidanceMathTest {
         // Without manoeuvre times it falls back to the proportional estimate.
         val flat = Route(shape, ms.map { it.copy(timeS = 0.0) }, 2000.0, 250.0)
         assertEquals(125.0, flat.remainingTimeS(r.cumulative[10]), 3.0)
+    }
+
+    @Test
+    fun routeStartGuardAcceptsOnlyTheFirstStretchOfTheRoute() {
+        val shape = (0..20).map { GeoPoint(41.0 + it * 0.0009, 29.0) } // ~100 m segments, 2 km
+        val route = Route(shape, listOf(Maneuver(1, "", "", "", 2000.0, 0)), 2000.0, 200.0)
+
+        assertEquals(RouteStartBlock.NONE, RouteStartGuard.evaluate(route, shape[0], speedMps = 0.0, accuracyM = 5))
+        assertEquals(RouteStartBlock.NONE, RouteStartGuard.evaluate(route, shape[1], speedMps = 5.0, accuracyM = 5))
+        // A rider who rolled a few hundred metres along the same preview route may start there.
+        val onRoute = RouteStartGuard.check(route, shape[3], speedMps = 5.0, accuracyM = 5)
+        assertEquals(RouteStartBlock.NONE, onRoute.block)
+        assertEquals(2, onRoute.startIndex) // at the shared vertex, the segment ending there is matched
+        // Past the first 500 m the route ahead is no longer a sane start for this preview.
+        assertEquals(RouteStartBlock.OFF_START, RouteStartGuard.evaluate(route, shape[6], speedMps = 5.0, accuracyM = 5))
+        // A rider parked just off the snapped road at the route origin can still start: the gap is
+        // the provider's snap distance, not a stale preview. 50 m east is beyond the 45 m off-route
+        // distance but inside the origin snap allowance.
+        assertEquals(
+            RouteStartBlock.NONE,
+            RouteStartGuard.evaluate(route, GeoPoint(41.0, 29.0006), speedMps = 0.0, accuracyM = 5),
+        )
+        // 400 m beside the road at the very start is not a usable start either.
+        assertEquals(
+            RouteStartBlock.OFF_START,
+            RouteStartGuard.evaluate(route, GeoPoint(41.0, 29.005), speedMps = 0.0, accuracyM = 5),
+        )
     }
 }
 

@@ -15,7 +15,7 @@ RideDeck tek modüllü bir Android uygulamasıdır: Kotlin, Jetpack Compose, `mi
 | Android SDK Platform | **36** |
 | Android Build-Tools | **36.0.0** (CI'daki `zipalign` kontrolü bunu kullanır) |
 | Android Platform-Tools | `adb` için |
-| Emülatör | API 35 veya 36, yatay kullanım için uygun |
+| Emülatör | API 35/36; x86_64 veya ARM64 system image |
 | Git | Güncel bir sürüm |
 | Python 3 | Yalnız APK hizalama betiği ve bazı yardımcı kontroller için isteğe bağlı |
 
@@ -62,10 +62,12 @@ Debug APK: `app/build/outputs/apk/debug/app-debug.apk`.
 | `./gradlew lintRelease` | Release lint |
 | `./gradlew assembleDebug` | Debug APK |
 | `./gradlew assembleRelease` | R8 ile küçültülmüş release APK; imza anahtarı yoksa imzasız çıkar |
-| `./gradlew bundleRelease` | Release AAB (`app/build/outputs/bundle/release/app-release.aab`); isteğe bağlı, CI'da üretilmez |
+| `./gradlew bundleRelease` | Release AAB (`app/build/outputs/bundle/release/app-release.aab`) |
 | `./gradlew assembleDebugAndroidTest` | Instrumentation test APK'sını derler (cihazda çalıştırmaz) |
 | `./gradlew connectedDebugAndroidTest` | Bağlı cihaz/emülatörde instrumentation testlerini çalıştırır |
-| `./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest` | CI build işinin ana Gradle komutu |
+| `./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease` | CI build işinin ana Gradle komutu |
+
+Debug APK `x86_64`, `arm64-v8a` ve `armeabi-v7a` native kütüphanelerini taşır; release APK/AAB yalnız ARM'dır. x86_64 AVD debug ve instrumentation için kullanılabilir.
 
 Tek test sınıfı veya metodu:
 
@@ -87,7 +89,7 @@ Raporlar:
 - Instrumentation: `app/build/reports/androidTests/connected/debug/index.html`
 - Lint: `app/build/reports/lint-results-debug.html`, `lint-results-release.html`
 
-CI, instrumentation testlerini **derler**; cihazda çalıştırmaz. `connectedDebugAndroidTest` ayrı bir emülatör/cihaz adımıdır. Bir testi geçirmek için üretim kodunu veya test beklentisini gevşetme.
+CI, instrumentation testlerini ayrı bir işte x86_64 API 35 emülatöründe çalıştırır; emülatörde `adb shell settings put global cached_apps_freezer disabled` gerekir. `RideDeckTestRunner` test sürecini sonuçtan sonra kapatır. Elle fiziksel cihaz denemesi ayrı bir doğrulamadır. Bir testi geçirmek için üretim kodunu veya test beklentisini gevşetme.
 
 ## 4. Proje düzeni
 
@@ -127,7 +129,7 @@ data/Http.kt       = genel servis çağrılarının tek çıkışı
 Temel ilkeler:
 
 - **Saf mantık + ince Android kabuğu.** Hız filtresi, rota eşleme, SOS matematiği, ısınma koruması gibi çekirdekler Android API'sine bağımlı değildir; saat ve sensör girdisi dışarıdan verilir. Bu yüzden telefon olmadan test edilebilirler.
-- **Tek ağ çıkışı.** Nominatim, Valhalla, Open-Meteo ve Overpass çağrıları `data/Http.kt` üzerinden gider; tek `User-Agent` ve ortak hata/iptal davranışı vardır. MapLibre'nin harita karo istekleri motorun kendi ağ katmanındadır.
+- **Tek ağ geçidi.** Nominatim, Valhalla, Open-Meteo ve Overpass çağrıları `data/Http.kt`/`ProviderHttp` üzerinden gider; tek `User-Agent`, ortak hata/iptal ve sağlayıcı bazlı eşzamanlılık/aralık vardır. MapLibre'nin harita karo istekleri motorun kendi ağ katmanındadır.
 - **Ömür.** `RideSafety` ve `RideNavigation` uygulama sürecinde yaşar; ekran kapansa da başlatılmış yolculuk ve SOS devam eder. Ekran durumu `DashboardViewModel` ve Compose'dadır.
 - **Yerel veri.** Yolculuklar, kayıtlı yerler ve tercihler telefonda tutulur. Rota geometrisi süreç ölümünden sonra yalnız önizleme olarak geri gelir; çevrimdışı rota hesabı yoktur.
 - **Motosiklet-only.** Araç seçici veya araba/bisiklet profili yoktur. Motosiklet sabitleri (gösterge üst sınırı, kaza eşiği, durak türü) `data/VehicleProfile.kt` içindeki `ProfileConfig` üzerinden gelir; yeni bir araç profili ekleme.
@@ -136,7 +138,7 @@ Ayrıntılı paket haritası ve "nerede ne değiştirilir?" tablosu: [ARCHITECTU
 
 ## 6. Emülatörde çalıştırma
 
-Android Studio'da bir AVD oluştur (API 35/36, yatay, **ARM64 system image**). Proje yalnız `arm64-v8a`/`armeabi-v7a` native kütüphaneleri üretir; standart x86_64 AVD'de `adb install` ve `connectedDebugAndroidTest` `INSTALL_FAILED_NO_MATCHING_ABIS` ile düşer. ARM64 emülatör veya fiziksel ARM cihaz kullan. Komut satırıyla:
+Android Studio'da bir AVD oluştur (API 35/36, **x86_64 veya ARM64 system image**). Debug APK x86_64 ve ARM yerellerini taşır; release APK/AAB yalnız ARM'dır. x86_64 AVD debug ve instrumentation için kullanılabilir. Komut satırıyla:
 
 ```bash
 # Bağlı cihazları gör
@@ -149,7 +151,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n com.ridedeck.app/.MainActivity
 ```
 
-Uygulama yatay (sensor landscape) çalışır. İlk açılışta yalnız konum izni istenir; telefon, müzik, bildirim ve SMS izinleri ilgili özelliği açarken sorulur.
+Uygulama yatay (sensor landscape) çalışır. İlk açılışta yalnız konum izni istenir; telefon, müzik, bildirim ve SMS izinleri ilgili özelliği açarken sorulur. Instrumentation koşusundan önce emülatör uygulama dondurucusunu kapat: `adb shell settings put global cached_apps_freezer disabled`.
 
 ### Sahte GPS
 
@@ -180,7 +182,7 @@ Logcat ve ekran görüntülerini paylaşmadan önce konum, telefon numarası, ki
 
 ### Metin ekleme veya düzeltme
 
-1. Anahtarı ilgili `app/src/main/res/values/strings*.xml` (Türkçe) ve `values-en/strings*.xml` (İngilizce) dosyasına ekle. Çoğu metin `strings.xml`; ayrı gruplar (varsa) `strings_data.xml` gibi dosyalarda olabilir.
+1. Anahtarı ilgili `app/src/main/res/values/strings*.xml` (Türkçe) ve `values-en/strings*.xml` (İngilizce) dosyasına ekle. Gruplar: `strings.xml`, `strings_data.xml`, `strings_nav.xml`, `strings_sos.xml`, `strings_ui.xml`.
 2. `stringResource(R.string.yeni_anahtar)` ile kullan; kullanıcıya görünen metni koda gömme.
 3. Biçim yer tutucularını (`%1$s`, `%2$d`) iki dilde aynı sırayla koru.
 4. Uzun metni dar ekranda ve 2,0× yazı boyutunda dene.
@@ -219,7 +221,7 @@ Bu alanlar sürüş güvenliğini doğrudan etkiler.
 - Kullanıcıya görünen özellik/sınır değiştiyse `README.md`.
 - Mimari veya geliştirme akışı değiştiyse `docs/ARCHITECTURE.md` / bu dosya.
 - Tamamlanan işin kanıtı ve tarihsel durum için `docs/STATUS.md`; yayın kapıları için `docs/RELEASE_READINESS.md`.
-- `docs/STATUS.md` tarihsel kayıttır; eski test sayılarını güncel sonuç gibi sunma.
+- `docs/STATUS.md` güncel durum/kanıttır; tarihli eski bölümlerdeki test sayılarını güncel sonuç gibi sunma.
 
 ## 8. Kod stili ve kalite
 
@@ -272,13 +274,13 @@ SDK="${ANDROID_HOME:-$(sed -n 's/^sdk.dir=//p' local.properties 2>/dev/null)}"
 ```
 
 - Etiket, GitHub release, APK yayını ve mağaza dağıtımı açık talimat olmadan yapılmaz.
-- CI artifact'ları: debug APK, androidTest APK, imzasız release APK ile test/lint raporları.
+- CI artifact'ları: debug APK, androidTest APK, imzalı/imzasız release APK, release AAB, test/lint ve instrumentation raporları.
 
 ## 11. Yardım
 
 - Sorular ve katkı yolları: [SUPPORT.md](../SUPPORT.md)
 - Katkı süreci: [CONTRIBUTING.md](../CONTRIBUTING.md)
 - Güvenlik: [SECURITY.md](../SECURITY.md)
-- Tarihsel durum ve açık saha kapıları: [STATUS.md](STATUS.md), [RELEASE_READINESS.md](RELEASE_READINESS.md)
+- Güncel durum ve açık saha kapıları: [STATUS.md](STATUS.md), [RELEASE_READINESS.md](RELEASE_READINESS.md)
 
 RideDeck gönüllü bir açık kaynak projesidir; yanıt süresi garanti edilmez. Sorunu net, tekrarlanabilir ve kişisel veriden arındırılmış biçimde paylaşmak en hızlı yardım yoludur.

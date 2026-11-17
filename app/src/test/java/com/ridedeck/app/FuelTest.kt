@@ -3,7 +3,21 @@ package com.ridedeck.app
 import com.ridedeck.app.data.FuelMath
 import com.ridedeck.app.data.Geo
 import com.ridedeck.app.data.GeoPoint
+import com.ridedeck.app.data.ServiceHttp
+import com.ridedeck.app.data.firstAnswerOf
+import com.ridedeck.app.data.overpassAttempts
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -107,5 +121,64 @@ class FuelTest {
         val beside = com.ridedeck.app.data.FuelStation(com.ridedeck.app.data.Place("Near", "", GeoPoint(41.02, 29.003)), 0)   // about 250 m east
         val far = com.ridedeck.app.data.FuelStation(com.ridedeck.app.data.Place("Far", "", GeoPoint(41.02, 29.02)), 0)        // about 1.7 km east
         assertEquals(listOf("Near"), FuelMath.alongRoute(listOf(beside, far), road).map { it.place.name })
+    }
+
+    @Test
+    fun overpassUsesAtMostTwoDistinctOperators() {
+        val attempts = overpassAttempts()
+        assertEquals(2, attempts.size)
+        assertEquals(2, attempts.map { it.operator }.distinct().size)
+        assertFalse("the same-operator pair must not both be used", attempts.any { it.url.contains("private.coffee") })
+    }
+
+    @Test
+    fun firstOverpassAnswerWinsAndCancelsTheOtherMirror() = runBlocking {
+        val bothStarted = Channel<Unit>(2)
+        val releaseFirst = CompletableDeferred<String>()
+        val http = object : ServiceHttp {
+            val calls = CopyOnWriteArrayList<String>()
+            val cancelled = AtomicInteger()
+
+            override suspend fun postForm(
+                url: String,
+                body: String,
+                connectMs: Int,
+                readMs: Int,
+                headers: Map<String, String>,
+            ): String {
+                calls += url
+                bothStarted.send(Unit)
+                try {
+                    return if (url.contains("overpass-api.de")) releaseFirst.await() else awaitCancellation()
+                } catch (e: CancellationException) {
+                    cancelled.incrementAndGet()
+                    throw e
+                }
+            }
+
+            override suspend fun get(url: String, connectMs: Int, readMs: Int, headers: Map<String, String>): String =
+                error("unused")
+
+            override suspend fun postJson(
+                url: String,
+                body: String,
+                connectMs: Int,
+                readMs: Int,
+                emptyOn400: Boolean,
+                headers: Map<String, String>,
+            ): String = error("unused")
+        }
+
+        var answer: String? = null
+        val job = launch(Dispatchers.Default) {
+            answer = withTimeout(5_000) { firstAnswerOf("data=x", overpassAttempts(), http) }
+        }
+        repeat(2) { withTimeout(5_000) { bothStarted.receive() } }
+        releaseFirst.complete("""{"elements":[]}""")
+        withTimeout(5_000) { job.join() }
+
+        assertEquals("""{"elements":[]}""", answer)
+        assertEquals("at most two operators may be contacted", 2, http.calls.size)
+        assertTrue("the slower mirror must be cancelled", http.cancelled.get() >= 1)
     }
 }

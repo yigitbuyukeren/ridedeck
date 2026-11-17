@@ -3,6 +3,7 @@
 !.env.example
 *.iml
 .gradle/
+.kotlin/
 build/
 local.properties
 .idea/

@@ -183,3 +183,54 @@ object RouteMatcher {
     /** Consecutive off-route fixes needed; fewer when fast so the turn-around is not noticed late. */
     fun offRouteFixes(speedMps: Double): Int = if (speedMps >= 20) 3 else 4
 }
+
+/** Why a previewed route may not start guidance. */
+enum class RouteStartBlock { NONE, OFF_START }
+
+/** A usable start position on the route, or the reason the preview cannot start. */
+data class RouteStartCheck(val block: RouteStartBlock, val startIndex: Int = 0)
+
+/**
+ * Start-position sanity for a freshly computed route.
+ *
+ * A route is computed from the then-current fix. If the rider has since moved off that road (or the
+ * preview was left open for a long time), starting it would guide from a road the bike is not on.
+ * Only the first [SEARCH_CORRIDOR_M] metres of the route are searched, and the projection must be
+ * within the normal off-route distance and no further along than [MAX_ALONG_M]. Within that corridor
+ * guidance starts at the matched segment, so a rider who rolled a few hundred metres along the same
+ * preview route is not blocked. This is a pure function so tests need no GPS or network.
+ */
+object RouteStartGuard {
+    /** The start (or a position within the first stretch) must be this close along the route. */
+    const val MAX_ALONG_M = 500.0
+    /** Only the beginning of the route is considered; a route that passes nearby later is not a start. */
+    const val SEARCH_CORRIDOR_M = 500.0
+
+    /**
+     * A route is snapped to the nearest road, so a rider parked in a lot, courtyard or ferry deck can
+     * legitimately be tens of metres from the route's first shape point. This allowance lets that
+     * rider start without weakening the check for a route left behind far away.
+     */
+    const val ORIGIN_SNAP_ALLOWANCE_M = 120.0
+
+    fun check(route: Route, fix: GeoPoint, speedMps: Double, accuracyM: Int?): RouteStartCheck {
+        if (route.shape.size < 2) return RouteStartCheck(RouteStartBlock.OFF_START)
+        var end = 0
+        while (end < route.shape.size - 2 && route.cumulative[end + 1] <= SEARCH_CORRIDOR_M) end++
+        val match = RouteMatcher.match(route.shape, fix, 0, end, null, speedMps)
+        val alongM = route.cumulative[match.index] +
+            match.projection.fraction * (route.cumulative[match.index + 1] - route.cumulative[match.index])
+        val onRoad = match.projection.distanceM <= RouteMatcher.offRouteM(speedMps, accuracyM)
+        // The provider snapped the route away from the rider's current parking spot. If the rider is
+        // still at the route's origin, the distance to shape.first() is the snap gap, not a stale route.
+        val atOrigin = match.index <= 1 && Geo.distance(fix, route.shape.first()) <= ORIGIN_SNAP_ALLOWANCE_M
+        return if ((onRoad && alongM <= MAX_ALONG_M) || atOrigin) {
+            RouteStartCheck(RouteStartBlock.NONE, match.index)
+        } else {
+            RouteStartCheck(RouteStartBlock.OFF_START)
+        }
+    }
+
+    fun evaluate(route: Route, fix: GeoPoint, speedMps: Double, accuracyM: Int?): RouteStartBlock =
+        check(route, fix, speedMps, accuracyM).block
+}

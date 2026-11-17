@@ -6,7 +6,9 @@ import androidx.compose.animation.AnimatedContent
 import com.ridedeck.app.data.DashCard
 import com.ridedeck.app.data.hasFreshFix
 import com.ridedeck.app.util.Units
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
@@ -72,6 +74,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
     val mediaState by vm.media.state.collectAsStateWithLifecycle()
     val voiceFacts by vm.voiceFacts.collectAsStateWithLifecycle()
     val callState by vm.call.state.collectAsStateWithLifecycle()
+    val hangUpSupport by vm.call.hangUpCapability.collectAsStateWithLifecycle()
     val callerName by vm.callerName.collectAsStateWithLifecycle()
     val resume by vm.resumeTick.collectAsStateWithLifecycle()
     val routeOptions by vm.nav.options.collectAsStateWithLifecycle()
@@ -143,7 +146,8 @@ fun DashboardScreen(vm: DashboardViewModel) {
         vm.onResume()
     }
     val smsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { vm.onResume() }
-    // The second tap on "Allow" after a refusal goes to the app's system page, where Android no longer asks again.
+    // Android stops showing the rationale after "don't ask again"; from then on the only useful action
+    // is the app's own system page. The decision is pure so it can be tested without a device dialog.
     var locationAsked by remember { mutableStateOf(false) }
     val openLocationSettings = {
         context.startActivity(
@@ -151,12 +155,22 @@ fun DashboardScreen(vm: DashboardViewModel) {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     }
-    val requestLocation = {
-        if (locationAsked && !locationGranted(context)) {
-            openLocationSettings()
-        } else {
-            locationAsked = true
-            permissionLauncher.launch(locationPermissions())
+    val coarseLocationOnly = !locationGranted(context) && context.hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+    val locationAction = context.permissionDecision(
+        key = "location",
+        permission = Manifest.permission.ACCESS_FINE_LOCATION,
+        granted = locationGranted(context),
+        settingsOnly = coarseLocationOnly,
+    )
+    val requestLocation: () -> Unit = {
+        when (locationAction) {
+            PermissionRequestAction.OPEN_APP_SETTINGS -> openLocationSettings()
+            PermissionRequestAction.REQUEST -> {
+                markPermissionAsked(context, "location")
+                locationAsked = true
+                permissionLauncher.launch(locationPermissions())
+            }
+            PermissionRequestAction.NONE -> Unit
         }
     }
     val phonebookLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -168,20 +182,37 @@ fun DashboardScreen(vm: DashboardViewModel) {
 
     // Re-evaluated whenever the activity resumes (e.g. coming back from a system settings page).
     val settingItems = remember(resume) {
+        val phoneAction = context.permissionDecision(
+            key = "phone", permission = Manifest.permission.READ_PHONE_STATE, granted = phoneGranted(context),
+        )
+        val smsAction = context.permissionDecision(
+            key = "sms", permission = Manifest.permission.SEND_SMS, granted = context.hasPermission(Manifest.permission.SEND_SMS),
+        )
+        fun actionLabel(action: PermissionRequestAction, allow: Int) =
+            context.getString(if (action == PermissionRequestAction.OPEN_APP_SETTINGS) R.string.action_open_settings else allow)
         listOf(
             SettingItem(
                 context.getString(R.string.perm_location),
                 // Approximate location alone cannot drive a speedometer: say so instead of showing a plain "Allow".
                 context.getString(
-                    if (!locationGranted(context) && context.hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)) R.string.perm_location_precise
-                    else R.string.perm_location_desc
+                    when {
+                        locationGranted(context) -> R.string.perm_location_desc
+                        coarseLocationOnly -> R.string.perm_location_precise
+                        locationAction == PermissionRequestAction.OPEN_APP_SETTINGS -> R.string.perm_location_denied
+                        else -> R.string.perm_location_desc
+                    }
                 ),
-                locationGranted(context), context.getString(R.string.action_allow), required = true,
+                locationGranted(context), actionLabel(locationAction, R.string.action_allow), required = true,
             ) {
-                permissionLauncher.launch(locationPermissions())
+                requestLocation()
             },
-            SettingItem(context.getString(R.string.perm_phone), context.getString(R.string.perm_phone_desc), phoneGranted(context), context.getString(R.string.action_allow)) {
-                permissionLauncher.launch(phonePermissions())
+            SettingItem(context.getString(R.string.perm_phone), context.getString(R.string.perm_phone_desc), phoneGranted(context), actionLabel(phoneAction, R.string.action_allow)) {
+                if (phoneAction == PermissionRequestAction.OPEN_APP_SETTINGS) {
+                    openLocationSettings()
+                } else {
+                    markPermissionAsked(context, "phone")
+                    permissionLauncher.launch(phonePermissions())
+                }
             },
             SettingItem(context.getString(R.string.perm_dialer), context.getString(R.string.perm_dialer_desc), isDefaultDialer(context), context.getString(R.string.action_set)) {
                 dialerLauncher.launch(defaultDialerIntent(context))
@@ -193,8 +224,13 @@ fun DashboardScreen(vm: DashboardViewModel) {
             SettingItem(context.getString(R.string.perm_battery), context.getString(R.string.perm_battery_desc), ignoresBatteryOptimization(context), context.getString(R.string.action_open)) {
                 context.openSettingsAction(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
             },
-            SettingItem(context.getString(R.string.perm_sms), context.getString(R.string.perm_sms_desc), context.hasPermission(Manifest.permission.SEND_SMS), context.getString(R.string.action_allow)) {
-                smsLauncher.launch(Manifest.permission.SEND_SMS)
+            SettingItem(context.getString(R.string.perm_sms), context.getString(R.string.perm_sms_desc), context.hasPermission(Manifest.permission.SEND_SMS), actionLabel(smsAction, R.string.action_allow)) {
+                if (smsAction == PermissionRequestAction.OPEN_APP_SETTINGS) {
+                    openLocationSettings()
+                } else {
+                    markPermissionAsked(context, "sms")
+                    smsLauncher.launch(Manifest.permission.SEND_SMS)
+                }
             },
         )
     }
@@ -202,23 +238,22 @@ fun DashboardScreen(vm: DashboardViewModel) {
     // First launch asks for location only: the speedometer needs it, nothing else does. Phone, music
     // and SOS ask for their own permissions where they are switched on. If Android only allows
     // approximate location or the user denied it, the action goes straight to the app's system page.
-    val introRow = remember(resume, locationAsked) {
+    val introRow = remember(resume, locationAsked, locationAction) {
         val fine = locationGranted(context)
-        val coarseOnly = !fine && context.hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
-        val needsSettings = coarseOnly || locationAsked
+        val needsSettings = locationAction == PermissionRequestAction.OPEN_APP_SETTINGS
         PermissionRow(
             title = context.getString(R.string.perm_location),
             description = context.getString(
                 when {
                     fine -> R.string.perm_location_desc
-                    coarseOnly -> R.string.perm_location_precise
-                    locationAsked -> R.string.perm_location_denied
+                    coarseLocationOnly -> R.string.perm_location_precise
+                    needsSettings -> R.string.perm_location_denied
                     else -> R.string.perm_intro_location_why
                 }
             ),
             granted = fine,
             actionLabel = context.getString(if (needsSettings) R.string.action_open_settings else R.string.action_allow),
-            onAction = if (needsSettings) openLocationSettings else requestLocation,
+            onAction = requestLocation,
         )
     }
 
@@ -425,7 +460,9 @@ fun DashboardScreen(vm: DashboardViewModel) {
             }
             alert?.invoke(Modifier.align(Alignment.TopCenter).padding(top = 12.dp))
 
-            if (shownMessage != null && !showSettings) {
+            // While guidance is on screen the banner would sit on the manoeuvre card. The message stays
+            // queued and voice read-aloud is unaffected; the open map must keep the turn visible.
+            if (shownMessage != null && messageBannerVisible(showSettings, showMap, navUi.navigating)) {
                 MessageBanner(
                     message = shownMessage,
                     onRead = { vm.speakMessage(shownMessage) },
@@ -588,6 +625,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                 onAnswer = { callAction(vm.call::answer) }, onHangUp = { callAction(vm.call::hangUp) },
                 onMute = { callAction(vm.call::toggleMute) }, onRoute = { route -> callAction { vm.call.setRoute(route) } },
                 onVolumeUp = vm.call::volumeUp, onVolumeDown = vm.call::volumeDown, onDigit = { digit -> callAction { vm.call.sendDigit(digit) } },
+                hangUpSupport = hangUpSupport,
             )
         }
 
@@ -627,6 +665,67 @@ fun DashboardScreen(vm: DashboardViewModel) {
     }
 }
 
+
+/**
+ * The banner is a dashboard affordance. On the map it would cover the manoeuvre card during active
+ * guidance, so that one combination suppresses it; read-aloud is a separate, still-running path.
+ */
+internal fun messageBannerVisible(showSettings: Boolean, showMap: Boolean, navigating: Boolean): Boolean =
+    !showSettings && !(showMap && navigating)
+
+/** What a runtime-permission row should do next. Pure so the branch is testable without a device dialog. */
+internal enum class PermissionRequestAction { NONE, REQUEST, OPEN_APP_SETTINGS }
+
+internal object PermissionRequestPolicy {
+    /**
+     * Android reports no rationale both before the first ask and after "don't ask again". Only a
+     * recorded earlier ask turns the second case into the app's system page; asking again would be a
+     * silent no-op there. [settingsOnly] covers states the dialog cannot fix (e.g. approximate-only
+     * location, where the rider needs the "Precise location" switch in Settings).
+     */
+    fun decide(
+        granted: Boolean,
+        showRationale: Boolean,
+        askedBefore: Boolean,
+        settingsOnly: Boolean = false,
+    ): PermissionRequestAction = when {
+        granted -> PermissionRequestAction.NONE
+        settingsOnly -> PermissionRequestAction.OPEN_APP_SETTINGS
+        askedBefore && !showRationale -> PermissionRequestAction.OPEN_APP_SETTINGS
+        else -> PermissionRequestAction.REQUEST
+    }
+}
+
+private const val PERMISSION_UI_PREFS = "permission_ui"
+
+private fun permissionAskedBefore(context: Context, key: String): Boolean =
+    context.getSharedPreferences(PERMISSION_UI_PREFS, Context.MODE_PRIVATE).getBoolean(key, false)
+
+private fun markPermissionAsked(context: Context, key: String) {
+    context.getSharedPreferences(PERMISSION_UI_PREFS, Context.MODE_PRIVATE).edit().putBoolean(key, true).apply()
+}
+
+/** The host activity behind the Compose context, needed for the rationale query. */
+private fun Context.findActivity(): Activity? {
+    var candidate: Context? = this
+    while (candidate is ContextWrapper) {
+        if (candidate is Activity) return candidate
+        candidate = candidate.baseContext
+    }
+    return null
+}
+
+private fun Context.permissionDecision(
+    key: String,
+    permission: String,
+    granted: Boolean,
+    settingsOnly: Boolean = false,
+): PermissionRequestAction = PermissionRequestPolicy.decide(
+    granted = granted,
+    showRationale = findActivity()?.shouldShowRequestPermissionRationale(permission) == true,
+    askedBefore = permissionAskedBefore(this, key),
+    settingsOnly = settingsOnly,
+)
 
 private fun toggleOverlay(context: Context, enabled: Boolean): Boolean {
     if (enabled && !overlayGranted(context)) {

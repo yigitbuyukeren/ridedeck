@@ -1,0 +1,5 @@
+<resources>
+    <string name="wrong_way_uturn_voice">Ters yöndesin. Güvenli olduğunda U dönüşü yap.</string>
+    <string name="route_stale_error">Bu rota 10 dakikadan eski. Başlamadan önce rotayı yenile.</string>
+    <string name="route_start_far_error">Konumun bu rotanın başlangıcında değil. Rotayı yeniden hesapla.</string>
+</resources>

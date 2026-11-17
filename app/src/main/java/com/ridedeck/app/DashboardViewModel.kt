@@ -39,6 +39,7 @@ import com.ridedeck.app.service.OverlayService
 import com.ridedeck.app.service.IncomingMessage
 import com.ridedeck.app.service.MessageBridge
 import com.ridedeck.app.util.Prefs
+import com.ridedeck.app.util.UnitMath
 import com.ridedeck.app.util.Units
 import com.ridedeck.app.util.simplifyMessage
 import kotlinx.coroutines.flow.Flow
@@ -69,10 +70,31 @@ data class GpsUi(
     val inputLocked: Boolean = false,
 )
 
+internal data class SpeedLimitSpeech(val value: Int, val unitRes: Int)
+
+/** The limit in the rider's unit, plus the matching unit label resource (km/h or mph). */
+internal fun speedLimitSpeech(limitKmh: Int, miles: Boolean): SpeedLimitSpeech =
+    SpeedLimitSpeech(UnitMath.speed(limitKmh, miles), if (miles) R.string.speed_unit_mph else R.string.speed_unit)
+
+/**
+ * Pure announcement gate. Weather, thermal and message speech belong to the visible screen: with the
+ * app in the background Android may still hold the process, and talking to an empty room is noise.
+ * Speed-limit guidance is the one exception while navigation itself is running.
+ */
+internal object VoiceGate {
+    fun maySpeak(onScreen: Boolean, callIdle: Boolean, featureEnabled: Boolean = true): Boolean =
+        onScreen && callIdle && featureEnabled
+
+    fun maySpeakSpeedLimit(navigating: Boolean, callIdle: Boolean): Boolean = navigating && callIdle
+}
+
 class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val rideTracking = (app as RideDeckApplication).rideTracking
     private val location = rideTracking.location
     val openTrips = MutableStateFlow(false)
+
+    /** True between onResume and onPause: background speech is never allowed for messages/weather/heat. */
+    @Volatile private var onScreen = false
 
     /** The speed the gauge draws, in km/h, smoothed from the latest measurements; null while the speed is unknown. */
     fun displaySpeedKmh(): Double? = location.displayKmh()
@@ -177,7 +199,9 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val weatherEnabled = MutableStateFlow(Prefs.weatherEnabled(app))
     val rainVoice = MutableStateFlow(Prefs.rainVoice(app))
     val weather = WeatherController(viewModelScope, location.state, weatherEnabled) { alert, snapshot ->
-        if (!rainVoice.value || call.state.value.phase != CallPhase.IDLE) return@WeatherController
+        if (!VoiceGate.maySpeak(onScreen, call.state.value.phase == CallPhase.IDLE, rainVoice.value)) {
+            return@WeatherController
+        }
         announcer.speak(
             when (alert) {
                 WeatherAlert.RAIN -> snapshot.rainInMin?.takeIf { it > 0 }
@@ -210,8 +234,14 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope, location.state, limitActive,
         repo = com.ridedeck.app.data.SpeedLimitRepository { profileNow.config.costing },
     ) { limit ->
-        if (call.state.value.phase == CallPhase.IDLE) {
-            announcer.speak(app.getString(R.string.speed_limit_warning, limit), com.ridedeck.app.data.SpeechPriority.SPEED_LIMIT)
+        val callIdle = call.state.value.phase == CallPhase.IDLE
+        if (VoiceGate.maySpeakSpeedLimit(limitActive.value, callIdle)) {
+            val speech = speedLimitSpeech(limit, Units.miles)
+            val unit = app.getString(speech.unitRes)
+            announcer.speak(
+                app.getString(R.string.speed_limit_warning_units, speech.value, unit),
+                com.ridedeck.app.data.SpeechPriority.SPEED_LIMIT,
+            )
         }
     }
 
@@ -313,7 +343,9 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         gps.map { if (it.hasFix) it.speedKmh else null }.stateIn(viewModelScope, SharingStarted.Eagerly, null),
         thermalEnabled,
     ) {
-        if (call.state.value.phase == CallPhase.IDLE) announcer.speak(app.getString(R.string.thermal_voice), com.ridedeck.app.data.SpeechPriority.WEATHER)
+        if (VoiceGate.maySpeak(onScreen, call.state.value.phase == CallPhase.IDLE)) {
+            announcer.speak(app.getString(R.string.thermal_voice), com.ridedeck.app.data.SpeechPriority.WEATHER)
+        }
     }
 
     fun setThermalEnabled(enabled: Boolean) {
@@ -326,7 +358,10 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val sos = safety.sos
     val sosContacts = safety.contacts
     val sosCrashEnabled = safety.crashEnabled
-    val sosButtonEnabled = safety.buttonEnabled
+    /** The stored switch is not enough when there is no SIM/SMS path; hide the button until it is usable. */
+    val sosButtonEnabled: StateFlow<Boolean> =
+        combine(safety.buttonEnabled, safety.ready) { on, ready -> on && ready }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
     fun setSosCrashEnabled(enabled: Boolean) = safety.setCrashEnabled(enabled)
     fun setSosButtonEnabled(enabled: Boolean) = safety.setButtonEnabled(enabled)
     fun addSosContact(contact: com.ridedeck.app.data.SosContact) = safety.addContact(contact)
@@ -344,11 +379,11 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** True between onResume and onPause: messages are only read aloud while RideDeck is the app on screen. */
-    @Volatile private var onScreen = false
-
     fun onResume() {
         onScreen = true
+        // A permission dialog pauses but usually does not stop the activity, so onStart's SOS
+        // refresh may not run after the rider grants SMS. Re-read the send path on every resume.
+        safety.refreshReadiness()
         rideTracking.refresh()
         battery.start()
         navigation.refreshAudio()

@@ -65,6 +65,7 @@ fun OfflineMapsCard(
     actions: OfflineMapsCardActions = OfflineMapsCardActions(),
 ) {
     val context = LocalContext.current
+    val palette = LocalMotoPalette.current
     val loadAction = rememberUpdatedState(actions.load)
     LaunchedEffect(context) { loadAction.value(context) }
     val areas by areasFlow.collectAsStateWithLifecycle()
@@ -80,35 +81,43 @@ fun OfflineMapsCard(
         Modifier.fillMaxWidth().settingsCard().padding(SettingsCardDefaults.Padding),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(stringResource(R.string.offline_title), fontSize = SettingsCardDefaults.TitleSize, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
-        Text(stringResource(R.string.offline_desc), fontSize = SettingsCardDefaults.DescriptionSize, color = LocalMotoPalette.current.muted)
+        Text(stringResource(R.string.offline_title), fontSize = SettingsCardDefaults.TitleSize, color = palette.text, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.offline_desc), fontSize = SettingsCardDefaults.DescriptionSize, color = palette.muted)
         val fitting = here?.let { OfflinePlan.fittingRadii(it).lastOrNull() }
         if (here != null && fitting != null) {
             val budget = OfflinePlan.budget(here, fitting)
             Text(
                 stringResource(R.string.offline_estimate, fitting, budget.tiles, OfflinePlan.estimateMb(budget.tiles)),
-                fontSize = 15.sp, color = LocalMotoPalette.current.muted,
+                fontSize = 15.sp, color = palette.muted,
             )
         }
-        Text("⚠ ${stringResource(R.string.offline_paused)}", fontSize = 15.sp, color = LocalMotoPalette.current.text)
+        Text("⚠ ${stringResource(R.string.offline_paused)}", fontSize = 15.sp, color = palette.text)
         val p = progress
         if (p != null) {
             val block = p.block
             if (block != null) {
-                Text(offlineBlockText(block), fontSize = 15.sp, color = MotoColors.Red)
+                Text(offlineBlockText(block), fontSize = 15.sp, color = dangerColor(palette))
                 PillButton(stringResource(R.string.cancel), MotoColors.PanelHigh, actions.clearError, Modifier.fillMaxWidth())
             } else if (p.error != null) {
-                Text(p.error.orEmpty(), fontSize = 15.sp, color = MotoColors.Red)
+                Text(p.error.orEmpty(), fontSize = 15.sp, color = dangerColor(palette))
                 PillButton(stringResource(R.string.cancel), MotoColors.PanelHigh, actions.clearError, Modifier.fillMaxWidth())
             } else {
                 LinearProgressIndicator(progress = { p.fraction }, modifier = Modifier.fillMaxWidth())
-                Text(stringResource(R.string.offline_progress, (p.fraction * 100).toInt()), fontSize = 14.sp, color = LocalMotoPalette.current.muted)
+                Text(stringResource(R.string.offline_progress, (p.fraction * 100).toInt()), fontSize = 14.sp, color = palette.muted)
             }
         } else if (here == null) {
-            Text(stringResource(R.string.offline_no_gps), fontSize = 15.sp, color = LocalMotoPalette.current.muted)
+            Text(stringResource(R.string.offline_no_gps), fontSize = 15.sp, color = palette.muted)
+        } else if (offlineRadiiBlocked(here)) {
+            // Every offered radius is blocked by the provider guard: a row of "download" buttons would
+            // look active and only produce an error after the tap, so state the truth without a control.
+            Text(
+                "⚠ ${stringResource(R.string.offline_downloads_unavailable)}",
+                fontSize = 15.sp, lineHeight = 22.sp, color = warningColor(palette),
+                modifier = Modifier.testTag("offline-download-paused"),
+            )
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OfflinePlan.RADII_KM.forEach { km ->
+                OfflinePlan.RADII_KM.filter { OfflinePlan.blockFor(here, it) == null }.forEach { km ->
                     PillButton(
                         stringResource(R.string.offline_download, km), MotoColors.Blue,
                         { actions.download(context, here, km, "${"%.2f".format(java.util.Locale.US, here.lat)},${"%.2f".format(java.util.Locale.US, here.lon)}~$km") },
@@ -120,13 +129,13 @@ fun OfflineMapsCard(
         reconcileError?.let {
             Text(
                 stringResource(R.string.offline_native_error, it), fontSize = 15.sp, lineHeight = 22.sp,
-                color = MotoColors.Red,
+                color = dangerColor(palette),
             )
         }
         actionError?.let {
             Text(
                 stringResource(R.string.offline_action_error, it), fontSize = 15.sp, lineHeight = 22.sp,
-                color = MotoColors.Red,
+                color = dangerColor(palette),
             )
         }
         areas.forEach { a ->
@@ -135,7 +144,7 @@ fun OfflineMapsCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         stringResource(R.string.offline_area_fmt, "${"%.2f".format(a.center.lat)}, ${"%.2f".format(a.center.lon)}", a.radiusKm),
-                        fontSize = 15.sp, color = LocalMotoPalette.current.text, modifier = Modifier.weight(1f),
+                        fontSize = 15.sp, color = palette.text, modifier = Modifier.weight(1f),
                     )
                     if (confirming != a) {
                         PillButton(
@@ -147,7 +156,7 @@ fun OfflineMapsCard(
                 }
                 Text(
                     offlineStateText(reconciled?.state), fontSize = 14.sp, lineHeight = 20.sp,
-                    color = if (reconciled?.state == NativeRegionState.ERROR) MotoColors.Red else LocalMotoPalette.current.muted,
+                    color = if (reconciled?.state == NativeRegionState.ERROR) dangerColor(palette) else palette.muted,
                 )
                 // An inherited ACTIVE native region can be stopped without a new download; this is
                 // the existing OfflineMaps.cancel path, separate from the provider-block message above.
@@ -161,7 +170,7 @@ fun OfflineMapsCard(
                 if (confirming == a) {
                     Text(
                         stringResource(R.string.offline_delete_confirm_text), fontSize = 15.sp, lineHeight = 22.sp,
-                        color = LocalMotoPalette.current.text,
+                        color = palette.text,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PillButton(
@@ -208,6 +217,13 @@ private fun offlineBlockText(block: OfflineBlock): String = when (block) {
 }
 
 private fun megabytes(bytes: Long): Int = ((bytes + 999_999L) / 1_000_000L).toInt()
+
+/**
+ * True when no offered radius can start a download under the current provider guard. The card then
+ * shows a status line instead of buttons that could only fail after a tap.
+ */
+internal fun offlineRadiiBlocked(center: GeoPoint, radii: List<Int> = OfflinePlan.RADII_KM): Boolean =
+    radii.isNotEmpty() && radii.all { OfflinePlan.blockFor(center, it) != null }
 
 /** The default network's validated state, shared by the map chip and future readiness checks. */
 @Composable
