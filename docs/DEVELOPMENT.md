@@ -136,7 +136,7 @@ Ayrıntılı paket haritası ve "nerede ne değiştirilir?" tablosu: [ARCHITECTU
 
 ## 6. Emülatörde çalıştırma
 
-Android Studio'da bir AVD oluştur (API 35/36, yatay). Komut satırıyla:
+Android Studio'da bir AVD oluştur (API 35/36, yatay, **ARM64 system image**). Proje yalnız `arm64-v8a`/`armeabi-v7a` native kütüphaneleri üretir; standart x86_64 AVD'de `adb install` ve `connectedDebugAndroidTest` `INSTALL_FAILED_NO_MATCHING_ABIS` ile düşer. ARM64 emülatör veya fiziksel ARM cihaz kullan. Komut satırıyla:
 
 ```bash
 # Bağlı cihazları gör
@@ -189,7 +189,7 @@ Logcat ve ekran görüntülerini paylaşmadan önce konum, telefon numarası, ki
 
 1. İlgili Compose dosyasını `ui/` altında bul; ekranlar `DashboardScreen`, `MapScreen`, `SettingsScreen`, `PhoneScreen`, `TripsScreen` gibi dosyalarda.
 2. Dar ekran için `isNarrowScreen()`, sabit alanlarda taşmayı önlemek için `cappedSp()` kullan.
-3. Dokunma hedeflerini 64–84 dp'de tut; sürerken yazı girişi ve ayar değişikliği ekleme.
+3. Yeni dokunma hedeflerini 64–84 dp'de tut; mevcut 56 dp istisnaları ayrı iyileştirme olarak ele alınmalı. Sürerken yazı girişi ve ayar değişikliği ekleme.
 4. Farklı ekran genişlikleri ve 1,0×/2,0× yazı boyutunda emülatörde kontrol et; ekran görüntüsünü PR'a ekle.
 5. Davranış değiştiyse `app/src/androidTest` altına test ekle.
 
@@ -279,6 +279,6 @@ SDK="${ANDROID_HOME:-$(sed -n 's/^sdk.dir=//p' local.properties 2>/dev/null)}"
 - Sorular ve katkı yolları: [SUPPORT.md](../SUPPORT.md)
 - Katkı süreci: [CONTRIBUTING.md](../CONTRIBUTING.md)
 - Güvenlik: [SECURITY.md](../SECURITY.md)
-- Güncel durum ve açık saha kapıları: [STATUS.md](STATUS.md), [RELEASE_READINESS.md](RELEASE_READINESS.md)
+- Tarihsel durum ve açık saha kapıları: [STATUS.md](STATUS.md), [RELEASE_READINESS.md](RELEASE_READINESS.md)
 
 RideDeck gönüllü bir açık kaynak projesidir; yanıt süresi garanti edilmez. Sorunu net, tekrarlanabilir ve kişisel veriden arındırılmış biçimde paylaşmak en hızlı yardım yoludur.

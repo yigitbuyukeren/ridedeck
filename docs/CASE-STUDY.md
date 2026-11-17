@@ -2,7 +2,7 @@
 
 🇬🇧 [English version](CASE-STUDY.en.md)
 
-> **Güncellik notu (2026-11-17):** Bu vaka analizi belirli bir geliştirme dönemindeki tasarımı anlatır. Uygulama artık yalnız motosiklet içindir; araç seçici, bisiklet/araba profilleri ve HOME launcher desteği kaldırılmıştır. Güncel davranış, test sayıları ve açık işler için [README](../README.md), [STATUS.md](STATUS.md) ve [ARCHITECTURE.md](ARCHITECTURE.md) dosyalarına bak.
+> **Güncellik notu (2026-11-17):** Bu vaka analizi belirli bir geliştirme dönemindeki tasarımı anlatır. Uygulama artık yalnız motosiklet içindir; araç seçici, bisiklet/araba profilleri ve HOME launcher desteği kaldırılmıştır. Güncel davranış ve mimari için [README](../README.md) ve [ARCHITECTURE.md](ARCHITECTURE.md); tarihsel test sayıları ve doğrulama kayıtları için [STATUS.md](STATUS.md) dosyalarına bak.
 
 Bu belge RideDeck'in hangi problemi çözdüğünü, nasıl kurulduğunu ve hangi teknik kararların neden verildiğini anlatır. Rakamlar ve davranışlar koddan ve CI'dan alınmıştır; **sahada doğrulanmayan her şey ayrıca işaretlidir** (bkz. [Doğrulama durumu](#doğrulama-durumu)).
 
@@ -26,7 +26,7 @@ LocationRepository (ham LocationManager, Play Services yok)
    ├─► NavigationController ─► Routing (Valhalla) / Speaker / FuelFinder
    ├─► CrashDetector + SosController ─► kişi başına bir SMS (en fazla 3 kişi)
    └─► TripRecorder ─► yolculuk geçmişi
-DashboardViewModel  = tüm repository'lerin tek bağlama noktası
+DashboardViewModel = ekranın bağlama noktası (süreç sahipleri: RideTracking, RideNavigation, RideSafety)
 data/Http.kt : genel HTTP servislerinin tek çıkışı (MapLibre karo istekleri hariç)
 ```
 
@@ -35,7 +35,7 @@ Prensipler:
 - **Saf mantık + ince Android kabuğu.** Güvenlik ve konfor modüllerinin (`ThermalGuard`, `CrashDetector`, `SpeedFilter`, `PositionSmoother`, `PhoneMath`, `PinnedApps`, `VehicleProfile` vb.) çekirdeği Android bağımlılığı olmayan sınıflardır; zaman ve sensör verisi dışarıdan verilir. Bu yüzden telefon olmadan testlenir.
 - **Bağımlılık enjeksiyonu elle.** `NavigationController` arama, rota, konuşma ve metin arama bağımlılıklarını kurucudan alır; `NavigationControllerTest` gerçek servis olmadan çalışır.
 - **Tek ağ çıkışı.** Genel HTTP servislerine (Nominatim, Valhalla, Open-Meteo, Overpass) giden çağrılar `data/Http.kt` içinden geçer: sürüm bilgili tek `User-Agent`, tek `safely()` yardımcısı. MapLibre'nin OpenFreeMap karo istekleri motorun kendi ağ katmanındadır.
-- **Ömür.** `NavigationController` `viewModelScope` ile yaşar; harita ekranı kapansa da yönlendirme ve ses sürer.
+- **Ömür.** `NavigationController` süreç ömürlü `RideNavigation` içinde yaşar; `DashboardViewModel` yalnız bu örneği kullanır. Harita ekranı kapansa da yönlendirme ve ses sürer.
 
 ## 3. GPS filtreleme
 
@@ -54,7 +54,7 @@ Testler: `SpeedFilterTest`, `PositionSmootherTest`, `GaugeScaleTest`.
 
 - **Arama:** Nominatim, yalnızca açıkça "Ara"ya basınca (kullanım politikası yazarken-ara'yı yasaklar). Sonuç çıkmazsa `PlaceQuery` düzeltilmiş yazımları (Türkçe harf varyantları, eksik/yer değiştirmiş harf, il/ilçe adlarına bulanık eşleşme) saniyede en çok bir istekle dener; yine yoksa "Bunu mu demek istedin?" der ve **onaysız rotaya girmez**.
 - **Rota:** Valhalla, her zaman `motorcycle` costing ile; Türkçe talimat. Otoyolsuz ve ücretsiz yol seçenekleri `costing_options`'a çevrilir.
-- **Konum eşleme:** her fix, son ilerleme noktasından başlayıp öne doğru **80 segmentlik pencerede** en yakın segmente izdüşürülür (`Geo.project`). Geriye ve çok ileriye atlamak mümkün olmadığından kıvrımlı yolda yanlış segment seçilmez. Rotadan 60 m uzaklık art arda 4 fix sürerse yeniden hesaplama başlar (10 sn yeniden deneme aralığı, "rota yeniden hesaplanıyor" yalnızca bir kez söylenir).
+- **Konum eşleme:** her fix, son ilerleme noktasından başlayıp öne doğru **80 segmentlik pencerede** en yakın segmente izdüşürülür (`Geo.project`). Geriye ve çok ileriye atlamak mümkün olmadığından kıvrımlı yolda yanlış segment seçilmez. Rotadan uzaklık eşiği hız ve GPS doğruluğuna göre 45–150 m arasında hesaplanır; 20 m/s ve üzerinde 3, altında 4 ardışık fix ile yeniden hesaplama başlar (10 sn yeniden deneme aralığı, "rota yeniden hesaplanıyor" yalnızca bir kez söylenir).
 - **Anons zamanlaması:** mesafeli ön uyarı, tam talimat ve dönüşte kısa "şimdi" olmak üzere üç kademe; her anons bir kez söylenir (`spoken` kümesi).
 - **İptal ve eski cevaplar:** her rota/arama isteği bir `generation` taşır; kullanıcı vazgeçtiyse veya yeni istek açıldıysa geç gelen cevap yok sayılır. Konum izni kaybı ve GPS kapanması ayrı nedenlerle (`NavigationTermination`) sonlandırır.
 - **Ara durak:** benzinlik kendi başına bir rota olarak hesaplanır, asıl hedef `finalDestination`'da tutulur; varınca "Yola devam" eski hedefe döner.
@@ -88,7 +88,7 @@ Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sür�
 | Tüm servisler anahtarsız genel servis | "Hesap, anahtar, sunucu yok" sözünü korur. Bedeli: servis kararsızlığı (Overpass) için yedek ve yeniden deneme yazmak; yoğun kullanımda kendi sunucu gerekir. |
 | Gösterim hızı ≠ karar hızı | Titremeyen kadran ile gecikmeyen güvenlik kararı birbirine feda edilmedi. |
 | Sahte 0 yok, `--` var | Sinyal kaybında yanlış güven vermemek. |
-| Sürerken yazı girişi/ayar kilidi (5 km/sa üstü) | Güvenlik; kendi Türkçe klavyesi park halinde arama içindir. |
+| Sürerken yazı girişi/ayar kilidi (5 km/sa ve üzeri) | Güvenlik; kendi Türkçe klavyesi park halinde arama içindir. |
 | Sesli asistan kaldırıldı | Güvenilir uyandırma ve tanıma sağlanamadı; çalışmayan özelliği göstermek yerine kaldırıldı. |
 | Çevrimdışı rota yok; mevcut harita bölgeleri korunur | Rota ve arama canlı hizmete bağlı kalır; yeni çevrimdışı indirmeler sağlayıcı uyumluluğu doğrulanana kadar kapalıdır. |
 | OBD, bakım takibi, eğim, GPX çıkarıldı | Sürerken kullanılamayan veya doğrulanamayan özelliklerden kaçınmak; odak sürüş panelinde. |

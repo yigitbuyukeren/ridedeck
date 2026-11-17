@@ -38,7 +38,7 @@ Gereksinimler:
 - **JDK 17** (Temurin veya Android Studio'nun getirdiği JDK 17)
 - **Android Studio** (son kararlı sürüm) veya komut satırı araçları
 - **Android SDK Platform 36** ve **Build-Tools 36.0.0**
-- **Android SDK Platform-Tools** (`adb`) ve isteğe bağlı bir emülatör (API 35/36)
+- **Android SDK Platform-Tools** (`adb`) ve isteğe bağlı bir emülatör (API 35/36, ARM64 system image)
 - Git
 
 Fork'unu klonla ve upstream'i ekle:
@@ -62,7 +62,7 @@ export JAVA_HOME=/yol/jdk-17
 ./gradlew testDebugUnitTest assembleDebug
 ```
 
-APK: `app/build/outputs/apk/debug/app-debug.apk`. Ayrıntılı kurulum, emülatör, sahte GPS, tek test çalıştırma ve sorun giderme için [geliştirme rehberine](docs/DEVELOPMENT.md) bak.
+APK: `app/build/outputs/apk/debug/app-debug.apk`. Emülatörde denemek için ARM64 system image gerekir; proje yalnız ARM native kütüphaneleri üretir, x86_64 AVD'de kurulum `INSTALL_FAILED_NO_MATCHING_ABIS` ile düşer. Ayrıntılı kurulum, emülatör, sahte GPS, tek test çalıştırma ve sorun giderme için [geliştirme rehberine](docs/DEVELOPMENT.md) bak.
 
 ## Proje yapısı
 
@@ -85,7 +85,7 @@ Mimari ve veri akışı için [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) dosya
 ## Kod ve tasarım kuralları
 
 - **Motosiklet odaklı kal.** Araç seçici, araba/bisiklet profili veya araca göre dallanan yeni davranış ekleme. Uygulama tek bir motosiklet deneyimi sunar. Gösterge üst sınırı, kaza eşiği ve durak türü gibi motosiklet sabitleri `data/VehicleProfile.kt` içindeki `ProfileConfig` üzerinden gelir; yeni sabiti oraya ekle, koda dağınık `if` serpiştirme.
-- **Sürüş güvenliği pazarlık konusu değildir.** Sürerken yazı girişi, küçük dokunma hedefi veya dikkat dağıtan animasyon ekleme. Dokunma hedefleri 64–84 dp, kontrast yüksek, metinler kısa olmalı.
+- **Sürüş güvenliği pazarlık konusu değildir.** Sürerken yazı girişi, küçük dokunma hedefi veya dikkat dağıtan animasyon ekleme. Dokunma hedefi kuralı 64–84 dp'dir; yeni hedefler bu aralığın altına inmemeli, mevcut 56 dp istisnaları ayrı iyileştirme olarak ele alınmalı. Kontrast yüksek, metinler kısa olmalı.
 - **Yatay ve büyük yazıyı düşün.** Arayüz yatay gidon düzeninde çalışır; dar ekran için `isNarrowScreen()`, sabit alanlarda taşmayı önlemek için `cappedSp()` kullanılır. Sistem yazı boyutu 2,0× iken de dene.
 - **Kullanıcıya görünen her metin kaynak dosyada olur.** Metinler `app/src/main/res/values/strings*.xml` (Türkçe) ve `app/src/main/res/values-en/strings*.xml` (İngilizce) altındadır; çoğu metin `strings.xml`, ayrı gruplar (varsa) `strings_data.xml` gibi dosyalarda olabilir. Aynı anahtarı iki dilde birlikte güncelle. Çeviri için [docs/TRANSLATING.md](docs/TRANSLATING.md).
 - **Saf mantığı Android kabuğundan ayır.** Hız filtresi, rota eşleme, SOS matematiği gibi çekirdekler Android API'sine bağlı olmamalı; saat/sensör girdisi dışarıdan gelmeli ve JVM testi yazılabilmeli.
@@ -165,7 +165,7 @@ RideDeck is a motorcycle-only Android dashboard (Kotlin, Jetpack Compose, minSdk
 2. Use JDK 17 and Android SDK 36. Build with `./gradlew testDebugUnitTest assembleDebug`.
 3. Keep changes focused. Add a JVM test for new logic; add a Compose/instrumentation test when UI behavior changes. The CI compiles instrumentation tests but does not run them on a device; a physical-device check is still separate evidence.
 4. Update the relevant `app/src/main/res/values/strings*.xml` and `values-en/strings*.xml` files (for example `strings.xml`, plus `strings_data.xml` if present) for user-facing text.
-5. Preserve the driving-safety rules: no text input while riding, 64–84 dp touch targets, high contrast, landscape layout, and large-font support.
+5. Preserve the driving-safety rules: no text input while riding, 64–84 dp target touch areas (existing 56 dp exceptions need separate fixes), high contrast, landscape layout, and large-font support.
 6. Route general network calls through `app/src/main/java/com/ridedeck/app/data/Http.kt` (MapLibre tile requests stay in the map engine). Do not add accounts, API keys, analytics, or a new external service without an issue.
 7. Never commit `local.properties`, `keystore.properties`, `*.jks`, or secrets. Report vulnerabilities privately via [SECURITY.md](SECURITY.md).
 8. Do not paste real locations, phone numbers, contact names or SMS content; anonymise logs and screenshots.

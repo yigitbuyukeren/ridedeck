@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe sürüm](CASE-STUDY.md) (the full version)
 
-> **Status note (2026-11-17):** This case study describes the design at a particular point in development. The app is now motorcycle-only; the vehicle picker, bicycle/car profiles and HOME launcher support have been removed. For current behaviour, test counts and open work, see [README](../README.md), [STATUS.md](STATUS.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
+> **Status note (2026-11-17):** This case study describes the design at a particular point in development. The app is now motorcycle-only; the vehicle picker, bicycle/car profiles and HOME launcher support have been removed. For current behaviour and architecture, see [README](../README.md) and [ARCHITECTURE.md](ARCHITECTURE.md); for historical test counts and verification records, see [STATUS.md](STATUS.md).
 
 What problem RideDeck solves, how it is built, and why the technical decisions were made. Numbers and behaviour come from the code and CI; **anything not verified in the field is marked as such** (see [Verification status](#verification-status)).
 
@@ -12,11 +12,12 @@ On a motorcycle, a phone has a small, glove-hostile screen, speed and navigation
 
 ## 2. Architecture
 
-Single-module Android app (Kotlin, Jetpack Compose, minSdk 26). One `MainActivity`, one Compose tree, no navigation library. `DashboardViewModel` is the only wiring point for all repositories.
+Single-module Android app (Kotlin, Jetpack Compose, minSdk 26). One `MainActivity`, one Compose tree, no navigation library. `DashboardViewModel` is the screen's wiring point; `NavigationController` is owned by the process-level `RideNavigation`.
 
 - **Pure logic plus a thin Android shell.** `ThermalGuard`, `CrashDetector`, `SpeedFilter`, `PositionSmoother`, `VehicleProfile` and others take time and sensor data as input, so they are tested without a device.
 - **Hand-written dependency injection.** `NavigationController` receives search, routing, speech and string lookup from its constructor; `NavigationControllerTest` runs without real services.
 - **One network exit.** Every call to a public HTTP service (Nominatim, Valhalla, Open-Meteo, Overpass) goes through `data/Http.kt`; MapLibre's OpenFreeMap tile requests stay in the map engine.
+- **Lifetime.** `NavigationController` lives in the process-owned `RideNavigation`; guidance and speech continue when the map screen closes.
 - Raw `LocationManager`, no Play Services.
 
 ## 3. GPS filtering
@@ -32,7 +33,7 @@ Single-module Android app (Kotlin, Jetpack Compose, minSdk 26). One `MainActivit
 
 ## 4. Navigation
 
-Explicit-submit Nominatim search (its policy forbids search-as-you-type), with rate-limited typo-tolerant retries and a "Did you mean…?" step that never routes without confirmation. Valhalla routing always uses the `motorcycle` costing. Each GPS fix is projected onto the nearest segment inside an 80-segment window ahead of the last progress index; 60 m off the route for 4 consecutive fixes triggers a re-route. Announcements use three stages (distance alert, full instruction, short "now"), each spoken once. Every route/search request carries a generation so stale replies are dropped. Fuel stops are routed as their own trip while the real destination is kept. Public Overpass servers are flaky, so queries race several mirrors and fall back to Nominatim.
+Explicit-submit Nominatim search (its policy forbids search-as-you-type), with rate-limited typo-tolerant retries and a "Did you mean…?" step that never routes without confirmation. Valhalla routing always uses the `motorcycle` costing. Each GPS fix is projected onto the nearest segment inside an 80-segment window ahead of the last progress index; the off-route threshold is computed from speed and GPS accuracy (45–150 m), and 3 consecutive fixes are required at 20 m/s or above (4 below) before a re-route. Announcements use three stages (distance alert, full instruction, short "now"), each spoken once. Every route/search request carries a generation so stale replies are dropped. Fuel stops are routed as their own trip while the real destination is kept. Public Overpass servers are flaky, so queries race several mirrors and fall back to Nominatim.
 
 ## 5. Why there is no voice assistant
 

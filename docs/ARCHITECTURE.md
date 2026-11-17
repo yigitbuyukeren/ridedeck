@@ -180,8 +180,8 @@ Tüm veri telefonda kalır. `android:allowBackup="false"` olduğu için Android 
 ## 7. UI ilkeleri
 
 - **Sürerken yazı girişi yok.** Harita araması, tuş takımı ve Ayarlar, hareket halindeyken kilitlenir. Uygulamanın kendi Türkçe klavyesi yalnız park halinde açılır. Dış navigasyon uygulamasına geçiş de yalnız dururken sunulur.
-- **5 km/sa üstü kilit.** `MotionTracker` süzülmüş gösterim hızını iki fix ile doğrular; eşik `5 km/sa`. Kilit devreye girince Ayarlar kapanır ve kısa bir uyarı gösterilir. GPS yoksa durum `UNKNOWN` olur ve önceki kilit korunur; tünelde kilit kendiliğinden açılmaz.
-- **Büyük hedefler.** Dokunma hedefleri tasarım kuralı olarak 64–84 dp aralığındadır; birincil eylemler 72–84 dp'ye çıkar. Yeni hedefler bu aralığın altına inmemelidir.
+- **5 km/sa ve üzeri kilit.** `MotionTracker` süzülmüş gösterim hızını iki fix ile doğrular; eşik `5 km/sa`. Kilit devreye girince Ayarlar kapanır ve kısa bir uyarı gösterilir. GPS yoksa durum `UNKNOWN` olur ve önceki kilit korunur; tünelde kilit kendiliğinden açılmaz.
+- **Büyük hedefler.** Dokunma hedefleri için tasarım kuralı 64–84 dp aralığıdır; birincil eylemler 72–84 dp'ye çıkar. Yeni hedefler bu aralığın altına inmemelidir. Mevcut birkaç 56 dp istisnası (ör. konum izni düğmesi, bazı arama sonuçları) ayrı bir iyileştirme konusudur.
 - **Yüksek kontrast.** Gündüz ve gece paletleri ayrıdır; metin, uyarı ve harita işaretleri arka plandan net ayrılır.
 - **Sığdırma.** `isNarrowScreen()` ekran genişliği 560 dp altındaysa kompakt düzeni seçer. `cappedSp()` sistem yazı ölçeğini varsayılan olarak 1.15 ile sınırlar; kadran ve dock gibi sabit alanlarda metin taşmaz.
 - **Yatay gidon düzeni.** Manifest `sensorLandscape` kullanır; telefon 180° çevrildiğinde çentik tarafı değişse de içerik kaymasın diye simetrik güvenli boşluk uygulanır.

@@ -108,7 +108,7 @@ Ayrıntılar için başlıklara dokun.
 <summary><b>Uygulamalar, kartlar ve ses</b></summary>
 
 - Dock'taki dişli düğmesi Ayarlar'ı açar; sürüş sırasında ayarlar kilitlenir.
-- Ayarlar altı bölüme ayrıldı: Genel, Görünüm, Harita, Ses ve bildirimler, Güvenlik, İzinler ve sistem. Üstteki bölüm şeridi yatay kayar; içerik tek sütunda, geniş ekranda ortalanmış ve en fazla 820 dp genişliğinde gösterilir. Genel'de birim seçimi iki düğmeyle yapılır, Harita'da konum işareti renkleri tek satırdadır, Ses'te yalnız konuşma hızı ayarlanır; yolculuk geçmişi ana ekran hız kartından açılır.
+- Ayarlar altı bölüme ayrıldı: Genel, Görünüm, Harita, Ses ve bildirimler, Güvenlik, İzinler ve sistem. Üstteki bölüm şeridi yatay kayar; içerik tek sütunda, geniş ekranda ortalanmış ve en fazla 820 dp genişliğinde gösterilir. Genel'de birim seçimi iki düğmeyle yapılır, Harita'da konum işareti renkleri tek satırdadır; Ses ve bildirimler'de TTS konuşma hızı, mesajları sesli okuma ve yağmur sesi anahtarları ayrı satırlardadır. Yolculuk geçmişi ana ekran hız kartından açılır.
 - Ana ekran düzeni hız kartının yanında harita ve müzik kartıyla kurulur; kart seçimi Ayarlar'dan kaldırıldı, Görünüm'de yalnız gündüz/gece teması seçilir. Gün batımı kartı kaldırıldı. Yeni uygulama ekleme de kaldırılmıştır.
 - Rota kartında "Navigasyon uygulamasında aç" (Google Haritalar, Waze, Yandex Navi derin bağlantıları, yalnızca dururken); rota hâlâ RideDeck'te hesaplanır, canlı trafik isteyen bu uygulamalara geçer
 - Kilometre/mil seçimi (Ayarlar > Genel): hız, mesafe, hız limiti ve rota sesleri; kilometre veya mil düğmesine doğrudan dokunulur
@@ -140,7 +140,7 @@ Ayrıntılar için başlıklara dokun.
 
 ### 🚧 Bilinen sınırlamalar
 
-- **Sahada doğrulanmayanlar:** kaza algılama eşikleri (gerçek düşüşte denenmedi), gerçek SMS gönderimi, varsayılan telefon uygulamasıyken arama ses yolu, gidonda ısınma ve mini harita pil etkisi, Android 8–10 davranışı. Güncel liste: [docs/STATUS.md](docs/STATUS.md).
+- **Sahada doğrulanmayanlar:** kaza algılama eşikleri (gerçek düşüşte denenmedi), gerçek SMS gönderimi, varsayılan telefon uygulamasıyken arama ses yolu, gidonda ısınma ve mini harita pil etkisi, Android 8–10 davranışı. Ayrıntılı tarihsel liste: [docs/STATUS.md](docs/STATUS.md).
 - **Güncel QA görüntü seti:** 43 kimliğin tamamı toplanmış olsa da bu 43 gerçek sürüş değildir: 24'ü gerçek emülatör, 16'sı bileşen fixture'ı, 3'ü izole native/probe fixture'ıdır. 03 boş source-free altlık olduğu için harita/rota/işaret görünürlüğünü, 10 ise kırpılan ikincil etiket nedeniyle tüm metinlerin taşmasız olduğunu kanıtlamaz; fixture'lar gerçek navigasyon, çağrı, SMS veya medya yolculuğu değildir.
 - Navigasyon, yer arama ve hava durumu **internet gerektirir**. Önceden indirilmiş harita alanları korunur; **yeni çevrimdışı indirmeler ve mevcut bölge devamı kapalıdır**. [OpenFreeMap koşulları](https://openfreemap.org/tos/) indirme başına 3.000 karo veya 50 MB, en çok 4 paralel istek ve uygulamayı tanımlayan User-Agent ister; sağlayıcı toplu uyumluluğu doğrulanmadığı için mevcut SDK yolunda indirme başlatılmaz. Devralınan etkin bir indirme listede **Vazgeç** ile kapatılabilir; bu yeni indirme veya devam başlatmaz. SDK'nın `NATIVE_COMPLETE` durumu karo kullanılabilirliği veya sağlayıcı uyumu kanıtı değildir. Rota hesabı ve arama çevrimdışı çalışmaz. Genel servisler garantisizdir.
 - Arka plan takibi için yolculuğu uygulama görünürken başlatmak gerekir (navigasyondaki **Başlat / Yola devam** da başlatır). Kesin konum izni ve açık GPS gerekir; overlay izni gerekmez. Bildirimler reddedilmişse uygulamadan veya Android Etkin uygulamalar bölümünden durdurulur. Navigasyon yokken 3 dk hareketsizlikte, 3 dk GPS alınamadığında veya izin/depolama hatasında kapanır. Android zorla durdurduğunda kendiliğinden yeniden başlamaz; yarım kalan kayıt sonraki açılışta toparlanır.
@@ -159,7 +159,7 @@ export JAVA_HOME=/yol/jdk-17   # JDK 17 kurulumunun yolu
 ./gradlew testDebugUnitTest assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
-`local.properties` içinde `sdk.dir` ayarlı olmalı (dosya git'e girmez).
+`local.properties` içinde `sdk.dir` ayarlı olmalı (dosya git'e girmez). Emülatörde denemek için **ARM64 system image** gerekir; proje yalnız `arm64-v8a`/`armeabi-v7a` native kütüphaneleri üretir, x86_64 AVD'de kurulum `INSTALL_FAILED_NO_MATCHING_ABIS` ile düşer.
 
 Sürüm APK'sı (R8 ile küçültülmüş, ~10 MB): kök dizine `keystore.properties` koy (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`; dosya git'e girmez) ve `./gradlew assembleRelease` çalıştır. Dosya yoksa APK imzasız çıkar.
 

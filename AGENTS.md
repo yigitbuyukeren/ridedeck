@@ -9,5 +9,5 @@
 - Görevle ilgili belgeleri gerektiğinde oku: güncel ürün özeti `README.md`, açık işler GitHub issue'ları, tarihsel durum/kanıt `docs/STATUS.md`, saha/yayın kapıları `docs/RELEASE_READINESS.md`. Eski test sonuçları tarihsel kanıttır.
 - Mevcut dalı ve kullanıcı değişikliklerini koru; otomatik `switch`, `pull`, sürüm artırma, etiket veya release oluşturma. Test başarısızken commit/push yapma; yalnızca ilgili dosyaları stage et.
 - Plan maddelerini kullanıcı uygulama istemeden başlatma. Tamamlananları STATUS'a taşı; özellik/mimari değişince ilgili README bölümünü güncelle.
-- Sürüşte yazı girişi ekleme; dokunma alanları 64–84dp ve yüksek kontrast korunsun. Yeni arayüz metinlerini ilgili `values*/strings*.xml` dosyalarında (Türkçe ve İngilizce) birlikte güncelle.
-- Arayüz değişince emülatör doğrulaması yap; fiziksel cihaz ve gerçek sürüş doğrulamasını ayrı bildir. Emülatör örneği: `$ANDROID_HOME/emulator/emulator -avd <avd-adı> -no-snapshot`.
+- Sürüşte yazı girişi ekleme; dokunma hedefi 64–84dp olsun, yeni hedefler altına inmesin (mevcut 56dp istisnaları ayrı iyileştirme) ve yüksek kontrast korunsun. Yeni arayüz metinlerini ilgili `values*/strings*.xml` dosyalarında (Türkçe ve İngilizce) birlikte güncelle.
+- Arayüz değişince emülatör doğrulaması yap; fiziksel cihaz ve gerçek sürüş doğrulamasını ayrı bildir. Emülatör için ARM64 system image gerekir; örnek: `$ANDROID_HOME/emulator/emulator -avd <avd-adı> -no-snapshot`.
