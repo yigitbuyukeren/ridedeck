@@ -140,7 +140,6 @@ jobs:
             -no-window -no-audio -no-boot-anim -no-snapshot -no-metrics -accel on
             -gpu swiftshader_indirect -camera-back none -camera-front none
           script: |
-            set -eu
             # The emulator's cached-app freezer can freeze the instrumentation process
             # between Compose tests even though the suite is still running.
             adb shell settings put global cached_apps_freezer disabled
@@ -154,10 +153,7 @@ jobs:
             adb install -r --abi x86_64 app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
             adb shell pm revoke com.ridedeck.app android.permission.ACCESS_FINE_LOCATION || true
             adb shell pm revoke com.ridedeck.app android.permission.ACCESS_COARSE_LOCATION || true
-            adb shell am instrument -w -r \
-              -e class 'com.ridedeck.app.RideTrackingServiceTest#permissionDeniedStartStillPromotesAndStopsInsteadOfCrashing' \
-              -e locationPermissionDenied true \
-              com.ridedeck.app.test/com.ridedeck.app.RideDeckTestRunner | tee /tmp/permission-denied.log
+            adb shell am instrument -w -r -e class 'com.ridedeck.app.RideTrackingServiceTest#permissionDeniedStartStillPromotesAndStopsInsteadOfCrashing' -e locationPermissionDenied true com.ridedeck.app.test/com.ridedeck.app.RideDeckTestRunner | tee /tmp/permission-denied.log
             grep -q 'OK (1 test)' /tmp/permission-denied.log
       - name: Summarize instrumentation reports
         if: always()
