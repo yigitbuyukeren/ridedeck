@@ -82,6 +82,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        // The full-screen intent can launch this activity while the device is locked; set the
+        // keyguard flags before the first frame rather than waiting for the flow collector below.
+        setSosOverLockScreen(SosLockScreenPolicy.showOverKeyguard(viewModel.sos.ui.value.phase))
         (application as RideDeckApplication).rideTracking.setScreenVisible(this, true)
         (application as RideDeckApplication).rideNavigation.setScreenVisible(this, true)
         (application as RideDeckApplication).rideSafety.setScreenVisible(true)

@@ -171,12 +171,13 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
     private fun showSendingAlert() {
         // The countdown is over: nothing can be cancelled any more, so the cancel action goes away.
         releaseCountdownWakeLock()
-        post(alertPlan(), app.getString(R.string.sos_sending), app.getString(R.string.sos_delivery_note), null, null)
+        // A result is information, not an alarm: never launch the app over the lock screen for it.
+        post(alertPlan().copy(fullScreenIntent = false), app.getString(R.string.sos_sending), app.getString(R.string.sos_delivery_note), null, null)
     }
 
     private fun showResultAlert(ui: SosUi) {
         releaseCountdownWakeLock()
-        post(alertPlan(), resultTitle(ui), resultText(ui), null, app.getString(R.string.sos_action_close))
+        post(alertPlan().copy(fullScreenIntent = false), resultTitle(ui), resultText(ui), null, app.getString(R.string.sos_action_close))
     }
 
     private fun resultTitle(ui: SosUi): String = app.getString(
