@@ -17,56 +17,117 @@ import com.ridedeck.app.RideDeckApplication
 import com.ridedeck.app.data.RideFailure
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+/** What a delivered command must do to the service that owns this ride. */
+internal enum class RideServiceCommand { START, STOP, IGNORE, STOP_SERVICE }
 
 /** Started only by a visible, user-initiated ride. No boot receiver, sticky restart, overlay or background-location permission. */
 class RideTrackingService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val tracking get() = (application as RideDeckApplication).rideTracking
     private var request = 0L
-    private val close: () -> Unit = { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf() }
+    private var lastStartId = 0
+    private var tickJob: Job? = null
+
+    // stopSelfResult, not stopSelf: a queued newer start keeps the service alive.
+    private val close: () -> Unit = {
+        tickJob?.cancel()
+        tickJob = null
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelfResult(lastStartId)
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        lastStartId = startId
         val controller = tracking.session
         val incoming = intent?.getLongExtra(EXTRA_REQUEST, 0L) ?: 0L
-        if (intent?.action == ACTION_STOP) {
-            if (controller.isActive(incoming)) controller.stop()
-            else if (request == 0L) stopSelf()
-            return START_NOT_STICKY
+        // A duplicate/stale command must not rewrite the ongoing notification's stop token.
+        val notificationToken = when {
+            controller.accepts(incoming) -> incoming
+            request != 0L -> request
+            else -> incoming
         }
-        if (intent?.action != ACTION_START || !controller.accepts(incoming)) {
-            if (controller.isActive(incoming)) return START_NOT_STICKY
-            if (request == 0L) stopSelf()
-            return START_NOT_STICKY
+        // startForegroundService() obliges every delivery to promote, including a stop that arrives
+        // before its start. Do it first; permission/prerequisite failures are handled after promotion.
+        val promotionFailure = promote(notificationToken)
+        when (decide(intent?.action, incoming, request,
+            accepts = controller.accepts(incoming),
+            active = controller.isActive(incoming),
+            running = controller.state.value.running)) {
+            RideServiceCommand.START -> start(incoming, promotionFailure)
+            RideServiceCommand.STOP -> {
+                tickJob?.cancel()
+                tickJob = null
+                controller.stop()
+            }
+            RideServiceCommand.IGNORE -> Unit
+            RideServiceCommand.STOP_SERVICE -> {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelfResult(startId)
+            }
         }
+        return START_NOT_STICKY
+    }
+
+    private fun start(incoming: Long, promotionFailure: RideFailure?) {
+        val controller = tracking.session
         request = incoming
         tracking.closeService = close
+        if (promotionFailure != null) {
+            // The placeholder promotion already met the startForegroundService() deadline; end the ride.
+            // A total promotion failure has no notification at all, so stop now rather than after the flush.
+            controller.stop(promotionFailure)
+            close()
+            return
+        }
         val failure = tracking.prerequisiteFailure()
-        if (failure != null) { controller.stop(failure); return START_NOT_STICKY }
+        if (failure != null) { controller.stop(failure); return }
         try {
-            // Promotion precedes any database work or GPS subscription; permission races are caught here.
-            ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(incoming),
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION else 0)
-            if (!controller.serviceStarted(incoming)) { close(); return START_NOT_STICKY }
+            if (!controller.serviceStarted(incoming)) { close(); return }
         } catch (_: SecurityException) {
             controller.stop(RideFailure.PERMISSION)
-            return START_NOT_STICKY
+            return
         } catch (_: RuntimeException) {
             controller.stop(RideFailure.START_FAILED)
-            return START_NOT_STICKY
+            return
         }
-        scope.launch {
+        tickJob?.cancel()
+        tickJob = scope.launch {
             while (controller.isActive(incoming)) {
                 controller.tick(tracking.location.state.value, tracking.trips.error.value, tracking.navigating)
                 delay(1_000L)
             }
         }
-        return START_NOT_STICKY
+    }
+
+    /**
+     * Posts a valid foreground notification and returns null, or returns the failure that should end
+     * the ride. A location foreground service without while-in-use location throws on Android 14+;
+     * the untyped placeholder still satisfies the startForegroundService() obligation before we stop.
+     */
+    private fun promote(token: Long): RideFailure? {
+        val notification = notification(token)
+        return try {
+            ServiceCompat.startForeground(this, NOTIFICATION_ID, notification,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION else 0)
+            null
+        } catch (_: SecurityException) {
+            try {
+                ServiceCompat.startForeground(this, NOTIFICATION_ID, notification, 0)
+                RideFailure.PERMISSION
+            } catch (_: RuntimeException) {
+                RideFailure.START_FAILED
+            }
+        } catch (_: RuntimeException) {
+            RideFailure.START_FAILED
+        }
     }
 
     private fun notification(token: Long): android.app.Notification {
@@ -92,8 +153,11 @@ class RideTrackingService : Service() {
     }
 
     override fun onDestroy() {
+        tickJob?.cancel()
+        tickJob = null
         scope.cancel()
         if (tracking.closeService === close) tracking.closeService = null
+        // Releases the service's GPS owner through the controller and never touches a newer token.
         tracking.session.serviceDestroyed(request)
         super.onDestroy()
     }
@@ -105,6 +169,24 @@ class RideTrackingService : Service() {
         internal const val ACTION_START = "com.ridedeck.app.START_RIDE"
         internal const val ACTION_STOP = "com.ridedeck.app.STOP_RIDE"
         internal const val EXTRA_REQUEST = "ride_request"
+
+        /**
+         * Commands are serial on the main thread. A command only stops the service when no ride it
+         * owns is running, so a late stop or a duplicate start cannot kill a newer session.
+         */
+        internal fun decide(
+            action: String?,
+            incoming: Long,
+            request: Long,
+            accepts: Boolean,
+            active: Boolean,
+            running: Boolean,
+        ): RideServiceCommand = when {
+            action == ACTION_START && accepts -> RideServiceCommand.START
+            action == ACTION_STOP && active -> RideServiceCommand.STOP
+            active || (request != 0L && running) -> RideServiceCommand.IGNORE
+            else -> RideServiceCommand.STOP_SERVICE
+        }
 
         fun launch(context: Context, request: Long) {
             context.startForegroundService(Intent(context, RideTrackingService::class.java)

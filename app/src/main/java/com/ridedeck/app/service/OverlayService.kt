@@ -25,7 +25,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.ridedeck.app.MainActivity
 import com.ridedeck.app.R
-import com.ridedeck.app.data.LocationRepository
+import com.ridedeck.app.RideDeckApplication
 import com.ridedeck.app.util.Prefs
 import com.ridedeck.app.util.SpeedUtil
 import com.ridedeck.app.util.UnitMath
@@ -38,11 +38,13 @@ import kotlin.math.roundToInt
 /** Slim speed/clock strip drawn over other apps (e.g. fullscreen Maps). */
 class OverlayService : Service() {
     private lateinit var windowManager: WindowManager
-    private lateinit var location: LocationRepository
     private var bar: View? = null
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var speedView: TextView
     private lateinit var clockView: TextView
+    /** True while this instance owns the shared process GPS; guards an exactly-once release. */
+    private var holdsLocation = false
+    private val tracking get() = (application as RideDeckApplication).rideTracking
 
     private val tick = object : Runnable {
         override fun run() {
@@ -50,6 +52,7 @@ class OverlayService : Service() {
                 shutDown()
                 return
             }
+            val location = tracking.location
             val loc = location.state.value
             // RideDeck already shows the speed itself: the strip is only for when another app is on screen.
             bar?.visibility = if (appInForeground) View.GONE else View.VISIBLE
@@ -81,7 +84,7 @@ class OverlayService : Service() {
         }
         try {
             if (bar == null) addBar()
-            location.start()
+            acquireSharedLocation()
             handler.removeCallbacks(tick)
             handler.post(tick)
         } catch (failure: RuntimeException) {
@@ -95,7 +98,21 @@ class OverlayService : Service() {
         return START_NOT_STICKY
     }
 
+    /** The overlay shares RideTracking's GPS instead of opening a second LocationRepository. */
+    private fun acquireSharedLocation() {
+        if (holdsLocation) return
+        holdsLocation = true
+        tracking.acquireLocation(this)
+    }
+
+    private fun releaseSharedLocation() {
+        if (!holdsLocation) return
+        holdsLocation = false
+        tracking.releaseLocation(this)
+    }
+
     private fun shutDown() {
+        handler.removeCallbacks(tick)
         runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
         stopSelf()
     }
@@ -103,12 +120,11 @@ class OverlayService : Service() {
     override fun onCreate() {
         super.onCreate()
         windowManager = getSystemService(WindowManager::class.java)
-        location = LocationRepository(this)
     }
 
     override fun onDestroy() {
         handler.removeCallbacks(tick)
-        location.stop()
+        releaseSharedLocation()
         bar?.let { runCatching { windowManager.removeView(it) } }
         bar = null
         super.onDestroy()
