@@ -8,9 +8,9 @@ RideDeck'in arayüzü şu anda **Türkçe** (varsayılan) ve **İngilizce**dir. 
 
 | Dil | Dosya |
 |---|---|
-| Türkçe (varsayılan) | `app/src/main/res/values/strings.xml` |
-| İngilizce | `app/src/main/res/values-en/strings.xml` |
-| Yeni dil (örnek Almanca) | `app/src/main/res/values-de/strings.xml` |
+| Türkçe (varsayılan) | `app/src/main/res/values/strings*.xml` (`strings.xml`, `strings_data.xml`) |
+| İngilizce | `app/src/main/res/values-en/strings*.xml` |
+| Yeni dil (örnek Almanca) | `app/src/main/res/values-de/strings*.xml` |
 
 Android, eksik bir anahtar için varsayılan (`values/`) metne düşer. Yine de yeni bir dilin mümkün olduğunca eksiksiz olması beklenir; yarım çeviri arayüzde karışık dil görünümüne yol açabilir.
 
@@ -24,14 +24,14 @@ Android, eksik bir anahtar için varsayılan (`values/`) metne düşer. Yine de 
 ## Yeni dil ekleme
 
 1. Önce bir [belge/çeviri issue'su](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=documentation.yml) aç; dili ve kapsamı belirt.
-2. `app/src/main/res/values-en/strings.xml` dosyasını yeni dil dizinine kopyala (ör. `values-de/strings.xml`). İngilizceyi kaynak olarak kullanmak, anahtarların eksiksiz kalmasını kolaylaştırır.
+2. `app/src/main/res/values-en/strings*.xml` dosyalarını yeni dil dizinine kopyala (ör. `values-de/strings.xml` ve `values-de/strings_data.xml`). İngilizceyi kaynak olarak kullanmak, anahtarların eksiksiz kalmasını kolaylaştırır.
 3. Tüm kullanıcıya görünen metinleri çevir. Teknik adları, marka ve sağlayıcı adlarını (OpenStreetMap, Valhalla, Open-Meteo, MapLibre, Android, SMS, GPS gibi) olduğu gibi bırak.
 4. Biçim yer tutucularını aynen koru: `%1$s`, `%2$d`, `%%`, `\n` gibi. Sıra değişebilirse bile numaralı yer tutucuları koru; numarasız `%s` kullanma.
 5. Uzun metinleri kısalt. Almanca gibi uzun dillerde kart başlıkları ve düğmeler taşabilir; 2,0× yazı boyutunda da dene.
 6. Sağdan sola yazılan bir dil ekliyorsan (Arapça, İbranice, Farsça) yönü ve simge hizalamasını ayrıca kontrol et.
 7. PR'da dili, çevirinin durumunu (tam/kısmi) ve varsa ana dili konuşan gözden geçiren kişiyi belirt.
 
-Yeni dil dizini eklemek üretim kodunu değiştirmez; yalnızca Android kaynak dosyası ekler. Dil seçimi sistem diline göre yapılır; uygulama içi ayrı bir dil seçici yoktur.
+Yeni dil dizini eklemek Kotlin kaynak kodunu değiştirmez; yalnızca Android kaynak dosyası ekler. Dil seçimi sistem diline göre yapılır; uygulama içi ayrı bir dil seçici yoktur.
 
 ## Kalite kuralları
 
@@ -47,15 +47,15 @@ Yeni dil dizini eklemek üretim kodunu değiştirmez; yalnızca Android kaynak d
 Anahtar kümelerini karşılaştır:
 
 ```bash
-diff <(grep -o 'name="[^"]*"' app/src/main/res/values/strings.xml | sort) \
-     <(grep -o 'name="[^"]*"' app/src/main/res/values-en/strings.xml | sort)
+diff <(cat app/src/main/res/values/strings*.xml | grep -o 'name="[^"]*"' | sort) \
+     <(cat app/src/main/res/values-en/strings*.xml | grep -o 'name="[^"]*"' | sort)
 ```
 
 Yeni dil için:
 
 ```bash
-diff <(grep -o 'name="[^"]*"' app/src/main/res/values/strings.xml | sort) \
-     <(grep -o 'name="[^"]*"' app/src/main/res/values-de/strings.xml | sort)
+diff <(cat app/src/main/res/values/strings*.xml | grep -o 'name="[^"]*"' | sort) \
+     <(cat app/src/main/res/values-de/strings*.xml | grep -o 'name="[^"]*"' | sort)
 ```
 
 Derle ve emülatörde dene:

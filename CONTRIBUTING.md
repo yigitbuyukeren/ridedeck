@@ -87,7 +87,7 @@ Mimari ve veri akışı için [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) dosya
 - **Motosiklet odaklı kal.** Araç seçici, araba/bisiklet profili veya araca göre dallanan yeni davranış ekleme. Uygulama tek bir motosiklet deneyimi sunar. Gösterge üst sınırı, kaza eşiği ve durak türü gibi motosiklet sabitleri `data/VehicleProfile.kt` içindeki `ProfileConfig` üzerinden gelir; yeni sabiti oraya ekle, koda dağınık `if` serpiştirme.
 - **Sürüş güvenliği pazarlık konusu değildir.** Sürerken yazı girişi, küçük dokunma hedefi veya dikkat dağıtan animasyon ekleme. Dokunma hedefleri 64–84 dp, kontrast yüksek, metinler kısa olmalı.
 - **Yatay ve büyük yazıyı düşün.** Arayüz yatay gidon düzeninde çalışır; dar ekran için `isNarrowScreen()`, sabit alanlarda taşmayı önlemek için `cappedSp()` kullanılır. Sistem yazı boyutu 2,0× iken de dene.
-- **Kullanıcıya görünen her metin kaynak dosyada olur.** Türkçe `app/src/main/res/values/strings.xml`, İngilizce `app/src/main/res/values-en/strings.xml`; iki dosyayı birlikte güncelle. Çeviri için [docs/TRANSLATING.md](docs/TRANSLATING.md).
+- **Kullanıcıya görünen her metin kaynak dosyada olur.** Metinler `app/src/main/res/values/strings*.xml` (Türkçe) ve `app/src/main/res/values-en/strings*.xml` (İngilizce) altındadır; çoğu metin `strings.xml`, veri ekranları gibi ayrı gruplar `strings_data.xml` içindedir. Aynı anahtarı iki dilde birlikte güncelle. Çeviri için [docs/TRANSLATING.md](docs/TRANSLATING.md).
 - **Saf mantığı Android kabuğundan ayır.** Hız filtresi, rota eşleme, SOS matematiği gibi çekirdekler Android API'sine bağlı olmamalı; saat/sensör girdisi dışarıdan gelmeli ve JVM testi yazılabilmeli.
 - **Tek ağ çıkışı.** Genel servis çağrıları `data/Http.kt` üzerinden yapılır. Yeni bir dış servis eklemeden önce issue'da tartış; servis ücretsiz, anahtarsız ve kullanım koşullarına uygun olmalı.
 - **Veri telefonda kalır.** Hesap, analitik, reklam veya RideDeck sunucusu yoktur. Yeni bir veri toplama/aktarma yolu ekleme.
@@ -109,8 +109,8 @@ Değişikliğin büyüklüğüne göre en azından ilgili testleri çalıştır:
 # Debug APK
 ./gradlew assembleDebug
 
-# CI'daki tam komut (debug + release test/lint, APK'lar, instrumentation derlemesi)
-./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest
+# CI build işindeki ana Gradle komutu (debug + release test/lint, APK'lar, AAB, instrumentation derlemesi)
+./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease
 ```
 
 Tek bir test sınıfı:
@@ -120,7 +120,7 @@ Tek bir test sınıfı:
 ```
 
 - Yeni mantık için `app/src/test` altında birim testi ekle. Hata düzeltiyorsan hatayı önce yakalayan bir regresyon testi yaz.
-- Compose/Android davranışı için `app/src/androidTest` altında instrumentation testi ekleyebilirsin. CI bu testleri **derler**, cihazda çalıştırmaz; yerelde `./gradlew connectedDebugAndroidTest` ile çalıştır.
+- Compose/Android davranışı için `app/src/androidTest` altında instrumentation testi ekleyebilirsin. CI bu testleri API 35 x86_64 emülatörde çalıştırır; fiziksel cihaz/emülatör denemesi yine ayrı bir kanıttır. Yerelde `./gradlew connectedDebugAndroidTest` ile çalıştır.
 - Arayüz değişikliğinde ekran görüntüsü ekle. Emülatörde alınan görüntüyü "gerçek cihazda doğrulandı" diye sunma; hangi ortamda alındığını yaz.
 - Testleri gevşetme, başarısız testi silme veya yalnızca testi geçirmek için üretim davranışını değiştirme.
 - Navigasyon, GPS, SOS, arama ve müzik gibi kritik yolları değiştirdiysen ilgili testleri ve varsa emülatör/cihaz denemesini PR'da ayrıca belirt.
@@ -138,7 +138,7 @@ Tek bir test sınıfı:
 
 ## İyi bir ilk iş nasıl seçilir?
 
-- `good first issue` etiketli issue'lara bak; yoksa belge düzeltmesi, çeviri, test kapsamı veya küçük bir arayüz düzeltmesi öner.
+- [`good first issue`](https://github.com/yigitbuyukeren/ridedeck/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) etiketli issue'lara bak; yoksa belge düzeltmesi, çeviri, test kapsamı veya küçük bir arayüz düzeltmesi öner.
 - `help wanted` dışarıdan yardım bekleyen, `accessibility` erişilebilirlik, `documentation` belge/çeviri, `question` ise soru niteliğindeki konular içindir.
 - Navigasyon çekirdeği, SOS/kaza algılama, GPS ve izin akışı yüksek riskli alanlardır. Bu alanlarda çalışmadan önce issue'da yaklaşımı netleştir.
 - `docs/STATUS.md` tarihsel durum ve kanıt kaydıdır; güncel görev listesi değildir. Güncel işler açık issue'larda izlenir.
@@ -163,8 +163,8 @@ RideDeck is a motorcycle-only Android dashboard (Kotlin, Jetpack Compose, minSdk
 
 1. Fork, clone, add `upstream`, and set `sdk.dir` in `local.properties`.
 2. Use JDK 17 and Android SDK 36. Build with `./gradlew testDebugUnitTest assembleDebug`.
-3. Keep changes focused. Add a JVM test for new logic; add a Compose/instrumentation test when UI behavior changes. The CI compiles instrumentation tests but does not run them on a device.
-4. Update both `app/src/main/res/values/strings.xml` and `values-en/strings.xml` for user-facing text.
+3. Keep changes focused. Add a JVM test for new logic; add a Compose/instrumentation test when UI behavior changes. CI runs the instrumentation suite on an API 35 x86_64 emulator; a physical-device check is still separate evidence.
+4. Update the relevant `app/src/main/res/values/strings*.xml` and `values-en/strings*.xml` files (for example `strings.xml` and `strings_data.xml`) for user-facing text.
 5. Preserve the driving-safety rules: no text input while riding, 64–84 dp touch targets, high contrast, landscape layout, and large-font support.
 6. Route public network calls through `app/src/main/java/com/ridedeck/app/data/Http.kt`. Do not add accounts, API keys, analytics, or a new external service without an issue.
 7. Never commit `local.properties`, `keystore.properties`, `*.jks`, or secrets. Report vulnerabilities privately via [SECURITY.md](SECURITY.md).

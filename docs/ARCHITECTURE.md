@@ -183,7 +183,7 @@ Tüm veri telefonda kalır. `android:allowBackup="false"` olduğu için Android 
 - **Yüksek kontrast.** Gündüz ve gece paletleri ayrıdır; metin, uyarı ve harita işaretleri arka plandan net ayrılır.
 - **Sığdırma.** `isNarrowScreen()` ekran genişliği 560 dp altındaysa kompakt düzeni seçer. `cappedSp()` sistem yazı ölçeğini varsayılan olarak 1.15 ile sınırlar; kadran ve dock gibi sabit alanlarda metin taşmaz.
 - **Yatay gidon düzeni.** Manifest `sensorLandscape` kullanır; telefon 180° çevrildiğinde çentik tarafı değişse de içerik kaymasın diye simetrik güvenli boşluk uygulanır.
-- **TR/EN.** Kullanıcıya görünen her metin `values/strings.xml` (Türkçe) ve `values-en/strings.xml` (İngilizce) içinde birlikte güncellenir. Sesli yönlendirme telefon diline göre Türkçe veya İngilizce konuşur (`GuidanceLanguage`).
+- **TR/EN.** Kullanıcıya görünen her metin ilgili `values/strings*.xml` (Türkçe) ve `values-en/strings*.xml` (İngilizce) dosyalarında birlikte güncellenir; çoğu metin `strings.xml`, veri ekranları `strings_data.xml` içindedir. Sesli yönlendirme telefon diline göre Türkçe veya İngilizce konuşur (`GuidanceLanguage`).
 
 ## 8. Test edilebilirlik
 
@@ -204,10 +204,10 @@ Test katmanları:
 CI şu komutu çalıştırır:
 
 ```bash
-./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest
+./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease
 ```
 
-Burada `test` debug ve release JVM testlerini çalıştırır; **instrumentation testleri yalnız derlenir, cihazda çalıştırılmaz**. `connectedDebugAndroidTest` ayrı bir emülatör/cihaz adımıdır ve CI kapısı değildir. Davranış değiştiren katkılarda ilgili JVM testini, arayüz değişikliklerinde ilgili Compose testini güncelleyin; doğrulanmamış cihaz davranışını doğrulanmış gibi anlatmayın.
+Burada `test` debug ve release JVM testlerini çalıştırır. CI ayrı bir işte API 35 x86_64 emülatörde `:app:connectedDebugAndroidTest` çalıştırır; fiziksel cihaz davranışı yine ayrı bir doğrulamadır. Davranış değiştiren katkılarda ilgili JVM testini, arayüz değişikliklerinde ilgili Compose testini güncelleyin; doğrulanmamış cihaz davranışını doğrulanmış gibi anlatmayın.
 
 ## 9. Nerede ne değiştirilir?
 
@@ -229,6 +229,7 @@ Burada `test` debug ve release JVM testlerini çalıştırır; **instrumentation
 |---|---|---|
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | Katkı süreci, issue/PR beklentileri, dal ve commit kuralları | Güncel süreç |
 | [docs/DEVELOPMENT.md](DEVELOPMENT.md) | Ortam kurulumu, derleme, test, emülatör ve sorun giderme | Güncel pratik rehber |
+| [docs/TRANSLATING.md](TRANSLATING.md) | Yeni dil ekleme ve mevcut metinleri güncelleme | Güncel çeviri rehberi |
 | [docs/CASE-STUDY.md](CASE-STUDY.md) | Tasarım gerekçeleri ve teknik anlatım | Tarihsel; araç profili gibi kaldırılmış kavramlar ve eski test sayıları bulunabilir |
 | [docs/CASE-STUDY.en.md](CASE-STUDY.en.md) | Vaka analizinin İngilizce özeti | Tarihsel |
 | [docs/STATUS.md](STATUS.md) | Tarihli doğrulama ve iş günlüğü | Tarihsel kanıt; güncel şartname değil |

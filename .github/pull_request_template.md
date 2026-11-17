@@ -30,10 +30,10 @@ Closes #
 ## Kontrol listesi
 - [ ] Değişiklik tek konuya odaklı; ilgisiz düzeltme yok.
 - [ ] Yeni davranış için birim testi ekledim veya test gerekmediğini açıkladım.
-- [ ] Kullanıcıya görünen metinleri `app/src/main/res/values/strings.xml` ve `app/src/main/res/values-en/strings.xml` içinde birlikte güncelledim (veya metin değişikliği yok).
+- [ ] Kullanıcıya görünen metinleri ilgili `app/src/main/res/values/strings*.xml` ve `values-en/strings*.xml` dosyalarında (ör. `strings.xml`, `strings_data.xml`) birlikte güncelledim (veya metin değişikliği yok).
 - [ ] Sürüş güvenliği ve motosiklet-only ilkesi korundu: sürerken yazı girişi yok, dokunma hedefleri 64–84 dp, yüksek kontrast.
 - [ ] Yeni ağ çağrıları yalnızca `app/src/main/java/com/ridedeck/app/data/Http.kt` üzerinden; yeni dış servis varsa issue'da tartışıldı.
 - [ ] `local.properties`, `keystore.properties`, `*.jks`, `.env` veya başka gizli dosya/anahtar commit edilmedi.
 - [ ] Gerekli belgeler güncellendi (README, `docs/STATUS.md`, `CONTRIBUTING.md` vb.) veya belge değişikliği gerekmiyor.
 - [ ] Log ve ekran görüntülerinde kişisel veri yok.
-- [ ] CI'da derleme, test ve lint geçti. (PR açtıktan sonra işaretle.)
+- [ ] CI (birim testleri, lint, APK/AAB ve instrumentation) geçti. (PR açtıktan sonra işaretle.)

@@ -60,9 +60,12 @@ Debug APK: `app/build/outputs/apk/debug/app-debug.apk`.
 | `./gradlew lintRelease` | Release lint |
 | `./gradlew assembleDebug` | Debug APK |
 | `./gradlew assembleRelease` | R8 ile küçültülmüş release APK; imza anahtarı yoksa imzasız çıkar |
+| `./gradlew bundleRelease` | Release AAB (`app/build/outputs/bundle/release/app-release.aab`) |
 | `./gradlew assembleDebugAndroidTest` | Instrumentation test APK'sını derler (cihazda çalıştırmaz) |
 | `./gradlew connectedDebugAndroidTest` | Bağlı cihaz/emülatörde instrumentation testlerini çalıştırır |
-| `./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest` | CI'daki tam yerel eşdeğer |
+| `./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease` | CI build işinin ana Gradle komutu |
+
+Debug APK `arm64-v8a`, `armeabi-v7a` ve `x86_64` native kütüphanelerini taşır; release APK yalnız ARM (`arm64-v8a`, `armeabi-v7a`) hedefler. Bu yüzden x86_64 emülatörde debug APK çalışır, release APK çalışmaz. CI ayrıca JUnit XML raporlarını özetler; debug/release ABI ve test-only asset paketlemesini, release imzasını (`keystore.properties` varsa) ve 16 KB hizalamayı doğrular.
 
 Tek test sınıfı veya metodu:
 
@@ -84,7 +87,7 @@ Raporlar:
 - Instrumentation: `app/build/reports/androidTests/connected/debug/index.html`
 - Lint: `app/build/reports/lint-results-debug.html`, `lint-results-release.html`
 
-CI, instrumentation testlerini **yalnızca derler**; fiziksel cihaz/emülatör koşusu ayrı bir doğrulamadır. Bir testi geçirmek için üretim kodunu veya test beklentisini gevşetme.
+CI, instrumentation testlerini ayrı bir işte API 35 x86_64 emülatörde çalıştırır; fiziksel cihaz/emülatör koşusu yine ayrı bir doğrulamadır. Bir testi geçirmek için üretim kodunu veya test beklentisini gevşetme.
 
 ## 4. Proje düzeni
 
@@ -177,7 +180,7 @@ Logcat ve ekran görüntülerini paylaşmadan önce konum, telefon numarası, ki
 
 ### Metin ekleme veya düzeltme
 
-1. Anahtarı `app/src/main/res/values/strings.xml` (Türkçe) ve `app/src/main/res/values-en/strings.xml` (İngilizce) içine ekle.
+1. Anahtarı ilgili `app/src/main/res/values/strings*.xml` (Türkçe) ve `values-en/strings*.xml` (İngilizce) dosyasına ekle. Çoğu metin `strings.xml`, veri ekranları gibi ayrı gruplar `strings_data.xml` içindedir.
 2. `stringResource(R.string.yeni_anahtar)` ile kullan; kullanıcıya görünen metni koda gömme.
 3. Biçim yer tutucularını (`%1$s`, `%2$d`) iki dilde aynı sırayla koru.
 4. Uzun metni dar ekranda ve 2,0× yazı boyutunda dene.
@@ -252,6 +255,13 @@ Katkıcıların release anahtarına ihtiyacı yoktur; debug APK ve testler yeter
 - `keystore.properties` kökte durur: `storeFile`, `storePassword`, `keyAlias`, `keyPassword`. Dosya ve `*.jks` Git'e girmez.
 - Dosya yoksa `./gradlew assembleRelease` imzasız APK üretir; bu normaldir.
 - Release R8 ile küçültülür. Sürüm numarası (`versionCode`/`versionName`) yalnız bakımcı tarafından, yayın öncesi artırılır.
+- AAB: `./gradlew bundleRelease` → `app/build/outputs/bundle/release/app-release.aab`.
+- İmza doğrulaması (yalnız `keystore.properties` varsa; yoksa betik `SKIP` yazar):
+
+```bash
+python3 scripts/check-release-signature.py
+```
+
 - 16 KB sayfa boyutu kontrolü:
 
 ```bash
@@ -261,7 +271,7 @@ SDK="${ANDROID_HOME:-$(sed -n 's/^sdk.dir=//p' local.properties)}"
 ```
 
 - Etiket, GitHub release, APK yayını ve mağaza dağıtımı açık talimat olmadan yapılmaz.
-- CI artifact'ları: debug APK, androidTest APK, imzasız release APK ve test/lint raporları.
+- CI artifact'ları: debug APK, androidTest APK, imzasız release APK/AAB, test/lint ve instrumentation raporları.
 
 ## 11. Yardım
 

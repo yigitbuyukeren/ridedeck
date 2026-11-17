@@ -197,7 +197,7 @@ Başlamak için:
 - [Çeviri rehberi](docs/TRANSLATING.md) — yeni dil ve mevcut metin düzeltmeleri
 - [Destek](SUPPORT.md) ve [güvenlik politikası](SECURITY.md)
 
-Güncel işler açık issue'larda ve `good first issue` etiketinde izlenir; [docs/STATUS.md](docs/STATUS.md) tarihsel durum/kanıt kaydıdır, görev listesi değildir. Fikirler: yeni dil çevirileri, çevrimdışı rota hesaplama (büyük iş), tablet ve katlanabilir ekran düzenleri.
+Güncel işler açık issue'larda ve [`good first issue`](https://github.com/yigitbuyukeren/ridedeck/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) etiketinde izlenir; [docs/STATUS.md](docs/STATUS.md) tarihsel durum/kanıt kaydıdır, görev listesi değildir. Fikirler: yeni dil çevirileri, çevrimdışı rota hesaplama (büyük iş), tablet ve katlanabilir ekran düzenleri.
 
 ### 📜 Lisans
 
