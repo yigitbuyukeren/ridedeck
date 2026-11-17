@@ -168,7 +168,8 @@ RideDeck is a motorcycle-only Android dashboard (Kotlin, Jetpack Compose, minSdk
 5. Preserve the driving-safety rules: no text input while riding, 64–84 dp touch targets, high contrast, landscape layout, and large-font support.
 6. Route general network calls through `app/src/main/java/com/ridedeck/app/data/Http.kt` (MapLibre tile requests stay in the map engine). Do not add accounts, API keys, analytics, or a new external service without an issue.
 7. Never commit `local.properties`, `keystore.properties`, `*.jks`, or secrets. Report vulnerabilities privately via [SECURITY.md](SECURITY.md).
-8. Open a PR with the problem, the change, and test evidence. Link the issue with `Closes #123`.
+8. Do not paste real locations, phone numbers, contact names or SMS content; anonymise logs and screenshots.
+9. Open a PR with the problem, the change, and test evidence. Link the issue with `Closes #123`.
 
 Read [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the code map, and [SUPPORT.md](SUPPORT.md) for where to ask questions. Follow the [code of conduct](CODE_OF_CONDUCT.md). By contributing, you agree that your work is licensed under Apache 2.0.
 

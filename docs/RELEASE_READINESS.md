@@ -1,5 +1,7 @@
 # 1.0 yayın hazırlığı — 2026-10-29
 
+> **Kanıt yolları:** Metindeki `/tmp/...` yolları yerel kanıt dosyalarıdır; repoda yer almaz.
+
 > **11 Kasım 2026 güncellik notu:** Aşağıdaki 0.4.0/344 test ve cihaz sonuçları tarihsel denetimdir; güncel 0.6.0 (`versionCode 6`) çalışma ağacının yeniden doğrulaması değildir. Güncel uygulama/test kanıtı [STATUS.md](STATUS.md), bekleyen kabul kapıları [PLAN.md](PLAN.md) içindedir. 11 Kasım başlangıç koşusunda debug birim testleri 436/436 geçti; bu tek başına tam CI, emülatör regresyonu veya yayın onayı değildir. Arka plan SOS ve süreç sonrası hedef önizlemesi gibi davranışlar sonradan değişti; aşağıdaki tarihsel mimari sınırlamaları güncel kodun yerine kullanma. Fiziksel cihaz, gerçek SMS/arama, interkom ve yayın kapıları kapanmadı.
 
 **11 Kasım ilk dalga son kontrolü:** Güncel 0.6.0/6 çalışma ağacında debug/release **470'er birim testi**, iki lint (0 hata, 95'er uyarı), debug/release/test APK, ELF/ZIP 16 KB statik kapıları ve **21 hedefli emülatör testi** geçti. Kanıt `captures/plan-2026-11-11/` ve STATUS'tadır; aşağıdaki tarihsel sonuçların yerine bütün cihaz matrisinin yeniden koşulduğu anlamına gelmez. Yeni çevrimdışı indirmeler sağlayıcı koşulları doğrulanamadığı için kapalıdır. Tam 43 ekran, gerçek cihaz ve çağrı/SOS saha kapıları açık; genel yayın kararı **NO-GO**.

@@ -11,8 +11,8 @@ RideDeck gönüllü bir açık kaynak projesidir. Yardım isterken doğru kanal�
 | Kullanım, kurulum veya katkı sorusu | [Soru formu](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=question.yml) |
 | Belge, README veya çeviri sorunu | [Belge/çeviri bildirimi](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=documentation.yml) |
 | Deneyim/geri bildirim | [Geri bildirim formu](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=geri-bildirim.yml) |
-| Güvenlik açığı | **Gizli:** [SECURITY.md](SECURITY.md) → mail@yigitbuyukeren.com |
-| Özel/hassas konu | mail@yigitbuyukeren.com |
+| Güvenlik açığı | **Gizli:** [SECURITY.md](SECURITY.md) → [mail@yigitbuyukeren.com](mailto:mail@yigitbuyukeren.com) |
+| Özel/hassas konu | [mail@yigitbuyukeren.com](mailto:mail@yigitbuyukeren.com) |
 
 Gerçek zamanlı acil durum, tıbbi yardım, kaza müdahalesi veya güvenlik garantisi için bu kanalları kullanma. Acil durumda bulunduğun ülkenin acil yardım numarasını ara. RideDeck'in SOS özelliği bir yardımcıdır; teslimat ve müdahale garantisi vermez.
 

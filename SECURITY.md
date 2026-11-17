@@ -14,9 +14,11 @@ Yayınlanan APK'nın sürümünü uygulama içinden veya APK dosya adından kont
 
 ## Güvenlik açığı nasıl bildirilir?
 
-E-posta: **mail@yigitbuyukeren.com**
+GitHub'ın özel güvenlik bildirimi bu depoda etkin değildir. E-posta: [mail@yigitbuyukeren.com](mailto:mail@yigitbuyukeren.com)
 
-Konu satırına `RideDeck güvenlik` yaz. İlk mesajda şunları paylaş:
+Konu satırına `RideDeck güvenlik` yaz. **İlk e-postada exploit ayrıntısı, kişisel veri veya hassas ekran görüntüsü gönderme.** Yalnızca güvenli bir kanal üzerinden bildirim yapmak istediğini ve varsa genel etkilenen sürümü belirt. Uygun şifreli kanal üzerinde anlaştıktan sonra ayrıntıları paylaş.
+
+Ayrıntıları paylaşırken şunları ekle:
 
 - Etkilenen sürüm ve/veya commit
 - Android sürümü ve cihaz/emülatör bilgisi
@@ -24,7 +26,7 @@ Konu satırına `RideDeck güvenlik` yaz. İlk mesajda şunları paylaş:
 - En az adımla yeniden üretme yolu
 - Varsa kanıt (log, ekran görüntüsü, küçük bir kavram kanıtı)
 
-**Gerçek konum, telefon numarası, SMS içeriği, kişi listesi veya parola gönderme.** Gerekiyorsa örneği anonimleştir. Şifreli iletişim gerekiyorsa bunu ilk e-postada belirt; uygun bir kanal üzerinden devam edilir.
+**Gerçek konum, telefon numarası, SMS içeriği, kişi listesi veya parola gönderme.** Gerekiyorsa örneği anonimleştir.
 
 Güvenlik bildirimini issue, PR, tartışma veya sosyal medya üzerinden herkese açık biçimde paylaşma. Açığı doğrulamak için başka kullanıcıların verisine, cihazına veya hesaplarına erişme; hizmeti kesintiye uğratma.
 

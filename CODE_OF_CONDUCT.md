@@ -26,7 +26,7 @@ Bu kurallar issue'lar, pull request'ler, tartışmalar, commit mesajları, incel
 
 ## Bildirim
 
-Uygunsuz davranışı veya bir çatışmayı **mail@yigitbuyukeren.com** adresine bildirebilirsin. Konu satırına `RideDeck davranış` yaz. Bildirimi mümkünse şu bilgilerle yap:
+Uygunsuz davranışı veya bir çatışmayı [mail@yigitbuyukeren.com](mailto:mail@yigitbuyukeren.com) adresine bildirebilirsin. Konu satırına `RideDeck davranış` yaz. Bildirimi mümkünse şu bilgilerle yap:
 
 - Ne oldu, nerede ve ne zaman?
 - İlgili bağlantılar veya ekran görüntüleri (kişisel veriden arındırılmış)

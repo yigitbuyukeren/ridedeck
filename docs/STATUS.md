@@ -2,6 +2,8 @@
 
 Güncel kurallar kökteki `AGENTS.md`, bekleyen işler [PLAN.md](PLAN.md) içindedir. Aşağıdaki tarihli kayıtlar yeniden çalıştırılmış test sonucu değildir.
 
+> **Kanıt yolları:** Metindeki `/tmp/...` yolları yerel kanıt dosyalarıdır; repoda yer almaz.
+
 **Son güncelleme:** 2026-11-12
 
 ## Güncel özet

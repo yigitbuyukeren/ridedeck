@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Hata bildirdiğin için teşekkürler. Önce [açık issue'larda](https://github.com/yigitbuyukeren/ridedeck/issues?q=is%3Aissue) aynı sorunun bildirilip bildirilmediğine bak.
+        Hata bildirdiğin için teşekkürler. Önce [açık issue'larda](https://github.com/yigitbuyukeren/ridedeck/issues?q=is%3Aissue+is%3Aopen) aynı sorunun bildirilip bildirilmediğine bak.
 
         **Güvenlik açığı mı?** Herkese açık issue açma; [SECURITY.md](https://github.com/yigitbuyukeren/ridedeck/blob/main/SECURITY.md) dosyasındaki gizli bildirim yolunu izle.
 

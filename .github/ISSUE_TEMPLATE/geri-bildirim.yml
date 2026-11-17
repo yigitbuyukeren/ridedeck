@@ -5,7 +5,7 @@ labels: ["geri-bildirim"]
 body:
   - type: markdown
     attributes:
-      value: "Kullanım deneyimini paylaştığın için teşekkürler. Lütfen kişisel veri, gerçek konum, telefon numarası, SMS/kişi içeriği veya fotoğraf paylaşma; gerekiyorsa örneği anonimleştir."
+      value: "Kullanım deneyimini paylaştığın için teşekkürler. Lütfen kişisel veri, gerçek konum, telefon numarası, SMS/kişi içeriği veya fotoğraf paylaşma; gerekiyorsa örneği anonimleştir. **Güvenlik açığı mı?** Herkese açık issue açma; [SECURITY.md](https://github.com/yigitbuyukeren/ridedeck/blob/main/SECURITY.md) adımlarını izle."
   - type: input
     id: device
     attributes:
@@ -79,3 +79,12 @@ body:
       description: "Hiçbir şey yazmasan da olur."
     validations:
       required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "Son kontroller"
+      options:
+        - label: "Paylaştığım metin, log ve ekran görüntülerinde kişisel veri yok; gerekiyorsa anonimleştirdim."
+          required: true
+        - label: "Bu bir güvenlik açığı değil; güvenlik açıklarını SECURITY.md'deki yolla bildireceğim."
+          required: true

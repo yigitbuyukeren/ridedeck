@@ -6,11 +6,11 @@ body:
   - type: markdown
     attributes:
       value: |
-        Fikrini paylaştığın için teşekkürler. Önce [açık issue'larda](https://github.com/yigitbuyukeren/ridedeck/issues?q=is%3Aissue) benzer bir öneri olup olmadığına bak.
+        Fikrini paylaştığın için teşekkürler. Önce [açık issue'larda](https://github.com/yigitbuyukeren/ridedeck/issues?q=is%3Aissue+is%3Aopen) benzer bir öneri olup olmadığına bak.
 
         RideDeck **yalnız motosiklet** için tasarlanır. Sürerken yazı girişi yoktur; dokunma hedefleri büyük ve eldivenle kullanılabilir olmalıdır. Yeni dış servisler ücretsiz ve anahtarsız olmalı, kullanım koşullarına uymalıdır.
 
-        Lütfen gerçek konum, telefon numarası, kişi adı veya başka kişisel veri paylaşma.
+        Lütfen gerçek konum, telefon numarası, kişi adı veya başka kişisel veri paylaşma. **Güvenlik açığı mı?** Herkese açık issue açma; [SECURITY.md](https://github.com/yigitbuyukeren/ridedeck/blob/main/SECURITY.md) adımlarını izle.
   - type: textarea
     id: problem
     attributes:
@@ -88,4 +88,6 @@ body:
         - label: Aynı öneri için açılmış bir issue olup olmadığına baktım.
           required: true
         - label: Önerimin motosiklet-only ve sürüş güvenliği ilkelerine uyduğunu okudum.
+          required: true
+        - label: Bu bir güvenlik açığı değil; güvenlik açıklarını SECURITY.md'deki yolla bildireceğim.
           required: true
