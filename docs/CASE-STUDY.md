@@ -34,7 +34,7 @@ Prensipler:
 
 - **Saf mantık + ince Android kabuğu.** Güvenlik ve konfor modüllerinin (`ThermalGuard`, `CrashDetector`, `SpeedFilter`, `PositionSmoother`, `PhoneMath`, `PinnedApps`, motosiklet profili vb.) çekirdeği Android bağımlılığı olmayan sınıflardır; zaman ve sensör verisi dışarıdan verilir. Bu yüzden telefon olmadan testlenir.
 - **Bağımlılık enjeksiyonu elle.** `NavigationController` arama, rota, konuşma ve metin arama bağımlılıklarını kurucudan alır; `NavigationControllerTest` gerçek servis olmadan çalışır.
-- **Tek ağ geçidi.** Nominatim, Valhalla, Open-Meteo ve Overpass çağrıları ile OpenFreeMap indirmeleri `data/Http.kt`/`ProviderHttp` üzerinden geçer: sürüm bilgili tek `User-Agent`, iptal edilebilir çağrı ve sağlayıcı başına eşzamanlılık/aralık sınırı. MapLibre karo isteklerini harita motoru kendisi yapar. Bu sınır uygulamanın kendi trafiğini şekillendirir; sağlayıcının tüm kullanıcılar toplamındaki kotasını kanıtlamaz.
+- **Tek ağ geçidi.** Nominatim, Valhalla, Open-Meteo ve Overpass çağrıları `data/Http.kt`/`ProviderHttp` üzerinden geçer: sürüm bilgili tek `User-Agent`, iptal edilebilir çağrı ve sağlayıcı başına eşzamanlılık/aralık sınırı. MapLibre karo ve çevrimdışı indirme isteklerini harita motoru kendisi yapar. Bu sınır uygulamanın kendi trafiğini şekillendirir; sağlayıcının tüm kullanıcılar toplamındaki kotasını kanıtlamaz.
 - **Ömür.** `RideNavigation` uygulama ömründedir; Activity veya ViewModel yeniden oluşması rehberliği, TTS'yi veya açık yolculuğu kapatmaz. Navigasyon aynı süreç içinde ekran kapalıyken de sürer; süreç ölümü/force-stop sonrasında rota kendiliğinden devam etmez, yalnız önizleme olarak geri gelir.
 
 ## 3. GPS filtreleme

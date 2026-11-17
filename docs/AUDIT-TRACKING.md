@@ -40,7 +40,7 @@ gerektiren maddeler ayrıca **ENGEL** olarak işaretlenir.
 | P1-26 | P1 | Build | ARM-only APK CI emülatöründe çalışmıyor | KAPALI | debug x86_64; batch suite |
 | P2-1 | P2 | UI | Küçük ekran/taşma ve kırpılmalar | KAPALI | hedefli UI testleri |
 | P2-2 | P2 | UI | Büyük yazı ölçeğinde diğer kartlar | KISMİ | NavCard ve birçok kart; tam 43 ekran matrisi yok |
-| P2-3 | P2 | UI | Gündüz teması düşük kontrast (turuncu/yeşil) | KAPALI | readableOn + gündüz kontrast testleri; ActionPill/SOS gerçek bileşen |
+| P2-3 | P2 | UI | Gündüz teması düşük kontrast (turuncu/yeşil) | KAPALI | readableOn + gündüz kontrast testleri; ActionPill foreground testi |
 | P2-4 | P2 | Erişilebilirlik | TalkBack/D-pad semantiği ve odak | KISMİ | semantics/focus testleri; gerçek TalkBack/D-pad yok |
 | P2-5 | P2 | Erişilebilirlik | 64 dp altı dokunma hedefleri | KISMİ | hedefli 64 dp testleri; tüm ekranlar taranmadı |
 | P2-6 | P2 | UI | Mesaj banner'ı navigasyonu kapatıyor | KAPALI | haritada rehberlik sırasında banner gizli |
