@@ -64,7 +64,8 @@ class CarNotificationListener : NotificationListenerService() {
         // notification shade. Keyguard state is read per notification, not cached.
         val surface = MessagePrivacy.surface(
             visibility = n.visibility,
-            keyguardLocked = keyguard?.isKeyguardLocked == true,
+            // An unreadable KeyguardManager must not be treated as "unlocked": fail closed.
+            keyguardLocked = keyguard?.isKeyguardLocked ?: true,
         )
         if (surface == MessagePrivacy.Surface.SKIP) return
         val (sender, text) = if (surface == MessagePrivacy.Surface.APP_ONLY) {
@@ -72,10 +73,13 @@ class CarNotificationListener : NotificationListenerService() {
         } else {
             parse(n) ?: return
         }
-        // Chat apps re-post the same notification when other things change; ignore repeats.
-        if (sbn.key == lastKey && text == lastText) return
+        // Chat apps re-post the same notification when other things change; ignore repeats. A
+        // redacted body is identical for every locked message, so include the post time there to
+        // avoid dropping the second message in the same conversation.
+        val dedupeText = if (surface == MessagePrivacy.Surface.APP_ONLY) "app-only:${sbn.postTime}" else text
+        if (sbn.key == lastKey && dedupeText == lastText) return
         lastKey = sbn.key
-        lastText = text
+        lastText = dedupeText
         MessageBridge.latest.value = IncomingMessage(
             id = MessageBridge.nextId(),
             app = appLabel(sbn.packageName),

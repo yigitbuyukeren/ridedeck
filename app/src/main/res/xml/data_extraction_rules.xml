@@ -11,6 +11,8 @@
         <exclude domain="database" path="trips.db-wal" />
         <exclude domain="database" path="trips.db-shm" />
         <exclude domain="database" path="trips.db-journal" />
+        <!-- Forensic copies made by TripDatabaseRecovery contain the same location history. -->
+        <exclude domain="database" path="trips.db.corrupt-*" />
         <exclude domain="sharedpref" path="ridedeck.xml" />
     </cloud-backup>
     <device-transfer>
@@ -18,6 +20,8 @@
         <exclude domain="database" path="trips.db-wal" />
         <exclude domain="database" path="trips.db-shm" />
         <exclude domain="database" path="trips.db-journal" />
+        <!-- Forensic copies made by TripDatabaseRecovery contain the same location history. -->
+        <exclude domain="database" path="trips.db.corrupt-*" />
         <exclude domain="sharedpref" path="ridedeck.xml" />
     </device-transfer>
 </data-extraction-rules>

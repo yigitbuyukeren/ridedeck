@@ -187,6 +187,8 @@ class MotoInCallService : InCallService() {
 
     /** The call the rider cares about: one that is ringing first, otherwise the first live one. */
     private fun publish() {
+        // A queued Telecom callback can arrive after onDestroy shut the contact executor down.
+        if (destroyed) return
         val main = calls.filter { TelecomCallPolicy.priority(it.state) != null }.minByOrNull { TelecomCallPolicy.priority(it.state)!! }
         if (main !== InCallHub.call) routeRequests.reset()
         InCallHub.call = main
