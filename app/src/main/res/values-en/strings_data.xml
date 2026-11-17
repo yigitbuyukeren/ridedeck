@@ -3,6 +3,12 @@
     <!-- Notification privacy: shown instead of a locked private message's sender/text. -->
     <string name="data_message_redacted">Content hidden while the screen is locked</string>
 
+    <!-- Ending an active ride is destructive-ish: one tap only opens this confirmation. -->
+    <string name="data_ride_stop_confirm_title">End the ride?</string>
+    <string name="data_ride_stop_confirm_body">The active ride will be saved and ended. Trip history is not deleted.</string>
+    <string name="data_ride_stop_confirm_action">End</string>
+    <string name="data_ride_stop_confirm_cancel">Cancel</string>
+
     <!-- Bulk trip deletion: two-step (button + confirmation) to avoid an accidental erase. -->
     <string name="data_trips_delete_all">Delete all</string>
     <string name="data_trips_delete_all_confirm_title">Delete all trips?</string>

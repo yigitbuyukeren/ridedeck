@@ -189,6 +189,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
     var confirmDeleteAll by remember { mutableStateOf(false) }
     /** Null until a bulk delete runs; never a plain "success" from a cancelled dialog. */
     var deleteAllFeedback by remember { mutableStateOf<Boolean?>(null) }
+    var confirmStopRide by remember { mutableStateOf(false) }
     val selected = list.firstOrNull { it.id == selectedId } ?: list.firstOrNull()
     val dateFormat = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
     val locale = LocalConfiguration.current.locales[0]
@@ -240,7 +241,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                 PillButton(
                     stringResource(if (ride.running) R.string.ride_stop else R.string.ride_start),
                     if (ride.running) MotoColors.Red else MotoColors.Green,
-                    { if (ride.running) tracking.session.stop() else startRide() },
+                    { if (ride.running) confirmStopRide = true else startRide() },
                     Modifier.weight(1f),
                 )
                 Text(stringResource(when (ride.phase) {
@@ -398,6 +399,57 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
             },
         )
     }
+
+    if (confirmStopRide) {
+        RideStopConfirmDialog(
+            onConfirm = {
+                // Re-check live state as well as the dialog's own guard: two taps stop once.
+                if (confirmStopRide) {
+                    confirmStopRide = false
+                    tracking.session.stop()
+                }
+            },
+            onDismiss = { confirmStopRide = false },
+        )
+    }
+}
+
+/** Confirmation for ending an active ride; [onConfirm] runs at most once per dialog instance. */
+@Composable
+internal fun RideStopConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    var submitted by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.data_ride_stop_confirm_title)) },
+        text = {
+            Column(
+                modifier = Modifier.heightIn(max = 220.dp).verticalScroll(rememberScrollState()),
+            ) {
+                Text(stringResource(R.string.data_ride_stop_confirm_body))
+            }
+        },
+        confirmButton = {
+            TextButton(
+                modifier = Modifier.heightIn(min = 64.dp).testTag("ride-stop-confirm"),
+                onClick = {
+                    if (!submitted) {
+                        submitted = true
+                        onConfirm()
+                    }
+                },
+            ) {
+                Text(stringResource(R.string.data_ride_stop_confirm_action), color = MotoColors.Red)
+            }
+        },
+        dismissButton = {
+            TextButton(
+                modifier = Modifier.heightIn(min = 64.dp).testTag("ride-stop-cancel"),
+                onClick = onDismiss,
+            ) {
+                Text(stringResource(R.string.data_ride_stop_confirm_cancel))
+            }
+        },
+    )
 }
 
 /** The trip list and the chosen trip: side by side on a wide screen, one above the other on an upright phone. */
@@ -416,6 +468,21 @@ private fun SplitPane(modifier: Modifier, first: @Composable (Modifier) -> Unit,
     }
 }
 
+/** Deeper feedback colors keep success/failure text readable on the day palette's light scrim. */
+private val DayFeedbackGreen = Color(0xFF0B6B35)
+private val DayFeedbackRed = Color(0xFFB00020)
+
+/** Themed trip feedback color; always-dark map panels keep their fixed [MotoColors]. */
+@Composable
+private fun tripFeedbackColor(succeeded: Boolean): Color {
+    val day = LocalMotoPalette.current.isDay
+    return if (succeeded) {
+        if (day) DayFeedbackGreen else MotoColors.Green
+    } else {
+        if (day) DayFeedbackRed else MotoColors.Red
+    }
+}
+
 /** Explicit per-action result; stays visible even when the deleted trip was the last one. */
 @Composable
 internal fun TripDeleteFeedbackText(feedback: TripDeleteFeedback, modifier: Modifier = Modifier) {
@@ -425,7 +492,7 @@ internal fun TripDeleteFeedbackText(feedback: TripDeleteFeedback, modifier: Modi
             feedback.tripDate,
         ),
         modifier = modifier.testTag("trip-delete-feedback"),
-        color = if (feedback.succeeded) MotoColors.Green else MotoColors.Red,
+        color = tripFeedbackColor(feedback.succeeded),
         fontSize = 15.sp,
         fontWeight = FontWeight.SemiBold,
     )
@@ -439,7 +506,7 @@ internal fun TripDeleteAllFeedbackText(succeeded: Boolean, modifier: Modifier = 
             if (succeeded) R.string.data_trips_delete_all_success else R.string.data_trips_delete_all_failed,
         ),
         modifier = modifier.testTag("trip-delete-all-feedback"),
-        color = if (succeeded) MotoColors.Green else MotoColors.Red,
+        color = tripFeedbackColor(succeeded),
         fontSize = 15.sp,
         fontWeight = FontWeight.SemiBold,
     )
