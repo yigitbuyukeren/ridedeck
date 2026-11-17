@@ -54,8 +54,9 @@ class OfflineMapsCardStatusUiTest {
     }
 
     @After fun restoreActivityOrientation() {
+        // No waitForIdle: the activity may be recreating after the orientation restore, and
+        // waiting for a frame there has hung teardown. The rule destroys it next.
         compose.activity.requestedOrientation = originalOrientation
-        compose.waitForIdle()
     }
 
     private fun showCard(

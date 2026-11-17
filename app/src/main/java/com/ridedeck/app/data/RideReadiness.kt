@@ -72,6 +72,7 @@ enum class ReadinessDetail {
     SOS_NOT_CONFIGURED,
     SOS_PERMISSION_MISSING,
     SOS_PERMISSION_UNKNOWN,
+    SOS_SIM_MISSING,
     SOS_UNKNOWN,
 }
 
@@ -102,6 +103,8 @@ data class RideReadinessInput(
     val mediaAccess: Boolean? = null,
     val sosContactsConfigured: Boolean? = null,
     val sosSmsGranted: Boolean? = null,
+    /** Null means the telephony/SIM fact could not be read; false means no telephony or no usable SMS SIM. */
+    val sosSimUsable: Boolean? = null,
 )
 
 data class RideReadiness(val items: List<ReadinessItem>) {
@@ -118,7 +121,7 @@ object RideReadinessAssessment {
             voice(input.tts, input.internet),
             notifications(input.notificationsGranted),
             media(input.mediaAccess),
-            sos(input.sosContactsConfigured, input.sosSmsGranted),
+            sos(input.sosContactsConfigured, input.sosSmsGranted, input.sosSimUsable),
         )
     )
 
@@ -209,11 +212,12 @@ object RideReadinessAssessment {
     }
 
     /** SOS configuration never proves SMS delivery or crash detection, so this row is never READY. */
-    private fun sos(contacts: Boolean?, sms: Boolean?): ReadinessItem = when {
+    private fun sos(contacts: Boolean?, sms: Boolean?, sim: Boolean?): ReadinessItem = when {
         contacts == null -> ReadinessItem(ReadinessKind.SOS, ReadinessStatus.UNKNOWN, ReadinessDetail.SOS_UNKNOWN)
         !contacts -> ReadinessItem(ReadinessKind.SOS, ReadinessStatus.OPTIONAL, ReadinessDetail.SOS_NOT_CONFIGURED)
         sms == null -> ReadinessItem(ReadinessKind.SOS, ReadinessStatus.UNKNOWN, ReadinessDetail.SOS_PERMISSION_UNKNOWN)
         !sms -> ReadinessItem(ReadinessKind.SOS, ReadinessStatus.OPTIONAL, ReadinessDetail.SOS_PERMISSION_MISSING)
+        sim == false -> ReadinessItem(ReadinessKind.SOS, ReadinessStatus.OPTIONAL, ReadinessDetail.SOS_SIM_MISSING)
         else -> ReadinessItem(ReadinessKind.SOS, ReadinessStatus.OPTIONAL, ReadinessDetail.SOS_CONFIGURED_UNVERIFIED)
     }
 }

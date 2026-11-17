@@ -3,9 +3,12 @@ package com.ridedeck.app.ui
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.SystemClock
 import android.provider.Settings
+import android.telephony.SubscriptionManager
+import android.telephony.TelephonyManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -58,6 +61,7 @@ import com.ridedeck.app.R
 import com.ridedeck.app.data.GeoPoint
 import com.ridedeck.app.data.LocationState
 import com.ridedeck.app.data.MediaState
+import com.ridedeck.app.data.SmsSubscriptionPolicy
 import com.ridedeck.app.data.OfflineMaps
 import com.ridedeck.app.data.ReadinessDetail
 import com.ridedeck.app.data.ReadinessItem
@@ -199,6 +203,15 @@ internal fun ReadinessPanel(
     val coarse = rememberReadinessFact(refreshKey) { context.hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) }
     val notifications = rememberReadinessFact(refreshKey) { notificationsEnabled(context) }
     val sosSms = rememberReadinessFact(refreshKey) { context.hasPermission(Manifest.permission.SEND_SMS) }
+    // A saved contact + permission is not enough when the phone has no telephony or default SMS SIM.
+    // An unreadable SIM state stays null (unknown), never a false "ready".
+    val sosSim = rememberReadinessFact(refreshKey) {
+        if (!context.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)) {
+            false
+        } else {
+            runCatching { SmsSubscriptionPolicy.usable(SubscriptionManager.getDefaultSmsSubscriptionId()) }.getOrNull()
+        }
+    }
 
     val elapsed = SystemClock.elapsedRealtime()
     val fresh = locationState.hasFreshFix(nowMs, elapsed)
@@ -222,6 +235,7 @@ internal fun ReadinessPanel(
             mediaAccess = mediaState.hasAccess,
             sosContactsConfigured = sosContacts.isNotEmpty(),
             sosSmsGranted = sosSms,
+            sosSimUsable = sosSim,
         )
     )
     ReadinessContent(readiness, onClose, onAction)
@@ -371,6 +385,7 @@ private fun detailText(detail: ReadinessDetail): String = stringResource(when (d
     ReadinessDetail.SOS_NOT_CONFIGURED -> R.string.readiness_detail_sos_not_configured
     ReadinessDetail.SOS_PERMISSION_MISSING -> R.string.readiness_detail_sos_permission_missing
     ReadinessDetail.SOS_PERMISSION_UNKNOWN -> R.string.readiness_detail_sos_permission_unknown
+    ReadinessDetail.SOS_SIM_MISSING -> R.string.readiness_detail_sos_sim_missing
     ReadinessDetail.SOS_UNKNOWN -> R.string.readiness_detail_sos_unknown
 })
 

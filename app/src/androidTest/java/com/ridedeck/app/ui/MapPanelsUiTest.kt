@@ -80,8 +80,10 @@ class MapPanelsUiTest {
     }
 
     @After fun restoreActivityOrientation() {
+        // Do not wait for idle here: restoring the orientation can recreate the activity, and
+        // waiting for a choreographer frame after that has hung the instrumentation teardown.
+        // The compose rule destroys this activity immediately after this method.
         compose.activity.requestedOrientation = originalOrientation
-        compose.waitForIdle()
     }
 
     private fun string(id: Int) = context.getString(id)
