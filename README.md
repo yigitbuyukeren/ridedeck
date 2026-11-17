@@ -27,7 +27,7 @@
 
 Telefonu gidona veya motosiklet üstüne takınca **hız, harita, müzik ve telefon tek ekranda** toplanır. RideDeck yalnız motosiklet için tasarlanmıştır; rota, uyarılar ve düzen motosiklete göre ayarlanır. Tüm arayüz eldivenle kullanılacak büyüklükte, sürerken yazı girişi yoktur.
 
-> **Durum (17 Kasım 2026):** Kod `0.6.0` / `versionCode 6` olarak kalıyor; 1.0 sürümü yayınlanmadı. Son yerel tam JVM koşusu debug **831/831** + release **831/831** (toplam 1662; 0 hata, 0 atlama); lint **0 hata** (debug 121 / release 120 uyarı, bastırılmadı). Instrumentation **204 test**: tek `connectedDebugAndroidTest` koşusunda **203 PASS + 1 atlandı**; atlanan izin testi ayrı koşuda PASS (toplam 204 doğrulandı). Fiziksel cihaz, gerçek SMS/arama/interkom, Doze/OEM, 16 KB runtime ve sağlayıcı toplam uyumu doğrulanmadığı için genel 1.0 kararı **NO-GO**; koşullu beta ancak saha doğrulamasından sonra.
+> **Durum (17 Kasım 2026):** Kod `0.6.1-beta.1` / `versionCode 7` beta olarak yayımlandı; 1.0 sürümü yayınlanmadı. Son yerel tam JVM koşusu debug **831/831** + release **831/831** (toplam 1662; 0 hata, 0 atlama); lint **0 hata** (debug 121 / release 120 uyarı, bastırılmadı). Instrumentation **204 test**: tek `connectedDebugAndroidTest` koşusunda **203 PASS + 1 atlandı**; atlanan izin testi ayrı koşuda PASS (toplam 204 doğrulandı). Fiziksel cihaz, gerçek SMS/arama/interkom, Doze/OEM, 16 KB runtime ve sağlayıcı toplam uyumu doğrulanmadığı için genel 1.0 kararı **NO-GO**; koşullu beta ancak saha doğrulamasından sonra.
 
 ### ✨ Öne çıkanlar
 
@@ -55,7 +55,7 @@ Aşağıdakiler Android emülatöründen (Türkçe arayüz) alınmıştır.
 
 ### 📲 Kurulum
 
-1. [Son sürümün](https://github.com/yigitbuyukeren/ridedeck/releases/latest) APK'sını indir ve kur (bilinmeyen kaynaklardan kuruluma izin ver). 0.5.0 kuruluysa önce kaldır: 0.6.0 yeni bir imza anahtarı kullanır, üstüne güncelleme kurulmaz.
+1. [Son sürümün](https://github.com/yigitbuyukeren/ridedeck/releases/latest) APK'sını indir ve kur (bilinmeyen kaynaklardan kuruluma izin ver). 0.5.0 kuruluysa önce kaldır: 0.6.0 ve sonrası yeni bir imza anahtarı kullanır; 0.6.0 üzerine 0.6.1-beta.1 kurulabilir.
 2. İlk açılışta yalnızca konum izni istenir; telefon, müzik ve SOS izinleri ilgili özelliği açarken sorulur.
 3. Müzik ve mesaj okuma için Ayarlar > İzinler ve sistem'den bildirim erişimini ver.
 
@@ -232,7 +232,7 @@ Güncel durum ve saha kapıları [docs/STATUS.md](docs/STATUS.md) ve [docs/RELEA
 
 New offline downloads are temporarily disabled: the current SDK download path has not been verified against [OpenFreeMap's limits](https://openfreemap.org/tos/) (3,000 tiles or 50 MB per download, at most four concurrent requests, and an app-identifying User-Agent; verified 2026-11-17). Existing downloaded areas are preserved. App-local throttling does not prove aggregate provider compliance, so new downloads and resume remain **BLOCKED**. Speed-limit readings expire from their request time (60 seconds); weather is discarded at the next freshness check after 30 minutes instead of being kept indefinitely after failed refreshes.
 
-> **Status (17 November 2026):** the code stays at `0.6.0` / `versionCode 6`; no 1.0 release. The last full local JVM run passed **831/831** on debug and **831/831** on release (1662 total, 0 failures, 0 skipped); lint has **0 errors** (121 debug / 120 release warnings, not suppressed). The **204 instrumentation tests**: one `connectedDebugAndroidTest` run reported **203 passed + 1 skipped**; the skipped permission test passed separately (204 verified in total). Physical device, real SMS/call/intercom, Doze/OEM, 16 KB runtime and aggregate provider compliance are unverified, so the overall 1.0 decision remains **NO-GO**; a conditional beta only follows field validation.
+> **Status (17 November 2026):** the code is released as `0.6.1-beta.1` / `versionCode 7` beta; no 1.0 release. The last full local JVM run passed **831/831** on debug and **831/831** on release (1662 total, 0 failures, 0 skipped); lint has **0 errors** (121 debug / 120 release warnings, not suppressed). The **204 instrumentation tests**: one `connectedDebugAndroidTest` run reported **203 passed + 1 skipped**; the skipped permission test passed separately (204 verified in total). Physical device, real SMS/call/intercom, Doze/OEM, 16 KB runtime and aggregate provider compliance are unverified, so the overall 1.0 decision remains **NO-GO**; a conditional beta only follows field validation.
 
 **Build and test (JDK 17):**
 
