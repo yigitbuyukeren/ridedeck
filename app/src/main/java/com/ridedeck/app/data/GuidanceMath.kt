@@ -206,6 +206,13 @@ object RouteStartGuard {
     /** Only the beginning of the route is considered; a route that passes nearby later is not a start. */
     const val SEARCH_CORRIDOR_M = 500.0
 
+    /**
+     * A route is snapped to the nearest road, so a rider parked in a lot, courtyard or ferry deck can
+     * legitimately be tens of metres from the route's first shape point. This allowance lets that
+     * rider start without weakening the check for a route left behind far away.
+     */
+    const val ORIGIN_SNAP_ALLOWANCE_M = 120.0
+
     fun check(route: Route, fix: GeoPoint, speedMps: Double, accuracyM: Int?): RouteStartCheck {
         if (route.shape.size < 2) return RouteStartCheck(RouteStartBlock.OFF_START)
         var end = 0
@@ -214,7 +221,10 @@ object RouteStartGuard {
         val alongM = route.cumulative[match.index] +
             match.projection.fraction * (route.cumulative[match.index + 1] - route.cumulative[match.index])
         val onRoad = match.projection.distanceM <= RouteMatcher.offRouteM(speedMps, accuracyM)
-        return if (onRoad && alongM <= MAX_ALONG_M) {
+        // The provider snapped the route away from the rider's current parking spot. If the rider is
+        // still at the route's origin, the distance to shape.first() is the snap gap, not a stale route.
+        val atOrigin = match.index <= 1 && Geo.distance(fix, route.shape.first()) <= ORIGIN_SNAP_ALLOWANCE_M
+        return if ((onRoad && alongM <= MAX_ALONG_M) || atOrigin) {
             RouteStartCheck(RouteStartBlock.NONE, match.index)
         } else {
             RouteStartCheck(RouteStartBlock.OFF_START)

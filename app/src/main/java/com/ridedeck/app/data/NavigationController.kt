@@ -136,8 +136,6 @@ class NavigationController(
     private var routeGeneration = 0L
     /** Wall clock when the currently previewed/guided route was computed; 0 for an un-stamped route. */
     private var routeComputedAtMs = 0L
-    /** An alternative was picked from the preview: providers return it from the same requested origin. */
-    private var routeChosenFromAlternatives = false
     /** Monotonic count of explicit route commands; startup restore must not override a rider action. */
     private var userRouteChoices = 0L
     private data class DetourRequest(val stop: Place, val final: Place, val from: GeoPoint, val generation: Long, val stopsAhead: List<Place>)
@@ -664,7 +662,6 @@ class NavigationController(
         val picked = state.choices.getOrNull(index) ?: return
         userRouteChoices++
         onUserRouteChoice(RouteChoiceReason.ALTERNATIVE)
-        routeChosenFromAlternatives = true
         _ui.update { it.copy(route = picked) }
     }
 
@@ -680,7 +677,6 @@ class NavigationController(
     /** Remembers when the route now on screen was computed, for the stale-route start check. */
     private fun markRouteComputed() {
         routeComputedAtMs = nowMs()
-        routeChosenFromAlternatives = false
     }
 
     /**
@@ -741,22 +737,21 @@ class NavigationController(
                 _ui.update { it.copy(error = text(R.string.route_stale_error)) }
                 return
             }
-            // Every alternative comes from the same requested origin as the main route; the main
-            // route already represented that origin when the choice was requested.
-            if (!routeChosenFromAlternatives) {
-                val fix = location.value
-                val check = RouteStartGuard.check(
-                    route,
-                    GeoPoint(fix.lat, fix.lon),
-                    fix.speedKmh / 3.6,
-                    fix.accuracyM,
-                )
-                if (check.block != RouteStartBlock.NONE) {
-                    _ui.update { it.copy(error = text(R.string.route_start_far_error)) }
-                    return
-                }
-                startIndex = check.startIndex
+            // Every non-cached route, including a chosen alternative, is checked against the
+            // current fix. An alternative is returned from the requested origin, not from wherever
+            // the rider may be minutes later.
+            val fix = location.value
+            val check = RouteStartGuard.check(
+                route,
+                GeoPoint(fix.lat, fix.lon),
+                fix.speedKmh / 3.6,
+                fix.accuracyM,
+            )
+            if (check.block != RouteStartBlock.NONE) {
+                _ui.update { it.copy(error = text(R.string.route_start_far_error)) }
+                return
             }
+            startIndex = check.startIndex
         }
         if (!beforeStart()) {
             _ui.update { it.copy(error = text(R.string.ride_start_error)) }
@@ -843,7 +838,6 @@ class NavigationController(
         lastRemainingM = Double.MAX_VALUE
         stillRemainingM = Double.MAX_VALUE
         routeComputedAtMs = 0L
-        routeChosenFromAlternatives = false
         _ui.value = NavUi(termination = NavigationTermination.USER_CANCELLED)
         _fuel.value = FuelUi()
     }

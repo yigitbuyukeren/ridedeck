@@ -127,6 +127,13 @@ class GuidanceMathTest {
         assertEquals(2, onRoute.startIndex) // at the shared vertex, the segment ending there is matched
         // Past the first 500 m the route ahead is no longer a sane start for this preview.
         assertEquals(RouteStartBlock.OFF_START, RouteStartGuard.evaluate(route, shape[6], speedMps = 5.0, accuracyM = 5))
+        // A rider parked just off the snapped road at the route origin can still start: the gap is
+        // the provider's snap distance, not a stale preview. 50 m east is beyond the 45 m off-route
+        // distance but inside the origin snap allowance.
+        assertEquals(
+            RouteStartBlock.NONE,
+            RouteStartGuard.evaluate(route, GeoPoint(41.0, 29.0006), speedMps = 0.0, accuracyM = 5),
+        )
         // 400 m beside the road at the very start is not a usable start either.
         assertEquals(
             RouteStartBlock.OFF_START,
