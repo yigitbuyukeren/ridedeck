@@ -370,8 +370,12 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
     private fun fallbackToActivity() {
         val canLaunch = runCatching { Settings.canDrawOverlays(app) }.getOrDefault(false) ||
             Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
-        if (!canLaunch && power?.isInteractive == false) releaseCountdownWakeLock()
-        bringToFront(alertPlan().copy(launchApp = canLaunch))
+        // The wake lock is acquired with ACQUIRE_CAUSES_WAKEUP, so isInteractive may already be
+        // true here. With no notification and no allowed activity there is nothing to look at:
+        // release the lock even if waking it made the screen interactive.
+        if (!canLaunch || !bringToFront(alertPlan().copy(launchApp = true))) {
+            releaseCountdownWakeLock()
+        }
     }
 
     private fun action(actionName: String, requestCode: Int): PendingIntent = PendingIntent.getBroadcast(
@@ -414,17 +418,22 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
         runCatching { if (lock.isHeld) lock.release() }
     }
 
-    /** Background activity starts are refused on Android 10+ unless the app holds an overlay exemption. */
-    private fun bringToFront(plan: SosAlertPlan) {
-        if (!plan.launchApp) return
-        try {
+    /**
+     * Background activity starts are refused on Android 10+ unless the app holds an overlay
+     * exemption. Returns true only when the launch was actually accepted.
+     */
+    private fun bringToFront(plan: SosAlertPlan): Boolean {
+        if (!plan.launchApp) return false
+        return try {
             app.startActivity(
                 Intent(app, MainActivity::class.java).addFlags(
                     Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP,
                 ),
             )
+            true
         } catch (_: RuntimeException) {
             // Blocked by the launcher/OS: nothing else to try, and the countdown must not fail because of it.
+            false
         }
     }
 
