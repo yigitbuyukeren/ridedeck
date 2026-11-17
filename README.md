@@ -161,7 +161,7 @@ export JAVA_HOME=/yol/jdk-17        # JDK 17 gerekir
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-`local.properties` içinde `sdk.dir` ayarlı olmalı (dosya git'e girmez). Son yerel `./gradlew test` koşusu debug **829/829** + release **829/829** birim testiyle geçti (toplam 1658) (0 hata, 0 atlama); bu son koşudur, sürekli yeşil garanti değildir. Lint 0 hata verir (debug 121 / release 120 uyarı; bastırılmadı).
+`local.properties` içinde `sdk.dir` ayarlı olmalı (dosya git'e girmez). Son yerel `./gradlew test` koşusu debug **829/829** + release **829/829** birim testiyle geçti (toplam 1658; 0 hata, 0 atlama); bu son koşudur, sürekli yeşil garanti değildir. Lint 0 hata verir (debug 121 / release 120 uyarı; bastırılmadı).
 
 Emülatör instrumentation için önce uygulama dondurucuyu kapat (yoksa test süreci Compose testleri arasında donabilir); `RideDeckTestRunner` sonuçtan sonra test sürecini kapatır:
 
