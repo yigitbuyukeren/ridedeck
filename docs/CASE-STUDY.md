@@ -91,7 +91,7 @@ Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sür�
 | Tüm servisler anahtarsız genel servis + merkezi `ProviderHttp` | "Hesap, anahtar, sunucu yok" sözünü korur. Bedeli: servis kararsızlığı için yedek/geri çekilme; uygulama içi sınır sağlayıcı global kotasını kanıtlamaz. |
 | Gösterim hızı ≠ karar hızı | Titremeyen kadran ile gecikmeyen güvenlik kararı birbirine feda edilmedi. |
 | Sahte 0 yok, `--` var | Sinyal kaybında yanlış güven vermemek. |
-| Sürerken yazı girişi/ayar kilidi (5 km/sa üstü) | Güvenlik; kendi Türkçe klavyesi park halinde arama içindir. |
+| Sürerken yazı girişi/ayar kilidi (5 km/sa ve üzeri) | Güvenlik; kendi Türkçe klavyesi park halinde arama içindir. |
 | Sesli asistan kaldırıldı | Güvenilir uyandırma ve tanıma sağlanamadı; çalışmayan özelliği göstermek yerine kaldırıldı. |
 | Çevrimdışı rota yok; harita indirmeleri sağlayıcı kapısında | Rota ve arama canlı hizmete bağlı kalır. Yeni indirme/resume, OpenFreeMap koşulları ve global uyum kanıtlanana kadar **BLOCKED**; mevcut alanlar korunur. |
 | OBD, bakım takibi, eğim, GPX çıkarıldı | Sürerken kullanılamayan veya doğrulanamayan özelliklerden kaçınmak; odak sürüş panelinde. |

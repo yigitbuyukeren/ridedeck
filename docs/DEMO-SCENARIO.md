@@ -34,7 +34,7 @@ Uygulama yatay kilitlidir (`sensorLandscape`); telefon yatay tutulmalı.
 | 8–25 sn | Hedef arama ("Ara" ile), rota önizleme, "Başla" | Arama sürerken kilitlenir; bunu da göster |
 | 25–45 sn | Sesli navigasyon kartı, bir dönüş anonsu, mini harita | Gerçek sürüşte değil de park halinde sahte konumla çekiliyorsa altyazıda belirt |
 | 45–55 sn | ⛽ benzinlik listesi, ara durak ekleme | |
-| 55–65 sn | Telefon ekranı (son aramalar, tuş takımı) ve müzik ekranı | Tuş takımı 5 km/sa üstünde kilitlidir |
+| 55–65 sn | Telefon ekranı (son aramalar, tuş takımı) ve müzik ekranı | Tuş takımı 5 km/sa ve üzerinde kilitlidir |
 | 65–75 sn | SOS geri sayımı, **İptal** | Gerçek SMS gönderme |
 
 ## Kayıttan sonra
