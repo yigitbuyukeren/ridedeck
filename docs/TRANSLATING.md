@@ -2,7 +2,7 @@
 
 RideDeck'in arayüzü şu anda **Türkçe** (varsayılan) ve **İngilizce**dir. Yeni dil eklemek veya mevcut çeviriyi düzeltmek için bu rehberi izle.
 
-Çeviri, kod değişikliği gerektirmeyen ama dikkat isteyen bir katkıdır: metinler sürüş sırasında okunur, bu yüzden kısa, açık ve yüksek kontrastlı olmalıdır.
+Çeviri, Kotlin kodu değişikliği gerektirmeyen ama dikkat isteyen bir katkıdır: metinler sürüş sırasında okunur, bu yüzden kısa, açık ve yüksek kontrastlı olmalıdır.
 
 ## Dosyalar
 
@@ -16,7 +16,7 @@ Android, eksik bir anahtar için varsayılan (`values/`) metne düşer. Yine de 
 
 ## Mevcut çeviriyi düzeltme
 
-1. İlgili anahtarı iki dosyada bul.
+1. İlgili anahtarı iki dildeki `strings*.xml` dosyalarında bul.
 2. Yalnızca metni değiştir; `name` alanını, biçim yer tutucularını ve sırasını koru.
 3. Anlamı değil, kullanıcının gördüğü bağlamı esas al. Örneğin "Yola devam" bir navigasyon eylemidir; "devam et" genel bir metin değildir.
 4. Değişikliği küçük bir PR ile gönder. Birden çok ilgisiz metni tek PR'da toplama.
