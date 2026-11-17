@@ -82,7 +82,7 @@ ViewModel'in ürettiği `gps` akışı üç ayrı bilgi taşır:
 
 | Grup | Dosyalar | Not |
 |---|---|---|
-| Konum ve hız | `LocationArbiter.kt`, `LocationRepository.kt`, `SpeedFilter.kt`, `PositionSmoother.kt`, `Motion.kt` | Ham `LocationManager`; ekran/servis/overlay aynı GPS akışını paylaşır |
+| Konum ve hız | `RideTracking.kt` (`LocationArbiter`), `LocationRepository.kt`, `SpeedFilter.kt`, `PositionSmoother.kt`, `Motion.kt` | Ham `LocationManager`; ekran/servis/overlay aynı GPS akışını paylaşır |
 | Navigasyon | `NavigationController.kt`, `NavigationRideLifecycle.kt`, `RouteSnap.kt`, `Geo.kt`, `GuidanceMath.kt` | Arama, rota, eşleme, anons ve yeniden rota |
 | Ağ servisleri | `Http.kt`, `ProviderThrottle.kt`, `RouteRepository.kt`, `Fuel.kt`, `Weather.kt`, `SpeedLimit.kt` | `ProviderHttp` sınırı; iptal ve sağlayıcı bazlı eşzamanlılık/aralık |
 | Güvenlik | `RideSafety.kt`, `Sos.kt`, `SosAndroid.kt`, `RideReadiness.kt`, `MessagePrivacy.kt` | Kaza algılama, SMS ve bildirim gizliliği |
