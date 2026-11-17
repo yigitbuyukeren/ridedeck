@@ -27,7 +27,7 @@
 
 Telefonu gidona veya motosiklet üstüne takınca **hız, harita, müzik ve telefon tek ekranda** toplanır. RideDeck yalnız motosiklet için tasarlanmıştır; rota, uyarılar ve düzen motosiklete göre ayarlanır. Tüm arayüz eldivenle kullanılacak büyüklükte, sürerken yazı girişi yoktur.
 
-> **Durum (17 Kasım 2026):** Kod `0.6.0` / `versionCode 6` olarak kalıyor; 1.0 sürümü yayınlanmadı. Son yerel tam JVM koşusu debug+release **828/828** (0 hata, 0 atlama); lint **0 hata** (debug 118 / release 117 uyarı, bastırılmadı). Instrumentation **203 test** hedefli batch'lerle sürüyor; tek tam yeşil koşu iddia edilmez. Fiziksel cihaz, gerçek SMS/arama/interkom, Doze/OEM, 16 KB runtime ve sağlayıcı toplam uyumu doğrulanmadığı için genel 1.0 kararı **NO-GO**; koşullu beta ancak saha doğrulamasından sonra.
+> **Durum (17 Kasım 2026):** Kod `0.6.0` / `versionCode 6` olarak kalıyor; 1.0 sürümü yayınlanmadı. Son yerel tam JVM koşusu debug **829/829** + release **829/829** (toplam 1658; 0 hata, 0 atlama); lint **0 hata** (debug 121 / release 120 uyarı, bastırılmadı). Instrumentation **204/204 PASS** tek `connectedDebugAndroidTest` koşusunda (0 hata, 1 atlandı: izin reddi ayrı PASS). Fiziksel cihaz, gerçek SMS/arama/interkom, Doze/OEM, 16 KB runtime ve sağlayıcı toplam uyumu doğrulanmadığı için genel 1.0 kararı **NO-GO**; koşullu beta ancak saha doğrulamasından sonra.
 
 ### ✨ Öne çıkanlar
 
@@ -125,7 +125,7 @@ Ayrıntılar için başlıklara dokun.
 - Hava durumu: sıcaklık, 1 saat içinde yağmur ve buzlanma uyarısı; başarısız yenilemede eski tahmin süresiz tutulmaz, 30 dakikalık tazelik sınırı sonraki kontrolde uygulanır
 - Isınma koruması: telefon 42°C'yi aşınca ekran kısılır ve harita yavaşlar, motosiklet durunca ekran kararır
 - SOS (varsayılan kapalı): otomatik kaza algılama (sert darbe + hareketsizlik; iki tekerlekte yön değişimi veya çok yüksek darbe aranır) veya uzun basmalı düğme. Çukur/kırmızı ışık kaynaklı yanlış alarmları azaltan filtreler var; bilinmeyen GPS hızı duruş sayılmaz. Geri sayımdan sonra en fazla 3 kişiye konum linkli bir mesaj gönderimi denenir; arama ve otomatik tekrar gönderim yok. Onaylanan, başarısız ve belirsiz sonuçlar kişi bazında ayrılır; alıcıya teslim garantisi verilmez.
-- Geri sayım ekran kapalıyken kilit ekranı üstünde bildirim, tam ekran bildirim ve uyandırma kilidiyle öne alınmaya çalışılır; bildirim yoksa uygulama açılmaya çalışılır, FSI reddedilirse yüksek öncelikli bildirim kalır; ses/titreşim ve SMS yolu sürer. Bildirimde **İyiyim** ve **İptal** eylemleri vardır. SMS izni/SIM yoksa hazırlık paneli bunu açıkça söyler. Gerçek kilit ekranı, SIM ve OEM davranışı doğrulanmadı.
+- Geri sayım ekran kapalıyken kilit ekranı üstünde bildirim, tam ekran bildirim ve uyandırma kilidiyle öne alınmaya çalışılır; bildirim yoksa uygulama açılmaya çalışılır, FSI reddedilirse yüksek öncelikli bildirim kalır; ses/titreşim ve SMS yolu sürer. Bildirimde geri sayım için **İyiyim**, sonuç için **Kapat** eylemi vardır. SMS izni/SIM yoksa hazırlık paneli bunu açıkça söyler. Gerçek kilit ekranı, SIM ve OEM davranışı doğrulanmadı.
 
 </details>
 
@@ -161,7 +161,7 @@ export JAVA_HOME=/yol/jdk-17        # JDK 17 gerekir
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-`local.properties` içinde `sdk.dir` ayarlı olmalı (dosya git'e girmez). Son yerel `./gradlew test` koşusu debug+release **828/828** birim testiyle geçti (0 hata, 0 atlama); bu son koşudur, sürekli yeşil garanti değildir. Lint 0 hata verir (debug 118 / release 117 uyarı; bastırılmadı).
+`local.properties` içinde `sdk.dir` ayarlı olmalı (dosya git'e girmez). Son yerel `./gradlew test` koşusu debug **829/829** + release **829/829** birim testiyle geçti (toplam 1658) (0 hata, 0 atlama); bu son koşudur, sürekli yeşil garanti değildir. Lint 0 hata verir (debug 121 / release 120 uyarı; bastırılmadı).
 
 Emülatör instrumentation için önce uygulama dondurucuyu kapat (yoksa test süreci Compose testleri arasında donabilir); `RideDeckTestRunner` sonuçtan sonra test sürecini kapatır:
 
@@ -170,7 +170,7 @@ adb shell settings put global cached_apps_freezer disabled
 ./gradlew :app:connectedDebugAndroidTest
 ```
 
-Toplam **203 instrumentation testi** hedefli batch'lerle koşuluyor; tek koşuda tam yeşil sonuç iddia edilmez. Debug APK x86_64 + ARM yerellerini taşır; release APK/AAB yalnız ARM'dır. CI x86_64 API 35 emülatöründe instrumentation çalıştırır, debug/release birim testlerini, iki lint'i, APK/AAB derlemesini, hizalama/ABI kontrollerini ve keystore varsa imza doğrulamasını yapar.
+Toplam **204 instrumentation testi** tek `connectedDebugAndroidTest` koşusunda **204/204 PASS** (0 hata, 1 atlandı: izin reddi ayrı PASS). Debug APK x86_64 + ARM yerellerini taşır; release APK/AAB yalnız ARM'dır. CI x86_64 API 35 emülatöründe instrumentation çalıştırır, debug/release birim testlerini, iki lint'i, APK/AAB derlemesini, hizalama/ABI kontrollerini ve keystore varsa imza doğrulamasını yapar.
 
 Sürüm APK'sı (R8 ile küçültülmüş): kök dizine `keystore.properties` koy (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`; dosya git'e girmez) ve `./gradlew assembleRelease` çalıştır. Dosya yoksa APK imzasız çıkar.
 
@@ -219,7 +219,7 @@ Issue ve PR'lar açık; RideDeck'i denediysen [geri bildirim formunu](https://gi
 
 New offline downloads are temporarily disabled: the current SDK download path has not been verified against [OpenFreeMap's limits](https://openfreemap.org/tos/) (3,000 tiles or 50 MB per download, at most four concurrent requests, and an app-identifying User-Agent; verified 2026-11-17). Existing downloaded areas are preserved. App-local throttling does not prove aggregate provider compliance, so new downloads and resume remain **BLOCKED**. Speed-limit readings expire from their request time (60 seconds); weather is discarded at the next freshness check after 30 minutes instead of being kept indefinitely after failed refreshes.
 
-> **Status (17 November 2026):** the code stays at `0.6.0` / `versionCode 6`; no 1.0 release. The last full local JVM run passed **828/828** debug + release (0 failures, 0 skipped); lint has **0 errors** (118 debug / 117 release warnings, not suppressed). The **203 instrumentation tests** are being run in targeted batches; a single fully green run is not claimed. Physical device, real SMS/call/intercom, Doze/OEM, 16 KB runtime and aggregate provider compliance are unverified, so the overall 1.0 decision remains **NO-GO**; a conditional beta only follows field validation.
+> **Status (17 November 2026):** the code stays at `0.6.0` / `versionCode 6`; no 1.0 release. The last full local JVM run passed **829/829** on debug and **829/829** on release (1658 total, 0 failures, 0 skipped); lint has **0 errors** (121 debug / 120 release warnings, not suppressed). The **204 instrumentation tests** passed in a single `connectedDebugAndroidTest` run (**204/204**, 0 failed, 1 skipped: permission-denied path passed separately). Physical device, real SMS/call/intercom, Doze/OEM, 16 KB runtime and aggregate provider compliance are unverified, so the overall 1.0 decision remains **NO-GO**; a conditional beta only follows field validation.
 
 **Build and test (JDK 17):**
 

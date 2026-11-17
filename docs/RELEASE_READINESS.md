@@ -4,12 +4,12 @@
 
 **17 Kasım 2026 yerel sonuçlar:**
 
-- Debug + release JVM birim testleri (son tam yerel `test` koşusu): **828/828 PASS**, 0 hata, 0 atlama.
-- Lint: **0 hata**; debug **118**, release **117** uyarı; uyarılar bastırılmadı.
+- Debug + release JVM birim testleri (son tam yerel `test` koşusu): her varyantta **829/829 PASS** (toplam 1658), 0 hata, 0 atlama.
+- Lint: **0 hata**; debug **121**, release **120** uyarı; uyarılar bastırılmadı.
 - Debug APK x86_64/ARM64/ARMv7 yerellerini taşır; release APK ve AAB ARM-only'dir.
 - Release APK yerel olarak v2 imzalı; sertifika SHA-256 `9d9164ef8c679f2909e2a851d1327839c684cad238ca0932488a9f8d0f622427`. AAB `jarsigner` ile doğrulandı.
 - 16 KB ELF LOAD ve `zipalign -c -P 16 4` **PASS**; bu yalnız statik kontroldür, fiziksel 16 KB runtime değildir.
-- Instrumentation: **203 testlik hedefli batch koşusu sürüyor**; tek koşuda tam yeşil sonuç iddia edilmez. `RideDeckTestRunner` sonuçtan sonra test sürecini kapatır; emülatörde cached-app freezer kapatılmalıdır.
+- Instrumentation: **204/204 PASS** tek `connectedDebugAndroidTest` koşusunda; 0 hata, 1 atlandı (izin reddi ayrı PASS). `RideDeckTestRunner` sonuçtan sonra test sürecini kapatır; emülatörde cached-app freezer kapatılmalıdır.
 
 **Gerçek CI kapıları (`.github/workflows/ci.yml`):** `test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease`; debug/release test raporu özeti; release APK hizalama (`check-apk-alignment.py` + `zipalign -c -P 16 4`); debug APK'da x86_64 ve ARM MapLibre yerelleri; yalnız-debug probe asset'i; release AAB varlığı; release APK'da x86_64 ve probe asset'i olmaması; `keystore.properties` varsa imza doğrulaması; ayrı x86_64 API 35 emülatör işinde instrumentation. CI artık instrumentation'ı yalnız derlemez, emülatörde çalıştırır. Uzak CI bu belge dalgası için **UNVERIFIED**'dır; push yapılmadı.
 
