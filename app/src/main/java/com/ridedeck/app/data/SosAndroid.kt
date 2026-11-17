@@ -183,6 +183,9 @@ class CrashSensor(
         listening = false
     }
 
+    /** "I am fine": drop the crashed state and its cooldown so a later genuine crash can still alert. */
+    fun acknowledgeCancel() = detector.acknowledgeCancel()
+
     override fun onSensorChanged(event: SensorEvent) {
         if (!listening) return
         val speed = speedKmh() ?: run { detector.reset(); return }

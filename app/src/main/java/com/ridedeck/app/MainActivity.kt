@@ -3,6 +3,7 @@ package com.ridedeck.app
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import com.ridedeck.app.util.Units
 import android.view.WindowManager
@@ -19,6 +20,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.ridedeck.app.data.SosLockScreenPolicy
 import com.ridedeck.app.data.SosPhase
 import com.ridedeck.app.service.OverlayService
 import kotlinx.coroutines.flow.combine
@@ -42,9 +44,11 @@ class MainActivity : ComponentActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 combine(viewModel.thermal.state, viewModel.sos.ui) { thermal, sos ->
                     // Never leave a dimmed screen during an SOS countdown.
-                    if (sos.phase == SosPhase.COUNTDOWN) 1f else thermal.brightness
-                }.distinctUntilChanged().collect { brightness ->
+                    sos.phase to if (sos.phase == SosPhase.COUNTDOWN) 1f else thermal.brightness
+                }.distinctUntilChanged().collect { (phase, brightness) ->
                     window.attributes = window.attributes.also { it.screenBrightness = brightness }
+                    // The countdown has to be readable over the keyguard; the dashboard must not be.
+                    setSosOverLockScreen(SosLockScreenPolicy.showOverKeyguard(phase))
                 }
             }
         }
@@ -105,6 +109,22 @@ class MainActivity : ComponentActivity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) hideSystemBars()
+    }
+
+    /**
+     * Only the countdown may sit over the keyguard and light the screen. API 26 lacks the activity
+     * setters, so the window flags are used there; IDLE and the result phases clear both again.
+     */
+    private fun setSosOverLockScreen(active: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(active)
+            setTurnScreenOn(active)
+        } else {
+            window.setFlags(
+                if (active) WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON else 0,
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
+            )
+        }
     }
 
     private fun hideSystemBars() {
