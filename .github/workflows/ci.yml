@@ -102,6 +102,12 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v6
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
       - name: Verify KVM acceleration
         run: |
           set -euo pipefail
@@ -135,9 +141,12 @@ jobs:
             ./gradlew :app:connectedDebugAndroidTest --console=plain
       - name: Summarize instrumentation reports
         if: always()
-        run: >-
-          python3 scripts/test-report-summary.py
-          app/build/outputs/androidTest-results/connected/debug
+        run: |
+          if [ -d app/build/outputs/androidTest-results/connected/debug ]; then
+            python3 scripts/test-report-summary.py app/build/outputs/androidTest-results/connected/debug
+          else
+            echo "No instrumentation reports were produced."
+          fi
       - uses: actions/upload-artifact@v7
         if: always()
         with:
