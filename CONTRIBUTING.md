@@ -18,7 +18,7 @@ RideDeck, motosiklet kullanıcıları için bir Android sürüş panelidir. Kod,
 
 ## Nasıl katkı sağlayabilirsin?
 
-- **Hata bildir:** Uygulama içi sürüm, telefon modeli, Android sürümü ve tekrarlama adımlarıyla [hata formunu](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=bug_report.yml) doldur.
+- **Hata bildir:** Uygulama sürümü, telefon modeli, Android sürümü ve tekrarlama adımlarıyla [hata formunu](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=bug_report.yml) doldur.
 - **Fikir öner:** Önce problemin kimin için ne zaman ortaya çıktığını anlat. Sürüş sırasında kullanım etkisini de ekle.
 - **Kod yaz:** Küçük ve tek konulu değişiklikler en hızlı birleşenlerdir. Yeni davranış için test ekle.
 - **Belge ve çeviri:** Yazım hatası, eksik adım, İngilizce/Türkçe tutarsızlık veya yeni dil desteği değerlidir.

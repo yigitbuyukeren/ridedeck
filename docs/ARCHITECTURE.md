@@ -85,11 +85,11 @@ ViewModel'in ürettiği `gps` akışı üç ayrı bilgi taşır:
 | Konum ve hız | `LocationRepository.kt`, `SpeedFilter.kt`, `PositionSmoother.kt`, `Motion.kt` | Ham `LocationManager`; Play Services yok |
 | Navigasyon | `NavigationController.kt`, `NavigationRideLifecycle.kt`, `RouteSnap.kt`, `Geo.kt`, `GuidanceMath.kt` | Arama, rota, eşleme, anons ve yeniden rota |
 | Ağ servisleri | `Http.kt`, `RouteRepository.kt`, `Fuel.kt`, `Weather.kt`, `SpeedLimit.kt` | Tek HTTP yardımcısı; servis başına repository |
-| Güvenlik | `RideSafety.kt`, `Sos.kt`, `SosAndroid.kt`, `RideReadiness.kt` | Kaza algılama ve SMS yardımcı özelliği |
+| Güvenlik | `RideSafety.kt`, `Sos.kt`, `SosAndroid.kt`, `RideReadiness.kt`, `MessagePrivacy.kt` | Kaza algılama, SMS ve bildirim gizliliği yardımcı özelliği |
 | Yolculuklar | `RideTracking.kt`, `TripRecorder.kt`, `TripStore.kt`, `TripStats.kt` | Otomatik kayıt, SQLite geçmişi |
 | Kalıcılık | `SavedPlaces.kt`, `ActiveTrip.kt`, `RouteGeometryStore.kt`, `RouteGeometryPersistence.kt` | Yerel JSON/SQLite/AtomicFile |
 | Harita ve çevrimdışı | `OfflineMaps.kt`, `OfflinePlan.kt`, `OfflineRegions.kt` | Mevcut bölgeler korunur; yeni indirme kapalı |
-| Telefon ve medya | `CallRepository.kt`, `MediaRepository.kt`, `Phone.kt`, `Voice.kt` | Bildirim erişimi ve TTS ile çalışır |
+| Telefon ve medya | `CallRepository.kt`, `MediaRepository.kt`, `Phone.kt`, `Voice.kt`, `CallCapability.kt`, `CallerNamePolicy.kt` | Bildirim erişimi, çağrı yeteneği ve TTS ile çalışır |
 | Yardımcı mantık | `GaugeScale.kt`, `DashLayout.kt`, `PlaceQuery.kt`, `Sos.kt` (`SosMath`) | Android'siz birim testine uygun |
 
 ### `ui/` ve `service/`
@@ -100,7 +100,7 @@ ViewModel'in ürettiği `gps` akışı üç ayrı bilgi taşır:
 
 - `RideTrackingService`: yalnız kullanıcının açıkça başlattığı yolculukta ön plan konum servisi; bildirimden bitirilebilir; önyükleme alıcısı veya kendiliğinden yeniden başlama yoktur.
 - `OverlayService`: başka uygulama öndeyken hız/saat şeridi; RideDeck görünürken gizlenir.
-- `CarNotificationListener`: bildirim erişimiyle müzik, mesaj ve arayan adı bilgisi; son mesaj yalnız bellekte tutulur.
+- `CarNotificationListener`: bildirim erişimiyle müzik, mesaj ve arayan adı bilgisi; gizli bildirimlerde içerik okunmaz, kilitli özel içerik yalnız uygulama adıyla gösterilir; son mesaj yalnız bellekte tutulur.
 - `MotoInCallService` / `IncomingCallNotification`: RideDeck varsayılan telefon uygulamasıysa görüşme ekranı ve gelen arama bildirimi.
 
 `util/` içinde `Prefs` tüm `SharedPreferences` anahtarlarını, `Units`/`UnitMath` yalnız gösterim dönüşümünü (içte km/sa ve metre), `Launch` dış uygulama ve izin yardımcılarını barındırır.

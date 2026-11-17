@@ -4,6 +4,8 @@ Bu belge RideDeck'i yerelde derlemek, test etmek ve değiştirmek için gereken 
 
 RideDeck tek modüllü bir Android uygulamasıdır: Kotlin, Jetpack Compose, `minSdk 26`, `compileSdk`/`targetSdk 36`. Hesap, API anahtarı, analitik veya RideDeck sunucusu yoktur.
 
+> **English quick start:** use JDK 17 and Android SDK 36, set `sdk.dir` in `local.properties`, then run `./gradlew testDebugUnitTest assembleDebug`. See the English quick start in [CONTRIBUTING.md](../CONTRIBUTING.md) for the PR workflow.
+
 ## 1. Gereksinimler
 
 | Araç | Sürüm / not |
@@ -71,7 +73,7 @@ Tek test sınıfı veya metodu:
 
 ```bash
 ./gradlew testDebugUnitTest --tests "com.ridedeck.app.SpeedFilterTest"
-./gradlew testDebugUnitTest --tests "com.ridedeck.app.SpeedFilterTest.movingAverage"
+./gradlew testDebugUnitTest --tests "com.ridedeck.app.SpeedFilterTest.steadySpeedStaysSteady"
 ```
 
 Tek instrumentation sınıfı:
@@ -267,7 +269,7 @@ python3 scripts/check-release-signature.py
 
 ```bash
 python3 scripts/check-apk-alignment.py app/build/outputs/apk/release/*.apk
-SDK="${ANDROID_HOME:-$(sed -n 's/^sdk.dir=//p' local.properties)}"
+SDK="${ANDROID_HOME:-$(sed -n 's/^sdk.dir=//p' local.properties 2>/dev/null)}"
 "$SDK/build-tools/36.0.0/zipalign" -c -P 16 4 app/build/outputs/apk/release/*.apk
 ```
 
