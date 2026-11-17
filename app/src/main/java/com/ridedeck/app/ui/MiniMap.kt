@@ -167,9 +167,11 @@ fun MapCredit(modifier: Modifier = Modifier) {
     val actionLabel = stringResource(R.string.map_credit_action)
     val copyrightLabel = stringResource(R.string.map_credit_copyright)
     val fixthemapLabel = stringResource(R.string.map_credit_fixthemap)
-    Box {
+    // Caller modifiers carry alignment/padding (bottom-end on the map, card corner on the mini map),
+    // so they belong on the anchored wrapper, not on the credit surface inside it.
+    Box(modifier = modifier) {
         Box(
-            modifier = modifier
+            modifier = Modifier
                 .clip(RoundedCornerShape(3.dp))
                 .background(Color(0xE6000000))
                 .clickable(
