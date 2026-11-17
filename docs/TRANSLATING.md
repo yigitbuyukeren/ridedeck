@@ -25,13 +25,16 @@ Android, desteklenmeyen telefon dilleri (ör. Almanca/Fransızca) ve eksik çevi
 
 1. Önce bir [belge/çeviri issue'su](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=documentation.yml) aç; dili ve kapsamı belirt.
 2. `app/src/main/res/values/strings*.xml` dosyalarını yeni dil dizinine kopyala (ör. `values-de/strings.xml`, `values-de/strings_data.xml`, `values-de/strings_nav.xml`, `values-de/strings_sos.xml`, `values-de/strings_ui.xml`). İngilizceyi kaynak olarak kullanmak, anahtarların eksiksiz kalmasını kolaylaştırır.
-3. Tüm kullanıcıya görünen metinleri çevir. Teknik adları, marka ve sağlayıcı adlarını (OpenStreetMap, Valhalla, Open-Meteo, MapLibre, Android, SMS, GPS gibi) olduğu gibi bırak.
-4. Biçim yer tutucularını aynen koru: `%1$s`, `%2$d`, `%%`, `\n` gibi. Sıra değişebilirse bile numaralı yer tutucuları koru; numarasız `%s` kullanma.
-5. Uzun metinleri kısalt. Almanca gibi uzun dillerde kart başlıkları ve düğmeler taşabilir; 2,0× yazı boyutunda da dene.
-6. Sağdan sola yazılan bir dil ekliyorsan (Arapça, İbranice, Farsça) yönü ve simge hizalamasını ayrıca kontrol et.
-7. PR'da dili, çevirinin durumunu (tam/kısmi) ve varsa ana dili konuşan gözden geçiren kişiyi belirt.
+3. Yeni dili `app/src/main/res/xml/locales_config.xml` içine ekle (`<locale android:name="de" />`). Bu adım olmadan dil, Android 13+ uygulama dili menüsünde görünmez.
+4. Tüm kullanıcıya görünen metinleri çevir. Teknik adları, marka ve sağlayıcı adlarını (OpenStreetMap, Valhalla, Open-Meteo, MapLibre, Android, SMS, GPS gibi) olduğu gibi bırak.
+5. Biçim yer tutucularını aynen koru: `%1$s`, `%2$d`, `%%`, `\n` gibi. Sıra değişebilirse bile numaralı yer tutucuları koru; numarasız `%s` kullanma.
+6. Uzun metinleri kısalt. Almanca gibi uzun dillerde kart başlıkları ve düğmeler taşabilir; 2,0× yazı boyutunda da dene.
+7. Sağdan sola yazılan bir dil ekliyorsan (Arapça, İbranice, Farsça) `<application>` etiketine `android:supportsRtl="true"` ekle ve yön ile simge hizalamasını ayrıca kontrol et.
+8. PR'da dili, çevirinin durumunu (tam/kısmi) ve varsa ana dili konuşan gözden geçiren kişiyi belirt.
 
-Yeni dil dizini eklemek Kotlin kaynak kodunu değiştirmez; yalnızca Android kaynak dosyası ekler. Dil seçimi sistem diline göre yapılır; uygulama içi ayrı bir dil seçici yoktur. Android 13 ve üzerindeki **Ayarlar → Uygulamalar → RideDeck → Dil** menüsünde İngilizce ve Türkçe seçilebilir. Android 8–12'de sistem dili kullanılır.
+Yeni dil dizini eklemek Kotlin kaynak kodunu değiştirmez; yalnızca Android kaynak dosyası ekler. Dil seçimi varsayılan olarak sistem diline göre yapılır; uygulama içi ayrı bir dil seçici yoktur. Android 13 ve üzerindeki **Ayarlar → Uygulamalar → RideDeck → Dil** menüsünde `locales_config.xml` içinde bildirilen diller seçilebilir. Android 8–12'de sistem dili kullanılır.
+
+`de` veya `fr` gibi yeni bir dil eklendiğinde `app/src/androidTest/java/com/ridedeck/app/LocaleFallbackTest.kt` içindeki “desteklenmeyen dil İngilizceye düşer” beklentisini de güncelle; test bu dilleri şu anda desteklenmiyor varsayar.
 
 Sesli yönlendirme şu anda yalnız Türkçe ve İngilizce destekler: `GuidanceLanguage.tag()` Türkçe dışındaki diller için `en-US` döner. Yeni bir arayüz dili eklendiğinde sesli yönlendirme İngilizce kalır; yeni sesli dil desteği ayrı bir kod değişikliğidir.
 
