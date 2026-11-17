@@ -33,7 +33,7 @@ Telefonu gidona veya motosiklet üstüne takınca **hız, harita, müzik ve tele
 |:---:|:---:|:---:|
 | OpenStreetMap haritası, motosiklet rotası, ara durak ve benzinlik | Uygulama içi telefon (son aramalar, rehber, tuş takımı), müzik kontrolü, mesajları sesli okuma | Sert darbe ve hareketsizlikte geri sayım, sonra en fazla 3 kişiye birer konum linkli SMS |
 | 🗺️ **Çevrimdışı harita** | 🌦️ **Uyarılar** | 🔒 **Gizlilik** |
-| Önceden indirilen alanlar korunur; yeni indirmeler sağlayıcı uyumluluğu doğrulanana kadar kapalıdır. Rota, arama ve hava durumu internet ister | Yağmur ve buzlanma uyarısı; telefon ısınınca ekran kısılır | Veriler telefonda kalır; yalnızca harita/yer arama, rota ve hava durumu sorguları dış servislere çıkar. Sesli yönlendirme Android TTS ile yapılır; ağ gerektiren ses seçilirse metin TTS sağlayıcısına gidebilir |
+| Önceden indirilen alanlar korunur; yeni indirmeler sağlayıcı uyumluluğu doğrulanana kadar kapalıdır. Rota, arama ve hava durumu internet ister | Yağmur ve buzlanma uyarısı; telefon ısınınca ekran kısılır | Veriler telefonda kalır; yalnızca harita/yer arama, rota, benzinlik ve hava durumu sorguları dış servislere çıkar. Sesli yönlendirme Android TTS ile yapılır; ağ gerektiren ses seçilirse metin TTS sağlayıcısına gidebilir |
 
 ### 📸 Ekran görüntüleri
 
@@ -214,7 +214,7 @@ Güncel işler açık issue'larda ve [`good first issue`](https://github.com/yig
 |:---:|:---:|:---:|
 | OpenStreetMap, motorcycle routing, waypoints and fuel stops | In-app phone (recents, contacts, keypad), music control, messages read aloud | Countdown after a hard impact and no movement, then one SMS per contact (up to 3) with your location |
 | 🗺️ **Offline map** | 🌦️ **Alerts** | 🔒 **Privacy** |
-| Existing offline areas are preserved; new downloads are paused until provider compliance is verified. Routing, search and weather need internet | Rain and ice alerts; the screen dims when the phone overheats | Data stays on the phone; only map, place-search, routing and weather queries leave the device. Spoken guidance uses Android TTS; text may reach the TTS provider if a networked voice is selected |
+| Existing offline areas are preserved; new downloads are paused until provider compliance is verified. Routing, search and weather need internet | Rain and ice alerts; the screen dims when the phone overheats | Data stays on the phone; only map, place-search, routing, fuel and weather queries leave the device. Spoken guidance uses Android TTS; text may reach the TTS provider if a networked voice is selected |
 
 New offline downloads are temporarily disabled: the current SDK download path has not been verified against [OpenFreeMap's limits](https://openfreemap.org/tos/) (3,000 tiles or 50 MB, at most four concurrent requests, and an app-identifying User-Agent). Existing downloaded areas are preserved. Speed-limit readings expire from their request time (60 seconds); weather is discarded at the next freshness check after 30 minutes instead of being kept indefinitely after failed refreshes.
 
