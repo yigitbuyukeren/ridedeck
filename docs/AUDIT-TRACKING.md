@@ -75,3 +75,8 @@ gerektiren maddeler ayrıca **ENGEL** olarak işaretlenir.
 > Not: Bu tablodaki "kapalı" sayısı yalnız kod + test kanıtı olan maddeleri sayar.
 > Gerçek cihaz, gerçek SMS/arama, sağlayıcı global kotası ve mağaza kararları
 > kapanmadan genel 1.0 kararı GO olamaz.
+
+> **17 Kasım 2026 doküman uzlaştırma notu:** README, STATUS, CASE-STUDY (TR/EN),
+> EKSIKLER, RELEASE_READINESS ve NOTICE güncel davranış ve kanıtlarla uzlaştırıldı.
+> Bu tablodaki durumların nihai güncellenmesi orkestratöre aittir; bu not yeni bir
+> kapanış iddiası değildir.
