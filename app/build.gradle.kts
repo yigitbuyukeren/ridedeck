@@ -11,6 +11,14 @@ plugins {
 val keystoreProps: Properties? = rootProject.file("keystore.properties").takeIf { it.exists() }
     ?.let { file -> Properties().apply { file.inputStream().use { load(it) } } }
 
+// Per-test process isolation is opt-in. On the local API 35 x86_64 emulator the
+// orchestrator doubled a 12-test subset (18s -> 36s) and the full 174-test run stalled
+// after 12 tests versus 77 tests without it, so CI keeps the faster single-process run.
+// Opt in when debugging a crashing test:
+//   ./gradlew connectedDebugAndroidTest -PrdOrchestrator=true \
+//     -Pandroid.testInstrumentationRunnerArguments.clearPackageData=true
+val useOrchestrator = providers.gradleProperty("rdOrchestrator").orNull?.toBoolean() == true
+
 android {
     namespace = "com.ridedeck.app"
     compileSdk = 36
@@ -22,7 +30,6 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionCode = 6
         versionName = "0.6.0"
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
 
     signingConfigs {
@@ -37,11 +44,17 @@ android {
     }
 
     buildTypes {
+        debug {
+            // x86_64 lets the instrumentation suite run on the standard GitHub-hosted
+            // x86_64 emulator; release stays ARM-only to keep the shipped APK small.
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("release")
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
         }
     }
 
@@ -57,6 +70,12 @@ android {
 
     packaging {
         jniLibs.useLegacyPackaging = true
+    }
+
+    testOptions {
+        // Compose timing assertions depend on the system animation scale.
+        animationsDisabled = true
+        if (useOrchestrator) execution = "ANDROIDX_TEST_ORCHESTRATOR"
     }
 }
 
@@ -80,5 +99,6 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestUtil("androidx.test:orchestrator:1.5.1")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
