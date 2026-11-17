@@ -135,15 +135,15 @@ object FuelMath {
 
 /**
  * Fuel stations from two free sources. The volunteer-run Overpass servers take turns being down or slow,
- * so a search asks all of them at once and takes the first good answer; Nominatim is the quick fallback
- * (and the first choice around the rider). Searches are rare, explicit taps.
+ * so a search asks at most two of them (from distinct operators) and takes the first good answer; Nominatim
+ * is the quick fallback (and the first choice around the rider). Searches are rare, explicit taps.
  */
-class FuelRepository(private val http: ServiceHttp = CancellableServiceHttp) : FuelFinder {
-    private val mirrors = listOf(
-        "https://overpass.kumi.systems/api/interpreter",
-        "https://overpass-api.de/api/interpreter",
-        "https://overpass.private.coffee/api/interpreter",
-    )
+class FuelRepository(private val http: ServiceHttp = ProviderHttp) : FuelFinder {
+    private companion object {
+        const val NEAR_BOX_DEG = 0.03
+        const val ROUTE_BOX_MARGIN_DEG = 0.01
+        const val FALLBACK_POINTS = 14
+    }
 
     /** Around the rider: Nominatim first (fast), the Overpass mirrors when it finds nothing or fails. */
     override suspend fun near(here: GeoPoint, sources: List<StopSource>): Result<List<FuelStation>> = withContext(Dispatchers.IO) {
@@ -197,23 +197,39 @@ class FuelRepository(private val http: ServiceHttp = CancellableServiceHttp) : F
         }
     }
 
-    private suspend fun firstAnswer(body: String): String = firstAnswerOf(body, mirrors, http)
-
-    private companion object {
-        const val NEAR_BOX_DEG = 0.03
-        const val ROUTE_BOX_MARGIN_DEG = 0.01
-        const val FALLBACK_POINTS = 14
-    }
+    private suspend fun firstAnswer(body: String): String = firstAnswerOf(body, overpassAttempts(), http)
 }
 
-/** Asks every server at once with the same Overpass query and returns the first good reply. */
-private suspend fun firstAnswerOf(query: String, mirrors: List<String>, http: ServiceHttp): String = coroutineScope {
+/**
+ * Public Overpass endpoints and their operators. FOSSGIS asks for at most two connections; the kumi and
+ * private.coffee hosts are the same operator, so only the first of that pair may be used in one search.
+ */
+internal data class OverpassMirror(val url: String, val operator: String)
+
+internal val OVERPASS_MIRRORS = listOf(
+    OverpassMirror("https://overpass-api.de/api/interpreter", "fossgis"),
+    OverpassMirror("https://overpass.kumi.systems/api/interpreter", "kumi"),
+    OverpassMirror("https://overpass.private.coffee/api/interpreter", "kumi"),
+)
+
+/** At most two in-flight requests, never two against the same operator, primary first. */
+internal fun overpassAttempts(mirrors: List<OverpassMirror> = OVERPASS_MIRRORS): List<OverpassMirror> {
+    val seen = HashSet<String>()
+    return mirrors.filter { seen.add(it.operator) }.take(MAX_OVERFLOW_CONNECTIONS)
+}
+
+/** FOSSGIS terms allow at most two simultaneous connections. */
+internal const val MAX_OVERFLOW_CONNECTIONS = 2
+
+/** Asks at most two distinct-operator servers with the same Overpass query and returns the first good reply. */
+internal suspend fun firstAnswerOf(query: String, mirrors: List<OverpassMirror>, http: ServiceHttp): String = coroutineScope {
+    if (mirrors.isEmpty()) throw IllegalStateException("no Overpass mirror")
     val body = "data=" + URLEncoder.encode(query, "UTF-8")
     val results = Channel<Result<String>>(mirrors.size)
-    val requests = mirrors.map { url ->
+    val requests = mirrors.map { mirror ->
         launch(Dispatchers.IO) {
             val outcome = try {
-                Result.success(http.postForm(url, body, connectMs = 5_000, readMs = 10_000))
+                Result.success(http.postForm(mirror.url, body, connectMs = 5_000, readMs = 10_000))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
