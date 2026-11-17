@@ -7,10 +7,13 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
+import android.telephony.SubscriptionManager
+import android.telephony.TelephonyManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.ridedeck.app.MainActivity
@@ -48,6 +51,13 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
     val contacts = MutableStateFlow(SosMath.fromJson(Prefs.sosContacts(app)))
     val crashEnabled = MutableStateFlow(Prefs.sosCrash(app))
     val buttonEnabled = MutableStateFlow(Prefs.sosButton(app))
+
+    /**
+     * A trigger is not "enabled" just because the preference is true: without a contact, SMS
+     * permission, telephony or a usable default SIM there is nobody to reach. Both crash detection
+     * and the dashboard button read this effective fact, not only the stored switch.
+     */
+    val ready = MutableStateFlow(false)
 
     val sos: SosController = SosController(
         scope = scope,
@@ -91,9 +101,12 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
 
     init {
         AndroidSosAlarm(app).restoreVolumeIfPending()
+        refreshReady()
         val riding = tracking.session.state.map { it.phase == RidePhase.ACTIVE }
         scope.launch {
-            combine(crashEnabled, screens, riding) { on, screens, riding -> on && (screens > 0 || riding) }
+            combine(crashEnabled, screens, riding, ready) { on, screens, riding, ready ->
+                on && ready && (screens > 0 || riding)
+            }
                 .distinctUntilChanged().collect { armed ->
                     armedState.value = armed
                     if (armed) crashSensor.start() else crashSensor.stop()
@@ -121,17 +134,34 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
 
     fun setScreenVisible(visible: Boolean) {
         screens.value = (screens.value + if (visible) 1 else -1).coerceAtLeast(0)
-        if (visible) cancelAlert()
+        if (visible) {
+            cancelAlert()
+            refreshReady()
+        }
     }
 
     fun setCrashEnabled(enabled: Boolean) {
         Prefs.setSosCrash(app, enabled)
         crashEnabled.value = enabled
+        refreshReady()
     }
 
     fun setButtonEnabled(enabled: Boolean) {
         Prefs.setSosButton(app, enabled)
         buttonEnabled.value = enabled
+        refreshReady()
+    }
+
+    /** Re-reads the facts that decide whether an alert can reach anybody at all. */
+    private fun refreshReady() {
+        val telephony = runCatching { app.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY) }.getOrDefault(true)
+        val sim = runCatching { SmsSubscriptionPolicy.usable(SubscriptionManager.getDefaultSmsSubscriptionId()) }.getOrDefault(true)
+        ready.value = SosReadiness.triggersReady(
+            contacts = contacts.value.size,
+            smsPermission = app.hasPermission(Manifest.permission.SEND_SMS),
+            telephony = telephony,
+            defaultSmsUsable = sim,
+        )
     }
 
     fun addContact(contact: SosContact) = updateContacts(SosMath.addContact(contacts.value, contact))
@@ -159,6 +189,8 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
         if (list.isEmpty()) {
             setCrashEnabled(false)
             setButtonEnabled(false)
+        } else {
+            refreshReady()
         }
     }
 
@@ -178,12 +210,12 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
         // The countdown is over: nothing can be cancelled any more, so the cancel action goes away.
         releaseCountdownWakeLock()
         // A result is information, not an alarm: never launch the app over the lock screen for it.
-        post(alertPlan().copy(fullScreenIntent = false), app.getString(R.string.sos_sending), app.getString(R.string.sos_delivery_note), null, null)
+        post(alertPlan().copy(fullScreenIntent = false, launchApp = false), app.getString(R.string.sos_sending), app.getString(R.string.sos_delivery_note), null, null)
     }
 
     private fun showResultAlert(ui: SosUi) {
         releaseCountdownWakeLock()
-        post(alertPlan().copy(fullScreenIntent = false), resultTitle(ui), resultText(ui), null, app.getString(R.string.sos_action_close))
+        post(alertPlan().copy(fullScreenIntent = false, launchApp = false), resultTitle(ui), resultText(ui), null, app.getString(R.string.sos_action_close))
     }
 
     private fun resultTitle(ui: SosUi): String = app.getString(

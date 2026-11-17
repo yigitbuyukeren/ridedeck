@@ -50,7 +50,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -90,6 +89,7 @@ import com.ridedeck.app.data.SosPhase
 import com.ridedeck.app.data.SosReadiness
 import com.ridedeck.app.data.SosReason
 import com.ridedeck.app.data.SosUi
+import com.ridedeck.app.util.Prefs
 import com.ridedeck.app.util.hasPermission
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -353,21 +353,23 @@ fun SosSettingsCard(
     val palette = LocalMotoPalette.current
     var smsOk by remember { mutableStateOf(context.hasPermission(Manifest.permission.SEND_SMS)) }
     // A denied request that no longer shows a rationale can only be fixed in the system settings.
-    var smsAsked by rememberSaveable { mutableStateOf(false) }
+    var smsAsked by remember { mutableStateOf(Prefs.sosSmsAsked(context)) }
     var telephony by remember { mutableStateOf(context.hasTelephony()) }
     var simUsable by remember { mutableStateOf(context.defaultSmsSubscriptionUsable()) }
     var notificationsEnabled by remember { mutableStateOf(context.notificationsEnabled()) }
     var postNotifications by remember { mutableStateOf(context.postNotificationsGranted()) }
     var fullScreenAllowed by remember { mutableStateOf(context.fullScreenIntentAllowed()) }
-    var notificationAsked by rememberSaveable { mutableStateOf(false) }
+    var notificationAsked by remember { mutableStateOf(Prefs.sosNotificationAsked(context)) }
     val smsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         smsOk = granted
         smsAsked = true
+        Prefs.setSosSmsAsked(context)
     }
     val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         postNotifications = granted
         notificationsEnabled = context.notificationsEnabled()
         notificationAsked = true
+        Prefs.setSosNotificationAsked(context)
     }
     // The permission, SIM and notification state can also change in the system settings while the app is in the background.
     androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
@@ -443,6 +445,7 @@ fun SosSettingsCard(
                 } else {
                     PillButton(stringResource(R.string.action_allow), MotoColors.Blue, {
                         smsAsked = true
+                        Prefs.setSosSmsAsked(context)
                         smsLauncher.launch(Manifest.permission.SEND_SMS)
                     })
                 }
@@ -466,6 +469,7 @@ fun SosSettingsCard(
                             context.openAppSettings()
                         } else {
                             notificationAsked = true
+                            Prefs.setSosNotificationAsked(context)
                             notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         }
                     },

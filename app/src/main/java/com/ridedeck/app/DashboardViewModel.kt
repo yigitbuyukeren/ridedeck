@@ -358,7 +358,10 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val sos = safety.sos
     val sosContacts = safety.contacts
     val sosCrashEnabled = safety.crashEnabled
-    val sosButtonEnabled = safety.buttonEnabled
+    /** The stored switch is not enough when there is no SIM/SMS path; hide the button until it is usable. */
+    val sosButtonEnabled: StateFlow<Boolean> =
+        combine(safety.buttonEnabled, safety.ready) { on, ready -> on && ready }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
     fun setSosCrashEnabled(enabled: Boolean) = safety.setCrashEnabled(enabled)
     fun setSosButtonEnabled(enabled: Boolean) = safety.setButtonEnabled(enabled)
     fun addSosContact(contact: com.ridedeck.app.data.SosContact) = safety.addContact(contact)

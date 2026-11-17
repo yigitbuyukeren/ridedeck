@@ -377,7 +377,11 @@ class SosController(
     private var closed = false
 
     fun trigger(reason: SosReason) {
-        if (closed || _ui.value.phase != SosPhase.IDLE) return
+        // A finished result screen must not become a permanent latch: an unconscious rider cannot
+        // dismiss it, and a second crash still has to start a new countdown. Only an in-progress
+        // countdown or an SMS already on the wire may not be superseded.
+        val phase = _ui.value.phase
+        if (closed || phase == SosPhase.COUNTDOWN || phase == SosPhase.SENDING) return
         val original = contacts.value.fold(emptyList<SosContact>()) { list, contact -> SosMath.addContact(list, contact) }
         if (reason != SosReason.TEST) {
             val problem = when {
