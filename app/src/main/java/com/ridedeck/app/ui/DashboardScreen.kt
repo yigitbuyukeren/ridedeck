@@ -74,6 +74,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
     val mediaState by vm.media.state.collectAsStateWithLifecycle()
     val voiceFacts by vm.voiceFacts.collectAsStateWithLifecycle()
     val callState by vm.call.state.collectAsStateWithLifecycle()
+    val hangUpSupport by vm.call.hangUpCapability.collectAsStateWithLifecycle()
     val callerName by vm.callerName.collectAsStateWithLifecycle()
     val resume by vm.resumeTick.collectAsStateWithLifecycle()
     val routeOptions by vm.nav.options.collectAsStateWithLifecycle()
@@ -624,6 +625,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                 onAnswer = { callAction(vm.call::answer) }, onHangUp = { callAction(vm.call::hangUp) },
                 onMute = { callAction(vm.call::toggleMute) }, onRoute = { route -> callAction { vm.call.setRoute(route) } },
                 onVolumeUp = vm.call::volumeUp, onVolumeDown = vm.call::volumeDown, onDigit = { digit -> callAction { vm.call.sendDigit(digit) } },
+                hangUpSupport = hangUpSupport,
             )
         }
 

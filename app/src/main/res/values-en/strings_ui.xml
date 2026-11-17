@@ -14,4 +14,6 @@
     <string name="map_credit_fixthemap">Report a map error (fixthemap)</string>
     <string name="speed_readout_desc">Speed: %1$s %2$s</string>
     <string name="offline_downloads_unavailable">New offline areas cannot be downloaded: provider limits are not verified. Saved areas and the live map keep working.</string>
+    <string name="call_hangup_needs_dialer">On this Android version RideDeck must be the default phone app to end a call.</string>
+    <string name="call_hangup_permission_missing">Phone permission is required to end a call; grant it in system settings.</string>
 </resources>

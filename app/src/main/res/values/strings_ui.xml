@@ -14,4 +14,6 @@
     <string name="map_credit_fixthemap">Haritadaki hatayı bildir (fixthemap)</string>
     <string name="speed_readout_desc">Hız: %1$s %2$s</string>
     <string name="offline_downloads_unavailable">Yeni çevrimdışı alan indirilemiyor: sağlayıcı koşulları doğrulanmadı. Kayıtlı alanlar ve canlı harita çalışmaya devam eder.</string>
+    <string name="call_hangup_needs_dialer">Bu Android sürümünde aramayı kapatmak için RideDeck varsayılan telefon uygulaması olmalı.</string>
+    <string name="call_hangup_permission_missing">Aramayı kapatmak için telefon izni gerekli; izni sistem ayarlarından ver.</string>
 </resources>
