@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
 import com.ridedeck.app.R
+import com.ridedeck.app.data.SOS_CHANNEL_ID
 import com.ridedeck.app.data.SmsSubscriptionPolicy
 import com.ridedeck.app.data.SosAlertPermissionFacts
 import com.ridedeck.app.data.SosAlertWarning
@@ -128,6 +129,8 @@ fun SosButton(onTrigger: () -> Unit, modifier: Modifier = Modifier) {
     val holdHint = stringResource(R.string.sos_button_a11y)
     val actionLabel = stringResource(R.string.sos_button_action)
     val holdState = stringResource(R.string.sos_button_hold_state, (progress * 100f).toInt().coerceIn(0, 100))
+    // The fill darkens while held; pick the text colour from the actual fill, not a fixed white.
+    val fill = lerp(MotoColors.Red, Color(0xFF8E0B0B), SosHoldMath.halo(progress) * 0.6f)
     Box(
         modifier = modifier
             .size(68.dp)
@@ -173,13 +176,13 @@ fun SosButton(onTrigger: () -> Unit, modifier: Modifier = Modifier) {
             },
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.fillMaxSize().clip(CircleShape).background(lerp(MotoColors.Red, Color(0xFF8E0B0B), SosHoldMath.halo(progress) * 0.6f)))
+        Box(Modifier.fillMaxSize().clip(CircleShape).background(fill))
         Canvas(Modifier.fillMaxSize().padding(3.dp)) {
             if (progress > 0f) {
                 drawArc(Color.White, -90f, 360f * progress, false, Offset.Zero, Size(size.width, size.height), style = Stroke(4.dp.toPx(), cap = StrokeCap.Round))
             }
         }
-        Text(stringResource(R.string.sos_button_label), fontSize = 15.sp, fontWeight = FontWeight.Black, color = Color.White)
+        Text(stringResource(R.string.sos_button_label), fontSize = 15.sp, fontWeight = FontWeight.Black, color = readableOn(fill))
     }
 }
 
@@ -547,8 +550,11 @@ private fun SosWarning(title: String, desc: String, action: String, onAction: ()
     }
 }
 
-private fun Context.notificationsEnabled(): Boolean =
-    runCatching { NotificationManagerCompat.from(this).areNotificationsEnabled() }.getOrDefault(true)
+private fun Context.notificationsEnabled(): Boolean = runCatching {
+    if (!NotificationManagerCompat.from(this).areNotificationsEnabled()) return@runCatching false
+    val channel = getSystemService(NotificationManager::class.java)?.getNotificationChannel(SOS_CHANNEL_ID)
+    channel == null || channel.importance != NotificationManager.IMPORTANCE_NONE
+}.getOrDefault(true)
 
 /** True below API 33, where the runtime notification permission does not exist. */
 private fun Context.postNotificationsGranted(): Boolean =

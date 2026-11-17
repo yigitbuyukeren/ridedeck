@@ -31,6 +31,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
+/** The one SOS channel; the settings card and the alert planner must agree on its state. */
+internal const val SOS_CHANNEL_ID = "sos"
+
 /**
  * Crash detection and SOS for the whole process. A screen used to own these, so they stopped the
  * moment the rider switched to the music app or the screen went dark. Now the accelerometer listens
@@ -101,7 +104,7 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
 
     init {
         AndroidSosAlarm(app).restoreVolumeIfPending()
-        refreshReady()
+        refreshReadiness()
         val riding = tracking.session.state.map { it.phase == RidePhase.ACTIVE }
         scope.launch {
             combine(crashEnabled, screens, riding, ready) { on, screens, riding, ready ->
@@ -136,26 +139,35 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
         screens.value = (screens.value + if (visible) 1 else -1).coerceAtLeast(0)
         if (visible) {
             cancelAlert()
-            refreshReady()
+            refreshReadiness()
         }
     }
 
     fun setCrashEnabled(enabled: Boolean) {
         Prefs.setSosCrash(app, enabled)
         crashEnabled.value = enabled
-        refreshReady()
+        refreshReadiness()
     }
 
     fun setButtonEnabled(enabled: Boolean) {
         Prefs.setSosButton(app, enabled)
         buttonEnabled.value = enabled
-        refreshReady()
+        refreshReadiness()
     }
 
-    /** Re-reads the facts that decide whether an alert can reach anybody at all. */
-    private fun refreshReady() {
-        val telephony = runCatching { app.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY) }.getOrDefault(true)
-        val sim = runCatching { SmsSubscriptionPolicy.usable(SubscriptionManager.getDefaultSmsSubscriptionId()) }.getOrDefault(true)
+    /**
+     * Re-reads the facts that decide whether an alert can reach anybody at all. Permission
+     * dialogs normally pause rather than stop the activity, so the dashboard also calls this on
+     * every resume; otherwise granting SMS would leave the button hidden until a cold start.
+     */
+    fun refreshReadiness() {
+        // Fail closed: an unreadable telephony/SIM state must not promise a send path.
+        val telephony = runCatching {
+            app.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)
+        }.getOrDefault(false)
+        val sim = runCatching {
+            SmsSubscriptionPolicy.usable(SubscriptionManager.getDefaultSmsSubscriptionId())
+        }.getOrDefault(false)
         ready.value = SosReadiness.triggersReady(
             contacts = contacts.value.size,
             smsPermission = app.hasPermission(Manifest.permission.SEND_SMS),
@@ -190,7 +202,7 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
             setCrashEnabled(false)
             setButtonEnabled(false)
         } else {
-            refreshReady()
+            refreshReadiness()
         }
     }
 
@@ -199,8 +211,20 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
         if (plan.wakeScreen) acquireCountdownWakeLock()
         post(
             plan,
-            title = app.getString(if (reason == SosReason.AUTO) R.string.sos_count_auto else R.string.sos_count_manual),
-            text = app.getString(if (reason == SosReason.AUTO) R.string.sos_count_hint_auto else R.string.sos_count_hint_manual),
+            title = app.getString(
+                when (reason) {
+                    SosReason.AUTO -> R.string.sos_count_auto
+                    SosReason.TEST -> R.string.sos_count_test
+                    SosReason.MANUAL -> R.string.sos_count_manual
+                },
+            ),
+            text = app.getString(
+                when (reason) {
+                    SosReason.AUTO -> R.string.sos_count_hint_auto
+                    SosReason.TEST -> R.string.sos_test_note
+                    SosReason.MANUAL -> R.string.sos_count_hint_manual
+                },
+            ),
             cancelLabel = app.getString(R.string.sos_action_fine),
             dismissLabel = null,
         )
@@ -210,12 +234,27 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
         // The countdown is over: nothing can be cancelled any more, so the cancel action goes away.
         releaseCountdownWakeLock()
         // A result is information, not an alarm: never launch the app over the lock screen for it.
-        post(alertPlan().copy(fullScreenIntent = false, launchApp = false), app.getString(R.string.sos_sending), app.getString(R.string.sos_delivery_note), null, null)
+        // Contact names may be in the text, so keep the result content off the lock screen.
+        post(
+            alertPlan().copy(fullScreenIntent = false, launchApp = false),
+            app.getString(R.string.sos_sending),
+            app.getString(R.string.sos_delivery_note),
+            null,
+            null,
+            visibility = NotificationCompat.VISIBILITY_PRIVATE,
+        )
     }
 
     private fun showResultAlert(ui: SosUi) {
         releaseCountdownWakeLock()
-        post(alertPlan().copy(fullScreenIntent = false, launchApp = false), resultTitle(ui), resultText(ui), null, app.getString(R.string.sos_action_close))
+        post(
+            alertPlan().copy(fullScreenIntent = false, launchApp = false),
+            resultTitle(ui),
+            resultText(ui),
+            null,
+            app.getString(R.string.sos_action_close),
+            visibility = NotificationCompat.VISIBILITY_PRIVATE,
+        )
     }
 
     private fun resultTitle(ui: SosUi): String = app.getString(
@@ -247,7 +286,13 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
     /** Platform facts for [SosAlertPolicy]; every query is defensive so a restricted OEM ROM cannot crash a countdown. */
     private fun alertPlan(): SosAlertPlan {
         val manager = NotificationManagerCompat.from(app)
-        val notificationsEnabled = runCatching { manager.areNotificationsEnabled() }.getOrDefault(false)
+        val appEnabled = runCatching { manager.areNotificationsEnabled() }.getOrDefault(false)
+        // A blocked SOS channel suppresses the notification even while app notifications stay on.
+        val channelBlocked = runCatching {
+            app.getSystemService(NotificationManager::class.java)
+                ?.getNotificationChannel(SOS_CHANNEL_ID)?.importance == NotificationManager.IMPORTANCE_NONE
+        }.getOrDefault(false)
+        val notificationsEnabled = appEnabled && !channelBlocked
         val permission = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             app.hasPermission(Manifest.permission.POST_NOTIFICATIONS)
         val fullScreenAllowed = if (Build.VERSION.SDK_INT >= 34) {
@@ -259,9 +304,18 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
         return SosAlertPolicy.plan(notificationsEnabled, permission, fullScreenAllowed, screenOff, canStartActivity)
     }
 
-    private fun post(plan: SosAlertPlan, title: String, text: String, cancelLabel: String?, dismissLabel: String?) {
+    private fun post(
+        plan: SosAlertPlan,
+        title: String,
+        text: String,
+        cancelLabel: String?,
+        dismissLabel: String?,
+        visibility: Int = NotificationCompat.VISIBILITY_PUBLIC,
+    ) {
         if (!plan.postNotification) {
-            // No notification possible: at least try to show the countdown; the beep/voice/SMS go on regardless.
+            // No notification possible: remove a stale alert from an earlier phase, then try the
+            // activity fallback. The beep/voice/SMS go on regardless.
+            cancelNotification()
             bringToFront(plan)
             return
         }
@@ -277,7 +331,7 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(open)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setVisibility(visibility)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setOngoing(true)
@@ -294,13 +348,16 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
         // The plan already checked this; re-check so a permission revoked in between cannot crash and lint sees it.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             app.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            cancelNotification()
             bringToFront(plan)
             return
         }
         try {
             NotificationManagerCompat.from(app).notify(NOTIFICATION_ID, builder.build())
         } catch (_: RuntimeException) {
-            // Permission withdrawn between the check and notify, or a vendor restriction.
+            // Permission withdrawn between the check and notify, or a vendor restriction: a stale
+            // countdown notification must not outlive the phase that posted it.
+            cancelNotification()
             bringToFront(plan)
         }
     }
@@ -359,13 +416,17 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
         }
     }
 
-    private fun cancelAlert() {
-        releaseCountdownWakeLock()
+    private fun cancelNotification() {
         runCatching { NotificationManagerCompat.from(app).cancel(NOTIFICATION_ID) }
     }
 
+    private fun cancelAlert() {
+        releaseCountdownWakeLock()
+        cancelNotification()
+    }
+
     private companion object {
-        const val CHANNEL = "sos"
+        const val CHANNEL = SOS_CHANNEL_ID
         const val NOTIFICATION_ID = 40
         const val REQUEST_OPEN = 40
         const val REQUEST_CANCEL = 41

@@ -138,6 +138,22 @@ class SosAlertPolicyTest {
         assertFalse(plan.postNotification)
         assertFalse(plan.fullScreenIntent)
         assertFalse(plan.launchApp)
+        // No notification and no permitted activity start: waking the screen would show nothing.
+        assertFalse(plan.wakeScreen)
+    }
+
+    @Test
+    fun theScreenIsNotWokenWhenNeitherANotificationNorAnActivityCanBeShown() {
+        val plan = SosAlertPolicy.plan(
+            notificationsEnabled = false,
+            notificationPermission = false,
+            fullScreenIntentAllowed = false,
+            screenOff = true,
+            canStartActivity = false,
+        )
+        assertFalse(plan.postNotification)
+        assertFalse(plan.launchApp)
+        assertFalse("an empty lock screen must not be lit", plan.wakeScreen)
     }
 }
 

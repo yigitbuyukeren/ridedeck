@@ -70,6 +70,11 @@ class SosLockScreenAlertTest {
         }
         val posted = manager.activeNotifications.single { it.id == 40 }
         assertEquals(Notification.VISIBILITY_PUBLIC, posted.notification.visibility)
+        assertEquals(
+            "a test alert must not look like a real crash",
+            context.getString(R.string.sos_count_test),
+            posted.notification.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
+        )
         val actions = posted.notification.actions.orEmpty().map { it.title?.toString() }
         assertTrue(
             "the lock-screen notification must offer the I am fine action; actions=$actions",

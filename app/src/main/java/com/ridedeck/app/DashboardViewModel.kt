@@ -381,6 +381,9 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     fun onResume() {
         onScreen = true
+        // A permission dialog pauses but usually does not stop the activity, so onStart's SOS
+        // refresh may not run after the rider grants SMS. Re-read the send path on every resume.
+        safety.refreshReadiness()
         rideTracking.refresh()
         battery.start()
         navigation.refreshAudio()

@@ -129,8 +129,9 @@ object SosAlertPolicy {
             postNotification = notifications,
             // A full-screen intent without a notification has nothing to attach to.
             fullScreenIntent = notifications && fullScreenIntentAllowed,
-            // The screen is woken even when no notification can be posted, so the rider still sees the countdown.
-            wakeScreen = screenOff,
+            // Waking the screen only helps when there is a countdown to show: a notification or a
+            // permitted activity launch. Otherwise it would light an empty lock screen.
+            wakeScreen = screenOff && (notifications || canStartActivity),
             launchApp = !notifications && canStartActivity,
         )
     }
