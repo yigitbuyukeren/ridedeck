@@ -60,13 +60,13 @@ RideDeck, **Android telefonlar için motosiklet odaklı bir yatay gösterge pane
 
 **[Resmî imzalı beta APK: v0.6.1-beta.1](https://github.com/yigitbuyukeren/ridedeck/releases/download/v0.6.1-beta.1/RideDeck-0.6.1-beta.1.apk)** · [Tüm sürümler](https://github.com/yigitbuyukeren/ridedeck/releases)
 
-Android **8.0 (API 26)** ve üzerini destekler. APK'yı yalnız resmî sürüm bağlantısından indir. \`0.6.0\` üzerinden aynı imza anahtarıyla güncellenebilir; \`0.5.0\` farklı anahtar kullandığından kaldırma gerekebilir ve bu işlem uygulama verilerini silebilir. İzinler, kullanılan özelliğe göre istenir.
+Android **8.0 (API 26)** ve üzerini destekler. APK'yı yalnız resmî sürüm bağlantısından indir. `0.6.0` üzerinden aynı imza anahtarıyla güncellenebilir; `0.5.0` farklı anahtar kullandığından kaldırma gerekebilir ve bu işlem uygulama verilerini silebilir. İzinler, kullanılan özelliğe göre istenir.
 
 ### ✅ Güncel doğrulama ve sınırlar
 
 | Kontrol | Son raporlanan sonuç |
 |---|---|
-| Beta | \`0.6.1-beta.1\` · \`versionCode 7\` · imzalı APK |
+| Beta | `0.6.1-beta.1` · `versionCode 7` · imzalı APK |
 | JVM birim testleri | **831/831 debug + 831/831 release** (1.662 toplam) |
 | Android instrumentation | **203 geçti + 1 atlandı**; atlanan izin testi ayrı koşuda geçti (204 doğrulandı) |
 | Lint ve hizalama | **0 lint hatası**; 16 KB statik hizalama kontrolü geçti |
@@ -80,10 +80,10 @@ Android **8.0 (API 26)** ve üzerini destekler. APK'yı yalnız resmî sürüm b
 
 **Kotlin · Jetpack Compose · MapLibre · OpenStreetMap · Valhalla · Android SDK 36 · JDK 17**
 
-\`\`\`bash
+```bash
 # Android SDK 36 ve JDK 17 hazır olmalı; local.properties içinde sdk.dir ayarla
 ./gradlew testDebugUnitTest assembleDebug
-\`\`\`
+```
 
 | Başlamak için | Ayrıntı için |
 |---|---|
@@ -115,7 +115,7 @@ Güvenlikle ilgili açıkları herkese açık issue yerine [SECURITY.md](SECURIT
 
 **[Download signed beta APK — v0.6.1-beta.1](https://github.com/yigitbuyukeren/ridedeck/releases/download/v0.6.1-beta.1/RideDeck-0.6.1-beta.1.apk)** · [Release notes](https://github.com/yigitbuyukeren/ridedeck/releases/tag/v0.6.1-beta.1) · [All releases](https://github.com/yigitbuyukeren/ridedeck/releases)
 
-Android 8.0+ (API 26). An installed \`0.6.0\` can be updated in place using the same signing key. Upgrading from \`0.5.0\` may require uninstalling the earlier version, which may erase its app data.
+Android 8.0+ (API 26). An installed `0.6.0` can be updated in place using the same signing key. Upgrading from `0.5.0` may require uninstalling the earlier version, which may erase its app data.
 
 ### Beta status
 
@@ -127,7 +127,7 @@ Previously downloaded map areas are retained, but **new offline downloads are pa
 
 ### Build and contribute
 
-Requires **JDK 17** and **Android SDK 36**; set \`sdk.dir\` in \`local.properties\`, then run \`./gradlew testDebugUnitTest assembleDebug\`.
+Requires **JDK 17** and **Android SDK 36**; set `sdk.dir` in `local.properties`, then run `./gradlew testDebugUnitTest assembleDebug`.
 
 [Contributing](CONTRIBUTING.md) · [Development](docs/DEVELOPMENT.md) · [Architecture](docs/ARCHITECTURE.md) · [Translations](docs/TRANSLATING.md) · [Support](SUPPORT.md) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
 
