@@ -13,7 +13,7 @@ RideDeck tek modüllü bir Android uygulamasıdır: Kotlin, Jetpack Compose, `mi
 | JDK | **17** (Temurin veya Android Studio'nun JDK'sı) |
 | Android Studio | Son kararlı sürüm (isteğe bağlı; komut satırı da yeterli) |
 | Android SDK Platform | **36** |
-| Android Build-Tools | **36.0.0** (CI'daki `zipalign` kontrolü bunu kullanır) |
+| Android Build-Tools | **36.0.0** (CI en son yüklü build-tools'u kullanır) |
 | Android Platform-Tools | `adb` için |
 | Emülatör | API 35/36; x86_64 veya ARM64 system image |
 | Git | Güncel bir sürüm |

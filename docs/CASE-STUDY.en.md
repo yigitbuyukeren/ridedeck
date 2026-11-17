@@ -58,7 +58,7 @@ GitHub Actions runs `test lintDebug lintRelease assembleDebug assembleRelease as
 | One process GPS stream with a reference-counted `LocationArbiter` | Screen, started ride service and overlay share one listener; no second subscription, and one owner leaving cannot cut GPS for the others. |
 | Display speed ≠ decision speed | A steady gauge and an undelayed safety decision are not traded against each other. |
 | `--` instead of a fake 0 | No false confidence when the signal is lost. |
-| Lock text entry and settings above 5 km/h | Riding safety. |
+| Lock text entry and settings at or above 5 km/h | Riding safety. |
 | Voice assistant removed | Reliable wake and recognition could not be achieved; removed rather than shown broken. |
 | No offline routing; map downloads stay behind a provider gate | Routing and search stay online. New downloads/resume remain **BLOCKED** until OpenFreeMap terms and aggregate compliance are proven; existing areas are preserved. |
 | OBD, maintenance log, GPX dropped | Unusable while riding or unverifiable. |

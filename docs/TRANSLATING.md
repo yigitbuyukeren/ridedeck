@@ -33,6 +33,8 @@ Android, eksik bir anahtar için varsayılan (`values/`) metne düşer. Yine de 
 
 Yeni dil dizini eklemek Kotlin kaynak kodunu değiştirmez; yalnızca Android kaynak dosyası ekler. Dil seçimi sistem diline göre yapılır; uygulama içi ayrı bir dil seçici yoktur.
 
+Sesli yönlendirme şu anda yalnız Türkçe ve İngilizce destekler: `GuidanceLanguage.tag()` Türkçe dışındaki diller için `en-US` döner. Yeni bir arayüz dili eklendiğinde sesli yönlendirme İngilizce kalır; yeni sesli dil desteği ayrı bir kod değişikliğidir.
+
 ## Kalite kuralları
 
 - **Makine çevirisi tek başına yeterli değildir.** Özellikle navigasyon, güvenlik, izin ve SOS metinlerinde anlam hatası tehlikelidir. Mümkünse ana dili konuşan biri gözden geçirsin.

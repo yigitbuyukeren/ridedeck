@@ -36,4 +36,4 @@ Closes #
 - [ ] `local.properties`, `keystore.properties`, `*.jks`, `.env` veya başka gizli dosya/anahtar commit edilmedi.
 - [ ] Gerekli belgeler güncellendi (README, `docs/STATUS.md`, `CONTRIBUTING.md` vb.) veya belge değişikliği gerekmiyor.
 - [ ] Log ve ekran görüntülerinde kişisel veri yok.
-- [ ] CI (birim testleri, lint, APK'lar ve instrumentation derlemesi) geçti. (PR açtıktan sonra işaretle.)
+- [ ] CI (birim testleri, lint, APK/AAB ve emülatör instrumentation testleri) geçti. (PR açtıktan sonra işaretle.)

@@ -25,7 +25,7 @@ RideDeckApplication (uygulama ömrü)
  │       referans sayımıyla paylaşır; ilk sahip başlatır, son sahip durdurur
  ├─ RideNavigation: tek NavigationController + Routing (Valhalla) + Speaker + FuelFinder
  │    └─ NavigationRideLifecycle: açık yolculukta rehberlik ekran/Activity'den bağımsız
- ├─ RideSafety: CrashDetector + SosController ─► tek SMS + kilit ekranı bildirimi
+ ├─ RideSafety: CrashDetector + SosController ─► kişi başına tek SMS (en fazla 3) + kilit ekranı bildirimi
  └─ DashboardViewModel: ekran durumunun bağlama noktası (repository sahibi değil)
 ProviderHttp : tüm genel servis çağrılarında iptal + sağlayıcı bazlı eşzamanlılık/aralık
 ```
