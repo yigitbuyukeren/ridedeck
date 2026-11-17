@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.joinAll
@@ -144,7 +145,7 @@ class HttpCancellationTest {
     @Test
     fun saturatedPoolCancelsActiveSocketsAndKeepsFollowUpResponsiveWithoutServerRelease() = runBlocking {
         LoopbackServer(slowLimit = 4).use { server ->
-            val jobs = (1..6).map {
+            val active = (1..4).map {
                 launch(Dispatchers.Default) {
                     Http.postFormCancellable("${server.base}/slow", "data=x", connectMs = 2_000, readMs = 30_000)
                 }
@@ -153,12 +154,32 @@ class HttpCancellationTest {
                 assertTrue("slow handlers never filled the pool", server.slowStarted.await(5, TimeUnit.SECONDS))
                 assertEquals(4, server.slowRequests.get())
 
+                // UNDISPATCHED runs each call up to its first suspension, so every queued call is
+                // enqueued before it is cancelled. Cancelling a group of running and queued calls
+                // from a loop is not atomic: OkHttp may promote a queued call when an active call
+                // finishes between two cancel() calls, and that promoted call can legitimately
+                // start before its own cancel() is reached.
+                val queued = (1..2).map {
+                    launch(Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) {
+                        Http.postFormCancellable("${server.base}/slow", "data=x", connectMs = 2_000, readMs = 30_000)
+                    }
+                }
+                assertEquals("queued calls must not connect", 4, server.slowRequests.get())
+
+                val queuedCancelAt = System.nanoTime()
+                queued.forEach { it.cancel() }
+                withTimeout(3_000) { queued.joinAll() }
+                val queuedCancelMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - queuedCancelAt)
+                assertTrue("queued cancellation took ${queuedCancelMs}ms", queuedCancelMs < 2_000)
+                assertTrue(queued.all { it.isCancelled })
+                assertEquals("cancelled queued calls must not reach the server", 4, server.slowRequests.get())
+
                 val cancelAt = System.nanoTime()
-                jobs.forEach { it.cancel() }
-                withTimeout(3_000) { jobs.joinAll() }
+                active.forEach { it.cancel() }
+                withTimeout(3_000) { active.joinAll() }
                 val cancelMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - cancelAt)
                 assertTrue("cancellation took ${cancelMs}ms", cancelMs < 2_000)
-                assertTrue(jobs.all { it.isCancelled })
+                assertTrue(active.all { it.isCancelled })
 
                 // The server must see the four active sockets close, not just the coroutines finish.
                 assertTrue("active sockets did not close", server.slowClientClosed.await(5, TimeUnit.SECONDS))
@@ -171,7 +192,7 @@ class HttpCancellationTest {
                 )
                 val followMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - followAt)
                 assertTrue("follow-up took ${followMs}ms", followMs < 2_000)
-                assertEquals("cancelled queued calls must not reach the server", 4, server.slowRequests.get())
+                assertEquals("cancelled queued calls must not run later", 4, server.slowRequests.get())
             } finally {
                 server.slowRelease.countDown()
             }
@@ -190,13 +211,14 @@ class HttpCancellationTest {
                 assertTrue(server.slowStarted.await(5, TimeUnit.SECONDS))
                 assertEquals(4, server.slowRequests.get())
 
-                // All four dispatcher slots are held, so these two must stay queued.
+                // All four dispatcher slots are held, so these two must stay queued. UNDISPATCHED
+                // runs each call up to its first suspension, proving they were enqueued before
+                // cancellation instead of relying on a sleep.
                 val queued = (1..2).map {
-                    launch(Dispatchers.Default) {
+                    launch(Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) {
                         Http.postFormCancellable("${server.base}/slow", "data=x", connectMs = 2_000, readMs = 30_000)
                     }
                 }
-                Thread.sleep(200)
                 assertEquals("queued calls must not connect", 4, server.slowRequests.get())
 
                 queued.forEach { it.cancel() }
@@ -233,12 +255,11 @@ class HttpCancellationTest {
                 // OkHttp promote it while their executor runnables may still be returning; a
                 // SynchronousQueue handoff would reject it here.
                 var handoff: Result<String>? = null
-                val queued = launch(Dispatchers.Default) {
+                val queued = launch(Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) {
                     handoff = runCatching {
                         Http.getCancellable("${server.base}/ok", connectMs = 2_000, readMs = 5_000)
                     }
                 }
-                Thread.sleep(200)
                 active.forEach { it.cancel() }
                 withTimeout(3_000) { active.joinAll() }
                 withTimeout(5_000) { queued.join() }
@@ -502,8 +523,12 @@ private class LoopbackServer(slowLimit: Int = 1) : Closeable {
 
     private fun awaitClientEof(input: InputStream): Boolean =
         try {
-            while (true) {
-                if (input.read() < 0) break
+            // Drain in blocks: the /unread upload can leave several MB buffered in the loopback
+            // socket, and one read() syscall per byte made this drain slower than the test's
+            // five-second close timeout on CI.
+            val buffer = ByteArray(64 * 1024)
+            while (input.read(buffer) >= 0) {
+                // Discard until EOF; the socket close is what this helper observes.
             }
             true
         } catch (e: IOException) {
