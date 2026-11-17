@@ -89,7 +89,7 @@ Raporlar:
 - Instrumentation: `app/build/reports/androidTests/connected/debug/index.html`
 - Lint: `app/build/reports/lint-results-debug.html`, `lint-results-release.html`
 
-CI, instrumentation testlerini ayrı bir işte x86_64 API 35 emülatöründe çalıştırır; emülatörde `adb shell settings put global cached_apps_freezer disabled` gerekir. `RideDeckTestRunner` test sürecini sonuçtan sonra kapatır. Elle fiziksel cihaz denemesi ayrı bir doğrulamadır. Bir testi geçirmek için üretim kodunu veya test beklentisini gevşetme.
+CI, instrumentation testlerini ayrı bir işte x86_64 API 35 emülatöründe çalıştırır; emülatörde `adb shell settings put global cached_apps_freezer disabled` gerekir. `RideDeckTestRunner` test sürecini sonuçtan sonra kapatır. Toplam 204 instrumentation testi vardır; tek koşuda 203 PASS + 1 atlandı, atlanan izin testi ayrı PASS. Elle fiziksel cihaz denemesi ayrı bir doğrulamadır. Bir testi geçirmek için üretim kodunu veya test beklentisini gevşetme.
 
 ## 4. Proje düzeni
 
@@ -118,12 +118,13 @@ Tek modül ve tek Activity vardır. Navigasyon kütüphanesi yoktur; `DashboardS
 
 ```
 LocationRepository (ham LocationManager, Play Services yok)
-   ├─► SpeedFilter / PositionSmoother ─► hız göstergesi
-   ├─► NavigationController / RideNavigation ─► rota, eşleme, sesli yönlendirme
-   ├─► RideSafety (CrashDetector + SosController) ─► SOS
-   └─► TripRecorder / TripStore ─► yolculuk geçmişi
-DashboardViewModel = tüm repository'lerin bağlandığı yer
-data/Http.kt       = genel servis çağrılarının tek çıkışı
+  └─► LocationArbiter (ekran / açık yolculuk servisi / overlay referans sayımı)
+        ├─► SpeedFilter / PositionSmoother ─► hız göstergesi
+        ├─► NavigationController / RideNavigation ─► rota, eşleme, sesli yönlendirme
+        ├─► RideSafety (CrashDetector + SosController) ─► SOS
+        └─► TripRecorder / TripStore ─► yolculuk geçmişi
+DashboardViewModel = ekranın bağlama noktası (repository sahibi değil)
+data/Http.kt + ProviderHttp = genel HTTP geçidi (iptal + sağlayıcı sınırı)
 ```
 
 Temel ilkeler:
