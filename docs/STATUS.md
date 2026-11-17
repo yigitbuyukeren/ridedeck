@@ -6,7 +6,7 @@ Güncel kurallar kökteki `AGENTS.md`, saha/yayın kapıları [RELEASE_READINESS
 
 ## Güncel özet
 
-- **17 Kasım 2026 — 1.0 denetim düzeltme dalgası (güncel):** Ürün kaynağı main'de güncellendi; sürüm `0.6.0` / `versionCode 6` kaldı, 1.0 yayını/ push/ merge/ PR yapılmadı. Son yerel tam JVM koşusu debug **829/829** + release **829/829** (toplam 1658; 0 hata, 0 atlama), lint **0 hata** (debug 121 / release 120 uyarı, bastırılmadı). Instrumentation **204/204 PASS** tek `connectedDebugAndroidTest` koşusunda (0 hata, 1 atlandı: izin reddi ayrı PASS). Fiziksel cihaz, gerçek SMS/arama/interkom, Doze/OEM, 16 KB runtime, mağaza/Data safety ve sağlayıcı toplam uyumu açık olduğu için genel karar **NO-GO**. Ayrıntı aşağıdaki 17 Kasım bölümünde; önceki dalga sayıları tarihseldir.
+- **17 Kasım 2026 — 1.0 denetim düzeltme dalgası (güncel):** Ürün kaynağı main'de güncellendi; sürüm `0.6.0` / `versionCode 6` kaldı, 1.0 yayını/ push/ merge/ PR yapılmadı. Son yerel tam JVM koşusu debug **829/829** + release **829/829** (toplam 1658; 0 hata, 0 atlama), lint **0 hata** (debug 121 / release 120 uyarı, bastırılmadı). Instrumentation **204 test**: tek `connectedDebugAndroidTest` koşusunda **203 PASS + 1 atlandı**; atlanan izin testi ayrı PASS (toplam 204). Fiziksel cihaz, gerçek SMS/arama/interkom, Doze/OEM, 16 KB runtime, mağaza/Data safety ve sağlayıcı toplam uyumu açık olduğu için genel karar **NO-GO**. Ayrıntı aşağıdaki 17 Kasım bölümünde; önceki dalga sayıları tarihseldir.
 - Uygulama yalnız motosiklet içindir: araç seçimi yoktur; rota, benzinlik, kaza eşikleri ve yatay düzen motosiklete sabittir. Eski araç/asistan/widget verisi için göç kodu kaldırıldı (yayınlanmış kullanıcı yok).
 - Kod sürümü: `versionName 0.6.0`, `versionCode 6` (`app/build.gradle.kts`); v0.6.0 2026-11-10'da yayınlandı. Release imzası 2026-11-08'de yenilendi; 0.5.0'dan geçiş için kaldırıp kurma gerekir.
 - 5 Kasım yayın ve emülatör kayıtları aşağıdadır; tarihsel test sayıları yeni koşu değildir.
@@ -35,7 +35,7 @@ Güncel kurallar kökteki `AGENTS.md`, saha/yayın kapıları [RELEASE_READINESS
 | Debug APK | x86_64 + ARM64 + ARMv7 yerelleri var; emülatör instrumentation için x86_64 |
 | Release APK / AAB | ARM-only; release APK yerel olarak v2 imzalı, sertifika SHA-256 `9d9164ef8c679f2909e2a851d1327839c684cad238ca0932488a9f8d0f622427`; AAB `jarsigner` ile doğrulandı |
 | 16 KB statik kontrol | 16 KB ELF LOAD ve `zipalign -c -P 16 4` **PASS**; fiziksel 16 KB runtime **değil** |
-| Instrumentation | **204/204 PASS**; tek `connectedDebugAndroidTest` koşusu, 0 hata, 1 atlandı (izin reddi ayrı PASS) |
+| Instrumentation | Tek koşuda **203 PASS + 1 atlandı**; atlanan izin testi ayrı PASS (toplam 204 doğrulandı) |
 
 **Sağlayıcı koşulları (17 Kasım 2026'da doğrulandı):** Nominatim en çok 1 istek/sn, geçerli UA, uygulama genelinde tüm kullanıcılar toplamı ve uygulama güncellemesi olmadan değiştirilebilir sağlayıcı ister; önbellekleme önerilir. FOSSGIS/Valhalla en çok 2 bağlantı, Valhalla en çok 1 istek/sn, geçerli UA, atıf ve `fixthemap` bağlantısı ister; Valhalla `X-Client-Id` ister (artık gönderiliyor). OpenFreeMap indirme başına 3.000 karo / 50 MB / 4 paralel / uygulama UA'sı ister; indirmeler kapalıdır. Uygulama içi hız sınırlama sağlayıcının **global** toplam uyumunu kanıtlamaz; bu madde **BLOCKED/UNVERIFIED** kalır.
 

@@ -76,10 +76,10 @@ Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sür�
 ## 7. Testler ve CI
 
 - **Son yerel tam JVM koşusu: debug 829/829 + release 829/829 (toplam 1658), 0 hata, 0 atlama** (`./gradlew test`, JUnit). Bu son koşudur; sürekli yeşil garanti değildir ve önceki tarihli test sayıları tarihsel kayıttır.
-- **Lint:** iki varyantta **0 hata** (debug 118 / release 117 uyarı; KTX, çoğul metin, log, bağımlılık ve UI kaynakları ağırlıklı; bastırılmadı).
+- **Lint:** iki varyantta **0 hata** (debug 121 / release 120 uyarı; KTX, çoğul metin, log, bağımlılık ve UI kaynakları ağırlıklı; bastırılmadı).
 - Test edilenler: GPS filtresi, konum eşleme ve rota mantığı, yazım toleransı, SOS/kaza algılama ve SMS sonuç modeli, ısınma koruması, telefon/klavye matematiği, birimler, yolculuk kaydı, SQLite geçişi/bozulma yedeği, sağlayıcı sınırlama/geri çekilme ve paylaşılan GPS sahipliği.
 - **GitHub Actions** (`.github/workflows/ci.yml`): `test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease`, release APK hizalama, AAB varlığı, debug x86_64/ARM ABI, release ARM-only ve koşullu imza kontrolü. Ayrı iş, x86_64 API 35 emülatöründe instrumentation çalıştırır; cached-app freezer kapatılır.
-- **Instrumentation:** toplam **204 test** tek `connectedDebugAndroidTest` koşusunda **204/204 PASS**; 1 izin testi ayrı PASS. `RideDeckTestRunner` sonuçtan sonra test sürecini kapatır.
+- **Instrumentation:** toplam **204 test**; tek `connectedDebugAndroidTest` koşusunda **203 PASS + 1 atlandı**, atlanan izin testi ayrı PASS (toplam 204). `RideDeckTestRunner` sonuçtan sonra test sürecini kapatır.
 - Test edilmeyen: gerçek sensör/GPS/ağ davranışı, fiziksel kilit ekranı/Doze/OEM, gerçek SMS/arama/interkom ve 16 KB runtime. Bunlar emülatör/sentetik testlerle eşdeğer sayılmaz.
 
 ## 8. Teknik kararlar ve gerekçeleri
@@ -102,6 +102,6 @@ Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sür�
 
 ## Doğrulama durumu
 
-**Doğrulandı (otomatik):** son yerel koşuda her varyantta 829/829 JVM testi (toplam 1658), iki lint (0 hata), debug ve R8 release derlemesi, AAB, 16 KB statik hizalama ve CI yapılandırması. **Instrumentation:** 204/204 PASS tek `connectedDebugAndroidTest` koşusunda; 1 izin testi ayrı PASS. **Emülatörde görüldü:** ana ekranlar, navigasyon, benzinlik, SOS geri sayımı, farklı yazı boyutları. Araç seçimi ve dik bisiklet düzeni artık yoktur. README'deki ekran görüntüleri ve demo GIF'i emülatörden alınmıştır (sahte GPS ile); demo GIF bir ekran görüntüsü geçişidir, ekran kaydı değildir.
+**Doğrulandı (otomatik):** son yerel koşuda her varyantta 829/829 JVM testi (toplam 1658), iki lint (0 hata), debug ve R8 release derlemesi, AAB, 16 KB statik hizalama ve CI yapılandırması. **Instrumentation:** 204 test; tek koşuda 203 PASS + 1 atlandı, atlanan izin testi ayrı PASS (toplam 204). **Emülatörde görüldü:** ana ekranlar, navigasyon, benzinlik, SOS geri sayımı, farklı yazı boyutları. Araç seçimi ve dik bisiklet düzeni artık yoktur. README'deki ekran görüntüleri ve demo GIF'i emülatörden alınmıştır (sahte GPS ile); demo GIF bir ekran görüntüsü geçişidir, ekran kaydı değildir.
 
 **Sahada denenmedi:** kaza algılama eşikleri, gerçek SMS gönderimi ve SIM/operatör teslimi, fiziksel kilit ekranı/Doze/OEM, varsayılan telefon uygulamasıyken arama ses yolu ve interkom, gidonda ısınma ve mini haritanın pil etkisi, Android 8–10 davranışı, 16 KB runtime, mağaza/Data safety ve sağlayıcı global kota uyumu. Güncel liste: [STATUS.md](STATUS.md) ve [RELEASE_READINESS.md](RELEASE_READINESS.md). Genel 1.0 kararı **NO-GO**.

@@ -8,14 +8,14 @@ gerektiren maddeler ayrıca **ENGEL** olarak işaretlenir.
 | ID | Öncelik | Alan | Bulgu | Durum | Kanıt / not |
 |---|---|---|---|---|---|
 | P0-1 | P0 | Saha | Fiziksel cihaz, gerçek GPS/Doze/OEM, gerçek çağrı/SMS/interkom ve 16 KB runtime doğrulanmadı | ENGEL | Emülatör/sentetik test bunun yerine geçmez |
-| P0-2 | P0 | Test | 173 instrumentation testinin tamamı tek koşuda yeşil değil; süreç çökmesi/askıda kalma var | KAPALI | 204/204 PASS tek connectedDebugAndroidTest (0 hata, 1 atlandı: izin reddi ayrı PASS); batch 204/204 |
+| P0-2 | P0 | Test | 173 instrumentation testinin tamamı tek koşuda yeşil değil; süreç çökmesi/askıda kalma var | KAPALI | Tek connectedDebugAndroidTest: 203 PASS + 1 atlandı; atlanan izin testi ayrı PASS (toplam 204); batch 204/204 |
 | P0-3 | P0 | Sağlayıcı | Nominatim/Valhalla/Overpass toplu (global) kota uyumu istemciden kanıtlanamaz | ENGEL | Yerel merkezi throttle uygulanacak; global kanıt değildir |
 | P0-4 | P0 | SOS | Gerçek SIM üzerinden SMS teslimi ve gerçek arama doğrulanmadı | ENGEL | Sahte gateway/emülatör kullanılacak |
 | P0-5 | P0 | Yayın | 1.0 yayın kanıtı ve Go/No-Go kararı | ENGEL | Push/PR/release yapılmayacak |
 | P1-1 | P1 | SOS | Kullanıcı "İyiyim" dedikten sonra 5 dk cooldown yeni gerçek kazayı bastırıyor | KAPALI | acknowledgeCancel + regresyon testi |
 | P1-2 | P1 | SOS | Ekran kapalı/kilitliyken geri sayım görünmüyor; bildirim/FSI reddi sessizce yutuluyor | KAPALI | public bildirim, FSI, wake lock, activity fallback; ekran kapanınca yeniden post |
 | P1-3 | P1 | SOS | Bildirimden "İyiyim" (geri sayım) / "Kapat" (sonuç) eylemi yok | KAPALI | SosActionReceiver + İyiyim/Kapat |
-| P1-4 | P1 | Erişilebilirlik | SOS düğmesi pointerInput kullanıyor; TalkBack/D-pad tıklama semantiği yok | KAPALI | Role.Button + onClick; cihaz testi |
+| P1-4 | P1 | Erişilebilirlik | SOS düğmesi pointerInput kullanıyor; TalkBack/D-pad tıklama semantiği yok | KAPALI | Role.Button + onClick; Compose semantics/emülatör testi (gerçek TalkBack P2-4) |
 | P1-5 | P1 | SOS | SMS izni/SIM yokken "hazır" görünümü yanıltıcı; kalıcı redde ayar yolu yok | KAPALI | SosReadiness + SIM/telefon + kalıcı red ayarı |
 | P1-6 | P1 | Servis | FGS başlatma/durdurma yarışı; erken stop foreground yükseltmesi yapmıyor | KAPALI | promote-first + startId; RideTrackingServiceTest |
 | P1-7 | P1 | UI | NavCard hızlı eylemleri font 2'de kart dışına taşıyor | KAPALI | NavCard ağırlıklı satır; DashboardChrome 6/6 |

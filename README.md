@@ -27,7 +27,7 @@
 
 Telefonu gidona veya motosiklet üstüne takınca **hız, harita, müzik ve telefon tek ekranda** toplanır. RideDeck yalnız motosiklet için tasarlanmıştır; rota, uyarılar ve düzen motosiklete göre ayarlanır. Tüm arayüz eldivenle kullanılacak büyüklükte, sürerken yazı girişi yoktur.
 
-> **Durum (17 Kasım 2026):** Kod `0.6.0` / `versionCode 6` olarak kalıyor; 1.0 sürümü yayınlanmadı. Son yerel tam JVM koşusu debug **829/829** + release **829/829** (toplam 1658; 0 hata, 0 atlama); lint **0 hata** (debug 121 / release 120 uyarı, bastırılmadı). Instrumentation **204/204 PASS** tek `connectedDebugAndroidTest` koşusunda (0 hata, 1 atlandı: izin reddi ayrı PASS). Fiziksel cihaz, gerçek SMS/arama/interkom, Doze/OEM, 16 KB runtime ve sağlayıcı toplam uyumu doğrulanmadığı için genel 1.0 kararı **NO-GO**; koşullu beta ancak saha doğrulamasından sonra.
+> **Durum (17 Kasım 2026):** Kod `0.6.0` / `versionCode 6` olarak kalıyor; 1.0 sürümü yayınlanmadı. Son yerel tam JVM koşusu debug **829/829** + release **829/829** (toplam 1658; 0 hata, 0 atlama); lint **0 hata** (debug 121 / release 120 uyarı, bastırılmadı). Instrumentation **204 test**: tek `connectedDebugAndroidTest` koşusunda **203 PASS + 1 atlandı**; atlanan izin testi ayrı koşuda PASS (toplam 204 doğrulandı). Fiziksel cihaz, gerçek SMS/arama/interkom, Doze/OEM, 16 KB runtime ve sağlayıcı toplam uyumu doğrulanmadığı için genel 1.0 kararı **NO-GO**; koşullu beta ancak saha doğrulamasından sonra.
 
 ### ✨ Öne çıkanlar
 
@@ -170,7 +170,7 @@ adb shell settings put global cached_apps_freezer disabled
 ./gradlew :app:connectedDebugAndroidTest
 ```
 
-Toplam **204 instrumentation testi** tek `connectedDebugAndroidTest` koşusunda **204/204 PASS** (0 hata, 1 atlandı: izin reddi ayrı PASS). Debug APK x86_64 + ARM yerellerini taşır; release APK/AAB yalnız ARM'dır. CI x86_64 API 35 emülatöründe instrumentation çalıştırır, debug/release birim testlerini, iki lint'i, APK/AAB derlemesini, hizalama/ABI kontrollerini ve keystore varsa imza doğrulamasını yapar.
+Toplam **204 instrumentation testi**: tek `connectedDebugAndroidTest` koşusunda **203 PASS + 1 atlandı**; atlanan izin testi ayrı koşuda PASS (toplam 204 doğrulandı). Debug APK x86_64 + ARM yerellerini taşır; release APK/AAB yalnız ARM'dır. CI x86_64 API 35 emülatöründe instrumentation çalıştırır, debug/release birim testlerini, iki lint'i, APK/AAB derlemesini, hizalama/ABI kontrollerini ve keystore varsa imza doğrulamasını yapar.
 
 Sürüm APK'sı (R8 ile küçültülmüş): kök dizine `keystore.properties` koy (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`; dosya git'e girmez) ve `./gradlew assembleRelease` çalıştır. Dosya yoksa APK imzasız çıkar.
 
@@ -219,7 +219,7 @@ Issue ve PR'lar açık; RideDeck'i denediysen [geri bildirim formunu](https://gi
 
 New offline downloads are temporarily disabled: the current SDK download path has not been verified against [OpenFreeMap's limits](https://openfreemap.org/tos/) (3,000 tiles or 50 MB per download, at most four concurrent requests, and an app-identifying User-Agent; verified 2026-11-17). Existing downloaded areas are preserved. App-local throttling does not prove aggregate provider compliance, so new downloads and resume remain **BLOCKED**. Speed-limit readings expire from their request time (60 seconds); weather is discarded at the next freshness check after 30 minutes instead of being kept indefinitely after failed refreshes.
 
-> **Status (17 November 2026):** the code stays at `0.6.0` / `versionCode 6`; no 1.0 release. The last full local JVM run passed **829/829** on debug and **829/829** on release (1658 total, 0 failures, 0 skipped); lint has **0 errors** (121 debug / 120 release warnings, not suppressed). The **204 instrumentation tests** passed in a single `connectedDebugAndroidTest` run (**204/204**, 0 failed, 1 skipped: permission-denied path passed separately). Physical device, real SMS/call/intercom, Doze/OEM, 16 KB runtime and aggregate provider compliance are unverified, so the overall 1.0 decision remains **NO-GO**; a conditional beta only follows field validation.
+> **Status (17 November 2026):** the code stays at `0.6.0` / `versionCode 6`; no 1.0 release. The last full local JVM run passed **829/829** on debug and **829/829** on release (1658 total, 0 failures, 0 skipped); lint has **0 errors** (121 debug / 120 release warnings, not suppressed). The **204 instrumentation tests**: one `connectedDebugAndroidTest` run reported **203 passed + 1 skipped**; the skipped permission test passed separately (204 verified in total). Physical device, real SMS/call/intercom, Doze/OEM, 16 KB runtime and aggregate provider compliance are unverified, so the overall 1.0 decision remains **NO-GO**; a conditional beta only follows field validation.
 
 **Build and test (JDK 17):**
 
