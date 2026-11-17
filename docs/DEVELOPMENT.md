@@ -62,12 +62,10 @@ Debug APK: `app/build/outputs/apk/debug/app-debug.apk`.
 | `./gradlew lintRelease` | Release lint |
 | `./gradlew assembleDebug` | Debug APK |
 | `./gradlew assembleRelease` | R8 ile küçültülmüş release APK; imza anahtarı yoksa imzasız çıkar |
-| `./gradlew bundleRelease` | Release AAB (`app/build/outputs/bundle/release/app-release.aab`) |
+| `./gradlew bundleRelease` | Release AAB (`app/build/outputs/bundle/release/app-release.aab`); isteğe bağlı, CI'da üretilmez |
 | `./gradlew assembleDebugAndroidTest` | Instrumentation test APK'sını derler (cihazda çalıştırmaz) |
 | `./gradlew connectedDebugAndroidTest` | Bağlı cihaz/emülatörde instrumentation testlerini çalıştırır |
-| `./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease` | Güncel main'de CI build işinin ana Gradle komutu |
-
-Güncel main'de debug APK `arm64-v8a`, `armeabi-v7a` ve `x86_64` native kütüphanelerini taşır; release APK yalnız ARM (`arm64-v8a`, `armeabi-v7a`) hedefler. Bu yüzden x86_64 emülatörde debug APK çalışır, release APK çalışmaz. CI ayrıca JUnit XML raporlarını özetler; debug/release ABI ve test-only asset paketlemesini, release imzasını (`keystore.properties` varsa) ve 16 KB hizalamayı doğrular.
+| `./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest` | CI build işinin ana Gradle komutu |
 
 Tek test sınıfı veya metodu:
 
@@ -89,7 +87,7 @@ Raporlar:
 - Instrumentation: `app/build/reports/androidTests/connected/debug/index.html`
 - Lint: `app/build/reports/lint-results-debug.html`, `lint-results-release.html`
 
-Güncel main'de CI, instrumentation testlerini ayrı bir işte API 35 x86_64 emülatörde çalıştırır; elle fiziksel cihaz/emülatör koşusu yine ayrı bir doğrulamadır. Bir testi geçirmek için üretim kodunu veya test beklentisini gevşetme.
+CI, instrumentation testlerini **derler**; cihazda çalıştırmaz. `connectedDebugAndroidTest` ayrı bir emülatör/cihaz adımıdır. Bir testi geçirmek için üretim kodunu veya test beklentisini gevşetme.
 
 ## 4. Proje düzeni
 
@@ -245,7 +243,6 @@ Bu alanlar sürüş güvenliğini doğrudan etkiler.
 | Emülatörde konum yok | `adb emu geo fix <boylam> <enlem>` gönder; uygulamanın konum izni açık mı bak. |
 | Harita boş / karo yüklenmiyor | İnternet bağlantısını ve OpenFreeMap erişimini kontrol et; ilk karo yüklemesi biraz sürebilir. |
 | `connectedDebugAndroidTest` cihaz bulamıyor | `adb devices` ile cihazı doğrula; emülatör açık ve yetkilendirilmiş olmalı. |
-| Instrumentation testi çöküyor / süreç izolasyonu gerekiyor | `./gradlew connectedDebugAndroidTest -PrdOrchestrator=true -Pandroid.testInstrumentationRunnerArguments.clearPackageData=true` (daha yavaş; yalnız hata ayıklama için). |
 | Gradle daemon bellek hatası | `./gradlew --stop`; gerekiyorsa `gradle.properties` içindeki `-Xmx3g` değerini artır, ancak bunu PR'da gerekçelendir. |
 | Tuhaf önbellek davranışı | Önce `./gradlew --stop`, sonra gerekirse `./gradlew clean`; clean'i alışkanlık haline getirme. |
 | `keystore.properties` hatası | Release imzası için isteğe bağlıdır; dosyayı düzelt veya kaldır. Anahtar/parola commit etme. |
@@ -275,7 +272,7 @@ SDK="${ANDROID_HOME:-$(sed -n 's/^sdk.dir=//p' local.properties 2>/dev/null)}"
 ```
 
 - Etiket, GitHub release, APK yayını ve mağaza dağıtımı açık talimat olmadan yapılmaz.
-- CI artifact'ları: debug APK, androidTest APK, imzasız release APK/AAB, test/lint ve instrumentation raporları.
+- CI artifact'ları: debug APK, androidTest APK, imzasız release APK ile test/lint raporları.
 
 ## 11. Yardım
 

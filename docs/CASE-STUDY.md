@@ -76,9 +76,9 @@ Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sür�
 
 - Bu belge ilk yazıldığında **396 birim testi, 48 test sınıfı/dosyası** vardı; güncel test sayısı ve son sonuçlar [STATUS.md](STATUS.md) içindedir. Testler JUnit ile `testDebugUnitTest` üzerinden çalışır.
 - Test edilenler: GPS filtresi, konum eşleme ve rota mantığı, yazım toleransı, SOS/kaza algılama, ısınma koruması, motosiklet profili, telefon/klavye matematiği, birimler, yolculuk kaydı.
-- **GitHub Actions** (`.github/workflows/ci.yml`): Güncel main'de her `main` push'unda ve PR'da Temurin JDK 17 ile `test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease` çalışır; ayrı bir iş API 35 x86_64 emülatörde instrumentation testlerini koşar. Release AAB, 16 KB hizalama, ABI ve imza kontrolleri de vardır. `assembleRelease` R8 küçültmesini dener, böylece küçültme hataları PR'da çıkar.
+- **GitHub Actions** (`.github/workflows/ci.yml`): her `main` push'unda ve PR'da Temurin JDK 17 ile `test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest` çalışır. Instrumentation testleri derlenir, cihazda çalıştırılmaz. `assembleRelease` R8 küçültmesini dener, böylece küçültme hataları PR'da çıkar.
 - `lintDebug`/`lintRelease` hatasız tutulur; minSdk 26 ile API 28/30 çağrıları gibi hataları yakalar.
-- Instrumentation testleri Compose ekranlarını ve bazı servis/izin akışlarını kapsar; gerçek sensör/ağ davranışı, fiziksel cihaz ve saha koşulları otomatik test edilmez.
+- Instrumentation testleri Compose ekranlarını ve bazı servis/izin akışlarını kapsar; cihazda çalıştırmak için `connectedDebugAndroidTest` gerekir. Gerçek sensör/ağ davranışı, fiziksel cihaz ve saha koşulları otomatik test edilmez.
 
 ## 8. Teknik kararlar ve gerekçeleri
 

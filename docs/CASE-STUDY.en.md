@@ -46,7 +46,7 @@ The app once had a Turkish voice assistant (command parser, multi-turn dialogue,
 
 ## 7. Tests and CI
 
-This case study originally described **396 unit tests in 48 files, 0 failures**. Current counts and results live in [STATUS.md](STATUS.md). Current main runs `test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease` (JDK 17) on every push to `main` and every PR, and a separate job runs the instrumentation suite on an API 35 x86_64 emulator. The build also checks the release AAB, 16 KB alignment, ABIs and signature. Instrumentation covers Compose screens and some service/permission flows; real sensor/network behaviour, physical devices and field conditions are not covered automatically.
+This case study originally described **396 unit tests in 48 files, 0 failures**. Current counts and results live in [STATUS.md](STATUS.md). GitHub Actions runs `test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest` (JDK 17) on every push to `main` and every PR. The instrumentation tests are compiled but not run on a device; run `connectedDebugAndroidTest` separately. The release build catches R8 shrinking problems. Instrumentation test classes cover Compose screens and some service/permission flows; real sensor/network behaviour, physical devices and field conditions are not covered automatically.
 
 ## 8. Key decisions
 
