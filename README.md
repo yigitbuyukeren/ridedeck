@@ -152,8 +152,10 @@ Ayrıntılar için başlıklara dokun.
 
 ### 🛠️ Derleme
 
+JDK 17 ve Android SDK 36 gerekir. Ayrıntılı kurulum, test ve emülatör adımları: [geliştirme rehberi](docs/DEVELOPMENT.md).
+
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk@17
+export JAVA_HOME=/yol/jdk-17   # JDK 17 kurulumunun yolu
 ./gradlew testDebugUnitTest assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
@@ -185,7 +187,17 @@ Bunlar ücretsiz, garantisiz genel servislerdir. Yoğun veya ticari kullanım i�
 
 ### 🤝 Katkı
 
-Issue ve PR'lar açık; RideDeck'i denediysen [geri bildirim formunu](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=geri-bildirim.yml) doldurman çok işime yarar (hangi telefon, neyi denedin, ne çalıştı). Başlamak için [CONTRIBUTING.md](CONTRIBUTING.md) dosyasına ve [docs/STATUS.md](docs/STATUS.md) içindeki "Sıradaki işler" listesine bak. Fikirler: yeni dil çevirileri, çevrimdışı rota hesaplama (büyük iş), tablet ve katlanabilir ekran düzenleri.
+Issue ve PR'lar açık; RideDeck'i denediysen [geri bildirim formunu](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=geri-bildirim.yml) doldurman çok işime yarar (hangi telefon, neyi denedin, ne çalıştı).
+
+Başlamak için:
+
+- [Katkı rehberi](CONTRIBUTING.md) — ortam, dal/commit ve PR süreci
+- [Geliştirme rehberi](docs/DEVELOPMENT.md) — derleme, test, emülatör ve sık iş akışları
+- [Mimari](docs/ARCHITECTURE.md) — paketler, veri akışı ve "nerede ne değiştirilir?"
+- [Çeviri rehberi](docs/TRANSLATING.md) — yeni dil ve mevcut metin düzeltmeleri
+- [Destek](SUPPORT.md) ve [güvenlik politikası](SECURITY.md)
+
+Güncel işler açık issue'larda ve `good first issue` etiketinde izlenir; [docs/STATUS.md](docs/STATUS.md) tarihsel durum/kanıt kaydıdır, görev listesi değildir. Fikirler: yeni dil çevirileri, çevrimdışı rota hesaplama (büyük iş), tablet ve katlanabilir ekran düzenleri.
 
 ### 📜 Lisans
 
@@ -206,6 +218,6 @@ Issue ve PR'lar açık; RideDeck'i denediysen [geri bildirim formunu](https://gi
 
 New offline downloads are temporarily disabled: the current SDK download path has not been verified against [OpenFreeMap's limits](https://openfreemap.org/tos/) (3,000 tiles or 50 MB, at most four concurrent requests, and an app-identifying User-Agent). Existing downloaded areas are preserved. Speed-limit readings expire from their request time (60 seconds); weather is discarded at the next freshness check after 30 minutes instead of being kept indefinitely after failed refreshes.
 
-RideDeck is a free, open-source Android app (Kotlin, Jetpack Compose, minSdk 26) that turns a phone into a CarPlay-style landscape dashboard for motorcycles: GPS speedometer, voice-guided OpenStreetMap navigation, fuel stops, weather alerts, music, an in-app phone and crash-detecting SOS. It is motorcycle-only; there is no vehicle picker. No accounts, API keys or RideDeck backend; navigation queries use free public map services. The UI has Turkish and English; spoken guidance follows the phone language (Turkish or English). Settings are grouped into six pages (General, Appearance, Map, Sound and alerts, Safety, Permissions and system) with a scrollable category rail and a single centered column, at most 820 dp wide. Build with `./gradlew assembleDebug` (JDK 17). Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md). Technical write-up: [case study](docs/CASE-STUDY.en.md). Known limits: crash-detection thresholds and real SMS sending are not field-tested; screenshots and the demo GIF come from an emulator with simulated GPS; navigation, search and weather need a network connection (offline map downloads are subject to provider limits, and routing does not work offline); explicitly started rides use a location foreground service to keep GPS and recording active with the screen off, independently of the overlay; location permission and GPS must be enabled, and system-stopped rides do not automatically restart; SMS send results distinguish confirmed, failed and unknown recipients; recipient delivery is not confirmed and there are no automatic retries. Speech pauses during calls and music does not automatically resume after a headset disconnects. SOS is an aid, not a safety guarantee.
+RideDeck is a free, open-source Android app (Kotlin, Jetpack Compose, minSdk 26) that turns a phone into a CarPlay-style landscape dashboard for motorcycles: GPS speedometer, voice-guided OpenStreetMap navigation, fuel stops, weather alerts, music, an in-app phone and crash-detecting SOS. It is motorcycle-only; there is no vehicle picker. No accounts, API keys or RideDeck backend; navigation queries use free public map services. The UI has Turkish and English; spoken guidance follows the phone language (Turkish or English). Settings are grouped into six pages (General, Appearance, Map, Sound and alerts, Safety, Permissions and system) with a scrollable category rail and a single centered column, at most 820 dp wide. Build with `./gradlew assembleDebug` (JDK 17). Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md), the [development guide](docs/DEVELOPMENT.md), the [architecture map](docs/ARCHITECTURE.md) and the [translation guide](docs/TRANSLATING.md). Questions go to [SUPPORT.md](SUPPORT.md); report vulnerabilities privately via [SECURITY.md](SECURITY.md). Please follow the [code of conduct](CODE_OF_CONDUCT.md). Technical write-up: [case study](docs/CASE-STUDY.en.md). Known limits: crash-detection thresholds and real SMS sending are not field-tested; screenshots and the demo GIF come from an emulator with simulated GPS; navigation, search and weather need a network connection (offline map downloads are subject to provider limits, and routing does not work offline); explicitly started rides use a location foreground service to keep GPS and recording active with the screen off, independently of the overlay; location permission and GPS must be enabled, and system-stopped rides do not automatically restart; SMS send results distinguish confirmed, failed and unknown recipients; recipient delivery is not confirmed and there are no automatic retries. Speech pauses during calls and music does not automatically resume after a headset disconnects. SOS is an aid, not a safety guarantee.
 
 </details>

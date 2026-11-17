@@ -1,0 +1,69 @@
+name: Belge veya çeviri
+description: Belge, README veya çeviri hatası ve yeni dil önerisi.
+title: "[Belge]: "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Belge, README ve çeviri bildirimleri için bu formu kullan. Kod hatası için **Hata bildirimi**, güvenlik açığı için [SECURITY.md](https://github.com/yigitbuyukeren/ridedeck/blob/main/SECURITY.md) yolunu kullan.
+
+        Lütfen kişisel veri, gerçek konum veya telefon numarası paylaşma.
+  - type: dropdown
+    id: doc_type
+    attributes:
+      label: Belge veya çeviri türü
+      options:
+        - "Belge hatası (yanlış bilgi, yazım veya bozuk bağlantı)"
+        - "Eksik bilgi veya adım"
+        - "Yeni dil çevirisi"
+        - "README / İngilizce metin"
+        - "Diğer"
+    validations:
+      required: true
+  - type: input
+    id: page
+    attributes:
+      label: Sayfa veya bağlantı
+      description: Dosya yolu veya tam URL.
+      placeholder: "Örn. README.md, CONTRIBUTING.md veya docs/STATUS.md#..."
+    validations:
+      required: true
+  - type: textarea
+    id: current_text
+    attributes:
+      label: Mevcut metin
+      description: Sorunlu veya eksik metni kopyala. Yeni dil önerisinde boş bırakabilirsin.
+    validations:
+      required: false
+  - type: textarea
+    id: suggested_text
+    attributes:
+      label: Önerilen metin veya düzeltme
+      description: Yeni metni, doğru bağlantıyı veya eklenmesi gereken adımı yaz.
+    validations:
+      required: true
+  - type: input
+    id: language
+    attributes:
+      label: Dil
+      description: Metnin dili veya önerdiğin yeni dil.
+      placeholder: "Örn. Türkçe, İngilizce, Almanca"
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Doğrulama
+      description: Bağlantıyı açtım, metni okudum veya iki dili karşılaştırdım. Kısaca ne yaptığını yaz.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Son kontroller
+      options:
+        - label: Aynı konu için açılmış bir issue olup olmadığına baktım.
+          required: true
+        - label: Paylaştığım metin ve bağlantılarda kişisel veri yok.
+          required: true

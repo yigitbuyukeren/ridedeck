@@ -2,6 +2,8 @@
 
 🇹🇷 [Türkçe sürüm](CASE-STUDY.md) (the full version)
 
+> **Status note (2026-11-17):** This case study describes the design at a particular point in development. The app is now motorcycle-only; the vehicle picker, bicycle/car profiles and HOME launcher support have been removed. For current behaviour, test counts and open work, see [README](../README.md), [STATUS.md](STATUS.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
+
 What problem RideDeck solves, how it is built, and why the technical decisions were made. Numbers and behaviour come from the code and CI; **anything not verified in the field is marked as such** (see [Verification status](#verification-status)).
 
 ## 1. Problem

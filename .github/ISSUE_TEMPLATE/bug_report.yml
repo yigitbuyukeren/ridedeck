@@ -1,0 +1,120 @@
+name: Hata bildirimi
+description: Bir şey beklendiği gibi çalışmıyor. Lütfen kişisel verileri anonimleştir.
+title: "[Hata]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hata bildirdiğin için teşekkürler. Önce [açık issue'larda](https://github.com/yigitbuyukeren/ridedeck/issues?q=is%3Aissue) aynı sorunun bildirilip bildirilmediğine bak.
+
+        **Güvenlik açığı mı?** Herkese açık issue açma; [SECURITY.md](https://github.com/yigitbuyukeren/ridedeck/blob/main/SECURITY.md) dosyasındaki gizli bildirim yolunu izle.
+
+        **Kişisel verileri paylaşma.** Log, ekran görüntüsü ve metinlerde gerçek konum, telefon numarası, SMS/kişi içeriği, plaka veya cihaz kimliği varsa anonimleştir. Gerekirse değerleri `[konum]`, `[telefon]` gibi gizle.
+  - type: input
+    id: version
+    attributes:
+      label: RideDeck sürümü
+      description: APK dosya adındaki veya uygulama içindeki sürüm.
+      placeholder: "Örn. 0.6.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: install_source
+    attributes:
+      label: Kurulum kaynağı
+      description: RideDeck'i nereden kurdun?
+      options:
+        - "GitHub Releases'ten APK"
+        - "Kaynaktan kendim derledim"
+        - "Başka bir kaynak veya mağaza"
+        - "Emin değilim"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Telefon modeli
+      description: Marka ve model yeterli; seri numarası veya IMEI yazma.
+      placeholder: "Örn. Pixel 7"
+    validations:
+      required: true
+  - type: input
+    id: android_version
+    attributes:
+      label: Android sürümü
+      placeholder: "Örn. Android 15"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Uygulama alanı
+      description: Sorunun en çok hangi bölümle ilgili olduğunu seç.
+      options:
+        - "Navigasyon"
+        - "Harita"
+        - "SOS / kaza algılama"
+        - "Telefon / arama"
+        - "Müzik / medya"
+        - "Yolculuklar"
+        - "Ayarlar"
+        - "Arayüz"
+        - "Derleme / CI"
+        - "Diğer"
+    validations:
+      required: true
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: Ne oldu?
+      description: Ne yaptığında ne oldu? Hata mesajı varsa aynen ekle.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ne olmasını bekliyordun?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Tekrarlama adımları
+      description: Sorunu yeniden görmek için izlenmesi gereken adımlar.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Ne sıklıkla oluyor?
+      options:
+        - "Her zaman"
+        - "Sık sık"
+        - "Ara sıra"
+        - "Yalnızca bir kez"
+        - "Bilmiyorum"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logcat veya ekran görüntüsü
+      description: "Varsa ilgili log parçasını veya ekran görüntüsü bağlantısını ekle. Konum, telefon numarası, SMS/kişi içeriği ve cihaz kimliği gibi kişisel verileri anonimleştir; ham kayıt yüklemek zorunda değilsin."
+      placeholder: "Logcat çıktısı, ekran görüntüsü bağlantısı veya kısa bir not"
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Son kontroller
+      options:
+        - label: Aynı sorun için açılmış bir issue olup olmadığına baktım.
+          required: true
+        - label: Log, ekran görüntüsü ve metinlerdeki kişisel verileri anonimleştirdim.
+          required: true

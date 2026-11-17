@@ -2,6 +2,8 @@
 
 🇬🇧 [English version](CASE-STUDY.en.md)
 
+> **Güncellik notu (2026-11-17):** Bu vaka analizi belirli bir geliştirme dönemindeki tasarımı anlatır. Uygulama artık yalnız motosiklet içindir; araç seçici, bisiklet/araba profilleri ve HOME launcher desteği kaldırılmıştır. Güncel davranış, test sayıları ve açık işler için [README](../README.md), [STATUS.md](STATUS.md) ve [ARCHITECTURE.md](ARCHITECTURE.md) dosyalarına bak.
+
 Bu belge RideDeck'in hangi problemi çözdüğünü, nasıl kurulduğunu ve hangi teknik kararların neden verildiğini anlatır. Rakamlar ve davranışlar koddan ve CI'dan alınmıştır; **sahada doğrulanmayan her şey ayrıca işaretlidir** (bkz. [Doğrulama durumu](#doğrulama-durumu)).
 
 ## 1. Problem

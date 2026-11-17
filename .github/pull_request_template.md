@@ -1,7 +1,39 @@
-## Ne değişti?
-<!-- Kısaca anlat. İlgili issue varsa: Closes #123 -->
+## Özet
+<!-- Ne değişti ve neden? Kullanıcıya etkisini kısaca anlat. -->
 
-## Nasıl test ettin?
-- [ ] `./gradlew testDebugUnitTest` geçti
-- [ ] Emülatörde veya telefonda denedim
-- [ ] Arayüz değiştiyse ekran görüntüsü ekledim
+## İlgili issue
+Closes #
+
+<!-- Issue yoksa nedenini yaz. Yeni özellik, mimari veya sürüş güvenliği değişikliğinde önce issue açılmalı. -->
+
+## Değişiklik türü
+- [ ] Hata düzeltmesi
+- [ ] Yeni özellik
+- [ ] İyileştirme / refactor
+- [ ] Belge veya çeviri
+- [ ] Derleme, test veya CI
+- [ ] Diğer
+
+## Test kanıtı
+<!-- Çalıştırdıklarını işaretle. Çalıştırmadıklarını ve nedenini aşağıda açıkla. -->
+- [ ] `./gradlew testDebugUnitTest`
+- [ ] `./gradlew lintDebug`
+- [ ] `./gradlew assembleDebug`
+- [ ] Emülatörde denedim
+- [ ] Fiziksel cihazda denedim
+- [ ] Arayüz değiştiyse ekran görüntüsü ekledim (emülatör/cihaz bilgisiyle)
+- [ ] Navigasyon, SOS veya GPS'i etkiliyorsa ilgili kritik testleri çalıştırdım
+
+**Test ortamı ve notlar:**
+<!-- Cihaz/emülatör modeli, Android sürümü, çalıştırılan kritik testler ve sonuçlar. -->
+
+## Kontrol listesi
+- [ ] Değişiklik tek konuya odaklı; ilgisiz düzeltme yok.
+- [ ] Yeni davranış için birim testi ekledim veya test gerekmediğini açıkladım.
+- [ ] Kullanıcıya görünen metinleri `app/src/main/res/values/strings.xml` ve `app/src/main/res/values-en/strings.xml` içinde birlikte güncelledim (veya metin değişikliği yok).
+- [ ] Sürüş güvenliği ve motosiklet-only ilkesi korundu: sürerken yazı girişi yok, dokunma hedefleri 64–84 dp, yüksek kontrast.
+- [ ] Yeni ağ çağrıları yalnızca `app/src/main/java/com/ridedeck/app/data/Http.kt` üzerinden; yeni dış servis varsa issue'da tartışıldı.
+- [ ] `local.properties`, `keystore.properties`, `*.jks`, `.env` veya başka gizli dosya/anahtar commit edilmedi.
+- [ ] Gerekli belgeler güncellendi (README, `docs/STATUS.md`, `CONTRIBUTING.md` vb.) veya belge değişikliği gerekmiyor.
+- [ ] Log ve ekran görüntülerinde kişisel veri yok.
+- [ ] CI'da derleme, test ve lint geçti. (PR açtıktan sonra işaretle.)
