@@ -214,7 +214,8 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    if (list.isNotEmpty()) {
+                    // The active recording is not in `list`, but deleteAll would erase its rows too.
+                    if (list.isNotEmpty() && !recording) {
                         // One tap only opens a confirmation; the actual erase is a second, explicit tap.
                         TextButton(
                             modifier = Modifier.heightIn(min = 64.dp),
@@ -373,8 +374,9 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                 TextButton(
                     modifier = Modifier.heightIn(min = 64.dp),
                     onClick = {
-                        // Re-check the live state so a double tap cannot start two deletes.
-                        if (confirmDeleteAll) {
+                        // Re-check the live state so a double tap cannot start two deletes, and a
+                        // ride that started while the dialog was open is not erased.
+                        if (!recording) {
                             confirmDeleteAll = false
                             deleteFeedback = null
                             deleteAllFeedback = null

@@ -23,6 +23,8 @@ interface TripStorage {
 /** Trips and their GPS points in a small local SQLite database. Nothing leaves the device. */
 class TripStore(context: Context) :
     SQLiteOpenHelper(context, DATABASE_NAME, null, DB_VERSION, CorruptDatabaseHandler), TripStorage {
+    private val appContext = context.applicationContext
+
     init {
         // WAL keeps a killed process from losing the last accepted fixes and lets reads continue
         // while a point is written. SQLite silently falls back when the filesystem cannot do it.
@@ -170,9 +172,16 @@ class TripStore(context: Context) :
         writableDatabase.delete("trips", "id = ?", arrayOf(tripId.toString()))
     }
 
-    override fun deleteAll() = transaction {
-        writableDatabase.delete("points", null, null)
-        writableDatabase.delete("trips", null, null)
+    override fun deleteAll() {
+        transaction {
+            writableDatabase.delete("points", null, null)
+            writableDatabase.delete("trips", null, null)
+        }
+        // The corruption handler keeps a forensic copy in the database directory; "delete all"
+        // must not leave the same location history behind there.
+        runCatching {
+            TripDatabaseRecovery.deleteCopies(appContext.getDatabasePath(DATABASE_NAME).path)
+        }
     }
 
     companion object {
@@ -229,5 +238,17 @@ object TripDatabaseRecovery {
             }
             backup
         }.getOrNull()
+    }
+
+    /** Removes every `trips.db.corrupt-*` copy, including its WAL/SHM/journal sidecars. */
+    fun deleteCopies(databasePath: String) {
+        val source = File(databasePath)
+        val dir = source.parentFile ?: return
+        val prefix = "${source.name}.corrupt-"
+        runCatching {
+            dir.listFiles()?.forEach { file ->
+                if (file.isFile && file.name.startsWith(prefix)) file.delete()
+            }
+        }
     }
 }
