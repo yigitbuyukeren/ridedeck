@@ -316,7 +316,7 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
             // No notification possible: remove a stale alert from an earlier phase, then try the
             // activity fallback. The beep/voice/SMS go on regardless.
             cancelNotification()
-            bringToFront(plan)
+            fallbackToActivity()
             return
         }
         createChannel()
@@ -349,7 +349,7 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             app.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             cancelNotification()
-            bringToFront(plan)
+            fallbackToActivity()
             return
         }
         try {
@@ -358,8 +358,20 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
             // Permission withdrawn between the check and notify, or a vendor restriction: a stale
             // countdown notification must not outlive the phase that posted it.
             cancelNotification()
-            bringToFront(plan)
+            fallbackToActivity()
         }
+    }
+
+    /**
+     * A notification can disappear between planning and posting (permission revoked, channel
+     * blocked, OEM rejection). Re-evaluate the activity fallback instead of reusing the stale
+     * plan, and do not leave a countdown wake lock lighting a screen with nothing on it.
+     */
+    private fun fallbackToActivity() {
+        val canLaunch = runCatching { Settings.canDrawOverlays(app) }.getOrDefault(false) ||
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+        if (!canLaunch && power?.isInteractive == false) releaseCountdownWakeLock()
+        bringToFront(alertPlan().copy(launchApp = canLaunch))
     }
 
     private fun action(actionName: String, requestCode: Int): PendingIntent = PendingIntent.getBroadcast(

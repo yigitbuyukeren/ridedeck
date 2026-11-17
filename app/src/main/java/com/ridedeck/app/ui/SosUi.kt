@@ -503,17 +503,17 @@ private fun Context.findActivity(): Activity? {
 }
 
 private fun Context.hasTelephony(): Boolean =
-    runCatching { packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY) }.getOrDefault(true)
+    runCatching { packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY) }.getOrDefault(false)
 
 /**
- * Whether a default SMS subscription exists. An unreadable answer is treated as usable: a restricted
- * OEM ROM or a missing READ_PHONE_STATE must not make a working phone look like it has no SIM.
+ * Whether a default SMS subscription exists. An unreadable answer fails closed so the card never
+ * shows the triggers as ready while the process-wide [RideSafety.ready] gate says otherwise.
  */
 private fun Context.defaultSmsSubscriptionUsable(): Boolean = try {
     @Suppress("DEPRECATION")
     SmsSubscriptionPolicy.usable(SubscriptionManager.getDefaultSmsSubscriptionId())
 } catch (_: RuntimeException) {
-    true
+    false
 }
 
 private fun Context.openAppSettings() {
