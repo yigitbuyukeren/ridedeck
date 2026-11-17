@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Notification privacy: shown instead of a locked private message's sender/text. -->
+    <string name="data_message_redacted">Content hidden while the screen is locked</string>
+
+    <!-- Bulk trip deletion: two-step (button + confirmation) to avoid an accidental erase. -->
+    <string name="data_trips_delete_all">Delete all</string>
+    <string name="data_trips_delete_all_confirm_title">Delete all trips?</string>
+    <plurals name="data_trips_delete_all_confirm_body">
+        <item quantity="one">The %1$d trip and its GPS record on this phone will be permanently deleted. This cannot be undone.</item>
+        <item quantity="other">All %1$d trips and their GPS records on this phone will be permanently deleted. This cannot be undone.</item>
+    </plurals>
+    <string name="data_trips_delete_all_confirm_action">Delete all</string>
+    <string name="data_trips_delete_all_cancel">Cancel</string>
+    <string name="data_trips_delete_all_success">All trips deleted.</string>
+    <string name="data_trips_delete_all_failed">Trips could not be deleted; the records were kept.</string>
+</resources>

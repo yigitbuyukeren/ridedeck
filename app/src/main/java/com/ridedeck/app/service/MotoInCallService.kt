@@ -22,10 +22,13 @@ import com.ridedeck.app.R
 import com.ridedeck.app.data.CallNotificationPolicy
 import com.ridedeck.app.data.CallPhase
 import com.ridedeck.app.data.CallState
+import com.ridedeck.app.data.CallerNamePolicy
 import com.ridedeck.app.data.TelecomCallPolicy
 import com.ridedeck.app.data.CallAudioRoutePolicy
 import com.ridedeck.app.util.hasPermission
 import kotlinx.coroutines.flow.MutableStateFlow
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 /** What the dashboard knows about calls while RideDeck is the default phone app; null state means "not managing". */
 object InCallHub {
@@ -47,6 +50,19 @@ class MotoInCallService : InCallService() {
     private val routeRequests = com.ridedeck.app.data.CallRouteRequests()
     private val handler = Handler(Looper.getMainLooper())
 
+    /**
+     * API < 30 has no contact name in Call.Details, so the contacts query runs here, never on the
+     * main thread. Results are posted back to the main handler and dropped after teardown.
+     */
+    private val contactLookup = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "ridedeck-contact-lookup").apply { isDaemon = true }
+    }
+    private val lookupGeneration = AtomicInteger()
+    @Volatile private var destroyed = false
+    private var lookedUpNumber: String? = null
+    private var lookedUpName: String? = null
+    private var lookupStarted = false
+
     @RequiresApi(34)
     private class ModernAudio {
         var endpoints: List<CallEndpoint> = emptyList()
@@ -62,11 +78,18 @@ class MotoInCallService : InCallService() {
 
     override fun onCreate() {
         super.onCreate()
+        destroyed = false
         InCallHub.service = this
     }
 
     override fun onDestroy() {
+        destroyed = true
+        lookupGeneration.incrementAndGet()
+        contactLookup.shutdownNow()
         handler.removeCallbacksAndMessages(null)
+        lookedUpNumber = null
+        lookedUpName = null
+        lookupStarted = false
         calls.forEach { runCatching { it.stopDtmfTone(); it.unregisterCallback(callback) } }
         getSystemService(NotificationManager::class.java).cancel(IncomingCallNotification.ID)
         InCallHub.service = null
@@ -170,15 +193,50 @@ class MotoInCallService : InCallService() {
         // The "incoming call" notification is for ringing only; once answered or ended it must not hang on.
         if (main?.state != Call.STATE_RINGING) getSystemService(NotificationManager::class.java).cancel(IncomingCallNotification.ID)
         if (main == null) {
+            lookupGeneration.incrementAndGet()
+            lookedUpNumber = null
+            lookedUpName = null
+            lookupStarted = false
             InCallHub.state.value = CallState(CallPhase.IDLE, managed = true)
             CallBridge.callerName.value = null
             return
         }
         val d = main.details
         val number = d.handle?.schemeSpecificPart
-        val saved = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) d.contactDisplayName else lookupName(number)
-        // Last resort before the bare number: the name the carrier sends with the call, when it sends one.
-        CallBridge.callerName.value = listOf(saved, d.callerDisplayName, number).firstOrNull { !it.isNullOrBlank() }
+        val platformName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) d.contactDisplayName else null
+        if (number != lookedUpNumber) {
+            lookedUpNumber = number
+            lookedUpName = null
+            lookupStarted = false
+        }
+        // Show the best name known right now; a slower contacts lookup may replace it shortly.
+        val knownContactName = platformName?.takeIf { it.isNotBlank() } ?: lookedUpName
+        CallBridge.callerName.value = CallerNamePolicy.resolved(knownContactName, d.callerDisplayName, number)
+        val targetNumber = number
+        if (!lookupStarted && targetNumber != null && CallerNamePolicy.needsContactLookup(
+                sdkInt = Build.VERSION.SDK_INT,
+                platformContactName = platformName,
+                number = targetNumber,
+                hasReadContactsPermission = hasPermission(Manifest.permission.READ_CONTACTS),
+            )
+        ) {
+            val carrierName = d.callerDisplayName
+            val generation = lookupGeneration.incrementAndGet()
+            lookupStarted = true
+            contactLookup.execute {
+                val name = lookupName(targetNumber)
+                handler.post {
+                    // A late answer must not overwrite a newer call or arrive after teardown.
+                    if (!destroyed && InCallHub.service === this &&
+                        lookupGeneration.get() == generation &&
+                        lookedUpNumber == targetNumber && InCallHub.call === main
+                    ) {
+                        lookedUpName = name
+                        CallBridge.callerName.value = CallerNamePolicy.resolved(name, carrierName, targetNumber)
+                    }
+                }
+            }
+        }
         @Suppress("DEPRECATION") val audio = latestAudio ?: callAudioState
         val routes = if (Build.VERSION.SDK_INT >= 34) modern?.routes ?: 0 else audio?.supportedRouteMask ?: 0
         routeRequests.availability(routes)

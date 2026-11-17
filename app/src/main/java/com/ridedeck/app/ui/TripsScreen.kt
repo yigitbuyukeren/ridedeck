@@ -53,6 +53,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -185,6 +186,9 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
     val list by produceState(emptyList<Trip>(), version) { value = trips.trips() }
     var selectedId by remember { mutableStateOf<Long?>(null) }
     var deleteFeedback by remember { mutableStateOf<TripDeleteFeedback?>(null) }
+    var confirmDeleteAll by remember { mutableStateOf(false) }
+    /** Null until a bulk delete runs; never a plain "success" from a cancelled dialog. */
+    var deleteAllFeedback by remember { mutableStateOf<Boolean?>(null) }
     val selected = list.firstOrNull { it.id == selectedId } ?: list.firstOrNull()
     val dateFormat = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
     val locale = LocalConfiguration.current.locales[0]
@@ -200,15 +204,37 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.trips_title), fontSize = 30.sp, fontWeight = FontWeight.Bold, color = palette.text)
                     if (recording) Text(stringResource(R.string.trip_recording), fontSize = 16.sp, color = MotoColors.Red)
                     if (storageError) Text(stringResource(R.string.trip_storage_error), fontSize = 16.sp, color = MotoColors.Red)
                 }
-                Box(
-                    modifier = Modifier.size(72.dp).clip(CircleShape).background(palette.cardHigh).hapticClickable(onClick = onClose),
-                    contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Rounded.Close, stringResource(R.string.message_dismiss), tint = palette.text, modifier = Modifier.size(32.dp)) }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (list.isNotEmpty()) {
+                        // One tap only opens a confirmation; the actual erase is a second, explicit tap.
+                        TextButton(
+                            modifier = Modifier.heightIn(min = 64.dp),
+                            onClick = {
+                                deleteAllFeedback = null
+                                confirmDeleteAll = true
+                            },
+                        ) {
+                            Text(
+                                stringResource(R.string.data_trips_delete_all),
+                                color = MotoColors.Red,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier.size(72.dp).clip(CircleShape).background(palette.cardHigh).hapticClickable(onClick = onClose),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Rounded.Close, stringResource(R.string.message_dismiss), tint = palette.text, modifier = Modifier.size(32.dp)) }
+                }
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 PillButton(
@@ -231,6 +257,9 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
             }
             deleteFeedback?.let {
                 TripDeleteFeedbackText(it, Modifier.fillMaxWidth().padding(top = 8.dp))
+            }
+            deleteAllFeedback?.let {
+                TripDeleteAllFeedbackText(it, Modifier.fillMaxWidth().padding(top = 8.dp))
             }
             if (list.isEmpty()) {
                 Column(
@@ -281,6 +310,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                                     .hapticClickable(haptic = RideHaptic.Select) {
                                         selectedId = trip.id
                                         deleteFeedback = null
+                                        deleteAllFeedback = null
                                     }
                                     .padding(16.dp),
                             ) {
@@ -304,6 +334,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                                     if (target != null) {
                                         val tripDate = dateFormat.format(Date(target.startedAt))
                                         deleteFeedback = null
+                                        deleteAllFeedback = null
                                         scope.launch {
                                             val deleted = trips.delete(target.id)
                                             deleteFeedback = TripDeleteFeedback(deleted, tripDate)
@@ -318,6 +349,54 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                 )
             }
         }
+    }
+
+    if (confirmDeleteAll) {
+        AlertDialog(
+            onDismissRequest = { confirmDeleteAll = false },
+            title = { Text(stringResource(R.string.data_trips_delete_all_confirm_title)) },
+            text = {
+                Column(
+                    modifier = Modifier.heightIn(max = 220.dp).verticalScroll(rememberScrollState()),
+                ) {
+                    Text(
+                        pluralStringResource(
+                            R.plurals.data_trips_delete_all_confirm_body,
+                            list.size,
+                            list.size,
+                        ),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    modifier = Modifier.heightIn(min = 64.dp),
+                    onClick = {
+                        // Re-check the live state so a double tap cannot start two deletes.
+                        if (confirmDeleteAll) {
+                            confirmDeleteAll = false
+                            deleteFeedback = null
+                            deleteAllFeedback = null
+                            scope.launch {
+                                val deleted = trips.deleteAllTrips()
+                                deleteAllFeedback = deleted
+                                if (deleted) selectedId = null
+                            }
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.data_trips_delete_all_confirm_action), color = MotoColors.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    modifier = Modifier.heightIn(min = 64.dp),
+                    onClick = { confirmDeleteAll = false },
+                ) {
+                    Text(stringResource(R.string.data_trips_delete_all_cancel))
+                }
+            },
+        )
     }
 }
 
@@ -347,6 +426,20 @@ internal fun TripDeleteFeedbackText(feedback: TripDeleteFeedback, modifier: Modi
         ),
         modifier = modifier.testTag("trip-delete-feedback"),
         color = if (feedback.succeeded) MotoColors.Green else MotoColors.Red,
+        fontSize = 15.sp,
+        fontWeight = FontWeight.SemiBold,
+    )
+}
+
+/** Result of an explicit "delete all"; states the outcome instead of leaving the rider guessing. */
+@Composable
+internal fun TripDeleteAllFeedbackText(succeeded: Boolean, modifier: Modifier = Modifier) {
+    Text(
+        stringResource(
+            if (succeeded) R.string.data_trips_delete_all_success else R.string.data_trips_delete_all_failed,
+        ),
+        modifier = modifier.testTag("trip-delete-all-feedback"),
+        color = if (succeeded) MotoColors.Green else MotoColors.Red,
         fontSize = 15.sp,
         fontWeight = FontWeight.SemiBold,
     )

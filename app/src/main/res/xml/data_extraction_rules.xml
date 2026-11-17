@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Defense in depth for API 31+. The application already declares allowBackup="false", so nothing
+    should be backed up; these rules keep the trip database and the app's preferences out of cloud
+    backup and device-to-device transfer even if that switch is ever changed. The WAL/SHM/journal
+    sidecars are excluded too, because SQLite may leave them next to the main file.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="database" path="trips.db" />
+        <exclude domain="database" path="trips.db-wal" />
+        <exclude domain="database" path="trips.db-shm" />
+        <exclude domain="database" path="trips.db-journal" />
+        <exclude domain="sharedpref" path="ridedeck.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="database" path="trips.db" />
+        <exclude domain="database" path="trips.db-wal" />
+        <exclude domain="database" path="trips.db-shm" />
+        <exclude domain="database" path="trips.db-journal" />
+        <exclude domain="sharedpref" path="ridedeck.xml" />
+    </device-transfer>
+</data-extraction-rules>

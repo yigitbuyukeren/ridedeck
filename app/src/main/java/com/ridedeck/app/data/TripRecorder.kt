@@ -142,7 +142,7 @@ class TripRecorder(
     }
 
     /** Returns true only when every stored ride was deleted; failures keep the stored rides. */
-    suspend fun deleteAll(): Boolean = mutex.withLock {
+    suspend fun deleteAllTrips(): Boolean = mutex.withLock {
         val deleted = storageAction { withContext(io) { store.deleteAll() } }
         if (deleted) {
             tripId = null
@@ -152,6 +152,9 @@ class TripRecorder(
         }
         deleted
     }
+
+    /** Historical name for [deleteAllTrips]; kept so existing callers keep working. */
+    suspend fun deleteAll(): Boolean = deleteAllTrips()
 
     suspend fun trips(): List<Trip> = mutex.withLock {
         var result = emptyList<Trip>()

@@ -1,9 +1,12 @@
 package com.ridedeck.app.service
 
+import android.app.KeyguardManager
 import android.app.Notification
 import android.service.notification.NotificationListenerService
 import androidx.core.app.NotificationCompat
 import android.service.notification.StatusBarNotification
+import com.ridedeck.app.R
+import com.ridedeck.app.data.MessagePrivacy
 import com.ridedeck.app.data.PinnedApps
 import com.ridedeck.app.util.Prefs
 import java.util.concurrent.atomic.AtomicLong
@@ -31,6 +34,7 @@ object MessageBridge {
 
 class CarNotificationListener : NotificationListenerService() {
     private val callSource = com.ridedeck.app.data.CallerNotificationSource()
+    private val keyguard by lazy { getSystemService(KeyguardManager::class.java) }
     private var lastKey: String? = null
     private var lastText: String? = null
 
@@ -55,7 +59,19 @@ class CarNotificationListener : NotificationListenerService() {
         if (sbn.packageName !in seen) Prefs.setMessageAppsSeen(this, PinnedApps.toJson(PinnedApps.add(seen, sbn.packageName)))
         if (sbn.packageName in PinnedApps.fromJson(Prefs.messageAppsMuted(this))) return
 
-        val (sender, text) = parse(n) ?: return
+        // Privacy gate: a secret notification is never read; locked private content keeps only the
+        // app name. The content is not parsed in the app-only path, so sender/body never leave the
+        // notification shade. Keyguard state is read per notification, not cached.
+        val surface = MessagePrivacy.surface(
+            visibility = n.visibility,
+            keyguardLocked = keyguard?.isKeyguardLocked == true,
+        )
+        if (surface == MessagePrivacy.Surface.SKIP) return
+        val (sender, text) = if (surface == MessagePrivacy.Surface.APP_ONLY) {
+            "" to getString(R.string.data_message_redacted)
+        } else {
+            parse(n) ?: return
+        }
         // Chat apps re-post the same notification when other things change; ignore repeats.
         if (sbn.key == lastKey && text == lastText) return
         lastKey = sbn.key
