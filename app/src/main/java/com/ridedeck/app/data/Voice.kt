@@ -13,6 +13,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import androidx.core.content.ContextCompat
 import com.ridedeck.app.util.Prefs
+import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,9 +46,15 @@ data class TtsFacts(
 )
 
 object TtsVoicePolicy {
-    /** A saved voice of another language is ignored, so a phone language change falls back to the policy. */
+    private fun code(value: String): String = Locale.forLanguageTag(value).language.ifBlank { value.lowercase() }
+
+    /**
+     * A saved voice of another language is ignored, so an app language change immediately falls back
+     * to an installed voice of the new language rather than keeping the old one.
+     */
     fun choose(preferredName: String?, voices: List<TtsVoice>, language: String): TtsVoice? {
-        val matching = voices.filter { it.language.equals(language, ignoreCase = true) }
+        val wanted = code(language)
+        val matching = voices.filter { code(it.language) == wanted }
         return matching.firstOrNull { it.name == preferredName }
             ?: matching.firstOrNull { !it.requiresNetwork }
             ?: matching.firstOrNull()
@@ -55,7 +62,8 @@ object TtsVoicePolicy {
 
     fun startupPlan(initialized: Boolean, preferredName: String?, voices: List<TtsVoice>, language: String): TtsStartupPlan {
         if (!initialized) return TtsStartupPlan(ready = false, voices = emptyList(), selected = null)
-        val available = voices.filter { it.language.equals(language, ignoreCase = true) }.distinctBy { it.name }.sortedBy { it.name }
+        val wanted = code(language)
+        val available = voices.filter { code(it.language) == wanted }.distinctBy { it.name }.sortedBy { it.name }
         return TtsStartupPlan(ready = true, voices = available, selected = choose(preferredName, available, language))
     }
 }
@@ -78,7 +86,13 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
         .build()
 
     @Volatile private var ready = false
+    @Volatile private var engineReady = false
     @Volatile private var closed = false
+    /** The app's current guidance language, kept even while the engine is still initializing. */
+    @Volatile private var languageTag = GuidanceLanguage.current(appContext)
+    @Volatile private var activeLanguageTag: String? = null
+    /** Deferred while an SOS prompt plays so an app-language change never cuts an emergency message. */
+    @Volatile private var pendingLanguageTag: String? = null
     private val initLock = Any()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val _runtimeFacts = MutableStateFlow(TtsFacts())
@@ -86,12 +100,47 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
     private lateinit var tts: TextToSpeech
 
     init {
-        tts = TextToSpeech(context) { status -> mainHandler.post { initializeTts(context, status) } }
+        tts = TextToSpeech(context) { status -> mainHandler.post { initializeTts(status) } }
     }
 
-    private fun initializeTts(context: Context, status: Int) = synchronized(initLock) {
+    /**
+     * Re-targets the live engine after an Android app-language change. No engine re-creation or
+     * process restart is needed: the current utterance is stopped and the new locale/voice is applied.
+     */
+    fun applyLanguage(tag: String) {
+        val normalized = GuidanceLanguage.tag(tag)
+        onMain {
+            if (closed) return@onMain
+            languageTag = normalized
+            // A rapid second switch must replace the deferred target, not leave the previous one behind.
+            pendingLanguageTag = normalized
+            if (!engineReady) return@onMain
+            if (activeLanguageTag == normalized && ready) {
+                pendingLanguageTag = null
+                return@onMain
+            }
+            // Never flush an SOS message just because the rider changed the app language.
+            if (session.activePriority == SpeechPriority.SOS) return@onMain
+            pendingLanguageTag = null
+            session.stop()
+            applyTtsLanguage(normalized, persistSelection = false)
+        }
+    }
+
+    /** Applies a language change that waited for SOS speech to finish. Runs on main only. */
+    private fun applyPendingLanguage() {
+        val pending = pendingLanguageTag ?: return
+        if (closed || !engineReady || session.activePriority != null) return
+        pendingLanguageTag = null
+        if (activeLanguageTag == pending && ready) return
+        session.stop()
+        applyTtsLanguage(pending, persistSelection = false)
+    }
+
+    private fun initializeTts(status: Int) = synchronized(initLock) {
         if (closed) return@synchronized
         if (status != TextToSpeech.SUCCESS) {
+            engineReady = false
             ready = false
             _runtimeFacts.value = TtsFacts(engineInitialized = false)
             runCatching { onVoices(emptyList()) }
@@ -107,13 +156,22 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
             override fun onError(utteranceId: String?, errorCode: Int) = finished(utteranceId)
         }
         if (runCatching { tts.setOnUtteranceProgressListener(progressListener); true }.getOrDefault(false).not()) {
+            engineReady = false
             ready = false
             _runtimeFacts.value = TtsFacts(engineInitialized = false)
             runCatching { onVoices(emptyList()) }
             return@synchronized
         }
-        val languageReady = runCatching { tts.setLanguage(GuidanceLanguage.currentLocale()) >= TextToSpeech.LANG_AVAILABLE }.getOrDefault(false)
-        runCatching { tts.setSpeechRate(Prefs.voiceSpeechRate(context)) }
+        engineReady = true
+        // The latest language wins if the configuration changed while the engine was initializing.
+        applyTtsLanguage(languageTag, persistSelection = true)
+    }
+
+    private fun applyTtsLanguage(tag: String, persistSelection: Boolean) {
+        val locale = Locale.forLanguageTag(tag)
+        val languageCode = GuidanceLanguage.languageCode(tag)
+        val languageReady = runCatching { tts.setLanguage(locale) >= TextToSpeech.LANG_AVAILABLE }.getOrDefault(false)
+        runCatching { tts.setSpeechRate(Prefs.voiceSpeechRate(appContext)) }
 
         // Android exposes the voice list only after a successful init. Publish readiness before
         // using the same public selection API that settings changes use.
@@ -122,11 +180,12 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
         val voiceOptions = platformVoices.map {
             TtsVoice(it.name, it.locale.language, it.isNetworkConnectionRequired)
         }
-        val plan = TtsVoicePolicy.startupPlan(true, Prefs.voiceTtsName(context), voiceOptions, GuidanceLanguage.currentLocale().language)
+        val plan = TtsVoicePolicy.startupPlan(true, Prefs.voiceTtsName(appContext), voiceOptions, languageCode)
         val chosen = plan.selected
         val selected = chosen?.let { option -> platformVoices.firstOrNull { it.name == option.name } }
         val voiceReady = selected != null && runCatching { tts.setVoice(selected) == TextToSpeech.SUCCESS }.getOrDefault(false)
         ready = voiceReady || languageReady
+        activeLanguageTag = tag
         // The engine's active voice (including its default language voice) may be network-backed;
         // a failed read stays null so the assessment reports UNKNOWN rather than READY.
         val activeVoiceRequiresNetwork = runCatching { tts.voice?.isNetworkConnectionRequired }.getOrNull()
@@ -135,20 +194,22 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
             languageAvailable = languageReady || voiceReady,
             selectedVoiceRequiresNetwork = activeVoiceRequiresNetwork,
         )
-        if (voiceReady) Prefs.setVoiceTtsName(context, chosen?.name)
+        // A language switch must not overwrite the rider's explicit voice choice with a policy default.
+        if (voiceReady && persistSelection) Prefs.setVoiceTtsName(appContext, chosen?.name)
         runCatching { onVoices(if (ready) plan.voices.map { it.name } else emptyList()) }
     }
 
     override fun setSpeechRate(rate: Float) { if (ready && !closed) runCatching { tts.setSpeechRate(rate.coerceIn(0.75f, 1.25f)) } }
 
     fun availableVoices(): List<String> = if (!ready || closed) emptyList() else runCatching {
-        tts.voices.orEmpty().filter { it.locale.language.equals(GuidanceLanguage.currentLocale().language, ignoreCase = true) }.map { it.name }.distinct().sorted()
+        val code = GuidanceLanguage.languageCode(languageTag)
+        tts.voices.orEmpty().filter { GuidanceLanguage.languageCode(it.locale.toLanguageTag()) == code }.map { it.name }.distinct().sorted()
     }.getOrDefault(emptyList())
 
     fun selectVoice(name: String?): Boolean {
         if (!ready || closed) return false
         if (name == null) {
-            val languageReady = runCatching { tts.setLanguage(GuidanceLanguage.currentLocale()) >= TextToSpeech.LANG_AVAILABLE }.getOrDefault(false)
+            val languageReady = runCatching { tts.setLanguage(Locale.forLanguageTag(languageTag)) >= TextToSpeech.LANG_AVAILABLE }.getOrDefault(false)
             if (languageReady) {
                 val activeVoiceRequiresNetwork = runCatching { tts.voice?.isNetworkConnectionRequired }.getOrNull()
                 _runtimeFacts.value = _runtimeFacts.value.copy(
@@ -158,7 +219,10 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
             }
             return languageReady
         }
-        val voice = runCatching { tts.voices.orEmpty().firstOrNull { it.name == name && it.locale.language.equals(GuidanceLanguage.currentLocale().language, true) } }.getOrNull() ?: return false
+        val code = GuidanceLanguage.languageCode(languageTag)
+        val voice = runCatching {
+            tts.voices.orEmpty().firstOrNull { GuidanceLanguage.languageCode(it.locale.toLanguageTag()) == code && it.name == name }
+        }.getOrNull() ?: return false
         val voiceReady = runCatching { tts.setVoice(voice) == TextToSpeech.SUCCESS }.getOrDefault(false)
         if (voiceReady) {
             _runtimeFacts.value = _runtimeFacts.value.copy(
@@ -204,7 +268,10 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
 
     override fun speak(text: String, priority: SpeechPriority) {
         if (Looper.myLooper() != Looper.getMainLooper()) { mainHandler.post { speak(text, priority) }; return }
-        if (!ready || closed || text.isBlank()) return
+        if (closed || text.isBlank()) return
+        // A language change deferred behind SOS speech lands as soon as the line is free.
+        applyPendingLanguage()
+        if (!ready) return
         if (audio.mode == AudioManager.MODE_IN_CALL || audio.mode == AudioManager.MODE_IN_COMMUNICATION || audio.mode == AudioManager.MODE_RINGTONE) return
         session.announce(text, priority)
     }
@@ -212,7 +279,10 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
     private fun finished(id: String?) {
         // TTS reports completion on a binder thread; settle the bookkeeping on main.
         onMain {
-            if (!closed) session.complete(id)
+            if (!closed) {
+                session.complete(id)
+                applyPendingLanguage()
+            }
         }
     }
 
@@ -232,6 +302,7 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
         onMain {
             stopOnMain()
             session.close()
+            engineReady = false
             ready = false
             _runtimeFacts.value = TtsFacts(engineInitialized = false)
             runCatching { tts.shutdown() }

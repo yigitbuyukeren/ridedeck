@@ -93,25 +93,27 @@ object SpokenDistance {
 
     /**
      * @param text string lookup for the unit templates (metre, kilometre, feet, mile), each with one placeholder.
+     * @param locale spoken decimal separator; guidance passes the app language so a per-app TR language
+     *   still says "1,5" on an English system.
      */
-    fun text(meters: Double, miles: Boolean, text: (Int) -> String): String {
+    fun text(meters: Double, miles: Boolean, text: (Int) -> String, locale: java.util.Locale = java.util.Locale.getDefault()): String {
         if (!miles) {
             val m = roundMetres(meters)
-            return if (m >= 1000) String.format(java.util.Locale.getDefault(), text(com.ridedeck.app.R.string.spoken_km), decimal(m / 1000.0))
-            else String.format(java.util.Locale.getDefault(), text(com.ridedeck.app.R.string.spoken_m), m)
+            return if (m >= 1000) String.format(locale, text(com.ridedeck.app.R.string.spoken_km), decimal(m / 1000.0, locale))
+            else String.format(locale, text(com.ridedeck.app.R.string.spoken_m), m)
         }
         val feet = meters * 3.28084
         if (feet < 1000) {
             val f = (Math.round(feet / 50.0) * 50).toInt().coerceAtLeast(50)
-            return String.format(java.util.Locale.getDefault(), text(com.ridedeck.app.R.string.spoken_ft), f)
+            return String.format(locale, text(com.ridedeck.app.R.string.spoken_ft), f)
         }
         val mi = Math.round(meters / 1609.344 * 10) / 10.0
-        return String.format(java.util.Locale.getDefault(), text(com.ridedeck.app.R.string.spoken_mi), decimal(mi))
+        return String.format(locale, text(com.ridedeck.app.R.string.spoken_mi), decimal(mi, locale))
     }
 
     /** "2" for a whole number, "1,5" / "1.5" (locale) otherwise. */
-    private fun decimal(v: Double): String =
-        if (v == Math.floor(v)) v.toInt().toString() else String.format(java.util.Locale.getDefault(), "%.1f", v)
+    private fun decimal(v: Double, locale: java.util.Locale): String =
+        if (v == Math.floor(v)) v.toInt().toString() else String.format(locale, "%.1f", v)
 }
 
 /** Matching a GPS fix onto the route, and deciding when the rider has really left it. */

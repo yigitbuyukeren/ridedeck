@@ -184,6 +184,8 @@ class RouteRepository(
     private val http: ServiceHttp = ProviderHttp,
     /** Spoken and written route texts follow the rider's unit choice; lengths are converted back to metres. */
     private val miles: () -> Boolean = { false },
+    /** App-scoped language tag; the owner updates it when Android's app language changes. */
+    private val language: () -> String = { GuidanceLanguage.current() },
 ) : Routing {
     override suspend fun route(from: GeoPoint, to: GeoPoint, options: RouteOptions): Result<Route> = route(from, to, options, null)
 
@@ -242,7 +244,7 @@ class RouteRepository(
                 }
             })
             .put("costing", VehicleProfile.MOTORCYCLE.config.costing)
-            .put("directions_options", JSONObject().put("language", GuidanceLanguage.current()).put("units", if (useMiles) "miles" else "kilometers"))
+            .put("directions_options", JSONObject().put("language", language()).put("units", if (useMiles) "miles" else "kilometers"))
         if (alternates > 0) body.put("alternates", alternates)
         options.costingOptions()?.let { body.put("costing_options", it) }
         return body
@@ -255,7 +257,7 @@ class RouteRepository(
 
     override suspend fun reverse(point: GeoPoint): Result<Place?> = withContext(Dispatchers.IO) {
         safely("reverse") {
-            val url = "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=${Locale.getDefault().language}" +
+            val url = "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=${language()}" +
                 "&lat=${"%.6f".format(Locale.US, point.lat)}&lon=${"%.6f".format(Locale.US, point.lon)}"
             PlaceNames.fromReverse(http.get(url), point)
         }
@@ -263,7 +265,7 @@ class RouteRepository(
 
     override suspend fun search(query: String, near: GeoPoint?): Result<List<Place>> = withContext(Dispatchers.IO) {
         safely("search") {
-            val base = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=${Locale.getDefault().language}" +
+            val base = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=${language()}" +
                 "&q=${URLEncoder.encode(query, "UTF-8")}"
             if (near == null) return@safely parsePlaces(http.get(base))
             val view = "&viewbox=${near.lon - 1.0},${near.lat + 1.0},${near.lon + 1.0},${near.lat - 1.0}"

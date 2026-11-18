@@ -286,7 +286,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     }.stateIn(viewModelScope, SharingStarted.Eagerly, GpsUi())
 
     // VM-owned quote wiring; no app-scoped controller and no GPS subscription beyond existing gps.
-    private val quoteRouteRepo = RouteRepository(miles = { Units.miles })
+    private val quoteRouteRepo = RouteRepository(miles = { Units.miles }, language = { navigation.guidanceLanguage })
     private val quoteRouting = RouteQuoteRouting(
         requestBody = routeRequestBodyBuilder(quoteRouteRepo),
         delegate = quoteRouteRepo,
@@ -304,6 +304,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
                 options = nav.options.value,
                 contextGeneration = detourContextGeneration,
                 maxStops = MAX_DETOUR_STOPS,
+                language = navigation.guidanceLanguage,
             )
         },
         motionLocked = { gps.value.inputLocked },
@@ -332,6 +333,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
             options = nav.options.value,
             contextGeneration = detourContextGeneration,
             maxStops = MAX_DETOUR_STOPS,
+            language = navigation.guidanceLanguage,
         ) ?: return false
         return detourQuotes.request(snapshot, station)
     }

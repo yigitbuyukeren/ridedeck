@@ -1,11 +1,14 @@
 package com.ridedeck.app.data
 
+import android.content.ComponentCallbacks
 import android.content.Context
+import android.content.res.Configuration
 import android.media.AudioManager
 import android.os.SystemClock
 import com.ridedeck.app.service.CallBridge
 import com.ridedeck.app.util.Prefs
 import com.ridedeck.app.util.Units
+import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,6 +30,10 @@ class RideNavigation(
     private val app = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val screens = mutableSetOf<Any>()
+    /** Updated on main; read from routing IO threads. One process lives across an app-language change. */
+    @Volatile private var guidanceLanguageTag = GuidanceLanguage.current(app)
+    /** The tag routing and detour requests must use right now. */
+    val guidanceLanguage: String get() = guidanceLanguageTag
     private data class RetryContext(val savedJson: String, val saved: ActiveTrip, val choices: Long)
     private var retryContext: RetryContext? = null
     /** Weak-token registration from DashboardViewModel; missing/collected fails closed. */
@@ -55,7 +62,7 @@ class RideNavigation(
     val recents = MutableStateFlow(if (Prefs.recentPlacesOn(app)) RecentPlaces.fromJson(Prefs.recentPlaces(app)) else emptyList())
     val nav = NavigationController(
         app::getString, scope, tracking.location.state, voice,
-        repo = RouteRepository(miles = { Units.miles }),
+        repo = RouteRepository(miles = { Units.miles }, language = { guidanceLanguageTag }),
         initialOptions = Prefs.routeOptions(app),
         onOptionsChanged = { Prefs.setRouteOptions(app, it) },
         knownPlaces = { tracking.places.value.map { it.place } + recents.value },
@@ -67,6 +74,7 @@ class RideNavigation(
         },
         beforeStart = { tracking.requestStart(screens.isNotEmpty()) },
         miles = { Units.miles },
+        locale = { Locale.forLanguageTag(guidanceLanguageTag) },
         inCall = { call.state.value.phase != CallPhase.IDLE },
         cue = { NavCue.pulse(app) },
         nowElapsedMs = SystemClock::elapsedRealtime,
@@ -92,8 +100,21 @@ class RideNavigation(
         canResume = { audioNeeded && app.getSystemService(AudioManager::class.java).mode == AudioManager.MODE_NORMAL },
         outputDevices = media::externalOutputDevices,
     )
+    private val languageCallbacks = object : ComponentCallbacks {
+        override fun onConfigurationChanged(newConfig: Configuration) {
+            val tag = GuidanceLanguage.tag(newConfig)
+            if (tag == guidanceLanguageTag) return
+            guidanceLanguageTag = tag
+            // TTS first so a refresh announcement already uses the new voice.
+            voice.applyLanguage(tag)
+            nav.onGuidanceLanguageChanged()
+        }
+
+        override fun onLowMemory() {}
+    }
 
     init {
+        app.registerComponentCallbacks(languageCallbacks)
         // Keep the guided trip on disk; after a process kill the destination is offered again once GPS has a fix.
         val savedJson = Prefs.activeTrip(app)
         startupInvalidation.startupJson = savedJson

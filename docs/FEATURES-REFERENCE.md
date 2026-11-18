@@ -1,7 +1,7 @@
 # RideDeck — Ayrıntılı özellikler ve teknik notlar
 
 > [!NOTE]
-> Bu belge, 17 Kasım 2026 tarihli kapsamlı README açıklamalarını **kaybetmeden korumak** için oluşturulmuştur. Geliştirme ağacıyla yayımlanan beta arasındaki farklar ve test sonuçları tarihsel bağlamında okunmalıdır. Güncel indirme için [ana README](../README.md) ve [v0.6.1-beta.1 sürüm notları](https://github.com/yigitbuyukeren/ridedeck/releases/tag/v0.6.1-beta.1); yayın kapıları için [RELEASE_READINESS.md](RELEASE_READINESS.md) esas alınmalıdır.
+> Bu belge, 17 Kasım 2026 tarihli kapsamlı README açıklamalarını **kaybetmeden korumak** için oluşturulmuştur. Geliştirme ağacıyla yayımlanan beta arasındaki farklar ve test sonuçları tarihsel bağlamında okunmalıdır. Güncel indirme için [ana README](../README.md) ve [v0.7.0 sürüm notları](https://github.com/yigitbuyukeren/ridedeck/releases/tag/v0.7.0); yayın kapıları için [RELEASE_READINESS.md](RELEASE_READINESS.md) esas alınmalıdır.
 
 Bu sayfa; özellik davranışlarını, bilinen sınırlamaları, SOS/gizlilik açıklamalarını ve harita sağlayıcısı notlarını ayrıntılı olarak saklar. Uygulama davranışının kesin kaynağı güncel koddur.
 

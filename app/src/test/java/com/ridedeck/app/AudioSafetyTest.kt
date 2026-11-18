@@ -81,6 +81,14 @@ class SpeechSessionTest {
         r.speech.complete(r.said.last().second)
         assertEquals(1, r.said.size)
     }
+    @Test fun activePriorityIdentifiesSosSoALanguageSwitchCanWait() {
+        val r = Rig()
+        r.speech.announce("sos countdown", SpeechPriority.SOS)
+        assertEquals(SpeechPriority.SOS, r.speech.activePriority)
+        r.speech.complete(r.said.last().second)
+        assertNull(r.speech.activePriority)
+    }
+
     @Test fun deniedFocusNeverStartsSpeech() {
         val r = Rig(); r.focus = false
         r.speech.announce("turn")

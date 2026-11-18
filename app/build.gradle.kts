@@ -28,8 +28,8 @@ android {
         minSdk = 26
         targetSdk = 36
         testInstrumentationRunner = "com.ridedeck.app.RideDeckTestRunner"
-        versionCode = 7
-        versionName = "0.6.1-beta.1"
+        versionCode = 8
+        versionName = "0.7.0"
     }
 
     signingConfigs {

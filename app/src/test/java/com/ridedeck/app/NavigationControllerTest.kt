@@ -183,6 +183,109 @@ class NavigationControllerTest {
     }
 
     @Test
+    fun appLanguageChangeRefreshesThePreviewInstruction() {
+        val english = straightRoute()
+        val turkish = english.copy(maneuvers = english.maneuvers.mapIndexed { i, m -> if (i == 0) m.copy(verbal = "Kuzeye git") else m })
+        routing = FakeRouting(ArrayDeque(listOf(english, turkish)))
+        nav = NavigationController(text, scope, location, speaker, routing, fuel, nowMs = { clock })
+
+        nav.selectPlace(dest)
+        assertEquals("Head north", nav.ui.value.route?.maneuvers?.first()?.verbal)
+
+        nav.onGuidanceLanguageChanged()
+        assertEquals(2, routing.requests.size)
+        assertEquals("Kuzeye git", nav.ui.value.route?.maneuvers?.first()?.verbal)
+        assertEquals(dest, nav.ui.value.destination)
+        assertFalse(nav.ui.value.loading)
+        assertFalse(nav.ui.value.navigating)
+    }
+
+    @Test
+    fun appLanguageChangeReroutesActiveGuidanceInTheNewLanguage() {
+        val english = straightRoute()
+        val turkish = english.copy(maneuvers = english.maneuvers.mapIndexed { i, m -> if (i == 0) m.copy(verbal = "Kuzeye git") else m })
+        routing = FakeRouting(ArrayDeque(listOf(english, turkish)))
+        nav = NavigationController(text, scope, location, speaker, routing, fuel, nowMs = { clock })
+
+        nav.selectPlace(dest)
+        nav.startNavigation()
+        assertEquals("Head north", nav.ui.value.route?.maneuvers?.first()?.verbal)
+
+        nav.onGuidanceLanguageChanged()
+        assertEquals(2, routing.requests.size)
+        assertEquals("Kuzeye git", nav.ui.value.route?.maneuvers?.first()?.verbal)
+        assertTrue(nav.ui.value.navigating)
+        assertFalse(nav.ui.value.rerouting)
+    }
+
+    @Test
+    fun appLanguageChangeWithoutARouteDoesNotRequestOne() {
+        nav.onGuidanceLanguageChanged()
+        assertTrue(routing.requests.isEmpty())
+    }
+
+    @Test
+    fun appLanguageChangeWaitsForAFreshFixBeforeRefreshingThePreview() {
+        nav.selectPlace(dest)
+        assertEquals(1, routing.requests.size)
+
+        location.value = LocationState()
+        nav.onGuidanceLanguageChanged()
+        assertEquals(1, routing.requests.size)
+
+        location.value = fixAt(start)
+        assertEquals(2, routing.requests.size)
+    }
+
+    @Test
+    fun appLanguageChangeWhileARouteIsLoadingRefreshesAfterItFinishes() {
+        val first = CompletableDeferred<Result<Route>>()
+        var calls = 0
+        routing.routeHandler = { _, _ ->
+            calls++
+            if (calls == 1) first.await() else Result.success(straightRoute())
+        }
+        nav.selectPlace(dest)
+        assertEquals(1, routing.requests.size)
+
+        nav.onGuidanceLanguageChanged()
+        assertEquals(1, routing.requests.size)
+
+        first.complete(Result.success(straightRoute()))
+        assertEquals(2, routing.requests.size)
+    }
+
+    @Test
+    fun appLanguageChangeRefreshesACachedPreviewAndClearsTheCacheFlag() {
+        val english = straightRoute()
+        val turkish = english.copy(maneuvers = english.maneuvers.mapIndexed { i, m -> if (i == 0) m.copy(verbal = "Kuzeye git") else m })
+        routing = FakeRouting(ArrayDeque(listOf(turkish)))
+        nav = NavigationController(text, scope, location, speaker, routing, fuel, nowMs = { clock })
+
+        assertTrue(nav.restoreCachedPreview(CachedRoutePreview(dest, emptyList(), RouteOptions(), english)))
+        nav.onGuidanceLanguageChanged()
+
+        assertEquals(1, routing.requests.size)
+        assertEquals("Kuzeye git", nav.ui.value.route?.maneuvers?.first()?.verbal)
+        assertFalse(nav.ui.value.cachedPreview)
+        assertFalse(nav.ui.value.cachedRoute)
+    }
+
+    @Test
+    fun failedLanguageRefreshKeepsTheCachedRouteUsable() {
+        routing.routeHandler = { _, _ -> Result.failure(IOException("offline")) }
+        nav = NavigationController(text, scope, location, speaker, routing, fuel, nowMs = { clock })
+        val cached = straightRoute()
+        assertTrue(nav.restoreCachedPreview(CachedRoutePreview(dest, emptyList(), RouteOptions(), cached)))
+
+        nav.onGuidanceLanguageChanged()
+
+        assertTrue(nav.ui.value.cachedPreview)
+        assertEquals(cached, nav.ui.value.route)
+        assertFalse(nav.ui.value.loading)
+    }
+
+    @Test
     fun aPickedPointIsRenamedWhenItsAddressArrives() {
         routing.address = Place("Cadde 12", "Fatih, İstanbul", dest.point)
         nav.selectPoint(dest.point)
