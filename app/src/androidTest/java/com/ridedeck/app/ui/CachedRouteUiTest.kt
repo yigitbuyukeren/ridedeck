@@ -81,8 +81,24 @@ class CachedRouteUiTest {
 
     /** Scrolled-to text must fit the card hard bounds and keep real (non-zero) layout width. */
     private fun scrollToAndAssertVisible(description: String, node: SemanticsNodeInteraction, card: DpRect) {
-        node.performScrollTo()
-        node.assertIsDisplayed()
+        // The headless CI emulator occasionally reports a just-scrolled node as not displayed while
+        // its compositor catches up (swiftshader ColorBuffer warnings). Retry the scroll within a
+        // bounded window; a real layout/clipping failure still ends the test as a failure.
+        val deadline = android.os.SystemClock.uptimeMillis() + 5_000
+        var last: AssertionError? = null
+        while (android.os.SystemClock.uptimeMillis() < deadline) {
+            try {
+                node.performScrollTo()
+                node.assertIsDisplayed()
+                last = null
+                break
+            } catch (failure: AssertionError) {
+                last = failure
+                compose.waitForIdle()
+                android.os.SystemClock.sleep(100)
+            }
+        }
+        if (last != null) throw AssertionError("$description: ${last.message}", last)
         val bounds = node.getUnclippedBoundsInRoot()
         assertTrue("$description empty", bounds.right - bounds.left > 0.dp && bounds.bottom - bounds.top > 0.dp)
         assertTrue("$description left", bounds.left >= card.left - 0.5.dp)
