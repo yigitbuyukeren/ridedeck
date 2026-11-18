@@ -4,19 +4,49 @@ Güncel kurallar kökteki `AGENTS.md`, saha/yayın kapıları [RELEASE_READINESS
 
 > **Kanıt yolları:** Metindeki `/tmp/...` yolları yerel kanıt dosyalarıdır; repoda yer almaz.
 
-**Son güncelleme:** 2026-11-17
+**Son güncelleme:** 2026-11-18
 
 ## Güncel özet
 
-- **17 Kasım 2026 — 1.0 denetim düzeltme dalgası (güncel):** Ürün kaynağı `fix/audit-1.0-hardening` dalasında PR #13 kapsamında güncellendi; sürüm `0.6.0` / `versionCode 6` kaldı, 1.0 yayını yapılmadı. Son yerel tam JVM koşusu debug **831/831** + release **831/831** (toplam 1662; 0 hata, 0 atlama), lint **0 hata** (debug 121 / release 120 uyarı, bastırılmadı). Instrumentation **204 test**: tek `connectedDebugAndroidTest` koşusunda **203 PASS + 1 atlandı**; atlanan izin testi ayrı PASS (toplam 204). Fiziksel cihaz, gerçek SMS/arama/interkom, Doze/OEM, 16 KB runtime, mağaza/Data safety ve sağlayıcı toplam uyumu açık olduğu için genel karar **NO-GO**. Ayrıntı aşağıdaki 17 Kasım bölümünde; önceki dalga sayıları tarihseldir.
+- **18 Kasım 2026 — İngilizce varsayılan dil ve Android 13+ dil seçimi (güncel, PR #14):** Kaynaklar İngilizce varsayılan (`values/`) ve Türkçe (`values-tr/`) olarak düzenlendi; `values-en/` kaldırıldı, böylece desteklenmeyen cihaz dilleri (Almanca/Fransızca) İngilizceye düşer. `res/xml/locales_config.xml` ve manifestteki `android:localeConfig`, Android 13+ uygulama dili menüsünde `en`/`tr` seçeneklerini sunar. 470 string/plurals anahtarı iki dilde birebir eşleşir; yer tutucu farkı yoktur. PR #14 `main`e birleşti. Debug+release JVM **832/832**, lint **0 hata** (debug 91 / release 90 uyarı), x86_64 API 35 instrumentation **207 PASS + 1 atlandı**, atlanan izin testi ayrı **1/1 PASS**, uzak CI `build` + `instrumentation` **PASS**. Emülatörde `tr-TR`→Türkçe, `en-US`→İngilizce, `de-DE`/`fr-FR`→İngilizce ve Android 13+ seçicide `English`/`Türkçe` doğrulandı. Sürüm `0.6.1-beta.1` / `versionCode 7`; yeni APK/release üretilmedi, `v0.6.1-beta.1` değişmedi. Fiziksel cihaz, gerçek sürüş/SMS/interkom, Doze/OEM, 16 KB runtime ve mağaza kapıları açık; **NO-GO** sürer.
+- **17 Kasım 2026 — 1.0 denetim düzeltme dalgası (önceki dalga):** Ürün kaynağı `fix/audit-1.0-hardening` dalasında PR #13 kapsamında güncellendi; sürüm `0.6.0` / `versionCode 6` kaldı, 1.0 yayını yapılmadı. Son yerel tam JVM koşusu debug **831/831** + release **831/831** (toplam 1662; 0 hata, 0 atlama), lint **0 hata** (debug 121 / release 120 uyarı, bastırılmadı). Instrumentation **204 test**: tek `connectedDebugAndroidTest` koşusunda **203 PASS + 1 atlandı**; atlanan izin testi ayrı PASS (toplam 204). Fiziksel cihaz, gerçek SMS/arama/interkom, Doze/OEM, 16 KB runtime, mağaza/Data safety ve sağlayıcı toplam uyumu açık olduğu için genel karar **NO-GO**. Ayrıntı aşağıdaki 17 Kasım bölümünde; önceki dalga sayıları tarihseldir.
 - Uygulama yalnız motosiklet içindir: araç seçimi yoktur; rota, benzinlik, kaza eşikleri ve yatay düzen motosiklete sabittir. Eski araç/asistan/widget verisi için göç kodu kaldırıldı (yayınlanmış kullanıcı yok).
-- Kod sürümü: `versionName 0.6.0`, `versionCode 6` (`app/build.gradle.kts`); v0.6.0 2026-11-10'da yayınlandı. Release imzası 2026-11-08'de yenilendi; 0.5.0'dan geçiş için kaldırıp kurma gerekir.
+- Kod sürümü: `versionName 0.6.1-beta.1`, `versionCode 7` (`app/build.gradle.kts`); v0.6.1-beta.1 2026-11-17'de yayımlandı. Release imzası 2026-11-08'de yenilendi; 0.5.0'dan geçiş için kaldırıp kurma gerekir.
 - 5 Kasım yayın ve emülatör kayıtları aşağıdadır; tarihsel test sayıları yeni koşu değildir.
 - 12 Kasım beşinci dalga (tarihsel baseline): FEAT-004 geometri çekirdeği ve Detour VM/UI/metin bağlantısı MAIN'de birleşikti ve ürün kaynağı o turda donduruldu; güncel ağaç altıncı dalga düzeltmeleriyle farklıdır. Hedefli düzeltme kabulü **88 JVM + 27 UI PASS**; o turun final entegre kapısında debug/release **709/709**, lint 0 hata, release/test APK ve ELF/ZIP 16 KB PASS. QA43 seti **24 gerçek + 16 FAKE_UI + 3 fake native/probe = 43 ID** olsa da 43 gerçek yolculuk değildir ve hiçbir UI/FEAT maddesini kapatmaz. Bu yerel kapı 43 gerçek ekran, fiziksel cihaz veya yayın onayı değildir; ayrıntı aşağıdaki beşinci dalga bölümünde.
 - 12 Kasım altıncı dalga (tarihsel): Son kaynak donduruldu; debug birim **742/742**, lint **0 hata / 109 uyarı / 3 öneri**, debug APK ve AndroidTest APK PASS. Hedefli UI sınıfları son ilgili koşularda PASS; tek **69/69** koşu iddia edilmez. Full release/CI, tam instrumentation, 43 gerçek ekran, cihaz ve sağlayıcı açık; **NO-GO**.
 - Açık saha/yayın kapıları için [RELEASE_READINESS.md](RELEASE_READINESS.md), denetim maddeleri için [AUDIT-TRACKING.md](AUDIT-TRACKING.md). Gerçek sürüş, SMS ve interkom doğrulaması otomatik testlerden ayrıdır.
 - Ayarlar altı bölüme ayrıldı (Genel, Görünüm, Harita, Ses ve bildirimler, Güvenlik, İzinler ve sistem); bölümler yatay kaydırılan bir şeritten seçilir, içerik tek sütunda ve geniş ekranda en fazla 820 dp genişliğinde ortalanır.
 - Yeni çevrimdışı indirmeler sağlayıcı uyumluluğu doğrulanana kadar durduruldu; mevcut alanlar korunur. Canlı harita, arama ve rota sağlayıcıları değişmedi.
+
+## 2026-11-18 — İngilizce varsayılan dil ve Android 13+ dil seçimi (PR #14)
+
+**Kapsam:** Varsayılan Android kaynakları İngilizceye taşındı (`values/`), mevcut Türkçe metinler `values-tr/` altına alındı ve yinelenen `values-en/` dizini kaldırıldı. Böylece desteklenmeyen cihaz dilleri (Almanca, Fransızca) Türkçe yerine İngilizceye düşer. `res/xml/locales_config.xml` ve `android:localeConfig` eklendi; Android 13+ sistem uygulama dili menüsünde `en` ve `tr` görünür. Sürüm, release, etiket, APK ve mağaza dağıtımı değişmedi; `v0.6.1-beta.1` release'i olduğu gibi bırakıldı.
+
+**Kaynak ve çeviri doğrulaması:**
+
+- Eski `values-en/*` içeriği yeni `values/*` ile, eski `values/*` (Türkçe) içeriği yeni `values-tr/*` ile blob düzeyinde birebir aynı; metinler yeniden yazılmadı.
+- Beş grupta (`strings.xml`, `strings_data.xml`, `strings_nav.xml`, `strings_sos.xml`, `strings_ui.xml`) toplam **470** string/plurals anahtarı iki dilde birebir eşleşir; eksik/fazla anahtar yok.
+- Biçim yer tutucuları (`%1$s`, `%2$d`, `%%`) iki dilde aynı; fark yok. İngilizce varsayılanda Türkçe karakter, Türkçe dosyada çevrilmemiş İngilizce cümle yok.
+- `SosSmsLengthTest` yeni dizin düzenine göre düzeltildi ve iki dizinin farklı dil okuduğunu doğrulayan regresyon eklendi.
+
+**Emülatör doğrulaması (x86_64 API 35, Android 15):**
+
+| Senaryo | Sonuç |
+|---|---|
+| Cihaz dili `tr-TR` | Türkçe arayüz (`Ayarlar`, `Konum izni gerekli`) |
+| Cihaz dili `en-US` | İngilizce arayüz (`Settings`, `Location permission needed`) |
+| Cihaz dili `de-DE` (desteklenmiyor) | İngilizce arayüz (fallback) |
+| Cihaz dili `fr-FR` (desteklenmiyor) | İngilizce arayüz (fallback) |
+| Android 13+ uygulama dili ekranı | `English` ve `Türkçe` seçenekleri listelenir; seçim çalışırken arayüz dilini değiştirir |
+
+**Test sonuçları:** Debug + release JVM **832/832** (0 hata, 0 atlama). Lint **0 hata**; debug 91 / release 90 uyarı, 3'er öneri. `connectedDebugAndroidTest`: **208 testte 207 PASS + 1 atlandı, 0 hata**; atlanan izin testi ayrı `am instrument` koşusunda **1/1 PASS**. Uzak CI (HEAD `c7c9da7`): `build` ve `instrumentation` **PASS**.
+
+**Test kararlılığı:** Emülatörde paylaşılan ekran/uygulama durumu nedeniyle `RideTrackingServiceTest` uyku/uyanma geçişlerini bekler ve keyguard'ı kapatır; `TripHistoryUiTest` harita paneli görünürlük kontrollerini sınırlı süre yeniden dener. Ürün davranışı ve iddialar değişmedi.
+
+**Bilinen sınırlama:** Uygulama dili değişirken süreç yaşadığı için TTS motorunun dili uygulama açılışındaki dilde kalabilir; sesli yönlendirme dili ayrı bir takip maddesidir.
+
+**UNVERIFIED:** fiziksel cihaz, gerçek sürüş/GPS, gerçek SMS/arama/interkom, Doze/OEM, 16 KB runtime, mağaza/Data safety ve sağlayıcı toplam kotası. Emülatör ve sentetik testler bunların yerine geçmez.
 
 ## 2026-11-17 — 1.0 denetim düzeltme dalgası
 

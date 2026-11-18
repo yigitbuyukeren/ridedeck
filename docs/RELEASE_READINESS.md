@@ -2,9 +2,21 @@
 
 > **Kanıt yolları:** Metindeki `/tmp/...` yolları yerel kanıt dosyalarıdır; repoda yer almaz.
 
-> **17 Kasım 2026 — bu bölüm günceldir; aşağıdaki tarihli notlar tarihsel denetim kaydıdır.** Ürün sürümü `0.6.0` / `versionCode 6`; 1.0 sürümü, etiketi veya mağaza yayını yoktur. Değişiklikler `fix/audit-1.0-hardening` dalasında, PR #13 kapsamındadır. Önceki 0.4.0/344, 470/21, 526/526 + 55/55, 709/709 ve 742/742 sayıları o tarihli koşulara aittir; bu çalışma ağacının güncel kanıtı değildir.
+> **18 Kasım 2026 — bu bölüm günceldir; aşağıdaki tarihli notlar tarihsel denetim kaydıdır.** Ürün sürümü `0.6.1-beta.1` / `versionCode 7`; imzalı `v0.6.1-beta.1` beta APK'sı 2026-11-17'de yayımlandı ve **değiştirilmedi**, bu dalgada yeni APK/release üretilmedi. 1.0 sürümü, etiketi veya mağaza yayını yoktur. İngilizce varsayılan dil, Türkçe `values-tr/` ve Android 13+ uygulama dili seçimi değişikliği PR #14 ile `main`e birleşti; önceki 1.0 sertleştirme dalgası PR #13 idi. Önceki 0.4.0/344, 470/21, 526/526 + 55/55, 709/709, 742/742 ve 831/831 sayıları o tarihli koşulara aittir; bu çalışma ağacının güncel kanıtı değildir.
 
-**17 Kasım 2026 yerel sonuçlar:**
+**18 Kasım 2026 yerel sonuçlar (PR #14 sonrası `main`):**
+
+- Debug + release JVM birim testleri: her varyantta **832/832 PASS** (toplam 1664), 0 hata, 0 atlama.
+- Lint: **0 hata**; debug **91**, release **90** uyarı, 3'er öneri; uyarılar bastırılmadı.
+- Debug APK varsayılan `values/` İngilizce ve `values-tr/` Türkçe taşır; `values-en/` yoktur. Paketlenmiş `res/xml/locales_config.xml` `en` ve `tr` bildirir; manifest `android:localeConfig` içerir.
+- Instrumentation (x86_64 API 35 emülatör): **208 testte 207 PASS + 1 atlandı, 0 hata**; atlanan izin testi ayrı `am instrument` koşusunda **1/1 PASS** (toplam 209 doğrulandı).
+- Dil matrisi (emülatör): `tr-TR` → Türkçe, `en-US` → İngilizce, sistem dili `de-DE` ve `fr-FR` → İngilizce. Android 13+ uygulama dili ekranı `English` ve `Türkçe` seçeneklerini gösterir; seçim çalışırken arayüzü yeniler.
+- 470 string/plurals anahtarı iki dilde birebir eşleşir; yer tutucu farkı yoktur. İngilizce varsayılanda Türkçe karakter, Türkçe dosyada çevrilmemiş İngilizce cümle yoktur.
+- Uzak CI (PR #14 HEAD `c7c9da7`): `build` ve `instrumentation` işleri **PASS**.
+
+**Bilinen sınırlama:** Uygulama dili değişirken süreç yaşadığı için TTS motorunun dili uygulama açılışındaki dilde kalabilir; sesli yönlendirme dili ayrı bir takip maddesidir. Fiziksel cihaz, gerçek sürüş/SMS/interkom, Doze/OEM ve 16 KB runtime kapıları **UNVERIFIED** kalır.
+
+**17 Kasım 2026 yerel sonuçlar (tarihsel, PR #13):**
 
 - Debug + release JVM birim testleri (son tam yerel `test` koşusu): her varyantta **831/831 PASS** (toplam 1662), 0 hata, 0 atlama.
 - Lint: **0 hata**; debug **121**, release **120** uyarı; uyarılar bastırılmadı.
@@ -13,7 +25,7 @@
 - 16 KB ELF LOAD ve `zipalign -c -P 16 4` **PASS**; bu yalnız statik kontroldür, fiziksel 16 KB runtime değildir.
 - Instrumentation: **204 test**; tek `connectedDebugAndroidTest` koşusunda **203 PASS + 1 atlandı**, atlanan izin testi ayrı PASS (toplam 204 doğrulandı). `RideDeckTestRunner` sonuçtan sonra test sürecini kapatır; emülatörde cached-app freezer kapatılmalıdır.
 
-**Gerçek CI kapıları (`.github/workflows/ci.yml`):** `test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease`; debug/release test raporu özeti; release APK hizalama (`check-apk-alignment.py` + `zipalign -c -P 16 4`); debug APK'da x86_64 ve ARM MapLibre yerelleri; yalnız-debug probe asset'i; release AAB varlığı; release APK'da x86_64 ve probe asset'i olmaması; `keystore.properties` varsa imza doğrulaması; ayrı x86_64 API 35 emülatör işinde instrumentation; KVM udev erişimi, Pixel 6 profili, tek cold boot, 20 dk adım zaman aşımı ve ayrı izin-reddi `am instrument` koşusu. CI artık instrumentation'ı yalnız derlemez, emülatörde çalıştırır. Uzak CI PR #13 üzerinde çalıştırılır; sonuç bu bölümde güncellenir.
+**Gerçek CI kapıları (`.github/workflows/ci.yml`):** `test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease`; debug/release test raporu özeti; release APK hizalama (`check-apk-alignment.py` + `zipalign -c -P 16 4`); debug APK'da x86_64 ve ARM MapLibre yerelleri; yalnız-debug probe asset'i; release AAB varlığı; release APK'da x86_64 ve probe asset'i olmaması; `keystore.properties` varsa imza doğrulaması; ayrı x86_64 API 35 emülatör işinde instrumentation; KVM udev erişimi, Pixel 6 profili, tek cold boot, 20 dk adım zaman aşımı ve ayrı izin-reddi `am instrument` koşusu. CI artık instrumentation'ı yalnız derlemez, emülatörde çalıştırır. Uzak CI PR #14 HEAD üzerinde çalıştırıldı ve `main` push'unda da çalışır; sonuç bu bölümde güncellenir.
 
 | 1.0 kapısı | Durum | Not |
 |---|---|---|
