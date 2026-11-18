@@ -8,7 +8,7 @@
 
 - Debug + release JVM birim testleri: her varyantta **848/848 PASS** (toplam 1696), 0 hata, 0 atlama.
 - Lint: **0 hata**; debug **105**, release **104** uyarı, 3'er öneri; uyarılar bastırılmadı.
-- Instrumentation (x86_64 API 35 emülatör): **209 testte 208 PASS + 1 atlandı, 0 hata**; atlanan izin testi ayrı `am instrument` koşusunda **1/1 PASS** (toplam 210 doğrulandı).
+- Instrumentation (x86_64 API 35 emülatör): **209 testte 208 PASS + 1 atlandı, 0 hata**; atlanan izin testi ayrı `am instrument` koşusunda **1/1 PASS** (toplam 209 doğrulandı).
 - Uygulama dili çalışırken `en-US` → `tr-TR` geçişinde süreç PID'i değişmedi, arayüz Türkçeye döndü ve çökme görülmedi. `GuidanceLanguage`, `TtsVoicePolicy`, rota isteği ve konuşma mesafesi testleri TR/EN ile DE/FR → İngilizce fallback'ini kapsıyor.
 - Release APK: ARM-only, v2 imzalı; sertifika SHA-256 `9d9164ef8c679f2909e2a851d1327839c684cad238ca0932488a9f8d0f622427`; APK SHA-256 `08e264b2c6a1235418aa89ed4646074dca71677a4ca01e5ea031811d084b845d`; `zipalign -c -P 16 4` ve 16 KB ELF LOAD **PASS**.
 - Kaynak metinleri: 470 string/plurals anahtarı iki dilde birebir eşleşir; `values/` İngilizce varsayılan, `values-tr/` Türkçe; `locales_config.xml` `en`/`tr` bildirir.

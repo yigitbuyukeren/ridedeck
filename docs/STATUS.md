@@ -42,7 +42,7 @@ Güncel kurallar kökteki `AGENTS.md`, saha/yayın kapıları [RELEASE_READINESS
 | Dil fallback | TR/EN ve DE/FR → İngilizce; `GuidanceLanguage`, `TtsVoicePolicy`, rota isteği ve konuşma mesafesi testleri PASS |
 | Emülatör dil geçişi | `en-US` → `tr-TR` sırasında PID değişmedi; arayüz `Konum izni gerekli` / `km/sa` metinlerine geçti; çökme yok |
 
-**Kanıt:** `/tmp/opencode/ridedeck-v070-gate-final.log`, `/tmp/opencode/ridedeck-v070-connected-final.log`, `/tmp/opencode/ridedeck-v070-permission-denied-final.log` (geçici); APK `dist/RideDeck-0.7.0.apk` (Git dışında).
+**Kanıt:** `/tmp/opencode/ridedeck-v070-gate-release.log`, `/tmp/opencode/ridedeck-v070-connected-release.log`, `/tmp/opencode/ridedeck-v070-permission-denied-release.log` (geçici); APK `dist/RideDeck-0.7.0.apk` (Git dışında).
 
 **Yayın:** `RideDeck-0.7.0.apk` aynı v2 imza sertifikasıyla imzalandı; sertifika SHA-256 `9d9164ef8c679f2909e2a851d1327839c684cad238ca0932488a9f8d0f622427`, APK SHA-256 `08e264b2c6a1235418aa89ed4646074dca71677a4ca01e5ea031811d084b845d`. `versionCode 8`, `versionName 0.7.0`; release `prerelease=false`.
 
