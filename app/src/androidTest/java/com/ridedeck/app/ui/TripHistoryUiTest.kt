@@ -199,11 +199,13 @@ class TripHistoryUiTest {
             }
         }
 
-        compose.onNodeWithText(context.getString(R.string.trip_map_empty)).assertIsDisplayed()
-        compose.onNodeWithText(context.getString(R.string.trip_map_title)).assertIsDisplayed()
+        assertDisplayedEventually(context.getString(R.string.trip_map_empty))
+        assertDisplayedEventually(context.getString(R.string.trip_map_title))
         compose.onNodeWithText(context.getString(R.string.trip_map_privacy)).assertExists()
         val close = compose.onNodeWithContentDescription(context.getString(R.string.trip_map_close))
-        close.assertIsDisplayed()
+        compose.waitUntil(10_000) {
+            runCatching { close.assertIsDisplayed() }.isSuccess
+        }
         val closeBounds = close.getUnclippedBoundsInRoot()
         assertTrue("close target must stay at least 64 dp", closeBounds.bottom - closeBounds.top >= 64.dp)
     }
@@ -248,7 +250,7 @@ class TripHistoryUiTest {
 
         compose.onNodeWithText(context.getString(R.string.trip_map_open)).performScrollTo().performClick()
         assertDisplayedEventually(context.getString(R.string.trip_map_error))
-        compose.onNodeWithText(context.getString(R.string.trip_map_retry)).assertIsDisplayed()
+        assertDisplayedEventually(context.getString(R.string.trip_map_retry))
         compose.onNodeWithContentDescription(context.getString(R.string.trip_map_close)).performClick()
         compose.onNodeWithText(context.getString(R.string.trip_map_error)).assertDoesNotExist()
     }
