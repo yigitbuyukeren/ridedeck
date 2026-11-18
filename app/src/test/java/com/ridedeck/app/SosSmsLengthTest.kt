@@ -4,6 +4,7 @@ import com.ridedeck.app.data.SosMath
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -35,8 +36,8 @@ class SosSmsLengthTest {
         )
     }
 
-    private val tr = load("values")
-    private val en = load("values-en")
+    private val en = load("values")
+    private val tr = load("values-tr")
 
     private fun check(t: Texts, label: String) {
         val link = SosMath.locationLink(-41.012344, -128.976543)
@@ -53,6 +54,9 @@ class SosSmsLengthTest {
             assertEquals("$label has non-GSM-7 characters '$bad': $m", "", bad)
         }
     }
+
+    /** Guards the directory wiring: a silent swap would make both checks read the same language. */
+    @Test fun localeDirectoriesHoldDifferentLanguages() = assertNotEquals(tr.auto, en.auto)
 
     @Test fun turkishWorstCaseIsOneGsmSms() = check(tr, "tr")
 

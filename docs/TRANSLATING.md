@@ -1,6 +1,6 @@
 # Çeviri rehberi
 
-RideDeck'in arayüzü şu anda **Türkçe** (varsayılan) ve **İngilizce**dir. Yeni dil eklemek veya mevcut çeviriyi düzeltmek için bu rehberi izle.
+RideDeck'in arayüzü şu anda **İngilizce** (varsayılan) ve **Türkçe**dir. Yeni dil eklemek veya mevcut çeviriyi düzeltmek için bu rehberi izle.
 
 Çeviri, Kotlin kodu değişikliği gerektirmeyen ama dikkat isteyen bir katkıdır: metinler sürüş sırasında okunur, bu yüzden kısa, açık ve yüksek kontrastlı olmalıdır.
 
@@ -8,11 +8,11 @@ RideDeck'in arayüzü şu anda **Türkçe** (varsayılan) ve **İngilizce**dir. 
 
 | Dil | Dosya |
 |---|---|
-| Türkçe (varsayılan) | `app/src/main/res/values/strings*.xml` (`strings.xml`, `strings_data.xml`, `strings_nav.xml`, `strings_sos.xml`, `strings_ui.xml`) |
-| İngilizce | `app/src/main/res/values-en/strings*.xml` |
+| İngilizce (varsayılan) | `app/src/main/res/values/strings*.xml` (`strings.xml`, `strings_data.xml`, `strings_nav.xml`, `strings_sos.xml`, `strings_ui.xml`) |
+| Türkçe | `app/src/main/res/values-tr/strings*.xml` |
 | Yeni dil (örnek Almanca) | `app/src/main/res/values-de/strings*.xml` |
 
-Android, eksik bir anahtar için varsayılan (`values/`) metne düşer. Yine de yeni bir dilin mümkün olduğunca eksiksiz olması beklenir; yarım çeviri arayüzde karışık dil görünümüne yol açabilir.
+Android, desteklenmeyen telefon dilleri (ör. Almanca/Fransızca) ve eksik çeviri anahtarları için varsayılan **İngilizce** (`values/`) metne düşer. `values-tr/` Türkçe çevirileri içerir. Android 13+ sistem uygulama dili menüsünde `en` ve `tr` seçenekleri `res/xml/locales_config.xml` üzerinden bildirilir. Yeni bir dilin yine de mümkün olduğunca eksiksiz olması beklenir; yarım çeviri arayüzde karışık dil görünümüne yol açabilir.
 
 ## Mevcut çeviriyi düzeltme
 
@@ -24,14 +24,17 @@ Android, eksik bir anahtar için varsayılan (`values/`) metne düşer. Yine de 
 ## Yeni dil ekleme
 
 1. Önce bir [belge/çeviri issue'su](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=documentation.yml) aç; dili ve kapsamı belirt.
-2. `app/src/main/res/values-en/strings*.xml` dosyalarını yeni dil dizinine kopyala (ör. `values-de/strings.xml`, `values-de/strings_data.xml`, `values-de/strings_nav.xml`, `values-de/strings_sos.xml`, `values-de/strings_ui.xml`). İngilizceyi kaynak olarak kullanmak, anahtarların eksiksiz kalmasını kolaylaştırır.
-3. Tüm kullanıcıya görünen metinleri çevir. Teknik adları, marka ve sağlayıcı adlarını (OpenStreetMap, Valhalla, Open-Meteo, MapLibre, Android, SMS, GPS gibi) olduğu gibi bırak.
-4. Biçim yer tutucularını aynen koru: `%1$s`, `%2$d`, `%%`, `\n` gibi. Sıra değişebilirse bile numaralı yer tutucuları koru; numarasız `%s` kullanma.
-5. Uzun metinleri kısalt. Almanca gibi uzun dillerde kart başlıkları ve düğmeler taşabilir; 2,0× yazı boyutunda da dene.
-6. Sağdan sola yazılan bir dil ekliyorsan (Arapça, İbranice, Farsça) yönü ve simge hizalamasını ayrıca kontrol et.
-7. PR'da dili, çevirinin durumunu (tam/kısmi) ve varsa ana dili konuşan gözden geçiren kişiyi belirt.
+2. `app/src/main/res/values/strings*.xml` dosyalarını yeni dil dizinine kopyala (ör. `values-de/strings.xml`, `values-de/strings_data.xml`, `values-de/strings_nav.xml`, `values-de/strings_sos.xml`, `values-de/strings_ui.xml`). İngilizceyi kaynak olarak kullanmak, anahtarların eksiksiz kalmasını kolaylaştırır.
+3. Yeni dili `app/src/main/res/xml/locales_config.xml` içine ekle (`<locale android:name="de" />`). Bu adım olmadan dil, Android 13+ uygulama dili menüsünde görünmez.
+4. Tüm kullanıcıya görünen metinleri çevir. Teknik adları, marka ve sağlayıcı adlarını (OpenStreetMap, Valhalla, Open-Meteo, MapLibre, Android, SMS, GPS gibi) olduğu gibi bırak.
+5. Biçim yer tutucularını aynen koru: `%1$s`, `%2$d`, `%%`, `\n` gibi. Sıra değişebilirse bile numaralı yer tutucuları koru; numarasız `%s` kullanma.
+6. Uzun metinleri kısalt. Almanca gibi uzun dillerde kart başlıkları ve düğmeler taşabilir; 2,0× yazı boyutunda da dene.
+7. Sağdan sola yazılan bir dil ekliyorsan (Arapça, İbranice, Farsça) `<application>` etiketine `android:supportsRtl="true"` ekle ve yön ile simge hizalamasını ayrıca kontrol et.
+8. PR'da dili, çevirinin durumunu (tam/kısmi) ve varsa ana dili konuşan gözden geçiren kişiyi belirt.
 
-Yeni dil dizini eklemek Kotlin kaynak kodunu değiştirmez; yalnızca Android kaynak dosyası ekler. Dil seçimi sistem diline göre yapılır; uygulama içi ayrı bir dil seçici yoktur.
+Yeni dil dizini eklemek Kotlin kaynak kodunu değiştirmez; yalnızca Android kaynak dosyası ekler. Dil seçimi varsayılan olarak sistem diline göre yapılır; uygulama içi ayrı bir dil seçici yoktur. Android 13 ve üzerindeki **Ayarlar → Uygulamalar → RideDeck → Dil** menüsünde `locales_config.xml` içinde bildirilen diller seçilebilir. Android 8–12'de sistem dili kullanılır.
+
+`de` veya `fr` gibi yeni bir dil eklendiğinde `app/src/androidTest/java/com/ridedeck/app/LocaleFallbackTest.kt` içindeki “desteklenmeyen dil İngilizceye düşer” beklentisini de güncelle; test bu dilleri şu anda desteklenmiyor varsayar.
 
 Sesli yönlendirme şu anda yalnız Türkçe ve İngilizce destekler: `GuidanceLanguage.tag()` Türkçe dışındaki diller için `en-US` döner. Yeni bir arayüz dili eklendiğinde sesli yönlendirme İngilizce kalır; yeni sesli dil desteği ayrı bir kod değişikliğidir.
 
@@ -42,7 +45,7 @@ Sesli yönlendirme şu anda yalnız Türkçe ve İngilizce destekler: `GuidanceL
 - **Sürüş bağlamını koru.** Metin, sürücünün bir bakışta anlayacağı kadar kısa olmalı; teknik ayrıntıyı açıklama alanına bırak.
 - **Tutarlı ol.** Aynı kavram (rota, durak, yolculuk, izin, hız limiti) tüm dosyada aynı sözcükle geçsin.
 - **Kişisel veri ekleme.** Örnek metinlerde gerçek konum, telefon numarası veya kişi adı kullanma.
-- **Yeni anahtar uydurma.** Çeviri PR'ında yalnızca mevcut anahtarları çevir; yeni bir metin gerekiyorsa önce issue aç. Yeni anahtar eklenmesi gerekiyorsa Türkçe ve İngilizce dosyalara da eklenmeli.
+- **Yeni anahtar uydurma.** Çeviri PR'ında yalnızca mevcut anahtarları çevir; yeni bir metin gerekiyorsa önce issue aç. Yeni anahtar eklenmesi gerekiyorsa varsayılan İngilizce (`values/`) ve Türkçe (`values-tr/`) dosyalara da eklenmeli.
 
 ## Doğrulama
 
@@ -50,7 +53,7 @@ Anahtar kümelerini karşılaştır:
 
 ```bash
 diff <(cat app/src/main/res/values/strings*.xml | grep -o 'name="[^"]*"' | sort) \
-     <(cat app/src/main/res/values-en/strings*.xml | grep -o 'name="[^"]*"' | sort)
+     <(cat app/src/main/res/values-tr/strings*.xml | grep -o 'name="[^"]*"' | sort)
 ```
 
 Yeni dil için:
@@ -66,6 +69,8 @@ Derle ve emülatörde dene:
 ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+Dil regresyonu: Türkçe (`tr-TR`) → Türkçe, İngilizce (`en-US`) → İngilizce, desteklenmeyen Almanca (`de-DE`) ve Fransızca (`fr-FR`) → İngilizce. Android 13+ uygulama dili listesinin iki seçeneği gösterdiğini ayrıca kontrol et.
 
 Kontrol listesi:
 

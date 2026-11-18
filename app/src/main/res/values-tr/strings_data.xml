@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Notification privacy: shown instead of a locked private message's sender/text. -->
+    <string name="data_message_redacted">İçerik kilitli ekranda gizli</string>
+
+    <!-- Ending an active ride is destructive-ish: one tap only opens this confirmation. -->
+    <string name="data_ride_stop_confirm_title">Yolculuğu bitir?</string>
+    <string name="data_ride_stop_confirm_body">Etkin yolculuk kaydedilerek bitirilecek. Yolculuk geçmişi silinmez.</string>
+    <string name="data_ride_stop_confirm_action">Bitir</string>
+    <string name="data_ride_stop_confirm_cancel">Vazgeç</string>
+
+    <!-- Bulk trip deletion: two-step (button + confirmation) to avoid an accidental erase. -->
+    <string name="data_trips_delete_all">Tümünü sil</string>
+    <string name="data_trips_delete_all_confirm_title">Tüm yolculuklar silinsin mi?</string>
+    <plurals name="data_trips_delete_all_confirm_body">
+        <item quantity="one">Bu telefondaki %1$d yolculuk ve tüm GPS kayıtları kalıcı olarak silinecek. Bu işlem geri alınamaz.</item>
+        <item quantity="other">Bu telefondaki %1$d yolculuk ve tüm GPS kayıtları kalıcı olarak silinecek. Bu işlem geri alınamaz.</item>
+    </plurals>
+    <string name="data_trips_delete_all_confirm_action">Tümünü sil</string>
+    <string name="data_trips_delete_all_cancel">Vazgeç</string>
+    <string name="data_trips_delete_all_success">Tüm yolculuklar silindi.</string>
+    <string name="data_trips_delete_all_failed">Yolculuklar silinemedi; kayıtlar korunuyor.</string>
+</resources>
