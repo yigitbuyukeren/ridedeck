@@ -60,4 +60,21 @@ class TtsVoicePolicyTest {
         assertEquals("en-US", GuidanceLanguage.tag("de"))
         assertEquals("en-US", GuidanceLanguage.tag(""))
     }
+
+    @Test fun aLiveLanguageSwitchNeverKeepsTheOldSavedVoice() {
+        // Same installed voice set, first Turkish then English: the old language preference must not win.
+        val voices = listOf(offline, online, english, englishOnline)
+        assertEquals(online, TtsVoicePolicy.choose("tr-cloud", voices, "tr"))
+        assertEquals(english, TtsVoicePolicy.choose("tr-cloud", voices, "en"))
+        assertEquals(englishOnline, TtsVoicePolicy.choose("en-cloud", voices, "en"))
+        assertEquals(offline, TtsVoicePolicy.choose("en-local", voices, "tr"))
+    }
+
+    @Test fun unsupportedAppLanguagePlansEnglishVoices() {
+        val fallback = GuidanceLanguage.tag("fr-FR")
+        val plan = TtsVoicePolicy.startupPlan(true, "tr-local", listOf(offline, englishOnline, english), GuidanceLanguage.languageCode(fallback))
+        assertEquals("en-US", fallback)
+        assertEquals(listOf(englishOnline, english), plan.voices)
+        assertEquals(english, plan.selected)
+    }
 }

@@ -1,10 +1,18 @@
 package com.ridedeck.app
 
 import com.ridedeck.app.data.SpokenDistance
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class SpokenDistanceTest {
+    private val originalLocale = java.util.Locale.getDefault()
+
+    @After
+    fun restoreLocale() {
+        java.util.Locale.setDefault(originalLocale)
+    }
+
     private val t: (Int) -> String = { id ->
         when (id) {
             R.string.spoken_m -> "%1\$d metre"
@@ -34,5 +42,22 @@ class SpokenDistanceTest {
         assertEquals("500 feet", SpokenDistance.text(150.0, true, t))
         assertEquals("0.5 miles", SpokenDistance.text(800.0, true, t))
         assertEquals("2 miles", SpokenDistance.text(3219.0, true, t))
+    }
+
+    @Test
+    fun spokenDecimalsFollowTheAppLanguageInsteadOfTheSystemLocale() {
+        java.util.Locale.setDefault(java.util.Locale.US)
+        assertEquals(
+            "1,5 kilometre",
+            SpokenDistance.text(1480.0, false, t, java.util.Locale.forLanguageTag("tr-TR")),
+        )
+        assertEquals(
+            "1.5 kilometre",
+            SpokenDistance.text(1480.0, false, t, java.util.Locale.forLanguageTag("en-US")),
+        )
+        assertEquals(
+            "0,5 miles",
+            SpokenDistance.text(800.0, true, t, java.util.Locale.forLanguageTag("tr-TR")),
+        )
     }
 }

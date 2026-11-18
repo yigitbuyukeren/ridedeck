@@ -8,9 +8,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.Locale
 
 enum class NavigationTermination { NONE, USER_CANCELLED, ARRIVED, LOCATION_DISABLED, LOCATION_PERMISSION_REVOKED, TRACKING_ERROR }
 
@@ -115,6 +117,8 @@ class NavigationController(
     private val beforeStart: () -> Boolean = { true },
     /** Spoken distances follow the rider's unit choice. */
     private val miles: () -> Boolean = { false },
+    /** Spoken decimal separators follow the app language, not the system locale. */
+    private val locale: () -> Locale = { Locale.getDefault() },
     /** A phone call is on: spoken prompts are replaced by a vibration cue and read once the call ends (N10). */
     private val inCall: () -> Boolean = { false },
     private val cue: () -> Unit = {},
@@ -133,6 +137,9 @@ class NavigationController(
     private var reverseJob: Job? = null
     private var cachedEligibilityJob: Job? = null
     private var cachedCoverageJob: Job? = null
+    private var languageRefreshJob: Job? = null
+    private var languageRefreshPending = false
+    private var shutDown = false
     private var routeGeneration = 0L
     /** Wall clock when the currently previewed/guided route was computed; 0 for an un-stamped route. */
     private var routeComputedAtMs = 0L
@@ -1103,8 +1110,8 @@ class NavigationController(
         // Far warning with the distance ("in 800 metres, turn right"); skipped when it would land on the full instruction.
         if (distToNext < PromptSchedule.alertM(speedMps) && maneuver.alert.isNotBlank() && spoken.add(next * 10)) {
             if (PromptSchedule.alertWorthIt(distToNext, speedMps)) {
-                val dist = SpokenDistance.text(distToNext, miles(), text)
-                voice.speak(String.format(java.util.Locale.getDefault(), text(R.string.alert_distance_fmt), dist, maneuver.alert), SpeechPriority.NAVIGATION)
+                val dist = SpokenDistance.text(distToNext, miles(), text, locale())
+                voice.speak(String.format(locale(), text(R.string.alert_distance_fmt), dist, maneuver.alert), SpeechPriority.NAVIGATION)
             }
         }
         // A call swallowed this manoeuvre's instruction earlier: read it once the line is free, while it is still ahead.
@@ -1175,7 +1182,7 @@ class NavigationController(
         return "${m.verbal.trimEnd('.', ' ')}, ${text(R.string.then_voice)} ${following.verbal.trimEnd('.', ' ')}"
     }
 
-    private fun reroute(at: GeoPoint) {
+    private fun reroute(at: GeoPoint, countFailures: Boolean = true) {
         val dest = _ui.value.destination ?: return
         wrongWayFixes = 0
         // Ask from where the bike will be when the answer comes, not where it was when it left the road.
@@ -1215,16 +1222,123 @@ class NavigationController(
                     offRouteFixes = 0
                     // Offline or the server is busy: try again in a few seconds, not on every fourth fix.
                     nextRerouteAtMs = location.value.fixAtMs + REROUTE_RETRY_MS
-                    rerouteFailures++
-                    val degradedNow = rerouteFailures >= DEGRADED_AFTER_FAILURES && !_ui.value.guidanceDegraded
-                    _ui.update { it.copy(rerouting = false, guidanceDegraded = it.guidanceDegraded || degradedNow) }
-                    // Told once: the old route stays on screen and guidance follows it; retries go on quietly.
-                    if (degradedNow) voice.speak(text(R.string.reroute_unavailable_voice), SpeechPriority.NAVIGATION)
+                    if (countFailures) {
+                        rerouteFailures++
+                        val degradedNow = rerouteFailures >= DEGRADED_AFTER_FAILURES && !_ui.value.guidanceDegraded
+                        _ui.update { it.copy(rerouting = false, guidanceDegraded = it.guidanceDegraded || degradedNow) }
+                        // Told once: the old route stays on screen and guidance follows it; retries go on quietly.
+                        if (degradedNow) voice.speak(text(R.string.reroute_unavailable_voice), SpeechPriority.NAVIGATION)
+                    } else {
+                        // A language refresh is not a routing failure; it must not degrade route guidance.
+                        _ui.update { it.copy(rerouting = false) }
+                    }
                 }
         }
     }
 
+    /**
+     * The Android app language changed while this process stayed alive. Road instructions come from
+     * the routing service, so the current route is fetched again in the new language; a failed
+     * refresh keeps the old route usable. TTS is re-targeted by its owner before this is called.
+     *
+     * The config change usually arrives while the rider is in system Settings, where the app may not
+     * be receiving GPS updates and another route request may still be in flight. The refresh therefore
+     * waits for a fresh fix and for the current route operation to finish instead of being dropped.
+     */
+    fun onGuidanceLanguageChanged() {
+        val initial = _ui.value
+        if (shutDown) return
+        // A route still being calculated has no geometry yet, but it was requested in the old language.
+        if (initial.route == null && !initial.loading && !initial.rerouting) return
+        languageRefreshPending = true
+        if (languageRefreshJob?.isActive == true) return
+        languageRefreshJob = scope.launch {
+            while (languageRefreshPending && !shutDown) {
+                val state = _ui.value
+                if (state.arrived || state.termination != NavigationTermination.NONE) {
+                    languageRefreshPending = false
+                    break
+                }
+                if (state.loading || state.rerouting) {
+                    _ui.first { !it.loading && !it.rerouting }
+                    continue
+                }
+                if (state.route == null) {
+                    languageRefreshPending = false
+                    break
+                }
+                val from = here()
+                if (from == null) {
+                    locationUpdates.first { it.hasFreshFix(nowMs(), nowElapsedMs?.invoke()) }
+                    continue
+                }
+                languageRefreshPending = false
+                if (state.navigating) reroute(from, countFailures = false)
+                else refreshPreviewLanguage(from)
+                break
+            }
+        }
+    }
+
+    /** Preview/cached route: fetch the same trip in the new language, keeping the old one on failure. */
+    private fun refreshPreviewLanguage(from: GeoPoint) {
+        val state = _ui.value
+        val dest = state.destination ?: return
+        if (state.finalDestination != null) {
+            // A fuel leg keeps the planned stops for the next leg; the leg itself has none.
+            refreshPreviewRoute(from, dest, emptyList(), normalizeStops = false)
+        } else {
+            refreshPreviewRoute(from, dest, state.stops.drop(state.stopsPassed), normalizeStops = true)
+        }
+    }
+
+    private fun refreshPreviewRoute(from: GeoPoint, dest: Place, stops: List<Place>, normalizeStops: Boolean) {
+        stopCachedEligibility()
+        val generation = invalidateRoute()
+        _ui.update { it.copy(loading = true) }
+        routeJob = scope.launch {
+            val result = try {
+                routeResult(from, dest.point, stops = stops)
+            } catch (cancelled: CancellationException) {
+                if (generation == routeGeneration) _ui.update { it.copy(loading = false) }
+                throw cancelled
+            }
+            if (generation != routeGeneration) return@launch
+            val route = result?.getOrNull()
+            if (route == null) {
+                // Offline or the server is busy: the old route and its instructions stay usable.
+                _ui.update { it.copy(loading = false) }
+                return@launch
+            }
+            markRouteComputed()
+            _ui.update {
+                it.copy(
+                    route = route,
+                    choices = emptyList(),
+                    loading = false,
+                    error = null,
+                    stops = if (normalizeStops) stops else it.stops,
+                    stopsPassed = if (normalizeStops) 0 else it.stopsPassed,
+                    progressIndex = 0,
+                    progressFraction = 0.0,
+                    maneuverIndex = 0,
+                    cachedRoute = false,
+                    cachedPreview = false,
+                    cachedPreviewStartBlocked = false,
+                    cachedPreviewRefreshFailed = false,
+                    cachedRouteNeedsNetwork = false,
+                    cachedPreviewMapCoverage = CachedRouteMapCoverage.UNKNOWN,
+                )
+            }
+            loadChoices(generation, from, dest.point, route)
+        }
+    }
+
     fun shutdown() {
+        shutDown = true
+        languageRefreshPending = false
+        languageRefreshJob?.cancel()
+        languageRefreshJob = null
         stopCachedEligibility()
         searchJob?.cancel()
         reverseJob?.cancel()

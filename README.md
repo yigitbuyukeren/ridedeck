@@ -12,11 +12,11 @@
 
 GPS hızı · Sesli navigasyon · Müzik · Telefon · Yolculuk geçmişi
 
-**[⬇️ Beta APK indir (0.6.1-beta.1)](https://github.com/yigitbuyukeren/ridedeck/releases/download/v0.6.1-beta.1/RideDeck-0.6.1-beta.1.apk)** &nbsp;·&nbsp;
-**[📋 Sürüm notları](https://github.com/yigitbuyukeren/ridedeck/releases/tag/v0.6.1-beta.1)** &nbsp;·&nbsp;
+**[⬇️ Kararlı APK indir (0.7.0)](https://github.com/yigitbuyukeren/ridedeck/releases/download/v0.7.0/RideDeck-0.7.0.apk)** &nbsp;·&nbsp;
+**[📋 Sürüm notları](https://github.com/yigitbuyukeren/ridedeck/releases/tag/v0.7.0)** &nbsp;·&nbsp;
 **[🌐 Web sitesi](https://yigitbuyukeren.com/ridedeck/)**
 
-[![Beta](https://img.shields.io/badge/release-0.6.1--beta.1-E8480C?style=flat-square&labelColor=16150F)](https://github.com/yigitbuyukeren/ridedeck/releases/tag/v0.6.1-beta.1)
+[![Release](https://img.shields.io/badge/release-0.7.0-E8480C?style=flat-square&labelColor=16150F)](https://github.com/yigitbuyukeren/ridedeck/releases/tag/v0.7.0)
 [![CI](https://img.shields.io/github/actions/workflow/status/yigitbuyukeren/ridedeck/ci.yml?style=flat-square&labelColor=16150F&color=E8480C&label=CI)](https://github.com/yigitbuyukeren/ridedeck/actions/workflows/ci.yml)
 [![Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-E8480C?style=flat-square&labelColor=16150F)](LICENSE)
 ![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-E8480C?style=flat-square&labelColor=16150F&logo=android&logoColor=3DDC84)
@@ -27,7 +27,7 @@ GPS hızı · Sesli navigasyon · Müzik · Telefon · Yolculuk geçmişi
 </div>
 
 > [!IMPORTANT]
-> **Bu bir beta sürümdür; RideDeck 1.0 henüz yayına hazır değildir.** SOS/kaza algılama deneyseldir; gerçek cihaz, gerçek SMS, kilit ekranı ve farklı üreticilerdeki davranışlar doğrulanmamıştır. Acil durum hizmetinin veya güvenlik ekipmanının yerine geçmez. [Doğrulama durumu](docs/RELEASE_READINESS.md)
+> **Bu bir 0.7 kararlı sürümüdür; RideDeck 1.0 henüz yayına hazır değildir.** SOS/kaza algılama deneyseldir; gerçek cihaz, gerçek SMS, kilit ekranı ve farklı üreticilerdeki davranışlar doğrulanmamıştır. Acil durum hizmetinin veya güvenlik ekipmanının yerine geçmez. [Doğrulama durumu](docs/RELEASE_READINESS.md)
 
 <a id="tr"></a>
 
@@ -39,6 +39,7 @@ RideDeck, **Android telefonlar için motosiklet odaklı bir yatay gösterge pane
 
 - **🏍️ Gösterge paneli:** GPS hız göstergesi, saat, pil, sıcaklık, büyük dokunma alanları ve gündüz/gece teması.
 - **🧭 Motosiklet navigasyonu:** OpenStreetMap tabanlı harita, sesli yönlendirme, kayıtlı yerler, ara durak ve benzinlik arama. Rota hesabı için internet gerekir.
+- **🌐 Uygulama dili:** Android 13+ uygulama dili menüsünden Türkçe/İngilizce seçilebilir; TTS sesi ve rota metinleri uygulamayı yeniden başlatmadan yeni dile geçer. Desteklenmeyen cihaz dilleri İngilizceye düşer.
 - **🎵 Müzik ve bildirimler:** Uyumlu medya uygulamalarını kontrol etme ve isteğe bağlı mesaj seslendirme.
 - **📞 Telefon:** Rehber, son aramalar ve arama kontrolleri; bazı yetenekler Android izinlerine ve varsayılan telefon uygulaması rolüne bağlıdır.
 - **📍 Yolculuk geçmişi:** Konumla kaydedilen yolculukları görüntüleme; kayıtlar cihazda tutulur.
@@ -58,17 +59,17 @@ RideDeck, **Android telefonlar için motosiklet odaklı bir yatay gösterge pane
 
 ### 📲 İndir ve kur
 
-**[Resmî imzalı beta APK: v0.6.1-beta.1](https://github.com/yigitbuyukeren/ridedeck/releases/download/v0.6.1-beta.1/RideDeck-0.6.1-beta.1.apk)** · [Tüm sürümler](https://github.com/yigitbuyukeren/ridedeck/releases)
+**[Resmî imzalı kararlı APK: v0.7.0](https://github.com/yigitbuyukeren/ridedeck/releases/download/v0.7.0/RideDeck-0.7.0.apk)** · [Tüm sürümler](https://github.com/yigitbuyukeren/ridedeck/releases)
 
-Android **8.0 (API 26)** ve üzerini destekler. APK'yı yalnız resmî sürüm bağlantısından indir. `0.6.0` üzerinden aynı imza anahtarıyla güncellenebilir; `0.5.0` farklı anahtar kullandığından kaldırma gerekebilir ve bu işlem uygulama verilerini silebilir. İzinler, kullanılan özelliğe göre istenir.
+Android **8.0 (API 26)** ve üzerini destekler. APK'yı yalnız resmî sürüm bağlantısından indir. `0.6.x` üzerinden aynı imza anahtarıyla güncellenebilir; `0.5.0` farklı anahtar kullandığından kaldırma gerekebilir ve bu işlem uygulama verilerini silebilir. İzinler, kullanılan özelliğe göre istenir.
 
 ### ✅ Güncel doğrulama ve sınırlar
 
 | Kontrol | Son raporlanan sonuç |
 |---|---|
-| Beta | `0.6.1-beta.1` · `versionCode 7` · imzalı APK |
-| JVM birim testleri | **831/831 debug + 831/831 release** (1.662 toplam) |
-| Android instrumentation | **203 geçti + 1 atlandı**; atlanan izin testi ayrı koşuda geçti (204 doğrulandı) |
+| Kararlı sürüm | `0.7.0` · `versionCode 8` · imzalı APK |
+| JVM birim testleri | **848/848 debug + 848/848 release** (1.696 toplam) |
+| Android instrumentation | **208 geçti + 1 atlandı**; atlanan izin testi ayrı koşuda geçti (209 doğrulandı) |
 | Lint ve hizalama | **0 lint hatası**; 16 KB statik hizalama kontrolü geçti |
 | Gerçek cihaz / saha | **Doğrulanmadı — genel 1.0 kararı NO-GO** |
 
@@ -106,6 +107,7 @@ Güvenlikle ilgili açıkları herkese açık issue yerine [SECURITY.md](SECURIT
 
 - **Dashboard:** GPS speed, trip information, large touch targets and automatic day/night appearance.
 - **Navigation:** OpenStreetMap-based map, motorcycle routes, voice guidance, saved destinations, waypoints and fuel stops; **routing requires internet**.
+- **App language:** Turkish or English can be selected in Android 13+ app-language settings; the TTS voice and route instructions switch without restarting the app. Unsupported phone languages fall back to English.
 - **Media and calls:** Compatible media-session controls, optional message readout, contact/recents/keypad features; Android permissions and the default dialer role govern some functions.
 - **Trip history:** Local trip recording and review.
 - **Experimental SOS:** An optional impact-and-inactivity countdown followed by attempted SMS alerts to selected contacts. **Not field-tested and not an emergency-service replacement.**
@@ -113,13 +115,13 @@ Güvenlikle ilgili açıkları herkese açık issue yerine [SECURITY.md](SECURIT
 
 ### Download
 
-**[Download signed beta APK — v0.6.1-beta.1](https://github.com/yigitbuyukeren/ridedeck/releases/download/v0.6.1-beta.1/RideDeck-0.6.1-beta.1.apk)** · [Release notes](https://github.com/yigitbuyukeren/ridedeck/releases/tag/v0.6.1-beta.1) · [All releases](https://github.com/yigitbuyukeren/ridedeck/releases)
+**[Download signed stable APK — v0.7.0](https://github.com/yigitbuyukeren/ridedeck/releases/download/v0.7.0/RideDeck-0.7.0.apk)** · [Release notes](https://github.com/yigitbuyukeren/ridedeck/releases/tag/v0.7.0) · [All releases](https://github.com/yigitbuyukeren/ridedeck/releases)
 
-Android 8.0+ (API 26). An installed `0.6.0` can be updated in place using the same signing key. Upgrading from `0.5.0` may require uninstalling the earlier version, which may erase its app data.
+Android 8.0+ (API 26). Installed `0.6.x` versions can be updated in place using the same signing key. Upgrading from `0.5.0` may require uninstalling the earlier version, which may erase its app data.
 
-### Beta status
+### Release status
 
-The last reported full JVM run passed **831/831 debug and 831/831 release tests**. Instrumentation: **203 passed, one skipped in the combined run, and that skipped test passed separately**. Lint had zero errors, and static 16 KB alignment checks passed. **No real-device field validation yet; public 1.0 remains NO-GO.** Crash/SOS behavior, real SMS/calls, locked-screen/OEM behavior, intercom and thermal/battery use still require field verification.
+The last reported full JVM run passed **848/848 debug and 848/848 release tests**. Instrumentation: **208 passed, one skipped in the combined run, and that skipped test passed separately**. Lint had zero errors, and static 16 KB alignment checks passed. **No real-device field validation yet; public 1.0 remains NO-GO.** Crash/SOS behavior, real SMS/calls, locked-screen/OEM behavior, intercom and thermal/battery use still require field verification.
 
 Previously downloaded map areas are retained, but **new offline downloads are paused** pending provider-compliance checks; offline routing is unavailable. Do not treat SOS as a guarantee of assistance.
 

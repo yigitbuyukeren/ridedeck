@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.Configuration
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.ridedeck.app.data.GuidanceLanguage
 import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -51,5 +52,15 @@ class LocaleFallbackTest {
         )
         assertEquals("İyiyim", context.getString(R.string.sos_action_fine))
         assertEquals("Sürüşü bitir?", context.getString(R.string.stop_confirm_title))
+    }
+
+    @Test
+    fun guidanceLanguageReadsTheAppLocaleAndFallsBackToEnglish() {
+        assertEquals("tr-TR", GuidanceLanguage.current(contextFor("tr-TR")))
+        assertEquals("en-US", GuidanceLanguage.current(contextFor("en-US")))
+        assertEquals("en-US", GuidanceLanguage.current(contextFor("de-DE")))
+        assertEquals("en-US", GuidanceLanguage.current(contextFor("fr-FR")))
+        assertEquals("tr", GuidanceLanguage.currentLocale(contextFor("tr-TR")).language)
+        assertEquals("en", GuidanceLanguage.currentLocale(contextFor("de-DE")).language)
     }
 }

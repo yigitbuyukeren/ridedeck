@@ -17,6 +17,8 @@ class SpeechSession(
 
     private var current: String? = null
     private var currentPriority = SpeechPriority.NAVIGATION
+    /** The priority currently playing, or null when the session is silent. */
+    val activePriority: SpeechPriority? get() = if (current != null) currentPriority else null
     private var counter = 0L
     private var suspended = false
     private var closed = false

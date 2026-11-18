@@ -2,19 +2,19 @@
 
 > **Kanıt yolları:** Metindeki `/tmp/...` yolları yerel kanıt dosyalarıdır; repoda yer almaz.
 
-> **18 Kasım 2026 — bu bölüm günceldir; aşağıdaki tarihli notlar tarihsel denetim kaydıdır.** Ürün sürümü `0.6.1-beta.1` / `versionCode 7`; imzalı `v0.6.1-beta.1` beta APK'sı 2026-11-17'de yayımlandı ve **değiştirilmedi**, bu dalgada yeni APK/release üretilmedi. 1.0 sürümü, etiketi veya mağaza yayını yoktur. İngilizce varsayılan dil, Türkçe `values-tr/` ve Android 13+ uygulama dili seçimi değişikliği PR #14 ile `main`e birleşti; önceki 1.0 sertleştirme dalgası PR #13 idi. Önceki 0.4.0/344, 470/21, 526/526 + 55/55, 709/709, 742/742 ve 831/831 sayıları o tarihli koşulara aittir; bu çalışma ağacının güncel kanıtı değildir.
+> **18 Kasım 2026 — bu bölüm günceldir; aşağıdaki tarihli notlar tarihsel denetim kaydıdır.** Ürün sürümü `0.7.0` / `versionCode 8`; imzalı `v0.7.0` kararlı APK'sı 2026-11-18'de `prerelease=false` olarak yayımlandı. Önceki `v0.6.0`, `v0.6.1-beta.1` ve daha eski release'ler değiştirilmedi. 1.0 sürümü, etiketi veya mağaza yayını yoktur. Önceki 0.4.0/344, 470/21, 526/526 + 55/55, 709/709, 742/742, 831/831 ve 832/832 sayıları o tarihli koşulara aittir; bu çalışma ağacının güncel kanıtı değildir.
 
-**18 Kasım 2026 yerel sonuçlar (PR #14 sonrası `main`):**
+**18 Kasım 2026 v0.7.0 sonuçları (güncel ağaç):**
 
-- Debug + release JVM birim testleri: her varyantta **832/832 PASS** (toplam 1664), 0 hata, 0 atlama.
-- Lint: **0 hata**; debug **91**, release **90** uyarı, 3'er öneri; uyarılar bastırılmadı.
-- Debug APK varsayılan `values/` İngilizce ve `values-tr/` Türkçe taşır; `values-en/` yoktur. Paketlenmiş `res/xml/locales_config.xml` `en` ve `tr` bildirir; manifest `android:localeConfig` içerir.
-- Instrumentation (x86_64 API 35 emülatör): **208 testte 207 PASS + 1 atlandı, 0 hata**; atlanan izin testi ayrı `am instrument` koşusunda **1/1 PASS** (toplam 209 doğrulandı).
-- Dil matrisi (emülatör): `tr-TR` → Türkçe, `en-US` → İngilizce, sistem dili `de-DE` ve `fr-FR` → İngilizce. Android 13+ uygulama dili ekranı `English` ve `Türkçe` seçeneklerini gösterir; seçim çalışırken arayüzü yeniler.
-- 470 string/plurals anahtarı iki dilde birebir eşleşir; yer tutucu farkı yoktur. İngilizce varsayılanda Türkçe karakter, Türkçe dosyada çevrilmemiş İngilizce cümle yoktur.
-- Uzak CI (PR #14 HEAD `c7c9da7`): `build` ve `instrumentation` işleri **PASS**.
+- Debug + release JVM birim testleri: her varyantta **848/848 PASS** (toplam 1696), 0 hata, 0 atlama.
+- Lint: **0 hata**; debug **105**, release **104** uyarı, 3'er öneri; uyarılar bastırılmadı.
+- Instrumentation (x86_64 API 35 emülatör): **209 testte 208 PASS + 1 atlandı, 0 hata**; atlanan izin testi ayrı `am instrument` koşusunda **1/1 PASS** (toplam 210 doğrulandı).
+- Uygulama dili çalışırken `en-US` → `tr-TR` geçişinde süreç PID'i değişmedi, arayüz Türkçeye döndü ve çökme görülmedi. `GuidanceLanguage`, `TtsVoicePolicy`, rota isteği ve konuşma mesafesi testleri TR/EN ile DE/FR → İngilizce fallback'ini kapsıyor.
+- Release APK: ARM-only, v2 imzalı; sertifika SHA-256 `9d9164ef8c679f2909e2a851d1327839c684cad238ca0932488a9f8d0f622427`; APK SHA-256 `08e264b2c6a1235418aa89ed4646074dca71677a4ca01e5ea031811d084b845d`; `zipalign -c -P 16 4` ve 16 KB ELF LOAD **PASS**.
+- Kaynak metinleri: 470 string/plurals anahtarı iki dilde birebir eşleşir; `values/` İngilizce varsayılan, `values-tr/` Türkçe; `locales_config.xml` `en`/`tr` bildirir.
+- Uzak CI: PR ve `main` push sonuçları bu bölümde güncellenir; yerel kapı geçmeden push/merge yapılmadı.
 
-**Bilinen sınırlama:** Uygulama dili değişirken süreç yaşadığı için TTS motorunun dili uygulama açılışındaki dilde kalabilir; sesli yönlendirme dili ayrı bir takip maddesidir. Fiziksel cihaz, gerçek sürüş/SMS/interkom, Doze/OEM ve 16 KB runtime kapıları **UNVERIFIED** kalır.
+**Bilinen sınırlama:** TTS motorunun gerçek ses çıkışı TR/EN olarak kulakla dinlenmedi; politika, dil çözümlemesi ve canlı yeniden hedefleme yolu test/emülatör ile doğrulandı. Fiziksel cihaz, gerçek sürüş/SMS/interkom, Doze/OEM, fiziksel kilit ekranı ve 16 KB runtime kapıları **UNVERIFIED** kalır; kamuya açık 1.0 için karar **NO-GO** sürer.
 
 **17 Kasım 2026 yerel sonuçlar (tarihsel, PR #13):**
 

@@ -8,16 +8,45 @@ Güncel kurallar kökteki `AGENTS.md`, saha/yayın kapıları [RELEASE_READINESS
 
 ## Güncel özet
 
-- **18 Kasım 2026 — İngilizce varsayılan dil ve Android 13+ dil seçimi (güncel, PR #14):** Kaynaklar İngilizce varsayılan (`values/`) ve Türkçe (`values-tr/`) olarak düzenlendi; `values-en/` kaldırıldı, böylece desteklenmeyen cihaz dilleri (Almanca/Fransızca) İngilizceye düşer. `res/xml/locales_config.xml` ve manifestteki `android:localeConfig`, Android 13+ uygulama dili menüsünde `en`/`tr` seçeneklerini sunar. 470 string/plurals anahtarı iki dilde birebir eşleşir; yer tutucu farkı yoktur. PR #14 `main`e birleşti. Debug+release JVM **832/832**, lint **0 hata** (debug 91 / release 90 uyarı), x86_64 API 35 instrumentation **207 PASS + 1 atlandı**, atlanan izin testi ayrı **1/1 PASS**, uzak CI `build` + `instrumentation` **PASS**. Emülatörde `tr-TR`→Türkçe, `en-US`→İngilizce, `de-DE`/`fr-FR`→İngilizce ve Android 13+ seçicide `English`/`Türkçe` doğrulandı. Sürüm `0.6.1-beta.1` / `versionCode 7`; yeni APK/release üretilmedi, `v0.6.1-beta.1` değişmedi. Fiziksel cihaz, gerçek sürüş/SMS/interkom, Doze/OEM, 16 KB runtime ve mağaza kapıları açık; **NO-GO** sürer.
+- **18 Kasım 2026 — v0.7.0 çalışma zamanı dil geçişi (güncel):** Android uygulama dili değiştiğinde süreç yeniden başlamadan TTS sesi ve navigasyon rota metinleri yeni dile geçer. `GuidanceLanguage` uygulama yapılandırmasını okur; `Voice.applyLanguage` canlı TTS motorunu yeniden hedefler; `RideNavigation` yapılandırma değişikliğini yakalar; `NavigationController` taze GPS ve biten rota işlemini bekleyerek rotayı yeniden ister, önbellek önizlemesini de yeniler. TR/EN ve desteklenmeyen dil (DE/FR) fallback testleri eklendi. Debug+release JVM **848/848**, lint **0 hata** (debug 105 / release 104 uyarı, 3'er öneri), instrumentation **209 testte 208 PASS + 1 atlandı**, atlanan izin testi ayrı PASS. Emülatörde `en-US`→`tr-TR` geçişinde süreç PID'i aynı kaldı ve arayüz Türkçeye döndü; gerçek TTS sesi dinlenerek doğrulanmadı. Sürüm `0.7.0` / `versionCode 8`; ayrıntı aşağıdaki v0.7.0 bölümünde. Fiziksel cihaz, gerçek sürüş/SMS/interkom, Doze/OEM, 16 KB runtime ve mağaza kapıları açık.
+- **18 Kasım 2026 — İngilizce varsayılan dil ve Android 13+ dil seçimi (önceki, PR #14):** Kaynaklar İngilizce varsayılan (`values/`) ve Türkçe (`values-tr/`) olarak düzenlendi; `values-en/` kaldırıldı, böylece desteklenmeyen cihaz dilleri (Almanca/Fransızca) İngilizceye düşer. `res/xml/locales_config.xml` ve manifestteki `android:localeConfig`, Android 13+ uygulama dili menüsünde `en`/`tr` seçeneklerini sunar. 470 string/plurals anahtarı iki dilde birebir eşleşir; yer tutucu farkı yoktur. PR #14 `main`e birleşti. Debug+release JVM **832/832**, lint **0 hata** (debug 91 / release 90 uyarı), x86_64 API 35 instrumentation **207 PASS + 1 atlandı**, atlanan izin testi ayrı **1/1 PASS**, uzak CI `build` + `instrumentation` **PASS**. Emülatörde `tr-TR`→Türkçe, `en-US`→İngilizce, `de-DE`/`fr-FR`→İngilizce ve Android 13+ seçicide `English`/`Türkçe` doğrulandı. Sürüm `0.6.1-beta.1` / `versionCode 7`; yeni APK/release üretilmedi, `v0.6.1-beta.1` değişmedi. Fiziksel cihaz, gerçek sürüş/SMS/interkom, Doze/OEM, 16 KB runtime ve mağaza kapıları açık; **NO-GO** sürer.
 - **17 Kasım 2026 — 1.0 denetim düzeltme dalgası (önceki dalga):** Ürün kaynağı `fix/audit-1.0-hardening` dalasında PR #13 kapsamında güncellendi; sürüm `0.6.0` / `versionCode 6` kaldı, 1.0 yayını yapılmadı. Son yerel tam JVM koşusu debug **831/831** + release **831/831** (toplam 1662; 0 hata, 0 atlama), lint **0 hata** (debug 121 / release 120 uyarı, bastırılmadı). Instrumentation **204 test**: tek `connectedDebugAndroidTest` koşusunda **203 PASS + 1 atlandı**; atlanan izin testi ayrı PASS (toplam 204). Fiziksel cihaz, gerçek SMS/arama/interkom, Doze/OEM, 16 KB runtime, mağaza/Data safety ve sağlayıcı toplam uyumu açık olduğu için genel karar **NO-GO**. Ayrıntı aşağıdaki 17 Kasım bölümünde; önceki dalga sayıları tarihseldir.
 - Uygulama yalnız motosiklet içindir: araç seçimi yoktur; rota, benzinlik, kaza eşikleri ve yatay düzen motosiklete sabittir. Eski araç/asistan/widget verisi için göç kodu kaldırıldı (yayınlanmış kullanıcı yok).
-- Kod sürümü: `versionName 0.6.1-beta.1`, `versionCode 7` (`app/build.gradle.kts`); v0.6.1-beta.1 2026-11-17'de yayımlandı. Release imzası 2026-11-08'de yenilendi; 0.5.0'dan geçiş için kaldırıp kurma gerekir.
+- Kod sürümü: `versionName 0.7.0`, `versionCode 8` (`app/build.gradle.kts`); v0.7.0 2026-11-18'de kararlı (prerelease değil) yayımlandı. Release imzası 2026-11-08'de yenilendi; 0.5.0'dan geçiş için kaldırıp kurma gerekir.
 - 5 Kasım yayın ve emülatör kayıtları aşağıdadır; tarihsel test sayıları yeni koşu değildir.
 - 12 Kasım beşinci dalga (tarihsel baseline): FEAT-004 geometri çekirdeği ve Detour VM/UI/metin bağlantısı MAIN'de birleşikti ve ürün kaynağı o turda donduruldu; güncel ağaç altıncı dalga düzeltmeleriyle farklıdır. Hedefli düzeltme kabulü **88 JVM + 27 UI PASS**; o turun final entegre kapısında debug/release **709/709**, lint 0 hata, release/test APK ve ELF/ZIP 16 KB PASS. QA43 seti **24 gerçek + 16 FAKE_UI + 3 fake native/probe = 43 ID** olsa da 43 gerçek yolculuk değildir ve hiçbir UI/FEAT maddesini kapatmaz. Bu yerel kapı 43 gerçek ekran, fiziksel cihaz veya yayın onayı değildir; ayrıntı aşağıdaki beşinci dalga bölümünde.
 - 12 Kasım altıncı dalga (tarihsel): Son kaynak donduruldu; debug birim **742/742**, lint **0 hata / 109 uyarı / 3 öneri**, debug APK ve AndroidTest APK PASS. Hedefli UI sınıfları son ilgili koşularda PASS; tek **69/69** koşu iddia edilmez. Full release/CI, tam instrumentation, 43 gerçek ekran, cihaz ve sağlayıcı açık; **NO-GO**.
 - Açık saha/yayın kapıları için [RELEASE_READINESS.md](RELEASE_READINESS.md), denetim maddeleri için [AUDIT-TRACKING.md](AUDIT-TRACKING.md). Gerçek sürüş, SMS ve interkom doğrulaması otomatik testlerden ayrıdır.
 - Ayarlar altı bölüme ayrıldı (Genel, Görünüm, Harita, Ses ve bildirimler, Güvenlik, İzinler ve sistem); bölümler yatay kaydırılan bir şeritten seçilir, içerik tek sütunda ve geniş ekranda en fazla 820 dp genişliğinde ortalanır.
 - Yeni çevrimdışı indirmeler sağlayıcı uyumluluğu doğrulanana kadar durduruldu; mevcut alanlar korunur. Canlı harita, arama ve rota sağlayıcıları değişmedi.
+
+## 2026-11-18 — v0.7.0 çalışma zamanı dil geçişi
+
+**Kapsam:** Android uygulama dili (sistem veya Android 13+ uygulama dili menüsü) süreç yaşarken değiştiğinde TTS ve navigasyonun yeni dili kullanması sağlandı. Sürüm `0.7.0` / `versionCode 8`; v0.7.0 kararlı (prerelease değil) GitHub sürümü olarak yayımlandı. `v0.6.0`, `v0.6.1-beta.1` ve önceki release'ler değiştirilmedi.
+
+**Düzeltme:**
+
+- `GuidanceLanguage` artık uygulamanın `Resources.configuration` yerelini okuyor; Android 13+ uygulama dili, sistem dilinden farklı olsa da doğru çözülüyor. `tr` → `tr-TR`, diğer tüm diller → `en-US`.
+- `Voice.applyLanguage` canlı `TextToSpeech` motorunu yeniden oluşturmadan yeni locale ve sesle hedefliyor; mevcut anonsu durduruyor. Aktif `SpeechPriority.SOS` anonsu kesilmiyor; dil değişikliği anons bitince uygulanıyor. Dil değişiminde politika varsayılanı ses tercihi olarak kaydedilmiyor.
+- `RideNavigation`, `Application` yapılandırma callback'ini dinliyor; TTS'i hedefliyor ve navigasyonu tetikliyor.
+- `NavigationController.onGuidanceLanguageChanged` rota metinlerini yeni dilde yeniden istiyor. Taze GPS fix'i, devam eden rota isteğinin bitmesini ve uygun yolculuk durumunu bekliyor; önbellek önizlemesini de yeniliyor. Başarısız yenileme eski rotayı kullanılabilir bırakıyor; dil yenilemesi çevrimdışı hata sayacını `guidanceDegraded` yönünde artırmıyor. Duraklar `stopsPassed` ile yeniden hizalanıyor; varış/iptal durumları korunuyor.
+- `RouteRepository` rota, Nominatim arama ve ters geocode isteklerinde uygulama dilini kullanıyor; TTS'te konuşulan ondalık ayırıcı da uygulama diline bağlandı.
+
+**Testler:**
+
+| Kontrol | Sonuç |
+|---|---|
+| Debug + release JVM | Her varyantta **848/848 PASS**, 0 hata, 0 atlama |
+| Lint | **0 hata**; debug **105**, release **104** uyarı, 3'er öneri |
+| Instrumentation | **209 testte 208 PASS + 1 atlandı, 0 hata**; atlanan izin testi ayrı `am instrument` koşusunda **1/1 PASS** |
+| Dil fallback | TR/EN ve DE/FR → İngilizce; `GuidanceLanguage`, `TtsVoicePolicy`, rota isteği ve konuşma mesafesi testleri PASS |
+| Emülatör dil geçişi | `en-US` → `tr-TR` sırasında PID değişmedi; arayüz `Konum izni gerekli` / `km/sa` metinlerine geçti; çökme yok |
+
+**Kanıt:** `/tmp/opencode/ridedeck-v070-gate-final.log`, `/tmp/opencode/ridedeck-v070-connected-final.log`, `/tmp/opencode/ridedeck-v070-permission-denied-final.log` (geçici); APK `dist/RideDeck-0.7.0.apk` (Git dışında).
+
+**Yayın:** `RideDeck-0.7.0.apk` aynı v2 imza sertifikasıyla imzalandı; sertifika SHA-256 `9d9164ef8c679f2909e2a851d1327839c684cad238ca0932488a9f8d0f622427`, APK SHA-256 `08e264b2c6a1235418aa89ed4646074dca71677a4ca01e5ea031811d084b845d`. `versionCode 8`, `versionName 0.7.0`; release `prerelease=false`.
+
+**UNVERIFIED:** Gerçek TTS sesinin kulakla TR/EN doğrulanması, fiziksel cihaz/gerçek sürüş/GPS, gerçek SMS/arama/interkom, Doze/OEM ve kilit ekranı, 16 KB runtime, mağaza/Data safety ve sağlayıcı toplam kotası. Emülatör ve sentetik testler bunların yerine geçmez.
 
 ## 2026-11-18 — İngilizce varsayılan dil ve Android 13+ dil seçimi (PR #14)
 

@@ -1,6 +1,7 @@
 package com.ridedeck.app
 
 import com.ridedeck.app.data.GeoPoint
+import com.ridedeck.app.data.GuidanceLanguage
 import com.ridedeck.app.data.RouteOptions
 import com.ridedeck.app.data.RouteRepository
 import org.junit.Assert.assertEquals
@@ -23,5 +24,16 @@ class RouteRequestTest {
         val plain = repo.requestBody(points, RouteOptions(), useMiles = false, alternates = 0, headingDeg = null)
         assertFalse(plain.getJSONArray("locations").getJSONObject(0).has("heading"))
         assertTrue(plain.getString("costing") == "motorcycle")
+    }
+
+    @Test
+    fun routeInstructionsFollowTheAppLanguageAndFallBackToEnglish() {
+        val turkish = RouteRepository(language = { GuidanceLanguage.tag("tr") })
+        assertEquals("tr-TR", turkish.requestBody(points, RouteOptions(), useMiles = false, alternates = 0, headingDeg = null)
+            .getJSONObject("directions_options").getString("language"))
+
+        val unsupported = RouteRepository(language = { GuidanceLanguage.tag("fr-FR") })
+        assertEquals("en-US", unsupported.requestBody(points, RouteOptions(), useMiles = false, alternates = 0, headingDeg = null)
+            .getJSONObject("directions_options").getString("language"))
     }
 }
