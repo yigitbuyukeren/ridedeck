@@ -47,6 +47,13 @@ class TripHistoryUiTest {
         }
     }
 
+    /** The map panel swaps in after an off-main point read; a slow emulator can lag the first draw. */
+    private fun assertDisplayedEventually(text: String, timeoutMs: Long = 10_000) {
+        compose.waitUntil(timeoutMs) {
+            runCatching { compose.onNodeWithText(text).assertIsDisplayed() }.isSuccess
+        }
+    }
+
     private fun trip(
         distanceM: Double = 12_340.0,
         durationMs: Long = 1_800_000,
@@ -219,7 +226,7 @@ class TripHistoryUiTest {
 
         compose.runOnIdle { assertEquals(0, loads) }
         compose.onNodeWithText(context.getString(R.string.trip_map_open)).performScrollTo().performClick()
-        compose.onNodeWithText(context.getString(R.string.trip_map_empty)).assertIsDisplayed()
+        assertDisplayedEventually(context.getString(R.string.trip_map_empty))
         compose.runOnIdle { assertEquals(1, loads) }
 
         compose.onNodeWithContentDescription(context.getString(R.string.trip_map_close)).performClick()
@@ -240,7 +247,7 @@ class TripHistoryUiTest {
         }
 
         compose.onNodeWithText(context.getString(R.string.trip_map_open)).performScrollTo().performClick()
-        compose.onNodeWithText(context.getString(R.string.trip_map_error)).assertIsDisplayed()
+        assertDisplayedEventually(context.getString(R.string.trip_map_error))
         compose.onNodeWithText(context.getString(R.string.trip_map_retry)).assertIsDisplayed()
         compose.onNodeWithContentDescription(context.getString(R.string.trip_map_close)).performClick()
         compose.onNodeWithText(context.getString(R.string.trip_map_error)).assertDoesNotExist()
