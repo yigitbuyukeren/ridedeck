@@ -86,6 +86,7 @@ internal fun SmoothFollow(
             var drawnBearing = Double.NaN
             var wasFollowing = false
             var cameraDrawn: CameraPosition? = null
+            var previousPadding: CameraPlan.VerticalPadding? = null
             while (true) {
                 val now = withFrameNanos { it }
                 if (!throttle.shouldDraw(now)) continue
@@ -108,13 +109,13 @@ internal fun SmoothFollow(
                 }
                 if (!follow) { wasFollowing = false; continue }
 
-                val verticalPadding = CameraPlan.followTopPadding(mapView.height, padTopFraction, latestBottomClearance)
+                val padding = CameraPlan.followPadding(mapView.height, padTopFraction, latestBottomClearance)
                 val camera = CameraPosition.Builder()
                     .target(LatLng(lat, lon))
                     .zoom(latestZoom)
                     .tilt(latestTilt)
                     .bearing(f.bearing)
-                    .padding(0.0, verticalPadding.coerceAtLeast(0.0), 0.0, (-verticalPadding).coerceAtLeast(0.0))
+                    .padding(0.0, padding.top, 0.0, padding.bottom)
                     .build()
                 if (!wasFollowing) {
                     // Entering follow mode: one eased move from wherever the camera is, then per-frame tracking.
@@ -122,9 +123,18 @@ internal fun SmoothFollow(
                     settleUntil = now + SETTLE_MS * 1_000_000L
                     m.animateCamera(CameraUpdateFactory.newCameraPosition(camera), SETTLE_MS.toInt())
                     cameraDrawn = camera
+                    previousPadding = padding
+                } else if (now < settleUntil && padding != previousPadding) {
+                    // The trip bar can first be measured during the entrance animation.
+                    // Retarget it over the time left rather than jumping at the end.
+                    val remainingMs = ((settleUntil - now) / 1_000_000L).coerceAtLeast(1).toInt()
+                    m.animateCamera(CameraUpdateFactory.newCameraPosition(camera), remainingMs)
+                    cameraDrawn = camera
+                    previousPadding = padding
                 } else if (now >= settleUntil && camera != cameraDrawn) {
                     m.moveCamera(CameraUpdateFactory.newCameraPosition(camera))
                     cameraDrawn = camera
+                    previousPadding = padding
                 }
             }
         }

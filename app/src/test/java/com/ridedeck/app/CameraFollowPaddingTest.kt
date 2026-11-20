@@ -1,26 +1,30 @@
 package com.ridedeck.app
 
 import com.ridedeck.app.data.CameraPlan
+import com.ridedeck.app.data.CameraPlan.VerticalPadding
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CameraFollowPaddingTest {
     @Test fun clearViewportKeepsTheUsualFollowTarget() {
-        assertEquals(450.0, CameraPlan.followTopPadding(1_000, 0.45, 200), 0.0)
-        assertEquals(300.0, CameraPlan.followTopPadding(1_000, 0.30, 0), 0.0)
+        assertEquals(VerticalPadding(450.0, 0.0), CameraPlan.followPadding(1_000, 0.45, 200))
+        assertEquals(VerticalPadding(300.0, 0.0), CameraPlan.followPadding(1_000, 0.30, 0))
     }
 
     @Test fun largeTripBarDoesNotCoverFollowTarget() {
         val height = 540
         val clearance = 180
-        val padding = CameraPlan.followTopPadding(height, 0.45, clearance)
-        assertTrue((height + padding) / 2 <= height - clearance)
-        assertEquals(180.0, padding, 0.0)
+        val padding = CameraPlan.followPadding(height, 0.45, clearance)
+        assertTrue((height + padding.top - padding.bottom) / 2 <= height - clearance)
+        assertEquals(VerticalPadding(180.0, 0.0), padding)
     }
 
     @Test fun shortViewportMayUseBottomPaddingAndUnmeasuredViewportIsSafe() {
-        assertEquals(-40.0, CameraPlan.followTopPadding(320, 0.45, 180), 0.0)
-        assertEquals(0.0, CameraPlan.followTopPadding(0, 0.45, 180), 0.0)
+        val padding = CameraPlan.followPadding(320, 0.45, 180)
+        assertEquals(VerticalPadding(0.0, 40.0), padding)
+        assertEquals(140.0, (320 + padding.top - padding.bottom) / 2, 0.0)
+        assertEquals(VerticalPadding(0.0, 0.0), CameraPlan.followPadding(0, 0.45, 180))
+        assertEquals(VerticalPadding(0.0, 160.0), CameraPlan.followPadding(320, 0.45, 320))
     }
 }
