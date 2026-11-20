@@ -65,7 +65,8 @@ Debug APK: `app/build/outputs/apk/debug/app-debug.apk`.
 | `./gradlew bundleRelease` | Release AAB (`app/build/outputs/bundle/release/app-release.aab`) |
 | `./gradlew assembleDebugAndroidTest` | Instrumentation test APK'sını derler (cihazda çalıştırmaz) |
 | `./gradlew connectedDebugAndroidTest` | Bağlı cihaz/emülatörde instrumentation testlerini çalıştırır |
-| `./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease` | CI build işinin ana Gradle komutu |
+| `./gradlew testDebugUnitTest lintDebug assembleDebug` | Hızlı PR kapısı: debug birim testleri, debug lint, debug APK |
+| `./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease` | Full CI build işinin ana Gradle komutu (debug + release) |
 
 Debug APK `x86_64`, `arm64-v8a` ve `armeabi-v7a` native kütüphanelerini taşır; release APK/AAB yalnız ARM'dır. x86_64 AVD debug ve instrumentation için kullanılabilir.
 
@@ -89,7 +90,13 @@ Raporlar:
 - Instrumentation: `app/build/reports/androidTests/connected/debug/index.html`
 - Lint: `app/build/reports/lint-results-debug.html`, `lint-results-release.html`
 
-CI, instrumentation testlerini ayrı bir işte x86_64 API 35 emülatöründe çalıştırır; emülatörde `adb shell settings put global cached_apps_freezer disabled` gerekir. `RideDeckTestRunner` test sürecini sonuçtan sonra kapatır. Toplam 204 instrumentation testi vardır; tek koşuda 203 PASS + 1 atlandı, atlanan izin testi ayrı PASS. Elle fiziksel cihaz denemesi ayrı bir doğrulamadır. Bir testi geçirmek için üretim kodunu veya test beklentisini gevşetme.
+CI üç kademe çalışır:
+
+1. **Doküman/metadata-only** (`docs/`, `fastlane/`, `captures/`, `*.md`, lisans/topluluk dosyaları): Gradle ve emülatör başlatılmaz; ilgili metadata doğrulamaları ve `git diff --check` çalışır.
+2. **Uygulama/kod değişikliği:** hızlı PR kapısı `testDebugUnitTest lintDebug assembleDebug` çalıştırır.
+3. **Full CI:** debug + release test/lint, APK/AAB, hizalama/ABI/imza kontrolleri ve x86_64 API 35 emülatöründe instrumentation. Full CI yalnızca `full-ci` PR etiketi, `v*` etiket push'u, haftalık zamanlanmış regresyon veya `workflow_dispatch` (`full=true`) ile başlatılır.
+
+`build` ve `instrumentation` iş adları korunur; atlanan kademe PR'ı Pending bırakmaz. Değişiklik tespiti başarısız ya da belirsizse güvenli tarafta kalınır (Gradle yolu çalışır). Emülatörde `adb shell settings put global cached_apps_freezer disabled` gerekir. `RideDeckTestRunner` test sürecini sonuçtan sonra kapatır. Toplam 209 instrumentation testi vardır; tek koşuda 208 PASS + 1 atlandı, atlanan izin testi ayrı PASS. Elle fiziksel cihaz denemesi ayrı bir doğrulamadır. Bir testi geçirmek için üretim kodunu veya test beklentisini gevşetme.
 
 ## 4. Proje düzeni
 
@@ -275,7 +282,7 @@ SDK="${ANDROID_HOME:-$(sed -n 's/^sdk.dir=//p' local.properties 2>/dev/null)}"
 ```
 
 - Etiket, GitHub release, APK yayını ve mağaza dağıtımı açık talimat olmadan yapılmaz.
-- CI artifact'ları: debug APK, androidTest APK, imzalı/imzasız release APK, release AAB, test/lint ve instrumentation raporları.
+- CI artifact'ları: Full CI'da debug APK, androidTest APK, imzalı/imzasız release APK, release AAB, test/lint ve instrumentation raporları; hızlı PR akışında yalnızca küçük test/lint raporları.
 
 ## 11. Yardım
 

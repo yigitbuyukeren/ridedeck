@@ -3,8 +3,19 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  schedule:
+    # Weekly regression: Monday 04:30 UTC.
+    - cron: '30 4 * * 1'
   workflow_dispatch:
+    inputs:
+      full:
+        description: 'Full gate: release builds, APK/AAB checks and instrumentation'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -14,37 +25,109 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Full CI is explicit (workflow_dispatch), release-blocking (v* tags), the weekly
+  # schedule, or requested on a PR with the `full-ci` label. Everything else uses
+  # the path-based fast path so documentation/metadata PRs never start Gradle.
+  FULL_CI: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.full == true) || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'full-ci') }}
+
 jobs:
+  # Change detection never fails a run: on any ambiguity it reports app=true and
+  # the normal Gradle path runs.
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
+      base: ${{ steps.refs.outputs.base }}
+      head: ${{ steps.refs.outputs.head }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Resolve comparison refs
+        id: refs
+        run: |
+          set -euo pipefail
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          case "${{ github.event_name }}" in
+            pull_request)
+              BASE="${{ github.event.pull_request.base.sha }}"
+              HEAD="${{ github.event.pull_request.head.sha }}"
+              ;;
+            push)
+              BASE="${{ github.event.before }}"
+              HEAD="${{ github.sha }}"
+              ;;
+            *)
+              BASE="origin/${DEFAULT_BRANCH}"
+              HEAD="${{ github.sha }}"
+              ;;
+          esac
+          echo "base=${BASE}" >> "$GITHUB_OUTPUT"
+          echo "head=${HEAD}" >> "$GITHUB_OUTPUT"
+      - name: Classify changed paths
+        id: changes
+        run: scripts/detect-changes.sh "${{ steps.refs.outputs.base }}" "${{ steps.refs.outputs.head }}" >> "$GITHUB_OUTPUT"
+      - name: Select run mode
+        id: mode
+        run: |
+          set -euo pipefail
+          if [ "${FULL_CI}" = "true" ]; then
+            MODE="full"
+          elif [ "${{ steps.changes.outputs.app }}" = "true" ]; then
+            MODE="app"
+          else
+            MODE="docs"
+          fi
+          echo "mode=${MODE}" >> "$GITHUB_OUTPUT"
+          echo "Run mode: ${MODE} (app=${{ steps.changes.outputs.app }}, docs=${{ steps.changes.outputs.docs }}, full=${FULL_CI})"
+
+  # `build` and `instrumentation` keep their historical names so required-check
+  # and branch-protection conventions keep working. Both jobs always run (the
+  # heavy steps are conditional), so a skipped tier can never leave a PR pending.
   build:
+    needs: detect
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      # Full history is needed for the docs-only `git diff --check` comparison.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-java@v6
+        if: needs.detect.outputs.mode != 'docs'
         with:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v6
-      - name: Unit tests, debug/release lint, APKs, AAB and Android test compilation
-        run: ./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease
-      - name: Summarize unit test reports
-        run: >-
-          python3 scripts/test-report-summary.py
-          app/build/test-results/testDebugUnitTest
-          app/build/test-results/testReleaseUnitTest
+        if: needs.detect.outputs.mode != 'docs'
+
+      - name: Fast unit tests, lint and debug build
+        if: needs.detect.outputs.mode == 'app'
+        run: ./gradlew testDebugUnitTest lintDebug assembleDebug --console=plain
+
+      - name: "Full build: unit tests, lint, APKs and AAB"
+        if: needs.detect.outputs.mode == 'full'
+        run: ./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease --console=plain
+
       - name: Verify release APK alignment
+        if: needs.detect.outputs.mode == 'full'
         run: |
           python3 scripts/check-apk-alignment.py app/build/outputs/apk/release/*.apk
           ZIPALIGN="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/zipalign"
           "$ZIPALIGN" -c -P 16 4 app/build/outputs/apk/release/*.apk
+
       - name: Verify debug ABI and test-only asset packaging
+        if: needs.detect.outputs.mode == 'full'
         run: |
           set -euo pipefail
           unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -q 'lib/x86_64/libmaplibre.so'
           unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -q 'lib/arm64-v8a/libmaplibre.so'
           unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -q 'assets/integration/offline_probe_style.json'
           echo "PASS: debug APK carries x86_64/ARM natives and the debug-only probe asset"
+
       - name: Verify release ABIs and AAB output
+        if: needs.detect.outputs.mode == 'full'
         run: |
           set -euo pipefail
           test -s app/build/outputs/bundle/release/app-release.aab
@@ -61,30 +144,44 @@ jobs:
             exit 1
           fi
           echo "PASS: release AAB produced; release APK is ARM-only and carries no probe asset"
+
       - name: Verify release signature (skipped without keystore.properties)
+        if: needs.detect.outputs.mode == 'full'
         run: python3 scripts/check-release-signature.py
+
+      - name: Verify F-Droid/IzzyOnDroid fastlane metadata
+        if: needs.detect.outputs.mode != 'docs'
+        run: |
+          set -euo pipefail
+          if [ -f scripts/check-fastlane-metadata.py ]; then
+            python3 scripts/check-fastlane-metadata.py
+          else
+            echo "scripts/check-fastlane-metadata.py not present; skipping fastlane metadata validation"
+          fi
+
+      - name: Documentation and metadata validation
+        if: needs.detect.outputs.mode == 'docs'
+        run: |
+          set -euo pipefail
+          if [ -f scripts/check-fastlane-metadata.py ]; then
+            python3 scripts/check-fastlane-metadata.py
+          else
+            echo "scripts/check-fastlane-metadata.py not present; skipping fastlane metadata validation"
+          fi
+          git diff --check "${{ needs.detect.outputs.base }}" "${{ needs.detect.outputs.head }}"
+
+      - name: Summarize unit test reports
+        if: needs.detect.outputs.mode != 'docs'
+        run: |
+          if [ "${{ needs.detect.outputs.mode }}" = "full" ]; then
+            python3 scripts/test-report-summary.py app/build/test-results/testDebugUnitTest app/build/test-results/testReleaseUnitTest
+          else
+            python3 scripts/test-report-summary.py app/build/test-results/testDebugUnitTest
+          fi
+
+      # Normal PRs upload only small check reports; APK/AAB artifacts are Full CI only.
       - uses: actions/upload-artifact@v7
-        with:
-          name: RideDeck-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v7
-        with:
-          name: RideDeck-android-test-apk
-          path: app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v7
-        with:
-          name: RideDeck-release-apk
-          path: app/build/outputs/apk/release/app-release*.apk
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v7
-        with:
-          name: RideDeck-release-unsigned-aab
-          path: app/build/outputs/bundle/release/app-release.aab
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v7
-        if: always()
+        if: always() && needs.detect.outputs.mode != 'docs'
         with:
           name: RideDeck-check-reports
           path: |
@@ -93,25 +190,63 @@ jobs:
             app/build/reports/tests/
             app/build/reports/lint-results-*.html
             app/build/reports/lint-results-*.xml
-            app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: warn
+
+      - uses: actions/upload-artifact@v7
+        if: needs.detect.outputs.mode == 'full'
+        with:
+          name: RideDeck-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: needs.detect.outputs.mode == 'full'
+        with:
+          name: RideDeck-android-test-apk
+          path: app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: needs.detect.outputs.mode == 'full'
+        with:
+          name: RideDeck-release-apk
+          path: app/build/outputs/apk/release/app-release*.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: needs.detect.outputs.mode == 'full'
+        with:
+          name: RideDeck-release-unsigned-aab
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
 
   instrumentation:
+    needs: detect
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        if: needs.detect.outputs.mode == 'full'
       - uses: actions/setup-java@v6
+        if: needs.detect.outputs.mode == 'full'
         with:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v6
+        if: needs.detect.outputs.mode == 'full'
+
+      - name: Instrumentation deferred to Full CI
+        if: needs.detect.outputs.mode != 'full'
+        run: |
+          echo "Instrumentation tests are deferred to Full CI for this run (mode: ${{ needs.detect.outputs.mode }})."
+          echo "Request them with the 'full-ci' PR label, a v* tag push, the weekly schedule, or workflow_dispatch (full=true)."
+
       - name: Enable KVM group perms
+        if: needs.detect.outputs.mode == 'full'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Verify KVM acceleration
+        if: needs.detect.outputs.mode == 'full'
         run: |
           set -euo pipefail
           ls -l /dev/kvm
@@ -122,6 +257,7 @@ jobs:
       # A cached AVD plus an extra boot/snapshot step made the job hang in the action's
       # unbounded `adb getprop` wait. One cold boot with a hard step timeout is predictable.
       - name: Run instrumentation tests on the x86_64 emulator
+        if: needs.detect.outputs.mode == 'full'
         timeout-minutes: 20
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -156,7 +292,7 @@ jobs:
             adb shell am instrument -w -r -e class 'com.ridedeck.app.RideTrackingServiceTest#permissionDeniedStartStillPromotesAndStopsInsteadOfCrashing' -e locationPermissionDenied true com.ridedeck.app.test/com.ridedeck.app.RideDeckTestRunner | tee /tmp/permission-denied.log
             grep -q 'OK (1 test)' /tmp/permission-denied.log
       - name: Summarize instrumentation reports
-        if: always()
+        if: needs.detect.outputs.mode == 'full'
         run: |
           if [ -d app/build/outputs/androidTest-results/connected/debug ]; then
             python3 scripts/test-report-summary.py app/build/outputs/androidTest-results/connected/debug
@@ -164,7 +300,7 @@ jobs:
             echo "No instrumentation reports were produced."
           fi
       - uses: actions/upload-artifact@v7
-        if: always()
+        if: needs.detect.outputs.mode == 'full'
         with:
           name: RideDeck-instrumentation-reports
           path: |
