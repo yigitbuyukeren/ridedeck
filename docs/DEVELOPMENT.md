@@ -89,7 +89,7 @@ Raporlar:
 - Instrumentation: `app/build/reports/androidTests/connected/debug/index.html`
 - Lint: `app/build/reports/lint-results-debug.html`, `lint-results-release.html`
 
-CI, instrumentation testlerini ayrı bir işte x86_64 API 35 emülatöründe çalıştırır; emülatörde `adb shell settings put global cached_apps_freezer disabled` gerekir. `RideDeckTestRunner` test sürecini sonuçtan sonra kapatır. Toplam 204 instrumentation testi vardır; tek koşuda 203 PASS + 1 atlandı, atlanan izin testi ayrı PASS. Elle fiziksel cihaz denemesi ayrı bir doğrulamadır. Bir testi geçirmek için üretim kodunu veya test beklentisini gevşetme.
+CI, instrumentation testlerini ayrı bir işte x86_64 API 35 emülatöründe çalıştırır; emülatörde `adb shell settings put global cached_apps_freezer disabled` gerekir. `RideDeckTestRunner` test sürecini sonuçtan sonra kapatır. İzin reddi testi ayrı çalıştırılır. Kaydedilen en güncel JVM birim testi, lint ve emülatör instrumentation sonuçları [yayın hazırlığı raporunda](RELEASE_READINESS.md) yer alır. Elle fiziksel cihaz denemesi ayrı bir doğrulamadır. Bir testi geçirmek için üretim kodunu veya test beklentisini gevşetme.
 
 ## 4. Proje düzeni
 

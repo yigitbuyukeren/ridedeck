@@ -46,9 +46,9 @@ The app once had a Turkish voice assistant (command parser, multi-turn dialogue,
 
 ## 7. Tests and CI
 
-**Last full local JVM run: 831/831 debug and 831/831 release (1662 total), 0 failures, 0 skipped** (`./gradlew test`). This is the last run, not a permanent guarantee; earlier counts in historical records are superseded. Lint keeps **0 errors** on both variants (121 debug / 120 release warnings, not suppressed). Unit tests cover GPS filtering, map matching and route logic, typo tolerance, SOS/crash detection and the SMS result model, thermal guard, phone/keypad math, units, trip storage, SQLite migration/corruption backup, provider throttling/backoff and shared GPS ownership.
+See [the release readiness report](RELEASE_READINESS.md) for the latest recorded JVM, lint and emulator instrumentation results. Unit tests cover GPS filtering, map matching and route logic, typo tolerance, SOS/crash detection and the SMS result model, thermal guard, phone/keypad math, units, trip storage, SQLite migration/corruption backup, provider throttling/backoff and shared GPS ownership.
 
-GitHub Actions runs `test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease`, release APK alignment, AAB existence, debug x86_64/ARM ABI and release ARM-only checks, and gated signing. A separate job runs instrumentation on an x86_64 API 35 emulator with KVM access, a Pixel 6 profile, a single cold boot, a 20-minute step timeout and the cached-app freezer disabled; the permission-denied service test runs separately. The **204 instrumentation tests**: one `connectedDebugAndroidTest` run reported **203 passed + 1 skipped**; the skipped permission test passed separately (204 verified in total). `RideDeckTestRunner` ends the test process after results. Not covered by tests: real sensor/GPS/network behaviour, physical keyguard/Doze/OEM, real SMS/call/intercom and 16 KB runtime (an emulator or synthetic test is not a substitute).
+GitHub Actions runs `test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease`, release APK alignment, AAB existence, debug x86_64/ARM ABI and release ARM-only checks, and gated signing. A separate job runs instrumentation on an x86_64 API 35 emulator with KVM access, a Pixel 6 profile, a single cold boot, a 20-minute step timeout and the cached-app freezer disabled; the permission-denied service test runs separately. `RideDeckTestRunner` ends the test process after results. Not covered by tests: real sensor/GPS/network behaviour, physical keyguard/Doze/OEM, real SMS/call/intercom and 16 KB runtime (an emulator or synthetic test is not a substitute).
 
 ## 8. Key decisions
 
@@ -65,6 +65,8 @@ GitHub Actions runs `test lintDebug lintRelease assembleDebug assembleRelease as
 
 ## Verification status
 
-**Verified automatically:** the last local run of 831/831 JVM tests per variant (1662 total), both lint variants with 0 errors, debug and R8 release builds, the AAB, 16 KB static alignment, and the CI configuration. **Instrumentation:** 204 tests; the single run reported 203 passed + 1 skipped, and the skipped permission test passed separately (204 verified in total). **Seen on an emulator:** main screens, navigation, fuel stops, SOS countdown, font scaling. The vehicle chooser and upright bicycle layout no longer exist. The README screenshots and demo GIF come from the emulator with simulated GPS; the GIF is a transition between screenshots, not a screen recording.
+**Automated verification** is recorded in [the release readiness report](RELEASE_READINESS.md).
+
+**Seen on an emulator:** main screens, navigation, fuel stops, SOS countdown, font scaling. The vehicle chooser and upright bicycle layout no longer exist. The README screenshots and demo GIF come from the emulator with simulated GPS; the GIF is a transition between screenshots, not a screen recording.
 
 **Not tested in the field:** crash thresholds, real SMS sending and SIM/operator delivery, physical keyguard/Doze/OEM, in-call audio routing as default phone app and intercom, handlebar heat and mini-map battery cost, Android 8–10 behaviour, 16 KB runtime, store/Data safety and aggregate provider quota compliance. Current list: [STATUS.md](STATUS.md) and [RELEASE_READINESS.md](RELEASE_READINESS.md). The overall 1.0 decision is **NO-GO**.
