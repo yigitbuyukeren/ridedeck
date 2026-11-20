@@ -109,7 +109,10 @@ Değişikliğin büyüklüğüne göre en azından ilgili testleri çalıştır:
 # Debug APK
 ./gradlew assembleDebug
 
-# CI build işindeki ana Gradle komutu (debug + release test/lint, APK'lar, AAB, instrumentation derlemesi)
+# Hızlı PR kapısı (debug birim testleri, debug lint, debug APK)
+./gradlew testDebugUnitTest lintDebug assembleDebug
+
+# Full CI ana Gradle komutu (debug + release test/lint, APK'lar, AAB, instrumentation derlemesi)
 ./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease
 ```
 
@@ -120,7 +123,7 @@ Tek bir test sınıfı:
 ```
 
 - Yeni mantık için `app/src/test` altında birim testi ekle. Hata düzeltiyorsan hatayı önce yakalayan bir regresyon testi yaz.
-- Compose/Android davranışı için `app/src/androidTest` altında instrumentation testi ekleyebilirsin. CI bu testleri x86_64 API 35 emülatöründe çalıştırır; elle fiziksel cihaz denemesi ayrı bir kanıttır. Yerelde `./gradlew connectedDebugAndroidTest` ile çalıştır.
+- Compose/Android davranışı için `app/src/androidTest` altında instrumentation testi ekleyebilirsin. Normal PR hattı instrumentation çalıştırmaz; Full CI (`full-ci` etiketi, `v*` etiketi, haftalık zamanlanmış regresyon veya `workflow_dispatch`) bunları x86_64 API 35 emülatöründe çalıştırır. Elle fiziksel cihaz denemesi ayrı bir kanıttır. Yerelde `./gradlew connectedDebugAndroidTest` ile çalıştır.
 - Arayüz değişikliğinde ekran görüntüsü ekle. Emülatörde alınan görüntüyü "gerçek cihazda doğrulandı" diye sunma; hangi ortamda alındığını yaz.
 - Testleri gevşetme, başarısız testi silme veya yalnızca testi geçirmek için üretim davranışını değiştirme.
 - Navigasyon, GPS, SOS, arama ve müzik gibi kritik yolları değiştirdiysen ilgili testleri ve varsa emülatör/cihaz denemesini PR'da ayrıca belirt.
@@ -163,7 +166,7 @@ RideDeck is a motorcycle-only Android dashboard (Kotlin, Jetpack Compose, minSdk
 
 1. Fork, clone, add `upstream`, and set `sdk.dir` in `local.properties`.
 2. Use JDK 17 and Android SDK 36. Build with `./gradlew testDebugUnitTest assembleDebug`.
-3. Keep changes focused. Add a JVM test for new logic; add a Compose/instrumentation test when UI behavior changes. CI runs the instrumentation suite on an x86_64 API 35 emulator; a physical-device check is still separate evidence.
+3. Keep changes focused. Add a JVM test for new logic; add a Compose/instrumentation test when UI behavior changes. The fast PR gate runs debug unit tests and lint; the full gate (request it with the `full-ci` label, a `v*` tag, the weekly schedule, or `workflow_dispatch`) runs the instrumentation suite on an x86_64 API 35 emulator. A physical-device check is still separate evidence.
 4. Update the relevant `app/src/main/res/values/strings*.xml` (English, default) and `values-tr/strings*.xml` (Turkish) files (for example `strings.xml`, plus `strings_data.xml` if present) for user-facing text.
 5. Preserve the driving-safety rules: no text input while riding, 64–84 dp target touch areas (existing 56 dp exceptions need separate fixes), high contrast, landscape layout, and large-font support.
 6. Route general network calls through `app/src/main/java/com/ridedeck/app/data/Http.kt`/`ProviderHttp` (MapLibre tile requests stay in the map engine). Do not add accounts, API keys, analytics, or a new external service without an issue.
