@@ -4,6 +4,19 @@ package com.ridedeck.app.data
 object CameraPlan {
     data class Pose(val zoom: Double, val tilt: Double)
 
+    /**
+     * MapLibre puts the target at the centre of the padded viewport. Keep the usual lower
+     * target unless it would overlap the trip bar or the marker's clearance above it.
+     */
+    fun followTopPadding(viewHeight: Int, fraction: Double, bottomClearance: Int): Double {
+        if (viewHeight <= 0) return 0.0
+        val height = viewHeight.toDouble()
+        val normal = height * fraction
+        val lowestClearTarget = height - bottomClearance.coerceIn(0, viewHeight)
+        // Unusually tall overlays still need a target above centre; keep a usable viewport.
+        return minOf(normal, 2 * lowestClearTarget - height).coerceAtLeast(-height / 2)
+    }
+
     fun pose(speedKmh: Int, distToNextM: Int, base: Pose = Pose(17.2, 56.0)): Pose {
         val s = speedKmh.coerceIn(20, 110)
         val speedT = (s - 20) / 90.0
