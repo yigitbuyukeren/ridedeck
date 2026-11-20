@@ -82,6 +82,45 @@ class RouteSnapTest {
     }
 
     @Test
+    fun continuingStraightPastASharpTurnDoesNotPinTheMarkerToTheCorner() {
+        val corner = GeoPoint(41.0, 29.0)
+        val approach = Geo.offset(corner, 180.0, 30.0)
+        val approachEnd = Geo.offset(corner, 180.0, 6.0)
+        val exit = Geo.offset(corner, 90.0, 30.0)
+        val route = Route(listOf(approach, approachEnd, corner, exit), emptyList(), 60.0, 7.0)
+        val snap = RouteSnap()
+        assertTrue(snap.display(route, 1, .5, Geo.offset(corner, 180.0, 3.0), 0.0, 8.0).onRoute)
+        val missed = Geo.offset(corner, 0.0, 12.0)
+        val shown = snap.display(route, 1, 1.0, missed, 0.0, 8.0)
+        assertFalse(shown.onRoute)
+        assertEquals(missed, shown.point)
+    }
+
+    @Test
+    fun smallNoiseAtACornerCanStillSnap() {
+        val corner = GeoPoint(41.0, 29.0)
+        val route = Route(listOf(Geo.offset(corner, 180.0, 30.0), corner, Geo.offset(corner, 90.0, 30.0)),
+            emptyList(), 60.0, 7.0)
+        val fix = Geo.offset(corner, 0.0, 2.0)
+        val shown = RouteSnap().display(route, 0, 1.0, fix, bearing = 0.0, speedMps = 8.0)
+        assertTrue(shown.onRoute)
+        assertEquals(corner, shown.point)
+    }
+
+    @Test
+    fun extrapolatedOvershootDoesNotReleaseTheMarkerBeforeTheRawFixPassesTheTurn() {
+        val corner = GeoPoint(41.0, 29.0)
+        val route = Route(listOf(Geo.offset(corner, 180.0, 30.0), corner, Geo.offset(corner, 90.0, 30.0)),
+            emptyList(), 60.0, 7.0)
+        val shown = RouteSnap().display(
+            route, 0, 0.9, Geo.offset(corner, 0.0, 12.0), bearing = 0.0, speedMps = 8.0,
+            evidenceFix = Geo.offset(corner, 180.0, 3.0),
+        )
+        assertTrue(shown.onRoute)
+        assertEquals(corner, shown.point)
+    }
+
+    @Test
     fun routeThatLoopsBackDoesNotAttractTheMarker() {
         val shape = listOf(
             GeoPoint(41.0, 29.0),

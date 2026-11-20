@@ -5,8 +5,6 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.hypot
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.sqrt
 
 data class GeoPoint(val lat: Double, val lon: Double)
@@ -51,8 +49,8 @@ object Geo {
         return hypot(dLat, dLon) * EARTH_RADIUS_M
     }
 
-    /** Result of projecting a point onto a segment: distance from the segment and the fraction along it (0..1). */
-    data class Projection(val distanceM: Double, val fraction: Double)
+    /** Distance and clamped fraction along the segment, plus longitudinal distance past its end, if any. */
+    data class Projection(val distanceM: Double, val fraction: Double, val pastEndM: Double = 0.0)
 
     fun project(p: GeoPoint, a: GeoPoint, b: GeoPoint): Projection {
         val cosLat = cos(Math.toRadians(a.lat))
@@ -63,8 +61,10 @@ object Geo {
         val px = Math.toRadians(p.lon - a.lon) * cosLat * EARTH_RADIUS_M
         val py = Math.toRadians(p.lat - a.lat) * EARTH_RADIUS_M
         val len2 = bx * bx + by * by
-        val t = if (len2 == 0.0) 0.0 else max(0.0, min(1.0, ((px - ax) * bx + (py - ay) * by) / len2))
-        return Projection(hypot(px - t * bx, py - t * by), t)
+        val raw = if (len2 == 0.0) 0.0 else ((px - ax) * bx + (py - ay) * by) / len2
+        val t = raw.coerceIn(0.0, 1.0)
+        val pastEnd = if (raw > 1.0) (raw - 1.0) * sqrt(len2) else 0.0
+        return Projection(hypot(px - t * bx, py - t * by), t, pastEnd)
     }
 
     /**

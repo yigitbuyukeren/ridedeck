@@ -90,6 +90,9 @@ internal fun SmoothFollow(
                 val shown = snapper.display(
                     latestRoute, latestProgressIndex, latestProgressFraction,
                     GeoPoint(f.lat, f.lon), f.bearing, latestMe.speedMps.toDouble(),
+                    // Dead reckoning can put the display ahead of a real fix before a made turn.
+                    evidenceFix = GeoPoint(latestMe.lat, latestMe.lon),
+                    evidenceBearing = latestMe.bearing?.toDouble(),
                 )
                 val lat = shown.point.lat
                 val lon = shown.point.lon
