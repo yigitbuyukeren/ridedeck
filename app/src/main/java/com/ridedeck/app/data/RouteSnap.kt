@@ -54,13 +54,15 @@ class RouteSnap {
         var best: Geo.Projection? = null
         var bestIndex = -1
         var bestScore = Double.MAX_VALUE
+        var bestHeadingDiff = Double.POSITIVE_INFINITY
         for (i in start..end) {
             val segmentEndM = cumulative[i + 1]
             if (segmentEndM < fromM) continue
             val proj = Geo.project(fix, shape[i], shape[i + 1])
             var score = proj.distanceM
+            var diff = Double.POSITIVE_INFINITY
             if (bearing != null && speedMps >= MIN_HEADING_SPEED_MPS && segmentEndM - cumulative[i] > 3.0) {
-                val diff = RouteMatcher.angleBetween(Geo.bearing(shape[i], shape[i + 1]), bearing)
+                diff = RouteMatcher.angleBetween(Geo.bearing(shape[i], shape[i + 1]), bearing)
                 // Heading across the road: the rider has turned off, however close the fix still is.
                 if (diff > MAX_ANGLE_DEG) continue
                 score += diff / 90.0
@@ -69,12 +71,27 @@ class RouteSnap {
                 bestScore = score
                 best = proj
                 bestIndex = i
+                bestHeadingDiff = diff
             }
         }
         val match = best
         if (match == null || match.distanceM > snapDistanceM) {
             snapped = false
             return Display(fix, false)
+        }
+        // Don't fall back to an earlier segment: that would pin the marker even farther back.
+        // Release early only with positive evidence that the rider continued straight.
+        if (bearing != null && match.pastEndM > MISSED_CORNER_MARGIN_M &&
+            bestHeadingDiff <= APPROACH_ANGLE_DEG
+        ) {
+            val vertex = bestIndex + 1
+            val exit = ((vertex + 1)..shape.lastIndex).firstOrNull {
+                cumulative[it] - cumulative[vertex] >= EXIT_SAMPLE_M
+            }
+            if (exit != null && RouteMatcher.angleBetween(Geo.bearing(shape[vertex], shape[exit]), bearing) > MAX_ANGLE_DEG) {
+                snapped = false
+                return Display(fix, false)
+            }
         }
         val a = shape[bestIndex]
         val b = shape[bestIndex + 1]
@@ -95,6 +112,9 @@ class RouteSnap {
         const val LOOK_BEHIND_M = 50.0
         const val LOOK_AHEAD_M = 150.0
         const val MAX_ANGLE_DEG = 60.0
+        const val APPROACH_ANGLE_DEG = 35.0
+        const val MISSED_CORNER_MARGIN_M = 8.0
+        const val EXIT_SAMPLE_M = 8.0
         const val MIN_HEADING_SPEED_MPS = 2.5
     }
 }
