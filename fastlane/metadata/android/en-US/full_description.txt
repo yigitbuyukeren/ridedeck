@@ -1,0 +1,26 @@
+RideDeck is a free, open-source Android riding dashboard inspired by CarPlay and Android Auto. It is currently focused on motorcycles, with the long-term goal of expanding to other vehicle types. It does not integrate with CarPlay or Android Auto.
+
+DAILY RIDING
+- Landscape handlebar layout with GPS speed, clock, battery level and phone temperature; large, glove-friendly touch targets and an automatic day/night theme.
+
+NAVIGATION (requires internet)
+- OpenStreetMap-based map rendered with MapLibre/OpenFreeMap, motorcycle routing via Valhalla, turn-by-turn voice guidance and recalculation when you leave the route.
+- Saved places (Home, Work, favorites), waypoints, fuel stops along or near the route, speed-limit alerts and arrival time.
+- Routing, place search, weather and speed-limit lookups contact public third-party services. Offline routing is unavailable. Previously downloaded map areas are kept, but new offline downloads are paused.
+
+LANGUAGE, MEDIA AND PHONE
+- Turkish or English app language via Android 13+ app-language settings; the TTS voice and route instructions switch without restarting the app. Unsupported phone languages fall back to English.
+- Media-session controls for music apps, optional message readout, and an in-app phone with contacts, recents and a keypad. Some functions depend on Android permissions and the default dialer role.
+
+TRIPS, SOS AND PRIVACY
+- Local trip recording and history review; trips and settings stay on the device. No account and no RideDeck backend are required.
+- Optional, experimental SOS: after a detected hard impact and inactivity, a countdown can be followed by an attempted SMS with a location link to up to 3 contacts. It is not field-tested, does not guarantee delivery, and is not a substitute for emergency services or safety equipment.
+- Map tiles, search text, route endpoints, approximate location for weather and fuel-stop queries are sent to third-party providers; those providers can see your IP address.
+
+STATUS AND LIMITS
+- v0.7.0 is a stable release, but the project is not a 1.0 product yet. Real-device and real-riding validation, real SMS/calls, lock-screen/OEM behavior and crash-detection thresholds remain unverified.
+- No live traffic, radar alerts or CarPlay/Android Auto integration. Android 8.0+ (API 26).
+
+The store screenshots were captured on an Android emulator using synthetic/simulated GPS, not real riding.
+
+RideDeck can be distracting while riding: mount your phone securely, set up settings while parked, and follow traffic laws. Licensed under Apache 2.0.
