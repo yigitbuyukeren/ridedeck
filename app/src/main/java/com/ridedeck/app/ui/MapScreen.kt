@@ -99,7 +99,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalFocusManager
@@ -288,6 +290,8 @@ fun MapScreen(
     // My position marker and the navigation chase camera are drawn per frame (see SmoothFollow).
     var overview by remember { mutableStateOf(false) }
     var addingStop by remember { mutableStateOf(false) }
+    var tripBarHeightPx by remember { mutableStateOf(0) }
+    val markerClearancePx = with(LocalDensity.current) { 24.dp.roundToPx() }
     val pose = CameraPlan.pose(speedKmh, if (ui.navigating) ui.distToNextM else 0)
     var camZoom by remember { mutableStateOf(pose.zoom) }
     var camTilt by remember { mutableStateOf(pose.tilt) }
@@ -308,6 +312,7 @@ fun MapScreen(
         route = ui.route.takeIf { ui.navigating },
         progressIndex = ui.progressIndex,
         progressFraction = ui.progressFraction,
+        bottomClearancePx = if (ui.navigating) tripBarHeightPx + markerClearancePx else 0,
     )
 
     LaunchedEffect(styleReady, me.fixAtMs, ui.navigating) {
@@ -533,7 +538,9 @@ fun MapScreen(
 
         if (ui.navigating) {
             Column(
-                modifier = Modifier.align(Alignment.BottomStart).padding(12.dp).width(panelWidth),
+                modifier = Modifier.align(Alignment.BottomStart)
+                    .onSizeChanged { tripBarHeightPx = it.height }
+                    .padding(12.dp).width(panelWidth),
             ) { TripBar(ui, onStop = requestStop) }
         }
 

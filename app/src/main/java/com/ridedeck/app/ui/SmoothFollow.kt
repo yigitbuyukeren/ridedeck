@@ -9,6 +9,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import com.ridedeck.app.data.CameraPlan
 import com.ridedeck.app.data.FrameThrottle
 import com.ridedeck.app.data.GeoPoint
 import com.ridedeck.app.data.LocationState
@@ -51,6 +52,7 @@ internal fun SmoothFollow(
     route: Route? = null,
     progressIndex: Int = 0,
     progressFraction: Double = 0.0,
+    bottomClearancePx: Int = 0,
 ) {
     val compass = rememberCompassHeading()
     val latestMe by rememberUpdatedState(me)
@@ -59,6 +61,7 @@ internal fun SmoothFollow(
     val latestRoute by rememberUpdatedState(route)
     val latestProgressIndex by rememberUpdatedState(progressIndex)
     val latestProgressFraction by rememberUpdatedState(progressFraction)
+    val latestBottomClearance by rememberUpdatedState(bottomClearancePx)
     val smoother = remember { PositionSmoother() }
     val snapper = remember { RouteSnap() }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -82,6 +85,8 @@ internal fun SmoothFollow(
             var drawnLon = Double.NaN
             var drawnBearing = Double.NaN
             var wasFollowing = false
+            var cameraDrawn: CameraPosition? = null
+            var previousPadding: CameraPlan.VerticalPadding? = null
             while (true) {
                 val now = withFrameNanos { it }
                 if (!throttle.shouldDraw(now)) continue
@@ -96,28 +101,40 @@ internal fun SmoothFollow(
                 // Riding: the heading of travel. Standing or crawling: where the phone points, when it has a compass.
                 val moving = latestMe.speedKmh >= COMPASS_BELOW_KMH && latestMe.bearing != null
                 val markerBearing = if (moving) f.bearing else compass.value?.toDouble() ?: f.bearing
-                if (lat == drawnLat && lon == drawnLon && markerBearing == drawnBearing) continue
-                drawnLat = lat; drawnLon = lon; drawnBearing = markerBearing
-
-                m.style?.getSourceAs<GeoJsonSource>(SRC_ME)?.setGeoJson(
-                    Feature.fromGeometry(Point.fromLngLat(lon, lat)).also { it.addNumberProperty("bearing", markerBearing) }
-                )
+                if (lat != drawnLat || lon != drawnLon || markerBearing != drawnBearing) {
+                    drawnLat = lat; drawnLon = lon; drawnBearing = markerBearing
+                    m.style?.getSourceAs<GeoJsonSource>(SRC_ME)?.setGeoJson(
+                        Feature.fromGeometry(Point.fromLngLat(lon, lat)).also { it.addNumberProperty("bearing", markerBearing) }
+                    )
+                }
                 if (!follow) { wasFollowing = false; continue }
 
+                val padding = CameraPlan.followPadding(mapView.height, padTopFraction, latestBottomClearance)
                 val camera = CameraPosition.Builder()
                     .target(LatLng(lat, lon))
                     .zoom(latestZoom)
                     .tilt(latestTilt)
                     .bearing(f.bearing)
-                    .padding(0.0, mapView.height * padTopFraction, 0.0, 0.0)
+                    .padding(0.0, padding.top, 0.0, padding.bottom)
                     .build()
                 if (!wasFollowing) {
                     // Entering follow mode: one eased move from wherever the camera is, then per-frame tracking.
                     wasFollowing = true
                     settleUntil = now + SETTLE_MS * 1_000_000L
                     m.animateCamera(CameraUpdateFactory.newCameraPosition(camera), SETTLE_MS.toInt())
-                } else if (now >= settleUntil) {
+                    cameraDrawn = camera
+                    previousPadding = padding
+                } else if (now < settleUntil && padding != previousPadding) {
+                    // The trip bar can first be measured during the entrance animation.
+                    // Retarget it over the time left rather than jumping at the end.
+                    val remainingMs = ((settleUntil - now) / 1_000_000L).coerceAtLeast(1).toInt()
+                    m.animateCamera(CameraUpdateFactory.newCameraPosition(camera), remainingMs)
+                    cameraDrawn = camera
+                    previousPadding = padding
+                } else if (now >= settleUntil && camera != cameraDrawn) {
                     m.moveCamera(CameraUpdateFactory.newCameraPosition(camera))
+                    cameraDrawn = camera
+                    previousPadding = padding
                 }
             }
         }
