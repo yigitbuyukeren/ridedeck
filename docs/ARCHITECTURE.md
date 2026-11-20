@@ -206,13 +206,13 @@ Test katmanları:
 | JVM birim testleri | `app/src/test/java/com/ridedeck/app/` | Filtre, rota, SOS matematiği, depolama sözleşmeleri, tercihler, UI matematiği |
 | Instrumentation | `app/src/androidTest/java/com/ridedeck/app/` | Compose ekranları, SQLite, servis/izin akışları, harita yaşam döngüsü |
 
-CI şu komutu çalıştırır:
+CI kademeli çalışır: doküman/metadata-only değişikliklerde Gradle/emülatör başlatılmaz; uygulama/kod değişikliklerinde hızlı PR kapısı `testDebugUnitTest lintDebug assembleDebug` çalışır. Full CI (`full-ci` etiketi, `v*` etiket push'u, haftalık zamanlanmış regresyon veya `workflow_dispatch` `full=true`) şu komutu çalıştırır:
 
 ```bash
 ./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease
 ```
 
-Burada `test` debug ve release JVM testlerini çalıştırır. Ayrı CI işi x86_64 API 35 emülatöründe `:app:connectedDebugAndroidTest` çalıştırır (cached-app freezer kapatılır); toplam 204 instrumentation testi vardır. Davranış değiştiren katkılarda ilgili JVM testini, arayüz değişikliklerinde ilgili Compose testini güncelleyin; doğrulanmamış cihaz davranışını doğrulanmış gibi anlatmayın.
+Burada `test` debug ve release JVM testlerini çalıştırır. Ayrı CI işi x86_64 API 35 emülatöründe `:app:connectedDebugAndroidTest` çalıştırır (cached-app freezer kapatılır). Güncel instrumentation sayısı ve sonuçları [yayın hazırlığı raporunda](RELEASE_READINESS.md) yer alır. Davranış değiştiren katkılarda ilgili JVM testini, arayüz değişikliklerinde ilgili Compose testini güncelleyin; doğrulanmamış cihaz davranışını doğrulanmış gibi anlatmayın.
 
 ## 9. Nerede ne değiştirilir?
 
