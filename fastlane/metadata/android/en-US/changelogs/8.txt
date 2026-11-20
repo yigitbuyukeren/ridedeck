@@ -1,0 +1,6 @@
+# v0.7.0 (versionCode 8)
+- App language can now be changed while the app is running (system language or Android 13+ app-language menu): the TTS voice and navigation route instructions switch to the new language without restarting.
+- English is now the default app language; unsupported device languages fall back to English. Turkish remains available, and the Android 13+ app-language menu offers English and Turkish.
+- Route, place-search and geocoding requests use the selected app language; spoken distance formatting follows it too.
+- Verified with 848/848 debug and 848/848 release unit tests, 0 lint errors, and instrumentation (208 passed, 1 skipped; the skipped test passed separately). In an emulator, switching en-US to tr-TR kept the same process.
+- Real TTS audio, physical devices, real riding, SMS/calls and crash-detection thresholds are still unverified; this is not a 1.0 release.
