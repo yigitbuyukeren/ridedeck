@@ -1,20 +1,14 @@
-<a href="https://yigitbuyukeren.com/ridedeck/">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/banner-dark.jpg">
-    <img src="docs/screenshots/banner-light.jpg" width="100%" alt="RideDeck — open-source motorcycle dashboard for Android">
-  </picture>
-</a>
-
 <div align="center">
 
-### RideDeck
-**Open-source motorcycle dashboard for Android** · **Telefonun için açık kaynak motosiklet kokpiti**
+# RideDeck
+
+**An open-source driving dashboard for your Android phone, built for motorcycles first.**
 
 GPS speed · Voice navigation · Music · Calls · Trip history
 
-**[⬇️ Download stable APK (0.7.0)](https://github.com/yigitbuyukeren/ridedeck/releases/download/v0.7.0/RideDeck-0.7.0.apk)** &nbsp;·&nbsp;
+**[⬇️ Download signed APK (v0.7.0)](https://github.com/yigitbuyukeren/ridedeck/releases/download/v0.7.0/RideDeck-0.7.0.apk)** &nbsp;·&nbsp;
 **[📋 Release notes](https://github.com/yigitbuyukeren/ridedeck/releases/tag/v0.7.0)** &nbsp;·&nbsp;
-**[🌐 Website](https://yigitbuyukeren.com/ridedeck/)**
+**[🌐 Website](https://yigitbuyukeren.com/en/ridedeck/)**
 
 [![Release](https://img.shields.io/badge/release-0.7.0-E8480C?style=flat-square&labelColor=16150F)](https://github.com/yigitbuyukeren/ridedeck/releases/tag/v0.7.0)
 [![CI](https://img.shields.io/github/actions/workflow/status/yigitbuyukeren/ridedeck/ci.yml?style=flat-square&labelColor=16150F&color=E8480C&label=CI)](https://github.com/yigitbuyukeren/ridedeck/actions/workflows/ci.yml)
@@ -22,20 +16,37 @@ GPS speed · Voice navigation · Music · Calls · Trip history
 ![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-E8480C?style=flat-square&labelColor=16150F&logo=android&logoColor=3DDC84)
 ![Kotlin & Compose](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-E8480C?style=flat-square&labelColor=16150F)
 
-🇬🇧 [English](#en) &nbsp;·&nbsp; 🇹🇷 [Türkçe](#tr) &nbsp;·&nbsp; [🤝 Contribute](CONTRIBUTING.md)
+🇬🇧 [English](#en) &nbsp;·&nbsp; 🇹🇷 [Türkçe](#tr) &nbsp;·&nbsp; [🤝 Contribute](CONTRIBUTING.md) &nbsp;·&nbsp; [Good first issues](https://github.com/yigitbuyukeren/ridedeck/contribute)
 
 </div>
 
 > [!IMPORTANT]
 > **RideDeck v0.7.0 is a stable release, but the project is not ready for a public 1.0 launch.** Crash detection/SOS is experimental; real-device use, SMS delivery, lock-screen and OEM behavior remain unverified. It is not a substitute for emergency services or safety equipment. [Release readiness](docs/RELEASE_READINESS.md)
->
-> 🇹🇷 **RideDeck v0.7.0 kararlı sürümdür; 1.0 için saha doğrulaması henüz tamamlanmadı.** SOS/kaza algılama deneyseldir; gerçek cihaz, SMS, kilit ekranı ve farklı üreticilerdeki davranışlar doğrulanmamıştır. Acil durum hizmetinin veya güvenlik ekipmanının yerine geçmez. [Doğrulama durumu](docs/RELEASE_READINESS.md)
 
 <a id="en"></a>
 
 ## 🇬🇧 English
 
-**RideDeck** is a free, open-source, motorcycle-focused Android dashboard. It combines GPS speed, voice-guided navigation, music, phone controls and trip history in a landscape interface. No RideDeck account or proprietary backend is required, although online features contact third-party services.
+RideDeck puts GPS speed, voice-guided navigation, media, calls and trip history on one landscape screen. It runs directly on your Android phone, with no RideDeck account or proprietary backend. Online features use third-party services.
+
+The interface takes inspiration from Apple CarPlay and Android Auto. RideDeck is a standalone Android app, not a CarPlay or Android Auto integration. Today it is designed for motorcycle use; other vehicle types are a possible future direction, not a supported feature.
+
+<a id="v070-screenshots"></a>
+
+### Screenshots
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/v0.7.0/dashboard-dark.png">
+    <img src="docs/screenshots/v0.7.0/dashboard-light.png" width="820" alt="RideDeck dashboard with a GPS speedometer, navigation preview and music controls">
+  </picture>
+</p>
+
+| Route preview | Turn-by-turn navigation | Music |
+|:---:|:---:|:---:|
+| ![Map and route options before starting navigation](docs/screenshots/v0.7.0/route.png) | ![Active route with the next turn, arrival time and distance](docs/screenshots/v0.7.0/navigation.png) | ![Music player with album art and playback controls](docs/screenshots/v0.7.0/music.png) |
+
+<sub>v0.7.0 debug build on an Android emulator, shown in Turkish with simulated GPS and demo media. These captures do not represent real-device or on-road validation.</sub>
 
 ### Highlights
 
@@ -75,7 +86,12 @@ Requires **JDK 17** and **Android SDK 36**; set `sdk.dir` in `local.properties`,
 
 ## 🇹🇷 Türkçe
 
-RideDeck, **Android telefonlar için motosiklet odaklı bir yatay gösterge paneli**. Hız, rota, medya ve telefon kontrollerini tek arayüzde birleştirir. Hesap açmak veya RideDeck'e ait bir sunucuya bağlanmak gerekmez; çevrimiçi özellikler ise üçüncü taraf harita ve hava durumu servislerine istek gönderir.
+RideDeck, **Android telefonlar için açık kaynak, motosiklet odaklı bir sürüş paneli**. Hızı, sesli navigasyonu, medya ve telefon kontrollerini ve yolculuk geçmişini tek yatay arayüzde birleştirir. Hesap açmak veya RideDeck'e ait bir sunucuya bağlanmak gerekmez; çevrimiçi özellikler üçüncü taraf servisleri kullanır.
+
+Arayüz Apple CarPlay ve Android Auto'dan ilham alır. RideDeck, doğrudan Android telefonda çalışan bağımsız bir uygulamadır; CarPlay veya Android Auto entegrasyonu sunmaz. Bugün motosiklet için tasarlanmıştır; başka araç türleri gelecekte değerlendirilebilir, ancak şu anda desteklenmez.
+
+> [!IMPORTANT]
+> **RideDeck v0.7.0 kararlı sürümdür; 1.0 için saha doğrulaması henüz tamamlanmadı.** SOS/kaza algılama deneyseldir; gerçek cihaz, SMS, kilit ekranı ve farklı üreticilerdeki davranışlar doğrulanmamıştır. Acil durum hizmetinin veya güvenlik ekipmanının yerine geçmez. [Doğrulama durumu](docs/RELEASE_READINESS.md)
 
 ### ✨ Neler sunuyor?
 
@@ -91,17 +107,11 @@ RideDeck, **Android telefonlar için motosiklet odaklı bir yatay gösterge pane
 
 ### 📸 Uygulama ekranları
 
-<p align="center"><img src="docs/screenshots/route.png" width="820" alt="RideDeck rota ekranı — Android emülatörü"></p>
-
-| Navigasyon | Benzinlikler |
-|:---:|:---:|
-| ![Sesli navigasyon arayüzü](docs/screenshots/navigation.png) | ![Benzinlik arama arayüzü](docs/screenshots/fuel.png) |
-
-<sub>Görseller Android emülatöründe, simüle edilmiş konumla alınmıştır; gerçek sürüş veya gerçek cihaz doğrulaması değildir. Bazı ayrıntılar mevcut betadan farklı olabilir. Eski araç seçimini gösteren demo GIF'i ana vitrinden çıkarıldı.</sub>
+[v0.7.0 ekran görüntüleri](#v070-screenshots): Ana panel, rota önizlemesi, aktif navigasyon ve müzik. Görseller, Android emülatöründe debug derlemesinden, simüle edilmiş konum ve demo müzikle alınmıştır; gerçek cihaz veya sürüş doğrulaması değildir.
 
 ### 📲 İndir ve kur
 
-**[Resmî imzalı kararlı APK: v0.7.0](https://github.com/yigitbuyukeren/ridedeck/releases/download/v0.7.0/RideDeck-0.7.0.apk)** · [Tüm sürümler](https://github.com/yigitbuyukeren/ridedeck/releases)
+**[Resmî imzalı kararlı APK: v0.7.0](https://github.com/yigitbuyukeren/ridedeck/releases/download/v0.7.0/RideDeck-0.7.0.apk)** · [Tüm sürümler](https://github.com/yigitbuyukeren/ridedeck/releases) · [Web sitesi](https://yigitbuyukeren.com/ridedeck/)
 
 Android **8.0 (API 26)** ve üzerini destekler. APK'yı yalnız resmî sürüm bağlantısından indir. `0.6.x` üzerinden aynı imza anahtarıyla güncellenebilir; `0.5.0` farklı anahtar kullandığından kaldırma gerekebilir ve bu işlem uygulama verilerini silebilir. İzinler, kullanılan özelliğe göre istenir.
 
