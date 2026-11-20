@@ -28,6 +28,8 @@ class RouteSnap {
         fix: GeoPoint,
         bearing: Double?,
         speedMps: Double,
+        evidenceFix: GeoPoint = fix,
+        evidenceBearing: Double? = bearing,
     ): Display {
         if (route !== routeRef) {
             routeRef = route
@@ -54,15 +56,13 @@ class RouteSnap {
         var best: Geo.Projection? = null
         var bestIndex = -1
         var bestScore = Double.MAX_VALUE
-        var bestHeadingDiff = Double.POSITIVE_INFINITY
         for (i in start..end) {
             val segmentEndM = cumulative[i + 1]
             if (segmentEndM < fromM) continue
             val proj = Geo.project(fix, shape[i], shape[i + 1])
             var score = proj.distanceM
-            var diff = Double.POSITIVE_INFINITY
-            if (bearing != null && speedMps >= MIN_HEADING_SPEED_MPS && segmentEndM - cumulative[i] > 3.0) {
-                diff = RouteMatcher.angleBetween(Geo.bearing(shape[i], shape[i + 1]), bearing)
+            if (bearing != null && bearing.isFinite() && speedMps >= MIN_HEADING_SPEED_MPS && segmentEndM - cumulative[i] > 3.0) {
+                val diff = RouteMatcher.angleBetween(Geo.bearing(shape[i], shape[i + 1]), bearing)
                 // Heading across the road: the rider has turned off, however close the fix still is.
                 if (diff > MAX_ANGLE_DEG) continue
                 score += diff / 90.0
@@ -71,7 +71,6 @@ class RouteSnap {
                 bestScore = score
                 best = proj
                 bestIndex = i
-                bestHeadingDiff = diff
             }
         }
         val match = best
@@ -81,14 +80,19 @@ class RouteSnap {
         }
         // Don't fall back to an earlier segment: that would pin the marker even farther back.
         // Release early only with positive evidence that the rider continued straight.
-        if (bearing != null && match.pastEndM > MISSED_CORNER_MARGIN_M &&
-            bestHeadingDiff <= APPROACH_ANGLE_DEG
+        val vertex = bestIndex + 1
+        if (match.pastEndM > MISSED_CORNER_MARGIN_M && speedMps >= MIN_HEADING_SPEED_MPS &&
+            evidenceBearing != null && evidenceBearing.isFinite() &&
+            Geo.project(evidenceFix, shape[bestIndex], shape[vertex]).pastEndM > MISSED_CORNER_MARGIN_M
         ) {
-            val vertex = bestIndex + 1
+            val entry = (bestIndex downTo 0).firstOrNull { cumulative[vertex] - cumulative[it] >= TURN_SAMPLE_M }
             val exit = ((vertex + 1)..shape.lastIndex).firstOrNull {
-                cumulative[it] - cumulative[vertex] >= EXIT_SAMPLE_M
+                cumulative[it] - cumulative[vertex] >= TURN_SAMPLE_M
             }
-            if (exit != null && RouteMatcher.angleBetween(Geo.bearing(shape[vertex], shape[exit]), bearing) > MAX_ANGLE_DEG) {
+            if (entry != null && exit != null &&
+                RouteMatcher.angleBetween(Geo.bearing(shape[entry], shape[vertex]), evidenceBearing) <= APPROACH_ANGLE_DEG &&
+                RouteMatcher.angleBetween(Geo.bearing(shape[vertex], shape[exit]), evidenceBearing) > MAX_ANGLE_DEG
+            ) {
                 snapped = false
                 return Display(fix, false)
             }
@@ -114,7 +118,7 @@ class RouteSnap {
         const val MAX_ANGLE_DEG = 60.0
         const val APPROACH_ANGLE_DEG = 35.0
         const val MISSED_CORNER_MARGIN_M = 8.0
-        const val EXIT_SAMPLE_M = 8.0
+        const val TURN_SAMPLE_M = 8.0
         const val MIN_HEADING_SPEED_MPS = 2.5
     }
 }

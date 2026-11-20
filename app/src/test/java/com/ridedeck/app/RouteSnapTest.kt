@@ -102,7 +102,22 @@ class RouteSnapTest {
         val route = Route(listOf(Geo.offset(corner, 180.0, 30.0), corner, Geo.offset(corner, 90.0, 30.0)),
             emptyList(), 60.0, 7.0)
         val fix = Geo.offset(corner, 0.0, 2.0)
-        assertTrue(RouteSnap().display(route, 0, 1.0, fix, 0.0, 8.0).onRoute)
+        val shown = RouteSnap().display(route, 0, 1.0, fix, bearing = 0.0, speedMps = 8.0)
+        assertTrue(shown.onRoute)
+        assertEquals(corner, shown.point)
+    }
+
+    @Test
+    fun extrapolatedOvershootDoesNotReleaseTheMarkerBeforeTheRawFixPassesTheTurn() {
+        val corner = GeoPoint(41.0, 29.0)
+        val route = Route(listOf(Geo.offset(corner, 180.0, 30.0), corner, Geo.offset(corner, 90.0, 30.0)),
+            emptyList(), 60.0, 7.0)
+        val shown = RouteSnap().display(
+            route, 0, 0.9, Geo.offset(corner, 0.0, 12.0), bearing = 0.0, speedMps = 8.0,
+            evidenceFix = Geo.offset(corner, 180.0, 3.0),
+        )
+        assertTrue(shown.onRoute)
+        assertEquals(corner, shown.point)
     }
 
     @Test
