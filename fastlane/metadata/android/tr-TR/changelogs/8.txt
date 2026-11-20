@@ -1,0 +1,6 @@
+# v0.7.0 (versionCode 8)
+- Uygulama dili artık uygulama çalışırken değiştirilebiliyor (sistem dili veya Android 13+ uygulama dili menüsü): TTS sesi ve navigasyon rota talimatları uygulamayı yeniden başlatmadan yeni dile geçiyor.
+- İngilizce varsayılan uygulama dili oldu; desteklenmeyen cihaz dilleri İngilizceye düşüyor. Türkçe seçeneği korunuyor; Android 13+ uygulama dili menüsü İngilizce ve Türkçe seçeneklerini sunuyor.
+- Rota, yer arama ve ters geocode istekleri seçili uygulama dilini kullanıyor; konuşulan mesafe biçimi de bu dili izliyor.
+- 848/848 debug ve 848/848 release birim testi, 0 lint hatası ve instrumentation (208 geçti, 1 atlandı; atlanan test ayrı koşuda geçti) ile doğrulandı. Emülatörde en-US → tr-TR geçişinde süreç aynı kaldı.
+- Gerçek TTS sesi, fiziksel cihaz, gerçek sürüş, SMS/arama ve kaza algılama eşikleri doğrulanmadı; bu bir 1.0 sürümü değildir.

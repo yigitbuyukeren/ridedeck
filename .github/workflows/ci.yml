@@ -63,6 +63,8 @@ jobs:
           echo "PASS: release AAB produced; release APK is ARM-only and carries no probe asset"
       - name: Verify release signature (skipped without keystore.properties)
         run: python3 scripts/check-release-signature.py
+      - name: Verify F-Droid/IzzyOnDroid fastlane metadata
+        run: python3 scripts/check-fastlane-metadata.py
       - uses: actions/upload-artifact@v7
         with:
           name: RideDeck-debug-apk
