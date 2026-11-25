@@ -1,7 +1,7 @@
 <a href="https://yigitbuyukeren.com/ridedeck/">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/banner-dark.png">
-    <img src="docs/screenshots/banner-light.png" width="100%" alt="RideDeck v0.7.0 motorcycle dashboard banner showing the landscape GPS speedometer, live turn-by-turn mini-map, music controls, and 3D navigation preview">
+    <img src="docs/screenshots/banner-light.png" width="100%" alt="RideDeck v0.7.0 English motorcycle dashboard banner showing the landscape GPS speedometer, live turn-by-turn mini-map, music controls, and 3D navigation preview">
   </picture>
 </a>
 
@@ -14,7 +14,7 @@
 GPS speedometer · Motorcycle voice navigation · Music · Calls · Local trip history
 
 **[⬇️ Download signed APK (v0.7.0)](https://github.com/yigitbuyukeren/ridedeck/releases/download/v0.7.0/RideDeck-0.7.0.apk)** &nbsp;·&nbsp;
-**[🎬 Launch Video](docs/media/ridedeck-launch-16x9.mp4)** &nbsp;·&nbsp;
+**[🎬 English Launch Video](docs/media/ridedeck-launch-16x9.mp4)** &nbsp;·&nbsp;
 **[📋 Release Notes](https://github.com/yigitbuyukeren/ridedeck/releases/tag/v0.7.0)** &nbsp;·&nbsp;
 **[🌐 Website](https://yigitbuyukeren.com/en/ridedeck/)**
 
@@ -36,12 +36,12 @@ GPS speedometer · Motorcycle voice navigation · Music · Calls · Local trip h
 <div align="center">
 
 <a href="docs/media/ridedeck-launch-16x9.mp4">
-  <img src="docs/screenshots/demo.gif" width="860" alt="RideDeck v0.7.0 animated preview cycling through the landscape cockpit dashboard, route preview, turn-by-turn navigation, and music controls">
+  <img src="docs/screenshots/demo.gif" width="840" alt="RideDeck v0.7.0 animated preview cycling through the landscape cockpit dashboard, route preview, turn-by-turn navigation, and music controls">
 </a>
 
-**▶ [Watch full 60 fps launch film with audio (MP4, 3.8 MB)](docs/media/ridedeck-launch-16x9.mp4)** &nbsp;·&nbsp; 🇹🇷 [Sesli tam 60 fps lansman filmini izle](docs/media/ridedeck-launch-16x9.mp4)
+**▶ [Watch the full 60 fps English launch film with audio (MP4, 3.9 MB)](docs/media/ridedeck-launch-16x9.mp4)**
 
-<sub>Video and screenshots below were captured from a v0.7.0 Android emulator debug build (shown in Turkish) with simulated GPS and demo media. They do not represent real-device or on-road validation.</sub>
+<sub>The launch film is rendered from v0.7.0 Android emulator debug-build captures (shown in English) with simulated GPS and demo media; the screenshots below are direct 1600×900 emulator captures. Neither represents real-device or on-road validation.</sub>
 
 </div>
 
@@ -72,7 +72,7 @@ The interface takes inspiration from Apple CarPlay and Android Auto, but RideDec
 |:---:|:---:|:---:|
 | ![RideDeck route preview showing map, route options, and destination details](docs/screenshots/v0.7.0/route.png) | ![RideDeck active turn-by-turn navigation showing next maneuver, remaining distance, ETA, and speed limit](docs/screenshots/v0.7.0/navigation.png) | ![RideDeck full-screen music player with album art, progress bar, and playback controls](docs/screenshots/v0.7.0/music.png) |
 
-<sub>Edge-to-edge 1600×900 captures from an Android emulator debug build (v0.7.0) with simulated GPS and demo media. Not real-device or on-road validation.</sub>
+<sub>Edge-to-edge 1600×900 English UI captures from an Android emulator debug build (v0.7.0) with simulated GPS and demo media. Not real-device or on-road validation.</sub>
 
 ### Features
 
@@ -208,10 +208,10 @@ Arayüz Apple CarPlay ve Android Auto'dan ilham alır, ancak RideDeck doğrudan 
 
 ### Lansman Videosu ve Ekran Görüntüleri
 
-- **🎬 Lansman önizlemesi ve tam film:** Yukarıdaki [Demo Video](#demo-video) bölümündeki animasyonlu önizlemeyi izleyebilir veya **[sesli tam 60 fps lansman filmini (MP4, 3,8 MB)](docs/media/ridedeck-launch-16x9.mp4)** doğrudan açabilirsin.
+- **🎬 Lansman önizlemesi ve tam film:** Yukarıdaki [Demo Video](#demo-video) bölümündeki animasyonlu önizlemeyi izleyebilir veya **[İngilizce sesli tam 60 fps lansman filmini (MP4, 3,9 MB)](docs/media/ridedeck-launch-16x9.mp4)** doğrudan açabilirsin.
 - **📸 v0.7.0 ekran görüntüleri:** Yukarıdaki [Ekran Görüntüleri](#v070-screenshots) galerisinde gündüz/gece ana panel, rota önizlemesi, adım adım navigasyon ve müzik ekranları yer alır.
 
-<sub>Video ve ekran görüntüleri Android emülatöründeki v0.7.0 debug derlemesinden, simüle edilmiş GPS ve demo müzikle alınmıştır; gerçek cihaz veya sürüş doğrulaması değildir.</sub>
+<sub>Uluslararası depo için hazırlanan lansman filmi, Android emülatöründeki v0.7.0 debug derlemesinden alınan İngilizce arayüz kayıtları, simüle edilmiş GPS ve demo müzikle kurgulanmıştır; ekran görüntüleri doğrudan 1600×900 emülatör kaydıdır. Gerçek cihaz veya sürüş doğrulaması değildir.</sub>
 
 ### Kapsamlı Özellikler
 
