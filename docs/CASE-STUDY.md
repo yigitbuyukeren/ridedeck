@@ -98,7 +98,7 @@ Kaza algılama (`CrashDetector`) şu mantıkla çalışır: yakın zamanda sür�
 
 ## Gerçek cihaz doğrulamaları
 
-`docs/STATUS.md` kayıtlarına göre debug ve R8'li release APK'ları geçmişte bir fiziksel Android telefona kurulup denenmişti. Cihaz günlükleri, sürekli "Hey RideDeck" dinlemesinin neden bırakıldığını gösterdi (§5); bu kayıt sesli asistan dönemine aittir ve güncel sürümde asistan yoktur. Bu çalışmada telefon bağlı olmadığı için **yeni bir cihaz testi yapılmadı**; aşağıdaki "denenmedi" listesi güncel tutuluyor. Gerçek cihazla 60–90 sn'lik kayıt için hazır senaryo ve komutlar: [DEMO-SCENARIO.md](DEMO-SCENARIO.md). Henüz gerçek cihaz videosu yok.
+`docs/STATUS.md` kayıtlarına göre debug ve R8'li release APK'ları geçmişte bir fiziksel Android telefona kurulup denenmişti. Cihaz günlükleri, sürekli "Hey RideDeck" dinlemesinin neden bırakıldığını gösterdi (§5); bu kayıt sesli asistan dönemine aittir ve güncel sürümde asistan yoktur. Bu çalışmada telefon bağlı olmadığı için **yeni bir cihaz testi yapılmadı**; aşağıdaki "denenmedi" listesi güncel tutuluyor. Gerçek cihazla 60–90 sn'lik kayıt için hazır senaryo ve komutlar: [DEVELOPMENT.md](DEVELOPMENT.md#gerçek-cihaz-demo-kaydı). Henüz gerçek cihaz videosu yok.
 
 ## Doğrulama durumu
 

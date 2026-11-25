@@ -152,3 +152,13 @@ Blockers / unknowns:
 **Bottom line:** the signed APK itself is sound and internally consistent with the repo's release
 record (hash, cert, version, ABI, permissions, licenses, no debug/test leaks). The remaining items
 are store/policy, signing-infrastructure and real-device questions, not defects found in the APK.
+
+## Readiness summary & blockers (2026-11-20)
+
+- **Fastlane metadata:** `fastlane/metadata/android/{en-US,tr-TR}/` (`title.txt`, `short_description.txt`, `full_description.txt`, `changelogs/8.txt`, v0.7.0 emulator screenshots, 512×512 icon, `SCREENSHOT-PROVENANCE.md`) validated by `scripts/check-fastlane-metadata.py` in CI.
+- **Open blockers before submission:**
+  1. **Signing & reproducibility (OPEN):** Release signing uses uncommitted `keystore.properties`; decide from-source F-Droid vs. existing certificate strategy.
+  2. **Version conflict (OPEN):** `versionCode 8` is already published as GitHub `v0.7.0`; bump `versionCode` and add matching changelog for any store build.
+  3. **Provider terms (OPEN/BLOCKED):** Global quota compliance for OpenFreeMap, Nominatim, FOSSGIS/Valhalla/Overpass and Open-Meteo is unproven; new offline downloads remain paused.
+  4. **Store data-safety & legal (OPEN):** Complete privacy/data-safety declarations and `NOTICE` review.
+  5. **Field gates (OPEN/NO-GO):** Real device, GPS/riding, SMS/SIM, calls, intercom, lock-screen/Doze/OEM and 16 KB runtime remain unverified.

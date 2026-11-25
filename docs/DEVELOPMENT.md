@@ -292,3 +292,21 @@ SDK="${ANDROID_HOME:-$(sed -n 's/^sdk.dir=//p' local.properties 2>/dev/null)}"
 - Güncel durum ve açık saha kapıları: [STATUS.md](STATUS.md), [RELEASE_READINESS.md](RELEASE_READINESS.md)
 
 RideDeck gönüllü bir açık kaynak projesidir; yanıt süresi garanti edilmez. Sorunu net, tekrarlanabilir ve kişisel veriden arındırılmış biçimde paylaşmak en hızlı yardım yoludur.
+
+## Gerçek cihaz demo kaydı
+
+Depodaki ekran görüntüleri ve `demo.gif` emülatörden alınmıştır; gerçek cihaz videosu çekilirken kişisel veriler (bildirimler, rehber, ev/iş konumu) gizlenmeli ve SOS yalnızca kişi eklemeden iptal akışıyla gösterilmelidir. Uygulama yatay kilitlidir (`sensorLandscape`).
+
+```bash
+# Cihaz içi kayıt (en fazla 180 sn, 1080p)
+adb shell settings put system show_touches 1
+adb shell screenrecord --time-limit 90 --size 2400x1080 --bit-rate 8000000 /sdcard/ridedeck-demo.mp4
+adb pull /sdcard/ridedeck-demo.mp4 ./ridedeck-demo.mp4 && adb shell rm /sdcard/ridedeck-demo.mp4
+adb shell settings put system show_touches 0
+
+# Alternatif: scrcpy + 720p sıkıştırma
+scrcpy --record=ridedeck-demo.mp4 --max-fps=30 --time-limit=90
+ffmpeg -i ridedeck-demo.mp4 -vf scale=-2:720 -c:v libx264 -crf 28 -an ridedeck-demo-720p.mp4
+```
+
+Önerilen 75 sn akış: ana panel (0–8 sn) → hedef arama ve rota önizleme (8–25 sn) → sesli navigasyon ve mini harita (25–45 sn) → benzinlik/ara durak (45–55 sn) → telefon/müzik (55–65 sn) → SOS geri sayım ve İptal (65–75 sn).

@@ -18,7 +18,7 @@ Gerçek zamanlı acil durum, tıbbi yardım, kaza müdahalesi veya güvenlik gar
 
 ## İyi bir bildirim nasıl olur?
 
-- **Sürüm:** Uygulama sürümü veya APK dosya adı (ör. 0.6.0).
+- **Sürüm:** Uygulama sürümü veya APK dosya adı (ör. 0.7.0).
 - **Ortam:** Telefon modeli, Android sürümü, emülatör mü fiziksel cihaz mı?
 - **Adımlar:** En kısa yeniden üretme yolu. "Navigasyon çalışmıyor" yerine "rota hesaplandıktan sonra 3. dönüşte ses kesildi" gibi.
 - **Beklenen / gerçekleşen:** Ne olmasını bekliyordun, ne oldu?
