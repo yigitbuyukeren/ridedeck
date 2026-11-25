@@ -100,6 +100,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalFocusManager
@@ -139,10 +140,15 @@ import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.layers.BackgroundLayer
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.expressions.Expression.get
+import org.maplibre.android.style.layers.FillLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.SymbolLayer
+import org.maplibre.android.style.layers.PropertyFactory.backgroundColor
+import org.maplibre.android.style.layers.PropertyFactory.fillColor
+import org.maplibre.android.style.layers.PropertyFactory.fillOutlineColor
 import org.maplibre.android.style.layers.PropertyFactory.iconAllowOverlap
 import org.maplibre.android.style.layers.PropertyFactory.iconIgnorePlacement
 import org.maplibre.android.style.layers.PropertyFactory.iconImage
@@ -280,7 +286,7 @@ fun MapScreen(
         val m = map ?: return@LaunchedEffect
         styleReady = false
         m.setStyle(Style.Builder().fromUri(styleUrl(isDay))) { style ->
-            addMapLayers(style)
+            addMapLayers(style, isDay)
             styleReady = true
         }
     }
@@ -303,7 +309,7 @@ fun MapScreen(
         follow = ui.navigating && !overview,
         zoom = camZoom,
         tilt = camTilt,
-        padTopFraction = 0.45,
+        padTopFraction = 0.28,
         maxFps = if (lowPower) LOW_POWER_FPS else fullFps,
         route = ui.route.takeIf { ui.navigating },
         progressIndex = ui.progressIndex,
@@ -368,25 +374,17 @@ fun MapScreen(
     }
     LaunchedEffect(ui.navigating) { if (!ui.navigating) overview = false }
 
-    // Destination pin and the overview camera.
+    // Destination pin (the preview camera is framed inside the layout, where the panel width is known).
     LaunchedEffect(styleReady, ui.route, ui.destination, ui.stops, ui.stopsPassed) {
         val m = map ?: return@LaunchedEffect
         if (!styleReady) return@LaunchedEffect
         val style = m.style ?: return@LaunchedEffect
-        val route = ui.route
         val dest = ui.destination
         val destSource = style.getSourceAs<GeoJsonSource>(SRC_DEST)
         if (dest != null) destSource?.setGeoJson(FeatureCollection.fromFeatures(
             (ui.stops.drop(ui.stopsPassed).map { it.point } + dest.point).map { Feature.fromGeometry(Point.fromLngLat(it.lon, it.lat)) }
         ))
         else destSource?.setGeoJson(FeatureCollection.fromFeatures(emptyList<Feature>()))
-        if (route != null && !ui.navigating) {
-            val bounds = LatLngBounds.Builder().apply {
-                route.shape.forEach { include(LatLng(it.lat, it.lon)) }
-            }.build()
-            // Keep the route clear of the panel on the left.
-            m.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 520, 140, 140, 140), 800)
-        }
     }
 
     // Fuel station markers while the list is open.
@@ -410,6 +408,20 @@ fun MapScreen(
 
     BoxWithConstraints(modifier = modifier.clip(RoundedCornerShape(28.dp)).border(1.dp, Color(0x26FFFFFF), RoundedCornerShape(28.dp))) {
         val panelWidth = mapPanelWidth(maxWidth)
+        val density = LocalDensity.current
+        // Preview framing needs the real panel width: the panel is dp-sized, while MapLibre's
+        // camera padding is in pixels. A fixed 520 px was only ~260 dp and let the start dot sit
+        // behind the translucent panel on dense landscape screens.
+        LaunchedEffect(styleReady, ui.route, ui.navigating, panelWidth, density) {
+            if (!styleReady || ui.navigating) return@LaunchedEffect
+            val m = map ?: return@LaunchedEffect
+            val route = ui.route?.takeIf { it.shape.size >= 2 } ?: return@LaunchedEffect
+            val bounds = LatLngBounds.Builder().apply {
+                route.shape.forEach { include(LatLng(it.lat, it.lon)) }
+            }.build()
+            val leftPad = with(density) { (panelWidth + 16.dp).roundToPx() }
+            m.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, leftPad, 140, 140, 140), 800)
+        }
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = {
@@ -417,6 +429,9 @@ fun MapScreen(
                     mv.getMapAsync { m ->
                         map = m
                         m.uiSettings.isRotateGesturesEnabled = true
+                        // RideDeck's own close button occupies this corner; MapLibre's compass
+                        // otherwise peeks out from behind it while the camera is tilted.
+                        m.uiSettings.isCompassEnabled = false
                         m.uiSettings.isLogoEnabled = false
                         m.uiSettings.isAttributionEnabled = false
                         m.addOnMapLongClickListener { latLng ->
@@ -579,8 +594,6 @@ fun MapScreen(
                 SpeedChip(speedShown, over = SpeedLimitMath.isOver(speedKmh, speedLimit))
             }
         }
-        // The credit owns its accessibility description and the copyright/fixthemap links.
-        MapCredit(Modifier.align(Alignment.BottomEnd).padding(end = 8.dp, bottom = 4.dp))
 
         StopConfirmDialog(
             visible = confirmStop,
@@ -625,7 +638,23 @@ internal fun showAlternatives(style: Style, choices: List<Route>, chosen: Route?
     style.getSourceAs<GeoJsonSource>(SRC_ROUTE_ALT)?.setGeoJson(FeatureCollection.fromFeatures(features))
 }
 
-internal fun addMapLayers(style: Style) {
+internal fun addMapLayers(style: Style, isDay: Boolean = true) {
+    if (!isDay) {
+        // OpenFreeMap's default dark style paints roads nearly #121212 on a #0C0C0C ground,
+        // which turns the night cockpit into a near-black void. Lift land, water, buildings
+        // and road tiers to clear night-navigation contrast before adding route overlays.
+        style.getLayerAs<BackgroundLayer>("background")?.setProperties(backgroundColor("#171C24"))
+        style.getLayerAs<FillLayer>("water")?.setProperties(fillColor("#0F1826"))
+        style.getLayerAs<FillLayer>("landuse_park")?.setProperties(fillColor("#182924"))
+        style.getLayerAs<FillLayer>("building")?.setProperties(fillColor("#202733"), fillOutlineColor("#2C3647"))
+        style.getLayerAs<LineLayer>("highway_path")?.setProperties(lineColor("#2B3444"))
+        style.getLayerAs<LineLayer>("highway_minor")?.setProperties(lineColor("#3A4659"))
+        style.getLayerAs<LineLayer>("highway_major_casing")?.setProperties(lineColor("#263040"))
+        style.getLayerAs<LineLayer>("highway_major_inner")?.setProperties(lineColor("#52627C"))
+        style.getLayerAs<LineLayer>("highway_major_subtle")?.setProperties(lineColor("#404E66"))
+        style.getLayerAs<LineLayer>("highway_motorway_casing")?.setProperties(lineColor("#2A3548"))
+        style.getLayerAs<LineLayer>("highway_motorway_inner")?.setProperties(lineColor("#657896"))
+    }
     style.addSource(GeoJsonSource(SRC_ROUTE_ALT))
     style.addLayer(
         LineLayer("route-alt-line", SRC_ROUTE_ALT).withProperties(
@@ -678,14 +707,25 @@ internal fun addMapLayers(style: Style) {
         )
     )
     style.addSource(GeoJsonSource(SRC_ME))
-    style.addImage(ME_ARROW_IMAGE, markerBitmap(MarkerStyle.look.value), false)
+    style.addLayer(
+        CircleLayer("me-halo", SRC_ME).withProperties(
+            circleColor(MarkerStyle.look.value.color),
+            circleRadius(7f),
+            circleStrokeColor("#FFFFFF"),
+            circleStrokeWidth(2.5f),
+        )
+    )
+    style.addImage(ME_ARROW_IMAGE, markerBitmap(MarkerStyle.look.value))
     style.addLayer(
         SymbolLayer("me-arrow", SRC_ME).withProperties(
             iconImage(ME_ARROW_IMAGE),
-            iconSize(0.7f),
-            iconRotate(get("bearing")),
+            iconSize(0.75f),
+            iconRotate(org.maplibre.android.style.expressions.Expression.coalesce(
+                org.maplibre.android.style.expressions.Expression.toNumber(get("bearing")),
+                org.maplibre.android.style.expressions.Expression.literal(0f),
+            )),
             iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP),
-            iconPitchAlignment(Property.ICON_PITCH_ALIGNMENT_MAP),
+            iconPitchAlignment(Property.ICON_PITCH_ALIGNMENT_VIEWPORT),
             iconAllowOverlap(true),
             iconIgnorePlacement(true),
         )
@@ -1034,10 +1074,13 @@ internal fun RouteCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ui.choices.forEachIndexed { i, r ->
                         val delta = (r.durationS - ui.choices.first().durationS).toInt() / 60
-                        OptionChip(
-                            "${formatDuration(context, r.durationS.toInt())} · ${formatDistance(r.distanceM.toInt())}" +
+                        RouteChoiceChip(
+                            duration = formatDuration(context, r.durationS.toInt()),
+                            distance = formatDistance(r.distanceM.toInt()) +
                                 if (i > 0 && delta != 0) " (${if (delta > 0) "+" else ""}$delta)" else "",
-                            r === route, { onChoose(i) }, Modifier.weight(1f),
+                            selected = r === route,
+                            onClick = { onChoose(i) },
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
@@ -1048,7 +1091,12 @@ internal fun RouteCard(
                     OptionChip(stringResource(R.string.opt_no_toll), options.avoidTolls, { onOptions(options.copy(avoidTolls = !options.avoidTolls)) }, Modifier.weight(1f))
                 }
             }
-            if (debuggable && !ui.cachedPreview) OptionChip("Simüle et (x4)", false, { DebugSim.start(route, 4); onStart() }, Modifier.fillMaxWidth())
+            if (debuggable && !ui.cachedPreview) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OptionChip("Simüle et (x1)", false, { DebugSim.start(route, 1); onStart() }, Modifier.weight(1f))
+                    OptionChip("Simüle et (x4)", false, { DebugSim.start(route, 4); onStart() }, Modifier.weight(1f))
+                }
+            }
             if (ahead.size < 3 && canOpenExternal && !ui.cachedPreview) OptionChip(stringResource(R.string.add_stop), false, onAddStop, Modifier.fillMaxWidth())
           }
             BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -1208,6 +1256,56 @@ internal fun CachedRouteNeedsNetworkNotice(onRetry: (() -> Unit)? = null) {
                 )
             }
         }
+    }
+}
+
+/**
+ * An alternative-route choice. Duration and distance get their own lines instead of one
+ * ellipsised sentence: three weighted chips on a narrow landscape panel clipped labels such as
+ * "19 dk · 6,1 km (+2)" to an ambiguous "19 dk ...". The chip grows with the font scale, keeps a
+ * 68 dp minimum target and exposes the selected state like the shared OptionChip.
+ */
+@Composable
+private fun RouteChoiceChip(
+    duration: String,
+    distance: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val state = stringResource(if (selected) R.string.state_on else R.string.state_off)
+    Column(
+        modifier = modifier.heightIn(min = 68.dp).clip(RoundedCornerShape(22.dp))
+            .background(if (selected) MotoColors.Blue else MotoColors.PanelHigh)
+            .border(1.dp, if (selected) Color.White else Color(0x26FFFFFF), RoundedCornerShape(22.dp))
+            .semantics { role = Role.Switch; stateDescription = state }
+            .hapticClickable(haptic = RideHaptic.Select, onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (selected) {
+                Icon(Icons.Rounded.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+            }
+            Text(
+                duration,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+                textAlign = TextAlign.Center,
+            )
+        }
+        Text(
+            distance,
+            fontSize = 12.sp,
+            lineHeight = 15.sp,
+            color = if (selected) Color(0xE6FFFFFF) else MotoColors.Gray,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -1596,5 +1694,6 @@ internal fun MarkerRefresh(map: MapLibreMap?, styleReady: Boolean) {
     LaunchedEffect(map, styleReady, look) {
         val style = map?.style?.takeIf { styleReady } ?: return@LaunchedEffect
         style.addImage(ME_ARROW_IMAGE, markerBitmap(look), false)
+        style.getLayerAs<CircleLayer>("me-halo")?.setProperties(circleColor(look.color))
     }
 }

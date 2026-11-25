@@ -88,7 +88,7 @@ fun MiniMap(
         val m = map ?: return@LaunchedEffect
         styleReady = false
         m.setStyle(Style.Builder().fromUri(styleUrl(isDay))) { style ->
-            addMapLayers(style)
+            addMapLayers(style, isDay)
             styleReady = true
         }
     }
@@ -108,9 +108,9 @@ fun MiniMap(
     SmoothFollow(
         map, mapView, styleReady, me,
         follow = true,
-        zoom = 16.0,
-        tilt = 50.0,
-        padTopFraction = 0.3,
+        zoom = 15.5,
+        tilt = 38.0,
+        padTopFraction = 0.22,
         maxFps = if (lowPower) MINI_LOW_POWER_FPS else MINI_FULL_FPS,
         route = route,
         progressIndex = progressIndex,

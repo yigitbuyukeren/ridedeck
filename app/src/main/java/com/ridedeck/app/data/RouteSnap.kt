@@ -14,7 +14,7 @@ class RouteSnap {
     private var snapped = false
     private var routeRef: Route? = null
 
-    data class Display(val point: GeoPoint, val onRoute: Boolean)
+    data class Display(val point: GeoPoint, val onRoute: Boolean, val roadBearing: Double? = null)
 
     /**
      * The point to draw for [fix], given the route and the last matched [progressIndex]/[progressFraction].
@@ -79,8 +79,24 @@ class RouteSnap {
         val a = shape[bestIndex]
         val b = shape[bestIndex + 1]
         val t = match.fraction
+        val snappedPoint = GeoPoint(a.lat + (b.lat - a.lat) * t, a.lon + (b.lon - a.lon) * t)
+        val snappedAlong = cumulative[bestIndex] + t * (cumulative[bestIndex + 1] - cumulative[bestIndex])
+        val aheadTargetM = (snappedAlong + HEADING_LOOKAHEAD_M).coerceAtMost(cumulative.last())
+        var j = bestIndex
+        while (j < shape.size - 2 && cumulative[j + 1] < aheadTargetM) j++
+        val segLen = cumulative[j + 1] - cumulative[j]
+        val u = if (segLen > 0.0) ((aheadTargetM - cumulative[j]) / segLen).coerceIn(0.0, 1.0) else 0.0
+        val aheadPoint = GeoPoint(
+            shape[j].lat + (shape[j + 1].lat - shape[j].lat) * u,
+            shape[j].lon + (shape[j + 1].lon - shape[j].lon) * u,
+        )
+        val roadBearing = if (aheadTargetM - snappedAlong >= 2.0) {
+            Geo.bearing(snappedPoint, aheadPoint)
+        } else {
+            Geo.bearing(a, b)
+        }
         snapped = true
-        return Display(GeoPoint(a.lat + (b.lat - a.lat) * t, a.lon + (b.lon - a.lon) * t), true)
+        return Display(snappedPoint, true, roadBearing)
     }
 
     fun reset() {
@@ -94,6 +110,7 @@ class RouteSnap {
         /** Route searched around the last match: enough for one GPS gap and the dead-reckoned frames. */
         const val LOOK_BEHIND_M = 50.0
         const val LOOK_AHEAD_M = 150.0
+        const val HEADING_LOOKAHEAD_M = 35.0
         const val MAX_ANGLE_DEG = 60.0
         const val MIN_HEADING_SPEED_MPS = 2.5
     }

@@ -125,7 +125,8 @@ class RideNavigation(
         scope.launch { geometryCommands.run() }
         DebugSim.hook = { route, multiplier ->
             val speed = 16.0
-            tracking.location.simulate(RouteSimulator.fixes(route, RouteSimulator.Plan(speedMps = speed, noiseM = 4.0)), multiplier)
+            val noise = if (multiplier <= 1) 0.0 else 4.0
+            tracking.location.simulate(RouteSimulator.fixes(route, RouteSimulator.Plan(speedMps = speed, noiseM = noise)), multiplier)
         }
         DebugSim.stopHook = { tracking.location.stopSimulation() }
         scope.launch {

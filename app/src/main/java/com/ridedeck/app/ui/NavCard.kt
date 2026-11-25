@@ -7,10 +7,12 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -70,7 +72,10 @@ fun NavCard(
     // The card's static map tile follows the dashboard palette; the live mini map gets isDay below.
     val palette = LocalMotoPalette.current
     val maneuver = nav.route?.maneuvers?.getOrNull(nav.maneuverIndex)
-    val guiding = nav.navigating && maneuver != null
+    // Keep the nullable maneuver itself as the smart-cast source; deriving a Boolean separate
+    // from the value made the later null check look redundant to the compiler.
+    val activeManeuver = if (nav.navigating) maneuver else null
+    val guiding = activeManeuver != null
     // Share the mini-map overlay press so the whole clipped card moves together.
     val press = remember { MutableInteractionSource() }
     Box(
@@ -94,7 +99,7 @@ fun NavCard(
             )
             Box(
                 Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(listOf(Color(0xCC000000), Color.Transparent, Color.Transparent, Color(0xB3000000)))
+                    Brush.verticalGradient(listOf(Color(0x99000000), Color.Transparent, Color.Transparent, Color(0x80000000)))
                 )
             )
         } else {
@@ -117,24 +122,23 @@ fun NavCard(
             // On a narrow card the weather chip gives way.
             if (weather != null && !narrowCard) WeatherChip(weather)
         }
-        if (guiding) MapCredit(Modifier.align(Alignment.BottomEnd).padding(end = 10.dp, bottom = 6.dp))
         Column(
             modifier = Modifier.fillMaxSize().padding(14.dp),
         ) {
-            if (guiding && maneuver != null) {
+            if (activeManeuver != null) {
                 val now by rememberNowMs()
                 val arrival = remember(nav.remainingS, now) {
                     SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(now + nav.remainingS * 1000L))
                 }
                 NavGuidedContent(
-                    icon = maneuverIcon(maneuver.type),
+                    icon = maneuverIcon(activeManeuver.type),
                     distance = formatDistance(nav.distToNextM),
-                    instruction = maneuver.instruction.trimEnd('.'),
+                    instruction = activeManeuver.instruction.trimEnd('.'),
                     isDay = palette.isDay,
                     remainingDistance = formatDistance(nav.remainingM),
                     arrival = arrival,
                     // Leave room for the weather chip that overlays the top-right corner.
-                    maneuverModifier = Modifier.padding(end = if (weather != null && !narrowCard) 130.dp else 0.dp),
+                    maneuverModifier = Modifier.padding(end = if (weather != null && !narrowCard) 104.dp else 0.dp),
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
@@ -188,13 +192,13 @@ fun NavCard(
 @Composable
 internal fun NavProgressRow(distance: String, arrival: String, modifier: Modifier = Modifier) {
     Row(
-        modifier = modifier.clip(RoundedCornerShape(16.dp)).background(Color(0x99000000)).padding(horizontal = 14.dp, vertical = 8.dp),
+        modifier = modifier.clip(RoundedCornerShape(16.dp)).background(Color(0x99000000)).padding(horizontal = 14.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(distance, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
-        Text("·", fontSize = 20.sp, color = Color(0x99FFFFFF))
-        Text(arrival, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MotoColors.Green, maxLines = 1)
+        Text(distance, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+        Text("·", fontSize = 18.sp, color = Color(0x99FFFFFF))
+        Text(arrival, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MotoColors.Green, maxLines = 1)
     }
 }
 
@@ -213,19 +217,33 @@ internal fun NavGuidedContent(
     modifier: Modifier = Modifier,
     maneuverModifier: Modifier = Modifier,
 ) {
-    Column(modifier) {
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).testTag("nav-maneuver-scroll")) {
-            ManeuverRow(
-                icon = icon,
-                distance = distance,
-                instruction = instruction,
-                isDay = isDay,
-                modifier = maneuverModifier,
-                // The scrollable guided body must expose the whole instruction, never an ellipsis.
-                instructionMaxLines = Int.MAX_VALUE,
-            )
+    BoxWithConstraints(modifier) {
+        // SmoothFollow keeps the map's position marker around 61% of the card height. Capping the
+        // visible scroll viewport to 55% of the content keeps a long day scrim above that marker;
+        // the text still scrolls, so the full instruction remains reachable.
+        val maneuverViewportMax = maxHeight * 0.55f
+        Column(Modifier.fillMaxSize()) {
+            // The weighted cell keeps the progress row pinned to the bottom.
+            Column(Modifier.weight(1f).fillMaxWidth()) {
+                Column(
+                    Modifier.fillMaxWidth()
+                        .heightIn(max = maneuverViewportMax)
+                        .verticalScroll(rememberScrollState())
+                        .testTag("nav-maneuver-scroll")
+                ) {
+                    ManeuverRow(
+                        icon = icon,
+                        distance = distance,
+                        instruction = instruction,
+                        isDay = isDay,
+                        modifier = maneuverModifier,
+                        // The scrollable guided body must expose the whole instruction, never an ellipsis.
+                        instructionMaxLines = Int.MAX_VALUE,
+                    )
+                }
+            }
+            NavProgressRow(remainingDistance, arrival)
         }
-        NavProgressRow(remainingDistance, arrival)
     }
 }
 
@@ -244,16 +262,16 @@ internal fun ManeuverRow(
     instructionMaxLines: Int = 2,
 ) {
     val backdrop = if (isDay) {
-        Modifier.clip(RoundedCornerShape(18.dp)).background(Color(0xCC000000)).padding(horizontal = 10.dp, vertical = 8.dp)
+        Modifier.clip(RoundedCornerShape(18.dp)).background(Color(0xCC000000)).padding(horizontal = 10.dp, vertical = 6.dp)
     } else {
         Modifier
     }
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier.then(backdrop)) {
-        Icon(icon, null, tint = Color.White, modifier = Modifier.size(52.dp))
-        Column(modifier = Modifier.padding(start = 12.dp)) {
-            Text(distance, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        Icon(icon, null, tint = Color.White, modifier = Modifier.size(44.dp))
+        Column(modifier = Modifier.padding(start = 10.dp)) {
+            Text(distance, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, softWrap = false)
             Text(
-                instruction, fontSize = 13.sp, lineHeight = 16.sp, color = Color(0xE6FFFFFF),
+                instruction, fontSize = 12.5.sp, lineHeight = 15.sp, color = Color(0xE6FFFFFF),
                 maxLines = instructionMaxLines,
                 overflow = if (instructionMaxLines == Int.MAX_VALUE) TextOverflow.Clip else TextOverflow.Ellipsis,
             )
