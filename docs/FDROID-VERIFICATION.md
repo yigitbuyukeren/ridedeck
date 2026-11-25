@@ -1,8 +1,8 @@
 # F-Droid / IzzyOnDroid verification — RideDeck 0.7.0 signed release APK
 
 Date: 2026-11-20. Scope: **local evidence only** — the APK at
-`/home/notrace/Projeler/ridedeck/dist/RideDeck-0.7.0.apk`, the repo sources/docs at
-`/home/notrace/Projeler/ridedeck-fastlane` (branch `chore/fdroid-izzyondroid-metadata`),
+`dist/RideDeck-0.7.0.apk`, the repo sources/docs on branch
+`chore/fdroid-izzyondroid-metadata`,
 and local Android SDK tools. No network, no store submission, no keystore/secret reads.
 No APK, tag, release, branch, version or commit was modified.
 
@@ -24,7 +24,7 @@ No FAIL items were found in the locally verifiable checks.
 
 ## 1. File hash and documented comparison
 
-- Path: `/home/notrace/Projeler/ridedeck/dist/RideDeck-0.7.0.apk` — exists, regular file, **10,448,486 bytes** (non-empty).
+- Path: `dist/RideDeck-0.7.0.apk` — exists, regular file, **10,448,486 bytes** (non-empty).
 - `sha256sum`: `08e264b2c6a1235418aa89ed4646074dca71677a4ca01e5ea031811d084b845d`.
 - `docs/RELEASE_READINESS.md`, top (2026-11-18) section, line 13 records the identical APK SHA-256. **MATCH.**
 - The same line records the identical certificate SHA-256 used in check 2.
