@@ -20,7 +20,7 @@ object TripMath {
     /** Gaps longer than this (GPS lost, tunnel) do not add distance. */
     private const val MAX_GAP_MS = 30_000L
 
-    /** Faster than this between two fixes is a GPS jump, not riding (about 250 km/h). */
+    /** Faster than this between two fixes is a GPS jump, not driving (about 250 km/h). */
     private const val MAX_PLAUSIBLE_MPS = 70.0
 
     private const val MOVING_KMH = 2

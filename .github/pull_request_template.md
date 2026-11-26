@@ -31,9 +31,9 @@ Closes #
 - [ ] Değişiklik tek konuya odaklı; ilgisiz düzeltme yok.
 - [ ] Yeni davranış için birim testi ekledim veya test gerekmediğini açıkladım.
 - [ ] Kullanıcıya görünen metinleri ilgili `app/src/main/res/values/strings*.xml` (İngilizce) ve `values-tr/strings*.xml` (Türkçe) dosyalarında (`strings.xml`, `strings_data.xml`, `strings_nav.xml`, `strings_sos.xml`, `strings_ui.xml`) birlikte güncelledim (veya metin değişikliği yok).
-- [ ] Sürüş güvenliği ve motosiklet-only ilkesi korundu: sürerken yazı girişi yok, yeni dokunma hedefleri 64–84 dp (mevcut istisnalar ayrı), yüksek kontrast.
+- [ ] Sürüş güvenliği ve tek genel araç profili ilkesi korundu: sürerken yazı girişi yok, yeni dokunma hedefleri 64–84 dp (mevcut istisnalar ayrı), yüksek kontrast.
 - [ ] Yeni genel ağ çağrıları `app/src/main/java/com/ridedeck/app/data/Http.kt` üzerinden (MapLibre karo istekleri hariç); yeni dış servis varsa issue'da tartışıldı.
 - [ ] `local.properties`, `keystore.properties`, `*.jks`, `.env` veya başka gizli dosya/anahtar commit edilmedi.
-- [ ] Gerekli belgeler güncellendi (README, `docs/STATUS.md`, `CONTRIBUTING.md` vb.) veya belge değişikliği gerekmiyor.
+- [ ] Gerekli belgeler güncellendi (`docs/FEATURES-REFERENCE.md`, `docs/STATUS.md`, `CONTRIBUTING.md` vb.) veya belge değişikliği gerekmiyor.
 - [ ] Log ve ekran görüntülerinde kişisel veri yok.
 - [ ] CI (birim testleri, lint, APK/AAB ve emülatör instrumentation testleri) geçti. (PR açtıktan sonra işaretle.)

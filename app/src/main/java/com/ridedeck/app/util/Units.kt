@@ -29,7 +29,7 @@ object UnitMath {
     }
 }
 
-/** The rider's choice, observable so every screen redraws when it changes. */
+/** The driver's choice, observable so every screen redraws when it changes. */
 object Units {
     var miles by mutableStateOf(false)
         private set

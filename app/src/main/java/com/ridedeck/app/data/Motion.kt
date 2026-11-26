@@ -1,12 +1,12 @@
 package com.ridedeck.app.data
 
-/** What the bike is doing, as far as the GPS can tell. Every riding lock in the app reads this, not a raw speed. */
+/** What the vehicle is doing, as far as the GPS can tell. Every driving lock in the app reads this, not a raw speed. */
 enum class Motion { MOVING, STOPPED, UNKNOWN }
 
 /**
  * Turns the filtered display speed into a motion state with hysteresis: two consecutive fixes at or above
- * [movingKmh] mean riding, two below mean stopped, and a missing speed (no fresh fix) means unknown. One noisy
- * fix at a red light therefore changes nothing, and a tunnel does not pretend the bike has stopped.
+ * [movingKmh] mean driving, two below mean stopped, and a missing speed (no fresh fix) means unknown. One noisy
+ * fix at a red light therefore changes nothing, and a tunnel does not pretend the vehicle has stopped.
  */
 class MotionTracker(private val movingKmh: Double = MOVING_KMH, private val needFixes: Int = NEED_FIXES) {
     var motion: Motion = Motion.UNKNOWN

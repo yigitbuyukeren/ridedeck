@@ -56,7 +56,7 @@ class ReadinessWiringUiTest {
         var settingsClicks = 0
 
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 if (gate.open) {
                     ReadinessContent(
                         fakeReadiness(),
@@ -119,7 +119,7 @@ class ReadinessWiringUiTest {
         )
 
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 val currentFact = rememberReadinessFact(refreshKey) { fact }
                 val now = rememberReadinessNowMs(clock = { fakeNow }, intervalMs = 20L)
                 Text(
@@ -151,7 +151,7 @@ class ReadinessWiringUiTest {
         var gate by mutableStateOf(ReadinessUiState())
 
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 if (gate.open) {
                     ReadinessContent(fakeReadiness(), onClose = { gate = gate.dismiss() }, onAction = {})
                 }
@@ -183,7 +183,7 @@ class ReadinessWiringUiTest {
         val owner = TestLifecycleOwner()
 
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 CompositionLocalProvider(LocalLifecycleOwner provides owner) {
                     Text(
                         "fact=${rememberReadinessFact(refreshKey = "fixed") { fact }}",

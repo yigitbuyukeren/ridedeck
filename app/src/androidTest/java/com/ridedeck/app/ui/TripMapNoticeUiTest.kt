@@ -23,7 +23,7 @@ class TripMapNoticeUiTest {
     @Test
     fun tileFailureAfterStyleLoadKeepsTheOnlineStyleAndExplainsIt() {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(300.dp, 240.dp)) {
                     TripMapNotice(localOnly = false, tilesUnavailable = true)
                 }
@@ -37,7 +37,7 @@ class TripMapNoticeUiTest {
     @Test
     fun healthyTilesShowNoNotice() {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(300.dp, 240.dp)) {
                     TripMapNotice(localOnly = false, tilesUnavailable = false)
                 }
@@ -49,7 +49,7 @@ class TripMapNoticeUiTest {
     @Test
     fun aLocalStyleDoesNotReuseTheTileFailureWording() {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(300.dp, 240.dp)) {
                     TripMapNotice(localOnly = true, tilesUnavailable = true)
                 }

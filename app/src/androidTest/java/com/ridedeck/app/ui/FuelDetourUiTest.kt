@@ -57,7 +57,7 @@ class FuelDetourUiTest {
         var added = 0
         var started = 0
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(600.dp, 500.dp)) {
                     FuelPanel(
                         fuel = FuelUi(visible = true, stations = listOf(FuelStation(place("A"), 900))),
@@ -85,7 +85,7 @@ class FuelDetourUiTest {
         val a = place("A", 41.000)
         val b = place("B", 41.010)
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(600.dp, 500.dp)) {
                     FuelPanel(
                         fuel = FuelUi(
@@ -110,7 +110,7 @@ class FuelDetourUiTest {
     @Test fun zeroDetourKeepsZeroDistanceAndTime() {
         val station = place("A")
         compose.setContent {
-            MotoTheme { Box(Modifier.size(600.dp, 320.dp)) {
+            DeckTheme { Box(Modifier.size(600.dp, 320.dp)) {
                 FuelDetourQuote(
                     station = station,
                     ui = DetourQuoteUi(station = station, quote = DetourQuote.available(0.0, 0.0)),
@@ -128,7 +128,7 @@ class FuelDetourUiTest {
         val density = Density(context.createConfigurationContext(configuration))
         var closed = 0
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 CompositionLocalProvider(LocalDensity provides density) {
                     Box(Modifier.size(600.dp, 320.dp)) {
                         FuelDetourQuote(

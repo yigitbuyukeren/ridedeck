@@ -36,7 +36,7 @@ internal const val SOS_CHANNEL_ID = "sos"
 
 /**
  * Crash detection and SOS for the whole process. A screen used to own these, so they stopped the
- * moment the rider switched to the music app or the screen went dark. Now the accelerometer listens
+ * moment the driver switched to the music app or the screen went dark. Now the accelerometer listens
  * while the dashboard is on screen *or* a started ride (foreground service) is running, and a
  * countdown that begins with the screen off comes to the front through a full-screen notification.
  *
@@ -81,7 +81,7 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
         },
         message = { reason, link, stale ->
             val head = if (reason == SosReason.AUTO) {
-                app.getString(R.string.sos_sms_auto, app.getString(R.string.sos_noun_moto))
+                app.getString(R.string.sos_sms_auto, app.getString(R.string.sos_noun_vehicle))
             } else app.getString(R.string.sos_sms_manual)
             SosMath.compose(
                 head, link, stale,
@@ -96,7 +96,7 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
     private val crashSensor: CrashSensor = CrashSensor(app, speedKmh = {
         val fix = tracking.location.state.value
         if (fix.hasSpeed && fix.hasFreshFix(System.currentTimeMillis(), SystemClock.elapsedRealtime())) fix.speedKmh else null
-    }, config = { VehicleProfile.MOTORCYCLE.config }) { sos.trigger(SosReason.AUTO) }
+    }, config = { VehicleProfile.AUTO.config }) { sos.trigger(SosReason.AUTO) }
 
     /** The accelerometer runs while the dashboard is on screen or an explicitly started ride is active. */
     val armed: StateFlow<Boolean> get() = armedState
@@ -394,7 +394,7 @@ class RideSafety(context: Context, private val tracking: RideTracking, navigatio
         manager.createNotificationChannel(channel)
     }
 
-    /** Wakes the screen for the countdown head start; the timeout covers a rider who cannot reach the phone. */
+    /** Wakes the screen for the countdown head start; the timeout covers a driver who cannot reach the phone. */
     private fun acquireCountdownWakeLock() {
         if (wakeLock?.isHeld == true) return
         try {

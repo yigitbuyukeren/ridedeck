@@ -34,7 +34,7 @@ data class TripTrace(
         /** Matches TripMath: a longer silence is a break, never a straight line. */
         const val MAX_GAP_MS = 30_000L
 
-        /** Faster than this between two fixes is a GPS jump, not riding (about 250 km/h). */
+        /** Faster than this between two fixes is a GPS jump, not driving (about 250 km/h). */
         const val MAX_PLAUSIBLE_MPS = 70.0
 
         /** Rendering budget for a single prepared trip; callers may choose a smaller or larger value. */

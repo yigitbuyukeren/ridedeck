@@ -26,9 +26,9 @@ object PromptSchedule {
 }
 
 /**
- * Arrival time that follows the ride. The routing service's time assumes free-flowing traffic; once a minute of
- * riding has been observed, the remaining time is taken from a blend of the planned speed over the rest of the
- * route and the speed actually ridden lately (an exponential average, frozen while standing still so a red light
+ * Arrival time that follows the drive. The routing service's time assumes free-flowing traffic; once a minute of
+ * driving has been observed, the remaining time is taken from a blend of the planned speed over the rest of the
+ * route and the speed actually driven lately (an exponential average, frozen while standing still so a red light
  * does not drag the estimate down).
  */
 class EtaEstimator(
@@ -50,7 +50,7 @@ class EtaEstimator(
         observedS += dt
     }
 
-    /** Seconds to go for [remainingM] when the plan says [plannedS]; the plan alone until enough riding was seen. */
+    /** Seconds to go for [remainingM] when the plan says [plannedS]; the plan alone until enough driving was seen. */
     fun remainingS(remainingM: Double, plannedS: Double): Int {
         if (remainingM <= 0.0) return 0
         if (plannedS <= 0.0 || observedS < minObservedS || measuredMps < STILL_MPS) return plannedS.toInt()
@@ -59,7 +59,7 @@ class EtaEstimator(
         return (remainingM / blended).toInt()
     }
 
-    /** True when the ride is so far off the plan (slower or faster) that the card should say so. */
+    /** True when the drive is so far off the plan (slower or faster) that the card should say so. */
     fun drifts(remainingM: Double, plannedS: Double): Boolean {
         if (plannedS <= 0.0) return false
         val ours = remainingS(remainingM, plannedS)
@@ -78,7 +78,7 @@ class EtaEstimator(
     }
 }
 
-/** Distances the way a person says them: rounded so the number is believable at riding speed. */
+/** Distances the way a person says them: rounded so the number is believable at driving speed. */
 object SpokenDistance {
     /** 1 km and more to 100 m, 200 m and more to 50 m, under that to 10 m. */
     fun roundMetres(meters: Double): Int {
@@ -116,7 +116,7 @@ object SpokenDistance {
         if (v == Math.floor(v)) v.toInt().toString() else String.format(locale, "%.1f", v)
 }
 
-/** Matching a GPS fix onto the route, and deciding when the rider has really left it. */
+/** Matching a GPS fix onto the route, and deciding when the driver has really left it. */
 object RouteMatcher {
     /** Segments tried behind the last matched one, for a fix that lands a little back (GPS jitter, a fresh route). */
     const val BACK_MARGIN = 3
@@ -159,12 +159,12 @@ object RouteMatcher {
         return Match(bestIdx, best)
     }
 
-    /** After this long without a usable fix the whole route is searched: the bike may be anywhere along it. */
+    /** After this long without a usable fix the whole route is searched: the vehicle may be anywhere along it. */
     const val FULL_SEARCH_GAP_S = 30.0
 
     /**
      * How many segments ahead of [from] to search after [gapS] seconds without a match at [speedMps]: the distance
-     * the bike could have covered (with half again as margin) turned into segments, never fewer than [minimum].
+     * the vehicle could have covered (with half again as margin) turned into segments, never fewer than [minimum].
      * A tunnel in a city, where segments are 10–20 m, must not leave the match behind and force a re-route.
      */
     fun windowSegments(cumulative: DoubleArray, from: Int, gapS: Double, speedMps: Double, minimum: Int): Int {
@@ -195,11 +195,11 @@ data class RouteStartCheck(val block: RouteStartBlock, val startIndex: Int = 0)
 /**
  * Start-position sanity for a freshly computed route.
  *
- * A route is computed from the then-current fix. If the rider has since moved off that road (or the
- * preview was left open for a long time), starting it would guide from a road the bike is not on.
+ * A route is computed from the then-current fix. If the driver has since moved off that road (or the
+ * preview was left open for a long time), starting it would guide from a road the vehicle is not on.
  * Only the first [SEARCH_CORRIDOR_M] metres of the route are searched, and the projection must be
  * within the normal off-route distance and no further along than [MAX_ALONG_M]. Within that corridor
- * guidance starts at the matched segment, so a rider who rolled a few hundred metres along the same
+ * guidance starts at the matched segment, so a driver who rolled a few hundred metres along the same
  * preview route is not blocked. This is a pure function so tests need no GPS or network.
  */
 object RouteStartGuard {
@@ -209,9 +209,9 @@ object RouteStartGuard {
     const val SEARCH_CORRIDOR_M = 500.0
 
     /**
-     * A route is snapped to the nearest road, so a rider parked in a lot, courtyard or ferry deck can
+     * A route is snapped to the nearest road, so a driver parked in a lot, courtyard or ferry deck can
      * legitimately be tens of metres from the route's first shape point. This allowance lets that
-     * rider start without weakening the check for a route left behind far away.
+     * driver start without weakening the check for a route left behind far away.
      */
     const val ORIGIN_SNAP_ALLOWANCE_M = 120.0
 
@@ -223,7 +223,7 @@ object RouteStartGuard {
         val alongM = route.cumulative[match.index] +
             match.projection.fraction * (route.cumulative[match.index + 1] - route.cumulative[match.index])
         val onRoad = match.projection.distanceM <= RouteMatcher.offRouteM(speedMps, accuracyM)
-        // The provider snapped the route away from the rider's current parking spot. If the rider is
+        // The provider snapped the route away from the driver's current parking spot. If the driver is
         // still at the route's origin, the distance to shape.first() is the snap gap, not a stale route.
         val atOrigin = match.index <= 1 && Geo.distance(fix, route.shape.first()) <= ORIGIN_SNAP_ALLOWANCE_M
         return if ((onRoad && alongM <= MAX_ALONG_M) || atOrigin) {

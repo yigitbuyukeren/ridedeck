@@ -23,7 +23,7 @@ class RouteRequestTest {
         assertFalse(locations.getJSONObject(2).has("heading"))
         val plain = repo.requestBody(points, RouteOptions(), useMiles = false, alternates = 0, headingDeg = null)
         assertFalse(plain.getJSONArray("locations").getJSONObject(0).has("heading"))
-        assertTrue(plain.getString("costing") == "motorcycle")
+        assertTrue(plain.getString("costing") == "auto")
     }
 
     @Test

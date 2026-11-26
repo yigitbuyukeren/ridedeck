@@ -29,11 +29,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The five minute cooldown exists so one crash cannot alert twice. After the rider presses "İyiyim"
+ * The five minute cooldown exists so one crash cannot alert twice. After the driver presses "İyiyim"
  * it must not also swallow a *second* crash, while the same recorded samples still cannot fire twice.
  */
 class CrashCancelRegressionTest {
-    private fun riding(d: CrashDetector, from: Long, seconds: Int = 5) {
+    private fun driving(d: CrashDetector, from: Long, seconds: Int = 5) {
         var t = from
         repeat(seconds * 50) { d.onSample(t, 1.05f, 60, 0f, 0f, 1f); t += 20 }
     }
@@ -49,21 +49,21 @@ class CrashCancelRegressionTest {
     @Test
     fun acknowledgedCancelLetsAGenuineSecondCrashWithinFiveMinutesAlert() {
         val d = CrashDetector()
-        riding(d, 0)
+        driving(d, 0)
         assertTrue(crash(d, 5_000))
         d.acknowledgeCancel()
-        // The rider says "I am fine", then really crashes again ~7 s later: well inside the old cooldown.
-        riding(d, 15_000)
+        // The driver says "I am fine", then really crashes again ~7 s later: well inside the old cooldown.
+        driving(d, 15_000)
         assertTrue(crash(d, 20_000))
     }
 
     @Test
     fun acknowledgedCancelDoesNotLetTheSameSamplesFireAgain() {
         val d = CrashDetector()
-        riding(d, 0)
+        driving(d, 0)
         assertTrue(crash(d, 5_000))
         d.acknowledgeCancel()
-        // The same trace continues: bike stopped, phone lying still. No new ride, no new impact.
+        // The same trace continues: vehicle stopped, phone lying still. No new drive, no new impact.
         var t = 15_000L
         var again = false
         repeat(30 * 50) { again = d.onSample(t, 1f, 0, 0f, 0f, 1f) || again; t += 20 }
@@ -71,12 +71,12 @@ class CrashCancelRegressionTest {
     }
 
     @Test
-    fun acknowledgedCancelStillNeedsANewRidingWindowBeforeArming() {
+    fun acknowledgedCancelStillNeedsANewDrivingWindowBeforeArming() {
         val d = CrashDetector()
-        riding(d, 0)
+        driving(d, 0)
         assertTrue(crash(d, 5_000))
         d.acknowledgeCancel()
-        // A hard knock while the bike is parked must not arm: there was no riding speed after the cancel.
+        // A hard knock while the vehicle is parked must not arm: there was no driving speed after the cancel.
         var t = 15_000L
         var hit = d.onSample(t, 8f, 0)
         t += 20

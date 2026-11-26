@@ -111,7 +111,7 @@ class PhoneReadabilityUiTest {
                 LocalDensity provides androidDensity,
                 LocalConfiguration provides configuration,
             ) {
-                MotoTheme(isDay = day) {
+                DeckTheme(isDay = day) {
                     Box(Modifier.size(360.dp, 640.dp)) {
                         PhoneScreen(
                             recents = emptyList(),
@@ -238,7 +238,7 @@ class PhoneReadabilityUiTest {
                 LocalDensity provides androidDensity,
                 LocalConfiguration provides configuration,
             ) {
-                MotoTheme {
+                DeckTheme {
                     val surface = if (landscapeSurface) {
                         Modifier.requiredSize(914.dp, 411.dp)
                     } else {

@@ -2,7 +2,7 @@ package com.ridedeck.app.data
 
 import org.json.JSONArray
 
-/** The apps the rider pinned to the shelf, in order; pure list handling so it can be tested without Android. */
+/** The apps the driver pinned to the shelf, in order; pure list handling so it can be tested without Android. */
 object PinnedApps {
     fun fromJson(json: String?): List<String> {
         if (json.isNullOrBlank()) return emptyList()

@@ -33,7 +33,7 @@ class GuidanceMathTest {
 
     @Test
     fun headingBreaksTieOnParallelRoadsGoingTheOtherWay() {
-        // A reversed shape: the rider heads north but the nearest-by-distance segment runs south.
+        // A reversed shape: the driver heads north but the nearest-by-distance segment runs south.
         val shape = listOf(GeoPoint(41.0, 29.0), GeoPoint(41.003, 29.0), GeoPoint(41.003, 29.00005), GeoPoint(41.0, 29.00005))
         val p = GeoPoint(41.0015, 29.00003) // between the up leg and the down leg, nearer to the down leg
         val withHeading = RouteMatcher.match(shape, p, 0, 10, bearing = 0.0, speedMps = 10.0)
@@ -74,7 +74,7 @@ class GuidanceMathTest {
         // Plan: 10 km in 600 s (16.7 m/s). Nothing observed yet: the plan.
         assertEquals(600, eta.remainingS(10_000.0, 600.0))
         var t = 0L
-        // Riding at half the planned speed for 90 s.
+        // Driving at half the planned speed for 90 s.
         repeat(90) { t += 1000; eta.onFix(t, 8.33) }
         val slow = eta.remainingS(10_000.0, 600.0)
         assertTrue("$slow", slow in 740..760) // 0.6×16.7 + 0.4×8.33 = 13.3 m/s → 750 s
@@ -121,13 +121,13 @@ class GuidanceMathTest {
 
         assertEquals(RouteStartBlock.NONE, RouteStartGuard.evaluate(route, shape[0], speedMps = 0.0, accuracyM = 5))
         assertEquals(RouteStartBlock.NONE, RouteStartGuard.evaluate(route, shape[1], speedMps = 5.0, accuracyM = 5))
-        // A rider who rolled a few hundred metres along the same preview route may start there.
+        // A driver who rolled a few hundred metres along the same preview route may start there.
         val onRoute = RouteStartGuard.check(route, shape[3], speedMps = 5.0, accuracyM = 5)
         assertEquals(RouteStartBlock.NONE, onRoute.block)
         assertEquals(2, onRoute.startIndex) // at the shared vertex, the segment ending there is matched
         // Past the first 500 m the route ahead is no longer a sane start for this preview.
         assertEquals(RouteStartBlock.OFF_START, RouteStartGuard.evaluate(route, shape[6], speedMps = 5.0, accuracyM = 5))
-        // A rider parked just off the snapped road at the route origin can still start: the gap is
+        // A driver parked just off the snapped road at the route origin can still start: the gap is
         // the provider's snap distance, not a stale preview. 50 m east is beyond the 45 m off-route
         // distance but inside the origin snap allowance.
         assertEquals(

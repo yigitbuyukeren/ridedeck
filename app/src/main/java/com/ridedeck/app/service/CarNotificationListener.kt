@@ -54,7 +54,7 @@ class CarNotificationListener : NotificationListenerService() {
             n.extras.getString(Notification.EXTRA_TEMPLATE) == Notification.MessagingStyle::class.java.name
         if (!isMessage) return
 
-        // Remember the app so Settings can offer to silence it, and drop apps the rider muted.
+        // Remember the app so Settings can offer to silence it, and drop apps the driver muted.
         val seen = PinnedApps.fromJson(Prefs.messageAppsSeen(this))
         if (sbn.packageName !in seen) Prefs.setMessageAppsSeen(this, PinnedApps.toJson(PinnedApps.add(seen, sbn.packageName)))
         if (sbn.packageName in PinnedApps.fromJson(Prefs.messageAppsMuted(this))) return

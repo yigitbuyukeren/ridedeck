@@ -2,7 +2,7 @@
 
 Bu belge RideDeck'i yerelde derlemek, test etmek ve değiştirmek için gereken pratik adımları anlatır. Katkı süreci, dal/commit kuralları ve PR beklentileri için [CONTRIBUTING.md](../CONTRIBUTING.md); kod haritası için [ARCHITECTURE.md](ARCHITECTURE.md) dosyasına bak.
 
-RideDeck tek modüllü bir Android uygulamasıdır: Kotlin, Jetpack Compose, `minSdk 26`, `compileSdk`/`targetSdk 36`. Hesap, API anahtarı, analitik veya RideDeck sunucusu yoktur.
+RideDeck, CarPlay/Android Auto'dan ilham alan bağımsız bir Android araç içi sürüş panelidir; CarPlay veya Android Auto ile entegre değildir. Tek modüllü bir Android uygulamasıdır: Kotlin, Jetpack Compose, `minSdk 26`, `compileSdk`/`targetSdk 36`. Hesap, API anahtarı, analitik veya RideDeck sunucusu yoktur.
 
 > **English quick start:** use JDK 17 and Android SDK 36, set `sdk.dir` in `local.properties`, then run `./gradlew testDebugUnitTest assembleDebug`. See the English quick start in [CONTRIBUTING.md](../CONTRIBUTING.md) for the PR workflow.
 
@@ -139,8 +139,8 @@ Temel ilkeler:
 - **Saf mantık + ince Android kabuğu.** Hız filtresi, rota eşleme, SOS matematiği, ısınma koruması gibi çekirdekler Android API'sine bağımlı değildir; saat ve sensör girdisi dışarıdan verilir. Bu yüzden telefon olmadan test edilebilirler.
 - **Tek ağ geçidi.** Nominatim, Valhalla, Open-Meteo ve Overpass çağrıları `data/Http.kt`/`ProviderHttp` üzerinden gider; tek `User-Agent`, ortak hata/iptal ve sağlayıcı bazlı eşzamanlılık/aralık vardır. MapLibre'nin harita karo istekleri motorun kendi ağ katmanındadır.
 - **Ömür.** `RideSafety` ve `RideNavigation` uygulama sürecinde yaşar; ekran kapansa da başlatılmış yolculuk ve SOS devam eder. Ekran durumu `DashboardViewModel` ve Compose'dadır.
-- **Yerel veri.** Yolculuklar, kayıtlı yerler ve tercihler telefonda tutulur. Rota geometrisi süreç ölümünden sonra yalnız önizleme olarak geri gelir; çevrimdışı rota hesabı yoktur.
-- **Motosiklet-only.** Araç seçici veya araba/bisiklet profili yoktur. Motosiklet sabitleri (gösterge üst sınırı, kaza eşiği, durak türü) `data/VehicleProfile.kt` içindeki `ProfileConfig` üzerinden gelir; yeni bir araç profili ekleme.
+- **Yerel veri.** Yolculuklar, kayıtlı yerler ve tercihler cihazda tutulur. Rota geometrisi süreç ölümünden sonra yalnız önizleme olarak geri gelir; çevrimdışı rota hesabı yoktur.
+- **Tek genel araç profili.** Araç seçici veya araca göre dallanan davranış yoktur; `VehicleProfile.AUTO` kullanılır ve rota Valhalla `auto` costing ile hesaplanır. Gösterge üst sınırı (240 km/sa), kaza darbesi eşiği (5,0 g), hareket eşiği (30 km/sa), `crashNeedsTilt = false` ve durak türü (yalnız benzinlik) `data/VehicleProfile.kt` içindeki `ProfileConfig` üzerinden gelir; yeni bir araç profili ekleme.
 
 Ayrıntılı paket haritası ve "nerede ne değiştirilir?" tablosu: [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -226,7 +226,7 @@ Bu alanlar sürüş güvenliğini doğrudan etkiler.
 
 ### Belge güncelleme
 
-- Kullanıcıya görünen özellik/sınır değiştiyse `README.md`.
+- Kullanıcıya görünen özellik/sınır değiştiyse `docs/FEATURES-REFERENCE.md`.
 - Mimari veya geliştirme akışı değiştiyse `docs/ARCHITECTURE.md` / bu dosya.
 - Tamamlanan işin kanıtı ve tarihsel durum için `docs/STATUS.md`; yayın kapıları için `docs/RELEASE_READINESS.md`.
 - `docs/STATUS.md` güncel durum/kanıttır; tarihli eski bölümlerdeki test sayılarını güncel sonuç gibi sunma.

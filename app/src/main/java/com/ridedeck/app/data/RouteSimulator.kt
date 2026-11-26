@@ -4,7 +4,7 @@ import kotlin.math.cos
 import kotlin.random.Random
 
 /**
- * Turns a [Route] into a stream of GPS fixes one second apart, as a bike would produce them: constant speed along
+ * Turns a [Route] into a stream of GPS fixes one second apart, as a vehicle would produce them: constant speed along
  * the shape, optional gaussian-ish noise, a gap (tunnel) and a detour. Pure, so tests and a debug replay share it.
  */
 object RouteSimulator {
@@ -15,7 +15,7 @@ object RouteSimulator {
         /** Fixes are dropped for [gapSeconds] starting [gapAtM] metres into the route (tunnel). */
         val gapAtM: Double = -1.0,
         val gapSeconds: Int = 0,
-        /** From [detourAtM] on, the rider is [detourOffsetM] metres to the east of the route for [detourSeconds]. */
+        /** From [detourAtM] on, the driver is [detourOffsetM] metres to the east of the route for [detourSeconds]. */
         val detourAtM: Double = -1.0,
         val detourOffsetM: Double = 0.0,
         val detourSeconds: Int = 0,

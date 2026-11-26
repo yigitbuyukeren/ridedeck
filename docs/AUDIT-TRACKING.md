@@ -7,7 +7,7 @@ gerektiren maddeler ayrıca **ENGEL** olarak işaretlenir.
 
 | ID | Öncelik | Alan | Bulgu | Durum | Kanıt / not |
 |---|---|---|---|---|---|
-| P0-1 | P0 | Saha | Fiziksel cihaz, gerçek GPS/Doze/OEM, gerçek çağrı/SMS/interkom ve 16 KB runtime doğrulanmadı | ENGEL | Emülatör/sentetik test bunun yerine geçmez |
+| P0-1 | P0 | Saha | Fiziksel cihaz, gerçek GPS/Doze/OEM, gerçek çağrı/SMS/Bluetooth ses (eller serbest) ve 16 KB runtime doğrulanmadı | ENGEL | Emülatör/sentetik test bunun yerine geçmez |
 | P0-2 | P0 | Test | 173 instrumentation testinin tamamı tek koşuda yeşil değil; süreç çökmesi/askıda kalma var | KAPALI | Tek connectedDebugAndroidTest: 203 PASS + 1 atlandı; atlanan izin testi ayrı PASS (toplam 204); batch 204/204 |
 | P0-3 | P0 | Sağlayıcı | Nominatim/Valhalla/Overpass toplu (global) kota uyumu istemciden kanıtlanamaz | ENGEL | Yerel merkezi throttle uygulanacak; global kanıt değildir |
 | P0-4 | P0 | SOS | Gerçek SIM üzerinden SMS teslimi ve gerçek arama doğrulanmadı | ENGEL | Sahte gateway/emülatör kullanılacak |
@@ -35,7 +35,7 @@ gerektiren maddeler ayrıca **ENGEL** olarak işaretlenir.
 | P1-21 | P1 | Veri | Yolculuk geçmişini topluca silme yok | KAPALI | deleteAllTrips + onay + test |
 | P1-22 | P1 | Veri | SQLite onUpgrade boş; bozulma kurtarma yok | KAPALI | v2 migration + corrupt backup + test |
 | P1-23 | P1 | Telefon | API 26/27'de arama kapatma sessizce başarısız | KAPALI | CallCapability + CallScreen disabled/açıklama |
-| P1-24 | P1 | Telefon | MotoInCallService API <30 kişi araması ana thread'de | KAPALI | executor + generation guard |
+| P1-24 | P1 | Telefon | DeckInCallService API <30 kişi araması ana thread'de | KAPALI | executor + generation guard |
 | P1-25 | P1 | CI | CI instrumentation çalıştırmıyor; x86_64 yok | KAPALI | CI emulator job + rapor |
 | P1-26 | P1 | Build | ARM-only APK CI emülatöründe çalışmıyor | KAPALI | debug x86_64; batch suite |
 | P2-1 | P2 | UI | Küçük ekran/taşma ve kırpılmalar | KAPALI | hedefli UI testleri |
@@ -73,7 +73,7 @@ gerektiren maddeler ayrıca **ENGEL** olarak işaretlenir.
 - **DOCS**: P2-18..P2-20, P3-3
 
 > Not: Bu tablodaki "kapalı" sayısı yalnız kod + test kanıtı olan maddeleri sayar.
-> Gerçek cihaz, gerçek SMS/arama, sağlayıcı global kotası ve mağaza kararları
+> Gerçek cihaz, gerçek SMS/arama, Bluetooth ses/eller serbest, sağlayıcı global kotası ve mağaza kararları
 > kapanmadan genel 1.0 kararı GO olamaz.
 
 > **17 Kasım 2026 doküman uzlaştırma notu:** README, STATUS, CASE-STUDY (TR/EN),

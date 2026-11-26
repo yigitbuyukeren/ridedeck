@@ -177,7 +177,7 @@ internal fun TripMapPanel(
 
 @Composable
 internal fun TripMapHeader(onClose: () -> Unit) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -208,12 +208,12 @@ private fun TripMapMessage(
     action: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(text, fontSize = 17.sp, lineHeight = 20.4.sp, color = palette.muted)
             if (action != null && onAction != null) {
-                PillButton(action, MotoColors.Blue, onAction, minHeight = 64.dp)
+                PillButton(action, DeckColors.Blue, onAction, minHeight = 64.dp)
             }
         }
     }
@@ -227,7 +227,7 @@ internal fun TripMapReady(
     modifier: Modifier = Modifier,
     onSnapshot: ((TripMapSnapshot) -> Unit)? = null,
 ) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (trace.wasSimplified || trace.gaps.isNotEmpty()) {
             Column(

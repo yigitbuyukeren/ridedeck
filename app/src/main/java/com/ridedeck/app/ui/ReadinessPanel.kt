@@ -116,9 +116,9 @@ internal fun readinessAction(item: ReadinessItem): ReadinessAction? = when {
 /** One optional launch-screen/settings entry; the panel itself never opens by itself. */
 @Composable
 internal fun ReadinessEntryRow(onOpen: () -> Unit, modifier: Modifier = Modifier) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Row(
-        modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(16.dp),
+        modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(DeckColors.Card).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -127,7 +127,7 @@ internal fun ReadinessEntryRow(onOpen: () -> Unit, modifier: Modifier = Modifier
             Text(stringResource(R.string.readiness_entry_desc), fontSize = 14.sp, lineHeight = 20.sp, color = palette.muted)
         }
         PillButton(
-            stringResource(R.string.readiness_entry_action), MotoColors.Blue, onOpen,
+            stringResource(R.string.readiness_entry_action), DeckColors.Blue, onOpen,
             minHeight = 64.dp, fontSize = 16.sp, horizontalPadding = 16.dp,
         )
     }
@@ -248,7 +248,7 @@ internal fun ReadinessContent(
     onClose: () -> Unit,
     onAction: (ReadinessAction) -> Unit,
 ) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Box(Modifier.fillMaxSize().background(palette.scrim).clickable(enabled = false) {}) {
         Column(
             modifier = Modifier.fillMaxHeight().symmetricSafePadding().widthIn(max = 820.dp)
@@ -279,7 +279,7 @@ internal fun ReadinessContent(
                     )
                 }
                 Box(
-                    modifier = Modifier.size(72.dp).testTag("readiness-close").clip(CircleShape).background(MotoColors.CardHigh)
+                    modifier = Modifier.size(72.dp).testTag("readiness-close").clip(CircleShape).background(DeckColors.CardHigh)
                         .hapticClickable(onClick = onClose),
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Rounded.Close, stringResource(R.string.message_dismiss), tint = palette.text, modifier = Modifier.size(32.dp)) }
@@ -299,9 +299,9 @@ internal fun ReadinessContent(
 
 @Composable
 private fun ReadinessRow(item: ReadinessItem, onAction: (ReadinessAction) -> Unit) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(16.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(DeckColors.Card).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -339,7 +339,7 @@ private fun statusLabel(status: ReadinessStatus): String = stringResource(when (
     ReadinessStatus.UNKNOWN -> R.string.readiness_status_unknown
 })
 
-private fun statusColor(status: ReadinessStatus, palette: MotoPalette): androidx.compose.ui.graphics.Color = when (status) {
+private fun statusColor(status: ReadinessStatus, palette: DeckPalette): androidx.compose.ui.graphics.Color = when (status) {
     ReadinessStatus.READY -> successColor(palette)
     ReadinessStatus.MISSING -> dangerColor(palette)
     ReadinessStatus.OPTIONAL -> warningColor(palette)

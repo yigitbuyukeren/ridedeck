@@ -66,7 +66,7 @@ class TripMapUiTest {
         var show by mutableStateOf(true)
         var isDay by mutableStateOf(false)
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 if (show) {
                     Box(Modifier.size(360.dp, 240.dp)) {
                         TripMapCanvas(
@@ -120,7 +120,7 @@ class TripMapUiTest {
         )
         val snapshot = AtomicReference<TripMapSnapshot?>()
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(360.dp, 240.dp)) {
                     TripMapCanvas(
                         trace = duplicate,
@@ -150,9 +150,9 @@ class TripMapUiTest {
         val snapshot = AtomicReference<TripMapSnapshot?>()
         var isDay by mutableStateOf(false)
         compose.setContent {
-            MotoTheme(isDay = isDay) {
+            DeckTheme(isDay = isDay) {
                 CompositionLocalProvider(LocalDensity provides scaledDensity) {
-                    Box(Modifier.size(300.dp, 240.dp).background(LocalMotoPalette.current.card)) {
+                    Box(Modifier.size(300.dp, 240.dp).background(LocalDeckPalette.current.card)) {
                         Column(Modifier.fillMaxSize()) {
                             TripMapHeader(onClose = {})
                             TripMapReady(
@@ -212,7 +212,7 @@ class TripMapUiTest {
         val trace = TripTrace.from(listOf(TripPoint(1_700_000_000_000L, 41.0, 29.0, 0)))
         val snapshot = AtomicReference<TripMapSnapshot?>()
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(300.dp, 240.dp)) {
                     TripMapCanvas(
                         trace = trace,
@@ -251,7 +251,7 @@ class TripMapUiTest {
         val trace = TripTrace.from(points, maxPoints = 2_000)
         val snapshot = AtomicReference<TripMapSnapshot?>()
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(360.dp, 240.dp)) {
                     TripMapCanvas(
                         trace = trace,

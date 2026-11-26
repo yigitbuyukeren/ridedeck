@@ -219,7 +219,7 @@ fun MapScreen(
     nav: NavigationController,
     locationState: StateFlow<LocationState>,
     speedKmh: Int,
-    /** No typing while riding; decided by the motion state (hysteresis, unknown keeps the last answer), not a raw speed. */
+    /** No typing while driving; decided by the motion state (hysteresis, unknown keeps the last answer), not a raw speed. */
     inputLocked: Boolean,
     speedShown: Int? = null,
     speedLimit: Int?,
@@ -329,7 +329,7 @@ fun MapScreen(
         }
     }
 
-    // Route line: grey behind the rider, blue ahead. The effect is keyed on the segment index only:
+    // Route line: grey behind the driver, blue ahead. The effect is keyed on the segment index only:
     // progressFraction moves at GPS rate (1 Hz) and re-serialising the whole remaining route GeoJSON
     // on the main thread for each fix is wasted work. The split can lag by at most one segment; the
     // marker and chase camera keep using the precise fraction. A style/route change still redraws.
@@ -492,7 +492,7 @@ fun MapScreen(
                 )
                 ui.cachedRouteNeedsNetwork && ui.route == null -> CachedRouteNeedsNetworkNotice(onRetry = onRetryCachedNetwork)
                 addingStop && ui.route != null && !ui.navigating -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PillButton(stringResource(R.string.cancel), MotoColors.PanelHigh, { addingStop = false; typing = false }, Modifier.fillMaxWidth())
+                    PillButton(stringResource(R.string.cancel), DeckColors.PanelHigh, { addingStop = false; typing = false }, Modifier.fillMaxWidth())
                     SearchPanel(
                         ui = ui, locked = inputLocked, typing = typing,
                         onFocus = { typing = true },
@@ -542,7 +542,7 @@ fun MapScreen(
             val offlineAreas by com.ridedeck.app.data.OfflineMaps.areas.collectAsStateWithLifecycle()
             LaunchedEffect(Unit) { com.ridedeck.app.data.OfflineMaps.load(context) }
             if (!online && me.hasFreshFix(System.currentTimeMillis()) && !com.ridedeck.app.data.OfflinePlan.covered(offlineAreas, GeoPoint(me.lat, me.lon))) {
-                Chip(stringResource(R.string.offline_uncovered), MotoColors.Orange)
+                Chip(stringResource(R.string.offline_uncovered), DeckColors.Orange)
             }
         }
 
@@ -761,26 +761,26 @@ internal fun SearchPanel(
     recents: List<Place>,
     onClearRecents: () -> Unit,
     onSuggestion: (String) -> Unit,
-    /** Where the rider is, for the distance beside each result; null hides the distances. */
+    /** Where the driver is, for the distance beside each result; null hides the distances. */
     here: GeoPoint? = null,
 ) {
     GlassPanel(Modifier.fillMaxWidth().testTag("map-search-panel")) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // The query is typed on the app's own keyboard; this box just shows it and opens the keyboard.
             Row(
-                modifier = Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(16.dp)).background(MotoColors.PanelHigh)
+                modifier = Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(16.dp)).background(DeckColors.PanelHigh)
                     .hapticClickable(enabled = !locked, onClick = onFocus).padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Rounded.Search, null, tint = MotoColors.Gray, modifier = Modifier.size(26.dp))
+                Icon(Icons.Rounded.Search, null, tint = DeckColors.Gray, modifier = Modifier.size(26.dp))
                 Box(modifier = Modifier.padding(start = 10.dp).weight(1f)) {
-                    if (ui.query.isEmpty()) Text(stringResource(R.string.where_to), fontSize = 20.sp, color = MotoColors.Gray, maxLines = 1)
+                    if (ui.query.isEmpty()) Text(stringResource(R.string.where_to), fontSize = 20.sp, color = DeckColors.Gray, maxLines = 1)
                     else Text(ui.query + if (typing) "▏" else "", fontSize = 20.sp, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 if (ui.query.isNotEmpty()) {
                     Box(
                         modifier = Modifier.padding(start = 8.dp).height(64.dp).clip(RoundedCornerShape(14.dp))
-                            .background(if (locked) MotoColors.Gray else MotoColors.Blue)
+                            .background(if (locked) DeckColors.Gray else DeckColors.Blue)
                             .pressClickable(enabled = !locked, onClick = onSearch).padding(horizontal = 22.dp),
                         contentAlignment = Alignment.Center,
                     ) { Text(stringResource(R.string.search), fontSize = 19.sp, fontWeight = FontWeight.Bold, color = Color.White) }
@@ -792,18 +792,18 @@ internal fun SearchPanel(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (ui.loading) {
-                    item { Text(stringResource(R.string.route_computing), fontSize = 15.sp, color = MotoColors.Gray) }
+                    item { Text(stringResource(R.string.route_computing), fontSize = 15.sp, color = DeckColors.Gray) }
                 } else if (ui.searching) {
-                    item { Text(stringResource(R.string.searching), fontSize = 15.sp, color = MotoColors.Gray) }
+                    item { Text(stringResource(R.string.searching), fontSize = 15.sp, color = DeckColors.Gray) }
                 } else if (ui.error != null) {
-                    item { Text(ui.error, fontSize = 15.sp, color = MotoColors.Orange) }
+                    item { Text(ui.error, fontSize = 15.sp, color = DeckColors.Orange) }
                 } else if (locked) {
-                    item { Text(stringResource(R.string.search_locked), fontSize = 14.sp, color = MotoColors.Orange) }
+                    item { Text(stringResource(R.string.search_locked), fontSize = 14.sp, color = DeckColors.Orange) }
                 } else if (ui.results.isEmpty() && ui.query.isEmpty()) {
                     item {
                         Text(
                             stringResource(if (places.isEmpty()) R.string.saved_hint else R.string.hint_long_press),
-                            fontSize = 14.sp, color = MotoColors.Gray,
+                            fontSize = 14.sp, color = DeckColors.Gray,
                         )
                     }
                 }
@@ -811,19 +811,19 @@ internal fun SearchPanel(
                 if (suggestion != null && ui.results.isEmpty() && !ui.searching) {
                     item {
                         Box(
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).clip(RoundedCornerShape(14.dp)).background(MotoColors.PanelHigh)
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).clip(RoundedCornerShape(14.dp)).background(DeckColors.PanelHigh)
                                 .pressClickable(enabled = !locked, onClick = { onSuggestion(suggestion) }).padding(horizontal = 16.dp),
                             contentAlignment = Alignment.CenterStart,
-                        ) { Text(stringResource(R.string.did_you_mean_fmt, suggestion), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = MotoColors.Blue) }
+                        ) { Text(stringResource(R.string.did_you_mean_fmt, suggestion), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = DeckColors.Blue) }
                     }
                 }
                 if (ui.results.isEmpty() && !ui.loading && !ui.searching && ui.error != null) {
-                    item { Text(stringResource(R.string.hint_long_press), fontSize = 14.sp, color = MotoColors.Gray) }
+                    item { Text(stringResource(R.string.hint_long_press), fontSize = 14.sp, color = DeckColors.Gray) }
                 }
                 val resultsFor = ui.resultsFor
                 if (resultsFor != null && ui.results.isNotEmpty()) {
                     item {
-                        Text(stringResource(R.string.search_results_for_fmt, resultsFor), fontSize = 14.sp, color = MotoColors.Gray)
+                        Text(stringResource(R.string.search_results_for_fmt, resultsFor), fontSize = 14.sp, color = DeckColors.Gray)
                     }
                 }
                 if (ui.results.isEmpty() && !ui.loading) {
@@ -839,16 +839,16 @@ internal fun SearchPanel(
                         ) {
                             Text(place.name, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             if (place.detail.isNotBlank()) {
-                                Text(place.detail, fontSize = 14.sp, color = MotoColors.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(place.detail, fontSize = 14.sp, color = DeckColors.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                         if (here != null) {
-                            Text(formatDistance(Geo.distance(here, place.point).toInt()), fontSize = 14.sp, color = MotoColors.Gray, modifier = Modifier.padding(start = 6.dp))
+                            Text(formatDistance(Geo.distance(here, place.point).toInt()), fontSize = 14.sp, color = DeckColors.Gray, modifier = Modifier.padding(start = 6.dp))
                         }
                         Box(Modifier.size(68.dp).hapticClickable { onSave(place) }, contentAlignment = Alignment.Center) {
                             Icon(
                                 if (saved) Icons.Rounded.Star else Icons.Rounded.StarBorder, null,
-                                tint = if (saved) MotoColors.Orange else MotoColors.Gray, modifier = Modifier.size(28.dp),
+                                tint = if (saved) DeckColors.Orange else DeckColors.Gray, modifier = Modifier.size(28.dp),
                             )
                         }
                     }
@@ -864,7 +864,7 @@ private fun RecentTiles(recents: List<Place>, onGo: (Place) -> Unit, onClear: ()
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(recents) { place ->
             Box(
-                modifier = Modifier.height(64.dp).clip(RoundedCornerShape(14.dp)).background(MotoColors.PanelHigh)
+                modifier = Modifier.height(64.dp).clip(RoundedCornerShape(14.dp)).background(DeckColors.PanelHigh)
                     .pressClickable(onClick = { onGo(place) }).padding(horizontal = 16.dp),
                 contentAlignment = Alignment.Center,
             ) { Text(place.name, fontSize = 17.sp, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis) }
@@ -873,7 +873,7 @@ private fun RecentTiles(recents: List<Place>, onGo: (Place) -> Unit, onClear: ()
             Box(
                 modifier = Modifier.height(64.dp).clip(RoundedCornerShape(14.dp)).pressClickable(onClick = onClear).padding(horizontal = 16.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text(stringResource(R.string.recents_clear), fontSize = 15.sp, color = MotoColors.Gray) }
+            ) { Text(stringResource(R.string.recents_clear), fontSize = 15.sp, color = DeckColors.Gray) }
         }
     }
 }
@@ -890,7 +890,7 @@ private fun SavedTiles(places: List<SavedPlace>, onGo: (Place) -> Unit, onRemove
             val pending = confirm == sp
             Row(
                 modifier = Modifier.height(68.dp).clip(RoundedCornerShape(16.dp))
-                    .background(if (pending) MotoColors.Red else MotoColors.PanelHigh)
+                    .background(if (pending) DeckColors.Red else DeckColors.PanelHigh)
                     .combinedClickable(
                         // hapticsEnabled=false: skip Compose's own long-press pulse, the explicit
                         // RideHaptic calls below already respect the haptics settings.
@@ -944,11 +944,11 @@ internal fun SaveChooser(place: Place, onPick: (PlaceKind) -> Unit, onCancel: ()
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(place.name, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PillButton(stringResource(R.string.saved_home), MotoColors.Blue, { onPick(PlaceKind.HOME) }, Modifier.weight(1f), horizontalPadding = 4.dp)
-                PillButton(stringResource(R.string.saved_work), MotoColors.Blue, { onPick(PlaceKind.WORK) }, Modifier.weight(1f), horizontalPadding = 4.dp)
-                PillButton(stringResource(R.string.saved_favorite), MotoColors.Orange, { onPick(PlaceKind.FAVORITE) }, Modifier.weight(1.3f), horizontalPadding = 4.dp)
+                PillButton(stringResource(R.string.saved_home), DeckColors.Blue, { onPick(PlaceKind.HOME) }, Modifier.weight(1f), horizontalPadding = 4.dp)
+                PillButton(stringResource(R.string.saved_work), DeckColors.Blue, { onPick(PlaceKind.WORK) }, Modifier.weight(1f), horizontalPadding = 4.dp)
+                PillButton(stringResource(R.string.saved_favorite), DeckColors.Orange, { onPick(PlaceKind.FAVORITE) }, Modifier.weight(1.3f), horizontalPadding = 4.dp)
             }
-            PillButton(stringResource(R.string.cancel), MotoColors.PanelHigh, onCancel, Modifier.fillMaxWidth())
+            PillButton(stringResource(R.string.cancel), DeckColors.PanelHigh, onCancel, Modifier.fillMaxWidth())
         }
     }
 }
@@ -1023,7 +1023,7 @@ internal fun RouteCard(
             Text(
                 if (ui.loading) stringResource(R.string.route_updating)
                 else "${formatDistance(route.distanceM.toInt())} · ${formatDuration(LocalContext.current, route.durationS.toInt())} · ${stringResource(R.string.arrival_fmt, eta)}",
-                fontSize = 16.sp, color = MotoColors.Gray,
+                fontSize = 16.sp, color = DeckColors.Gray,
             )
             if (ui.cachedPreview) {
                 Text(stringResource(R.string.cached_route_notice), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
@@ -1034,17 +1034,17 @@ internal fun RouteCard(
                 }
                 // Advisory only: saved-region metadata never proves tiles are stored, so this stays
                 // neutral gray rather than a ready/green state.
-                Text(stringResource(coverageNotice), fontSize = 14.sp, color = MotoColors.Gray)
+                Text(stringResource(coverageNotice), fontSize = 14.sp, color = DeckColors.Gray)
                 if (ui.cachedPreviewRefreshFailed && !ui.loading) {
-                    Text(stringResource(R.string.cached_route_refresh_failed), fontSize = 14.sp, color = MotoColors.Orange)
+                    Text(stringResource(R.string.cached_route_refresh_failed), fontSize = 14.sp, color = DeckColors.Orange)
                 }
                 if (ui.cachedPreviewStartBlocked && !ui.loading) {
-                    Text(stringResource(R.string.cached_route_needs_refresh), fontSize = 14.sp, color = MotoColors.Orange)
+                    Text(stringResource(R.string.cached_route_needs_refresh), fontSize = 14.sp, color = DeckColors.Orange)
                 }
                 // No duplicate refresh requests while one is in flight; the route stays visible on failure.
                 if (!ui.loading) {
                     PillButton(
-                        stringResource(R.string.cached_route_refresh), MotoColors.Blue, onRefreshCached,
+                        stringResource(R.string.cached_route_refresh), DeckColors.Blue, onRefreshCached,
                         Modifier.fillMaxWidth().testTag("cached-route-refresh"),
                         minHeight = 64.dp,
                     )
@@ -1055,7 +1055,7 @@ internal fun RouteCard(
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     ahead.forEachIndexed { i, stop ->
                         val row = Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(RoundedCornerShape(14.dp))
-                            .background(MotoColors.PanelHigh)
+                            .background(DeckColors.PanelHigh)
                         Row(
                             (if (ui.cachedPreview) row else row.hapticClickable(haptic = RideHaptic.Reject) { onRemoveStop(i) })
                                 .padding(horizontal = 14.dp),
@@ -1064,7 +1064,7 @@ internal fun RouteCard(
                             Text("${i + 1}. ${stop.name}", fontSize = 17.sp, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                             // Cached previews are read-only; editing would need a network refresh first.
                             if (!ui.cachedPreview) {
-                                Icon(Icons.Rounded.Close, stringResource(R.string.apps_remove), tint = MotoColors.Gray, modifier = Modifier.size(24.dp))
+                                Icon(Icons.Rounded.Close, stringResource(R.string.apps_remove), tint = DeckColors.Gray, modifier = Modifier.size(24.dp))
                             }
                         }
                     }
@@ -1106,13 +1106,13 @@ internal fun RouteCard(
                         if (startDisabled) {
                             CachedStartDisabled(Modifier.weight(2f).testTag("cached-start-disabled"))
                         } else {
-                            PillButton(stringResource(R.string.start), MotoColors.Green, onStart, Modifier.weight(2f))
+                            PillButton(stringResource(R.string.start), DeckColors.Green, onStart, Modifier.weight(2f))
                         }
-                        PillButton(stringResource(R.string.cancel), MotoColors.PanelHigh, onCancel, Modifier.weight(1f), horizontalPadding = 8.dp)
+                        PillButton(stringResource(R.string.cancel), DeckColors.PanelHigh, onCancel, Modifier.weight(1f), horizontalPadding = 8.dp)
                     }
                 } else {
                     // Very narrow multi-window widths: keep both primary targets >=64 dp and scroll to them
-                    // instead of squeezing the weighted row under the glove size.
+                    // instead of squeezing the weighted row under the large touch size.
                     Row(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1120,9 +1120,9 @@ internal fun RouteCard(
                         if (startDisabled) {
                             CachedStartDisabled(Modifier.widthIn(min = 112.dp).testTag("cached-start-disabled"))
                         } else {
-                            PillButton(stringResource(R.string.start), MotoColors.Green, onStart, Modifier.widthIn(min = 112.dp))
+                            PillButton(stringResource(R.string.start), DeckColors.Green, onStart, Modifier.widthIn(min = 112.dp))
                         }
-                        PillButton(stringResource(R.string.cancel), MotoColors.PanelHigh, onCancel, Modifier.widthIn(min = 88.dp), horizontalPadding = 8.dp)
+                        PillButton(stringResource(R.string.cancel), DeckColors.PanelHigh, onCancel, Modifier.widthIn(min = 88.dp), horizontalPadding = 8.dp)
                     }
                 }
             }
@@ -1177,7 +1177,7 @@ private fun ExternalNavAction(
     Box(modifier) {
         RouteAction(
             label = stringResource(R.string.open_external_label),
-            tint = MotoColors.Gray,
+            tint = DeckColors.Gray,
             labelTag = "map-external-app-label",
             modifier = Modifier.fillMaxWidth().testTag("map-external-app-action"),
             onClick = {
@@ -1190,7 +1190,7 @@ private fun ExternalNavAction(
             Icon(
                 Icons.AutoMirrored.Rounded.OpenInNew,
                 stringResource(R.string.open_external_nav),
-                tint = MotoColors.Gray,
+                tint = DeckColors.Gray,
                 modifier = Modifier.size(32.dp),
             )
         }
@@ -1213,7 +1213,7 @@ private fun ExternalNavAction(
 private fun SavePlaceAction(saved: Boolean, onSave: () -> Unit, modifier: Modifier = Modifier) {
     RouteAction(
         label = stringResource(if (saved) R.string.save_place_saved else R.string.save_place_label),
-        tint = if (saved) MotoColors.Orange else MotoColors.Gray,
+        tint = if (saved) DeckColors.Orange else DeckColors.Gray,
         labelTag = "map-save-action-label",
         modifier = modifier.testTag("map-save-action"),
         onClick = onSave,
@@ -1221,7 +1221,7 @@ private fun SavePlaceAction(saved: Boolean, onSave: () -> Unit, modifier: Modifi
         Icon(
             if (saved) Icons.Rounded.Star else Icons.Rounded.StarBorder,
             null,
-            tint = if (saved) MotoColors.Orange else MotoColors.Gray,
+            tint = if (saved) DeckColors.Orange else DeckColors.Gray,
             modifier = Modifier.size(32.dp),
         )
     }
@@ -1232,7 +1232,7 @@ private fun SavePlaceAction(saved: Boolean, onSave: () -> Unit, modifier: Modifi
 private fun CachedStartDisabled(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.defaultMinSize(minHeight = 72.dp).clip(RoundedCornerShape(36.dp))
-            .background(MotoColors.Green.copy(alpha = 0.40f))
+            .background(DeckColors.Green.copy(alpha = 0.40f))
             // One disabled semantics node: no extra Text child activation target and no click/keyboard action.
             .semantics(mergeDescendants = true) { disabled() },
         contentAlignment = Alignment.Center,
@@ -1246,11 +1246,11 @@ private fun CachedStartDisabled(modifier: Modifier = Modifier) {
 internal fun CachedRouteNeedsNetworkNotice(onRetry: (() -> Unit)? = null) {
     GlassPanel(Modifier.fillMaxWidth().testTag("cached-route-needs-network")) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(stringResource(R.string.cached_route_needs_refresh), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = MotoColors.Orange)
+            Text(stringResource(R.string.cached_route_needs_refresh), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = DeckColors.Orange)
             // No fake target when the route-owner retry API is not wired.
             if (onRetry != null) {
                 PillButton(
-                    stringResource(R.string.cached_route_refresh), MotoColors.Blue, onRetry,
+                    stringResource(R.string.cached_route_refresh), DeckColors.Blue, onRetry,
                     Modifier.fillMaxWidth().testTag("cached-route-retry"),
                     minHeight = 64.dp,
                 )
@@ -1276,7 +1276,7 @@ private fun RouteChoiceChip(
     val state = stringResource(if (selected) R.string.state_on else R.string.state_off)
     Column(
         modifier = modifier.heightIn(min = 68.dp).clip(RoundedCornerShape(22.dp))
-            .background(if (selected) MotoColors.Blue else MotoColors.PanelHigh)
+            .background(if (selected) DeckColors.Blue else DeckColors.PanelHigh)
             .border(1.dp, if (selected) Color.White else Color(0x26FFFFFF), RoundedCornerShape(22.dp))
             .semantics { role = Role.Switch; stateDescription = state }
             .hapticClickable(haptic = RideHaptic.Select, onClick = onClick)
@@ -1303,7 +1303,7 @@ private fun RouteChoiceChip(
             distance,
             fontSize = 12.sp,
             lineHeight = 15.sp,
-            color = if (selected) Color(0xE6FFFFFF) else MotoColors.Gray,
+            color = if (selected) Color(0xE6FFFFFF) else DeckColors.Gray,
             textAlign = TextAlign.Center,
         )
     }
@@ -1315,7 +1315,7 @@ private fun OptionChip(label: String, selected: Boolean, onClick: () -> Unit, mo
     val state = stringResource(if (selected) R.string.state_on else R.string.state_off)
     Row(
         modifier = modifier.height(68.dp).clip(RoundedCornerShape(28.dp))
-            .background(if (selected) MotoColors.Blue else MotoColors.PanelHigh)
+            .background(if (selected) DeckColors.Blue else DeckColors.PanelHigh)
             .border(1.dp, if (selected) Color.White else Color(0x26FFFFFF), RoundedCornerShape(28.dp))
             .semantics { role = Role.Switch; stateDescription = state }
             .hapticClickable(haptic = RideHaptic.Select, onClick = onClick).padding(horizontal = 8.dp),
@@ -1349,7 +1349,7 @@ internal fun StopConfirmDialog(visible: Boolean, onConfirm: () -> Unit, onCancel
         confirmButton = {
             PillButton(
                 text = stringResource(R.string.stop_confirm_action),
-                color = MotoColors.Red,
+                color = DeckColors.Red,
                 onClick = onConfirm,
                 modifier = Modifier.testTag("stop-confirm"),
                 horizontalPadding = 20.dp,
@@ -1360,7 +1360,7 @@ internal fun StopConfirmDialog(visible: Boolean, onConfirm: () -> Unit, onCancel
         dismissButton = {
             PillButton(
                 text = stringResource(R.string.stop_confirm_cancel),
-                color = MotoColors.PanelHigh,
+                color = DeckColors.PanelHigh,
                 onClick = onCancel,
                 modifier = Modifier.testTag("stop-cancel"),
                 textColor = Color.White,
@@ -1381,17 +1381,17 @@ internal fun ArrivedCard(next: Place?, onContinue: () -> Unit, onDone: () -> Uni
                 fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White,
             )
             if (next != null) {
-                Text(next.name, fontSize = 16.sp, color = MotoColors.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                PillButton(stringResource(R.string.continue_trip), MotoColors.Green, onContinue, Modifier.fillMaxWidth())
-                PillButton(stringResource(R.string.finish), MotoColors.PanelHigh, onDone, Modifier.fillMaxWidth())
+                Text(next.name, fontSize = 16.sp, color = DeckColors.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                PillButton(stringResource(R.string.continue_trip), DeckColors.Green, onContinue, Modifier.fillMaxWidth())
+                PillButton(stringResource(R.string.finish), DeckColors.PanelHigh, onDone, Modifier.fillMaxWidth())
             } else {
-                PillButton(stringResource(R.string.ok), MotoColors.Blue, onDone, Modifier.fillMaxWidth())
+                PillButton(stringResource(R.string.ok), DeckColors.Blue, onDone, Modifier.fillMaxWidth())
             }
         }
     }
 }
 
-/** Fuel stations around the rider, or along the road ahead while guiding. */
+/** Fuel stations around the driver, or along the road ahead while guiding. */
 @Composable
 internal fun FuelPanel(
     fuel: FuelUi,
@@ -1416,7 +1416,7 @@ internal fun FuelPanel(
                     )
                     Text(
                         stringResource(if (fuel.alongRoute) R.string.fuel_ahead else R.string.fuel_nearby),
-                        fontSize = 14.sp, color = MotoColors.Gray,
+                        fontSize = 14.sp, color = DeckColors.Gray,
                     )
                 }
                 Box(Modifier.size(68.dp).hapticClickable(onClick = onClose), contentAlignment = Alignment.Center) {
@@ -1424,10 +1424,10 @@ internal fun FuelPanel(
                 }
             }
             when {
-                fuel.loading -> Text(stringResource(R.string.fuel_searching), fontSize = 15.sp, color = MotoColors.Gray)
+                fuel.loading -> Text(stringResource(R.string.fuel_searching), fontSize = 15.sp, color = DeckColors.Gray)
                 fuel.error != null -> {
-                    Text(fuel.error, fontSize = 15.sp, color = MotoColors.Orange)
-                    PillButton(stringResource(R.string.retry), MotoColors.Blue, onRetry, Modifier.fillMaxWidth())
+                    Text(fuel.error, fontSize = 15.sp, color = DeckColors.Orange)
+                    PillButton(stringResource(R.string.retry), DeckColors.Blue, onRetry, Modifier.fillMaxWidth())
                 }
                 else -> LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f, fill = false).testTag("map-fuel-list"), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(fuel.stations) { station ->
@@ -1478,24 +1478,24 @@ private fun FuelRow(
     Row(
         modifier = Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(if (selected) Color(0xFF174A7A) else MotoColors.PanelHigh)
+            .background(if (selected) Color(0xFF174A7A) else DeckColors.PanelHigh)
             .clickable(enabled = onSelect != null) { onSelect?.invoke(place) }
             .padding(start = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f).padding(vertical = 8.dp)) {
             Text(name, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(detail, fontSize = 13.sp, color = MotoColors.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(detail, fontSize = 13.sp, color = DeckColors.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             PillButton(
                 stringResource(if (guiding) R.string.fuel_add_stop else R.string.fuel_go),
-                MotoColors.Orange, { if (guiding) onAddStop(place) else onGo(place) },
+                DeckColors.Orange, { if (guiding) onAddStop(place) else onGo(place) },
                 Modifier.padding(6.dp), horizontalPadding = 14.dp,
             )
             if (guiding && selected && onCalculateDetour != null) {
                 PillButton(
-                    stringResource(R.string.detour_calculate), MotoColors.Blue,
+                    stringResource(R.string.detour_calculate), DeckColors.Blue,
                     { onCalculateDetour(place) },
                     Modifier.padding(6.dp), horizontalPadding = 12.dp, minHeight = 64.dp, fontSize = 14.sp,
                 )
@@ -1508,15 +1508,15 @@ private fun FuelRow(
 internal fun FuelDetourQuote(station: Place, ui: DetourQuoteUi, onClose: () -> Unit) {
     val quote = ui.quote
     Column(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MotoColors.PanelHigh)
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(DeckColors.PanelHigh)
             .padding(12.dp).testTag("map-detour-quote"),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(station.name.ifBlank { stringResource(R.string.fuel_unnamed) }, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
         when {
             ui.loading -> {
-                Text(stringResource(R.string.searching), fontSize = 14.sp, color = MotoColors.Gray)
-                PillButton(stringResource(R.string.cancel), MotoColors.PanelHigh, onClose, Modifier.fillMaxWidth(), textColor = Color.White, minHeight = 64.dp)
+                Text(stringResource(R.string.searching), fontSize = 14.sp, color = DeckColors.Gray)
+                PillButton(stringResource(R.string.cancel), DeckColors.PanelHigh, onClose, Modifier.fillMaxWidth(), textColor = Color.White, minHeight = 64.dp)
             }
             quote?.status == DetourStatus.AVAILABLE -> {
                 Text(
@@ -1525,22 +1525,22 @@ internal fun FuelDetourQuote(station: Place, ui: DetourQuoteUi, onClose: () -> U
                         detourDistanceLabel(quote.extraDistanceM),
                         detourDurationLabel(LocalContext.current, quote.extraTimeS),
                     ),
-                    fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MotoColors.Green,
+                    fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeckColors.Green,
                 )
                 Text(
                     stringResource(R.string.detour_snapshot_tolerance, DetourContext.ORIGIN_TOLERANCE_M.toInt()),
-                    fontSize = 13.sp, color = MotoColors.Gray,
+                    fontSize = 13.sp, color = DeckColors.Gray,
                 )
-                PillButton(stringResource(R.string.cancel), MotoColors.PanelHigh, onClose, Modifier.fillMaxWidth(), textColor = Color.White, minHeight = 64.dp)
+                PillButton(stringResource(R.string.cancel), DeckColors.PanelHigh, onClose, Modifier.fillMaxWidth(), textColor = Color.White, minHeight = 64.dp)
             }
             quote != null -> {
                 Text(
                     stringResource(
                         if (quote.reason == DetourUnavailableReason.MOTION_LOCKED) R.string.detour_stationary_only else R.string.detour_unavailable
                     ),
-                    fontSize = 14.sp, color = MotoColors.Orange,
+                    fontSize = 14.sp, color = DeckColors.Orange,
                 )
-                PillButton(stringResource(R.string.cancel), MotoColors.PanelHigh, onClose, Modifier.fillMaxWidth(), textColor = Color.White, minHeight = 64.dp)
+                PillButton(stringResource(R.string.cancel), DeckColors.PanelHigh, onClose, Modifier.fillMaxWidth(), textColor = Color.White, minHeight = 64.dp)
             }
         }
     }
@@ -1609,10 +1609,10 @@ private fun TripBar(ui: NavUi, onStop: () -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 // Orange when the ride is well off the plan: the time shown is RideDeck's own estimate, not the service's.
-                Text(eta, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = if (ui.etaDrift) MotoColors.Orange else Color.White)
-                Text("${formatDuration(LocalContext.current, ui.remainingS)} · ${formatDistance(ui.remainingM)}", fontSize = 15.sp, color = MotoColors.Gray)
+                Text(eta, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = if (ui.etaDrift) DeckColors.Orange else Color.White)
+                Text("${formatDuration(LocalContext.current, ui.remainingS)} · ${formatDistance(ui.remainingM)}", fontSize = 15.sp, color = DeckColors.Gray)
             }
-            PillButton(stringResource(R.string.finish), MotoColors.Red, onStop)
+            PillButton(stringResource(R.string.finish), DeckColors.Red, onStop)
         }
     }
 }
@@ -1646,9 +1646,9 @@ private fun Chip(text: String, color: Color) {
 @Composable
 internal fun MapStatusChips(rerouting: Boolean, degraded: Boolean, error: String?, navigating: Boolean) {
     when {
-        rerouting -> Chip(stringResource(R.string.rerouting_chip), MotoColors.Orange)
-        degraded -> Chip(stringResource(R.string.reroute_unavailable_chip), MotoColors.Red)
-        error != null && navigating -> Chip(error, MotoColors.Orange)
+        rerouting -> Chip(stringResource(R.string.rerouting_chip), DeckColors.Orange)
+        degraded -> Chip(stringResource(R.string.reroute_unavailable_chip), DeckColors.Red)
+        error != null && navigating -> Chip(error, DeckColors.Orange)
     }
 }
 
@@ -1673,8 +1673,8 @@ internal fun SpeedChip(shown: Int?, over: Boolean) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(value, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = if (shown == null) MotoColors.Gray else if (over) MotoColors.Red else Color.White)
-        Text(unit, fontSize = 11.sp, color = MotoColors.Gray)
+        Text(value, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = if (shown == null) DeckColors.Gray else if (over) DeckColors.Red else Color.White)
+        Text(unit, fontSize = 11.sp, color = DeckColors.Gray)
     }
 }
 
@@ -1687,7 +1687,7 @@ fun formatDuration(context: Context, seconds: Int): String {
     return if (minutes >= 60) "${minutes / 60} $h ${"%02d".format(minutes % 60)} $m" else "${maxOf(minutes, 1)} $m"
 }
 
-/** Swaps the position marker image in place when the rider picks another look. */
+/** Swaps the position marker image in place when the driver picks another look. */
 @Composable
 internal fun MarkerRefresh(map: MapLibreMap?, styleReady: Boolean) {
     val look by MarkerStyle.look.collectAsStateWithLifecycle()

@@ -91,8 +91,8 @@ Declared (20 `uses-permission` + 1 app-defined permission):
 
 Dangerous permissions and feature gating per docs (`FEATURES-REFERENCE.md` "Gizlilik ve izinler",
 `RELEASE_READINESS.md`): location and FGS are used for active ride tracking/navigation started by
-the user; `SEND_SMS` is used only by the user-triggered SOS flow; call permissions route intercom
-audio via Telecom (no app-originated dialling beyond user action); `SYSTEM_ALERT_WINDOW` is an
+the user; `SEND_SMS` is used only by the user-triggered SOS flow; call permissions route hands-free/Bluetooth
+call audio via Telecom (no app-originated dialling beyond user action); `SYSTEM_ALERT_WINDOW` is an
 explicit user-enabled overlay preference; `POST_NOTIFICATIONS` is a runtime permission.
 `CarNotificationListener` is protected by `BIND_NOTIFICATION_LISTENER_SERVICE` and must be enabled
 by the user in notification-access settings — a sensitive capability worth noting in any store
@@ -144,7 +144,7 @@ Blockers / unknowns:
 - **Store decision / data safety (OPEN):** no store data-safety declaration or F-Droid metadata
   (description, changelogs, screenshots, license metadata) was assessed here.
 - **Real-device gates (OPEN/UNVERIFIED):** physical device, real GPS/driving, real SMS/SIM,
-  intercom, Doze/OEM, lock-screen and 16 KB runtime are unverified; `RELEASE_READINESS.md` keeps the
+  Bluetooth hands-free audio, Doze/OEM, lock-screen and 16 KB runtime are unverified; `RELEASE_READINESS.md` keeps the
   public-release decision at **NO-GO**.
 - Version conflict risk (OPEN): versionCode 8 is already published as GitHub v0.7.0; any store build
   must bump the version code before a new submission (this report makes no version change).
@@ -161,4 +161,4 @@ are store/policy, signing-infrastructure and real-device questions, not defects 
   2. **Version conflict (OPEN):** `versionCode 8` is already published as GitHub `v0.7.0`; bump `versionCode` and add matching changelog for any store build.
   3. **Provider terms (OPEN/BLOCKED):** Global quota compliance for OpenFreeMap, Nominatim, FOSSGIS/Valhalla/Overpass and Open-Meteo is unproven; new offline downloads remain paused.
   4. **Store data-safety & legal (OPEN):** Complete privacy/data-safety declarations and `NOTICE` review.
-  5. **Field gates (OPEN/NO-GO):** Real device, GPS/riding, SMS/SIM, calls, intercom, lock-screen/Doze/OEM and 16 KB runtime remain unverified.
+  5. **Field gates (OPEN/NO-GO):** Real device, GPS/driving, SMS/SIM, calls, Bluetooth hands-free audio, lock-screen/Doze/OEM and 16 KB runtime remain unverified.

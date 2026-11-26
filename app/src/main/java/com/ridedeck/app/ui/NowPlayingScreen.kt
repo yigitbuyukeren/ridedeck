@@ -96,7 +96,7 @@ fun NowPlayingScreen(
     onResumeLast: () -> Unit = { media.resumeLast() },
     modifier: Modifier = Modifier,
 ) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val tint = rememberMediaTint(state, palette)
     Box(
         modifier = modifier
@@ -212,7 +212,7 @@ fun NowPlayingScreen(
 /** Album art: swipe it sideways for the next or previous track; it eases back and shrinks a little while paused. */
 @Composable
 private fun Cover(state: MediaState, direction: () -> Int, onNext: () -> Unit, onPrevious: () -> Unit) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val haptics = rememberRideHaptics()
     var drag by remember { mutableFloatStateOf(0f) }
     val offset by animateFloatAsState(drag, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium), label = "swipe")
@@ -224,7 +224,7 @@ private fun Cover(state: MediaState, direction: () -> Int, onNext: () -> Unit, o
             .aspectRatio(1f)
             .graphicsLayer { translationX = offset; scaleX = scale; scaleY = scale }
             .clip(RoundedCornerShape(24.dp))
-            .background(MotoColors.CardHigh)
+            .background(DeckColors.CardHigh)
             .pointerInput(state.hasSession) {
                 if (!state.hasSession) return@pointerInput
                 var crossed = false
@@ -255,7 +255,7 @@ private fun Cover(state: MediaState, direction: () -> Int, onNext: () -> Unit, o
 
 @Composable
 private fun TrackTitle(state: MediaState) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Row(verticalAlignment = Alignment.Top) {
         AnimatedContent(
             targetState = state.title to state.artist,
@@ -282,7 +282,7 @@ private fun TrackTitle(state: MediaState) {
 @Composable
 internal fun Equalizer(modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "eq")
-    val color = LocalMotoPalette.current.text
+    val color = LocalDeckPalette.current.text
     Row(modifier.height(24.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.Bottom) {
         listOf(420, 560, 700).forEachIndexed { i, ms ->
             val h by transition.animateFloat(
@@ -314,7 +314,7 @@ private fun Progress(state: MediaState, onSeek: (Long) -> Unit) {
     val position = if (state.playing) state.positionMs + ((now - state.positionAt) * state.speed).toLong() else state.positionMs
     val clamped = if (state.durationMs > 0) position.coerceIn(0, state.durationMs) else position.coerceAtLeast(0)
     val playedFraction = if (state.durationMs > 0) clamped.toFloat() / state.durationMs else 0f
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     var touched by remember { mutableStateOf<Float?>(null) }
     val fraction = touched ?: playedFraction
     val thickness by animateDpAsState(if (touched != null) 14.dp else 8.dp, label = "bar")
@@ -387,7 +387,7 @@ private fun RoundButton(
         Crossfade(icon, animationSpec = tween(200), label = "icon") { shown ->
             Icon(
                 shown, description,
-                tint = (if (dark) LocalMotoPalette.current.onStrong else LocalMotoPalette.current.text).copy(alpha = if (enabled) 1f else 0.35f),
+                tint = (if (dark) LocalDeckPalette.current.onStrong else LocalDeckPalette.current.text).copy(alpha = if (enabled) 1f else 0.35f),
                 modifier = Modifier.size((size * 0.55f).dp),
             )
         }
@@ -396,7 +396,7 @@ private fun RoundButton(
 
 @Composable
 private fun Empty(text: String, hint: String?, button: String, onClick: () -> Unit) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -423,7 +423,7 @@ private fun Empty(text: String, hint: String?, button: String, onClick: () -> Un
         }
         Spacer(Modifier.size(8.dp))
         PillButton(
-            button, MotoColors.Blue, onClick,
+            button, DeckColors.Blue, onClick,
             horizontalPadding = 20.dp, minHeight = 72.dp,
             fontSize = cappedSp(20f, maxScale = 1.25f), singleLine = true,
         )

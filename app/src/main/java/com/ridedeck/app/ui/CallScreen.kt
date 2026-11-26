@@ -144,11 +144,11 @@ fun CallScreen(
                     when (call.phase) {
                         CallPhase.ACTIVE -> Text(
                             "%02d:%02d".format(elapsed / 60, elapsed % 60),
-                            fontSize = cappedSp(32f, maxScale = 1.2f), fontWeight = FontWeight.Medium, color = MotoColors.Green,
+                            fontSize = cappedSp(32f, maxScale = 1.2f), fontWeight = FontWeight.Medium, color = DeckColors.Green,
                         )
-                        CallPhase.DIALING -> Text(stringResource(R.string.call_dialing) + "…", fontSize = cappedSp(22f, maxScale = 1.2f), color = MotoColors.Gray)
-                        CallPhase.HELD -> Text(stringResource(R.string.call_held), fontSize = cappedSp(22f, maxScale = 1.2f), color = MotoColors.Gray)
-                        else -> Text(stringResource(R.string.call_incoming), fontSize = cappedSp(22f, maxScale = 1.2f), color = MotoColors.Gray)
+                        CallPhase.DIALING -> Text(stringResource(R.string.call_dialing) + "…", fontSize = cappedSp(22f, maxScale = 1.2f), color = DeckColors.Gray)
+                        CallPhase.HELD -> Text(stringResource(R.string.call_held), fontSize = cappedSp(22f, maxScale = 1.2f), color = DeckColors.Gray)
+                        else -> Text(stringResource(R.string.call_incoming), fontSize = cappedSp(22f, maxScale = 1.2f), color = DeckColors.Gray)
                     }
                     if (!ringing) VolumeRow(onVolumeDown, onVolumeUp)
                 } },
@@ -159,9 +159,9 @@ fun CallScreen(
                 ) {
                     when {
                         ringing -> {
-                            ActionPill(Icons.Rounded.Call, stringResource(R.string.call_answer), MotoColors.Green, onAnswer, RideHaptic.Confirm)
+                            ActionPill(Icons.Rounded.Call, stringResource(R.string.call_answer), DeckColors.Green, onAnswer, RideHaptic.Confirm)
                             ActionPill(
-                                Icons.Rounded.CallEnd, stringResource(R.string.call_decline), MotoColors.Red,
+                                Icons.Rounded.CallEnd, stringResource(R.string.call_decline), DeckColors.Red,
                                 onHangUp, RideHaptic.Reject, enabled = hangUpEnabled,
                             )
                         }
@@ -173,9 +173,9 @@ fun CallScreen(
                                 }
                                 RoutePicker(call.route, call.routes, onRoute)
                             }
-                            if (call.routeError) Text(stringResource(R.string.call_route_failed), color = MotoColors.Red, fontSize = 16.sp)
+                            if (call.routeError) Text(stringResource(R.string.call_route_failed), color = DeckColors.Red, fontSize = 16.sp)
                             ActionPill(
-                                Icons.Rounded.CallEnd, stringResource(R.string.call_hangup), MotoColors.Red,
+                                Icons.Rounded.CallEnd, stringResource(R.string.call_hangup), DeckColors.Red,
                                 onHangUp, RideHaptic.Reject, enabled = hangUpEnabled,
                             )
                         }
@@ -183,7 +183,7 @@ fun CallScreen(
                     if (!hangUpEnabled && hangUpExplanation != null) {
                         Text(
                             hangUpExplanation,
-                            color = MotoColors.Gray,
+                            color = DeckColors.Gray,
                             fontSize = 15.sp,
                             lineHeight = 20.sp,
                             textAlign = TextAlign.Center,
@@ -216,7 +216,7 @@ private fun TwoPane(
     }
 }
 
-/** Clock, speed and the next turn: what the dashboard shows, so a call does not blind the rider to the road. */
+/** Clock, speed and the next turn: what the dashboard shows, so a call does not blind the driver to the road. */
 @Composable
 private fun RideStrip(speedShown: Int?, nav: NavUi, call: CallState) {
     val now by produceState(System.currentTimeMillis()) {
@@ -234,19 +234,19 @@ private fun RideStrip(speedShown: Int?, nav: NavUi, call: CallState) {
         Text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(now)), fontSize = cappedSp(26f, maxScale = 1.15f), fontWeight = FontWeight.Bold, color = Color.White)
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(if (speedShown != null) "${Units.speed(speedShown)}" else "--", fontSize = cappedSp(28f, maxScale = 1.15f), fontWeight = FontWeight.Bold, color = Color.White)
-            Text(stringResource(if (Units.miles) R.string.speed_unit_mph else R.string.speed_unit), fontSize = cappedSp(15f, maxScale = 1.15f), color = MotoColors.Gray, modifier = Modifier.padding(bottom = 4.dp))
+            Text(stringResource(if (Units.miles) R.string.speed_unit_mph else R.string.speed_unit), fontSize = cappedSp(15f, maxScale = 1.15f), color = DeckColors.Gray, modifier = Modifier.padding(bottom = 4.dp))
         }
         if (maneuver != null) {
             Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(maneuverIcon(maneuver.type), null, tint = Color.White, modifier = Modifier.size(34.dp))
                 // The call takes the voice; close to the turn the distance turns orange instead.
-                Text(formatDistance(nav.distToNextM), fontSize = cappedSp(22f, maxScale = 1.15f), fontWeight = FontWeight.Bold, color = if (nav.distToNextM <= 60) MotoColors.Orange else Color.White)
+                Text(formatDistance(nav.distToNextM), fontSize = cappedSp(22f, maxScale = 1.15f), fontWeight = FontWeight.Bold, color = if (nav.distToNextM <= 60) DeckColors.Orange else Color.White)
                 Text(maneuver.instruction, fontSize = cappedSp(15f, maxScale = 1.15f), color = Color(0xE6FFFFFF), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         } else {
             // No route to show: use the room for where the call sound is going.
             Spacer(Modifier.weight(1f))
-            if (call.managed) routeLabel(call.route)?.let { Text(stringResource(it), fontSize = cappedSp(17f, maxScale = 1.15f), color = MotoColors.Gray) }
+            if (call.managed) routeLabel(call.route)?.let { Text(stringResource(it), fontSize = cappedSp(17f, maxScale = 1.15f), color = DeckColors.Gray) }
         }
     }
 }
@@ -264,8 +264,8 @@ private fun routeLabel(route: Int): Int? = when (route) {
 private fun VolumeRow(onDown: () -> Unit, onUp: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         VolumeButton(Icons.Rounded.Remove, stringResource(R.string.volume_down), onDown)
-        Icon(Icons.AutoMirrored.Rounded.VolumeUp, null, tint = MotoColors.Gray, modifier = Modifier.size(26.dp))
-        Text(stringResource(R.string.call_volume), fontSize = cappedSp(17f, maxScale = 1.2f), color = MotoColors.Gray)
+        Icon(Icons.AutoMirrored.Rounded.VolumeUp, null, tint = DeckColors.Gray, modifier = Modifier.size(26.dp))
+        Text(stringResource(R.string.call_volume), fontSize = cappedSp(17f, maxScale = 1.2f), color = DeckColors.Gray)
         VolumeButton(Icons.Rounded.Add, stringResource(R.string.volume_up), onUp)
     }
 }
@@ -315,7 +315,7 @@ internal fun InCallKeysPane(
             // Ending the call stays available while the digits are open.
             Row(
                 modifier = Modifier.weight(1f).height(64.dp).clip(RoundedCornerShape(32.dp))
-                    .background(if (hangUpEnabled) MotoColors.Red else MotoColors.Gray).testTag("call-hangup-keys")
+                    .background(if (hangUpEnabled) DeckColors.Red else DeckColors.Gray).testTag("call-hangup-keys")
                     .pressClickable(haptic = RideHaptic.Reject, enabled = hangUpEnabled, onClick = onHangUp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
@@ -338,7 +338,7 @@ private fun InCallKeypad(onDigit: (Char) -> Unit, modifier: Modifier = Modifier)
         val key: @Composable (Char) -> Unit = { digit ->
             Box(
                 modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(18.dp))
-                    // The local beep is for the rider's ear; the digit still goes down the line as before.
+                    // The local beep is for the driver's ear; the digit still goes down the line as before.
                     .background(Color(0x26FFFFFF)).testTag("call-key-$digit")
                     .hapticClickable { keyTone(digit); onDigit(digit) },
                 contentAlignment = Alignment.Center,
@@ -376,7 +376,7 @@ private fun Avatar(initial: String?, pulsing: Boolean) {
     Box(Modifier.size(120.dp), contentAlignment = Alignment.Center) {
         if (pulsing) {
             Box(
-                Modifier.size(84.dp).scale(pulse).alpha((1.35f - pulse) * 1.6f).clip(CircleShape).background(MotoColors.Blue),
+                Modifier.size(84.dp).scale(pulse).alpha((1.35f - pulse) * 1.6f).clip(CircleShape).background(DeckColors.Blue),
             )
         }
         Box(
@@ -399,7 +399,7 @@ private fun ActionPill(
     haptic: RideHaptic = RideHaptic.Tap,
     enabled: Boolean = true,
 ) {
-    val background = if (enabled) color else MotoColors.Gray
+    val background = if (enabled) color else DeckColors.Gray
     val foreground = callActionForeground(background)
     Row(
         modifier = Modifier

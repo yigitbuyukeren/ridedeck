@@ -6,7 +6,7 @@ RideDeck konum, telefon, SMS, kişi/rehber, bildirim ve medya bilgilerine erişe
 
 | Sürüm | Destek |
 |---|---|
-| En son GitHub sürümü (şu anda 0.6.x) | Güvenlik düzeltmeleri alır |
+| En son GitHub sürümü (şu anda 0.7.x) | Güvenlik düzeltmeleri alır |
 | `main` dalındaki en güncel kaynak | Geliştirme sürümü; düzeltmeler buradan yayına hazırlanır |
 | Daha eski sürümler ve değiştirilmiş derlemeler | Desteklenmez; sorun eski sürümdeyse önce güncel sürümde tekrar dene |
 

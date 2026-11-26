@@ -1,11 +1,11 @@
 # RideDeck mimarisi
 
-Bu belge RideDeck'e kod katkısı yapacaklar için paketleri, çalışma zamanı akışını ve değişiklik noktalarını anlatır. Bağlayıcı kaynak koddur; burada anlatılan bir davranış kodda yoksa kod doğrudur. RideDeck **yalnız motosiklet** içindir; araç seçici, araba/bisiklet profili veya böyle bir dallanma yoktur.
+Bu belge RideDeck'e kod katkısı yapacaklar için paketleri, çalışma zamanı akışını ve değişiklik noktalarını anlatır. Bağlayıcı kaynak koddur; burada anlatılan bir davranış kodda yoksa kod doğrudur. RideDeck, CarPlay/Android Auto'dan ilham alan bağımsız bir Android araç içi sürüş panelidir; CarPlay veya Android Auto ile entegre değildir. Tek genel araç profili `VehicleProfile.AUTO` kullanılır; araç seçici veya profile göre dallanan davranış yoktur.
 
 <details>
 <summary><b>English summary</b></summary>
 
-RideDeck is a single-module Kotlin/Jetpack Compose Android app (`minSdk 26`, `compileSdk`/`targetSdk 36`). `MainActivity` hosts one Compose tree; `DashboardViewModel` is the screen wiring point, while `RideDeckApplication` creates the process-owned `RideTracking` (with `LocationArbiter`), `RideNavigation` and `RideSafety` objects. Domain logic and repositories live in `data/`, Compose screens in `ui/`, Android foreground services and notifications in `service/`, and small helpers in `util/`. GPS comes from the platform `LocationManager`; display speed is filtered separately from the raw speed used by safety decisions. Public HTTP calls go through `data/Http.kt`/`ProviderHttp`, while MapLibre tile requests stay in the map engine. Data stays on the phone, routing is online-only, and crash/SOS detection is an aid, not a guarantee. The Turkish sections below map packages, data flow, the network layer, persistence, UI rules, testing and change locations.
+RideDeck is a standalone Android in-vehicle driving dashboard inspired by CarPlay and Android Auto; it does not integrate with or project to either. It is a single-module Kotlin/Jetpack Compose app (`minSdk 26`, `compileSdk`/`targetSdk 36`). `MainActivity` hosts one Compose tree; `DashboardViewModel` is the screen wiring point, while `RideDeckApplication` creates the process-owned `RideTracking` (with `LocationArbiter`), `RideNavigation` and `RideSafety` objects. Domain logic and repositories live in `data/`, Compose screens in `ui/`, Android foreground services and notifications in `service/`, and small helpers in `util/`. GPS comes from the platform `LocationManager`; display speed is filtered separately from the raw speed used by safety decisions. Public HTTP calls go through `data/Http.kt`/`ProviderHttp`, while MapLibre tile requests stay in the map engine. Data stays on the device, routing is online-only, and crash/SOS detection is an aid, not a guarantee. The app uses one general `VehicleProfile.AUTO` (Valhalla `auto` costing, 240 km/h gauge, 5.0 g crash impact, 30 km/h moving threshold, no tilt requirement, fuel stops only). The Turkish sections below map packages, data flow, the network layer, persistence, UI rules, testing and change locations.
 
 </details>
 
@@ -18,13 +18,13 @@ RideDeck is a single-module Kotlin/Jetpack Compose Android app (`minSdk 26`, `co
 | SDK | `minSdk 26`, `compileSdk 36`, `targetSdk 36`; JDK 17 |
 | Hesap / anahtar / sunucu | Yok. RideDeck hesabı, API anahtarı ve kendi arka ucu yoktur |
 | Ağ | Anahtarsız, ücretsiz genel servisler (Nominatim, Valhalla, Open-Meteo, Overpass); OpenFreeMap harita karoları MapLibre'nin kendi motorunda |
-| Veri | Yalnız telefonda; bulut eşitleme ve Android yedeklemesi kapalı |
-| Kullanım | Yatay gidon düzeni; hız, harita, müzik, telefon ve SOS tek panelde |
-| Rota | Her zaman Valhalla `motorcycle` costing; motosiklet sabitleri `VehicleProfile.MOTORCYCLE.config` (`ProfileConfig`) içinde |
+| Veri | Yalnız cihazda; bulut eşitleme ve Android yedeklemesi kapalı |
+| Kullanım | Yatay araç içi düzen; hız, harita, müzik, telefon ve SOS tek panelde |
+| Rota | Her zaman Valhalla `auto` costing; araç sabitleri `VehicleProfile.AUTO.config` (`ProfileConfig`) içinde |
 
-Kodda görülen `VehicleProfile` yalnız motosiklet sabitlerini taşır; ikinci bir profil veya araç seçici yoktur.
+Kodda görülen `VehicleProfile` tek genel araç profilini taşır; ikinci bir profil veya araç seçici yoktur. Gösterge üst sınırı 240 km/sa, kaza darbesi eşiği 5,0 g, kaza için hareket eşiği 30 km/sa ve `crashNeedsTilt = false`; durak türü yalnız benzinliktir.
 
-Uygulamanın amacı, telefonu eldivenle kullanılabilen bir motosiklet sürüş paneline çevirmektir. Bu yüzden mimari kararların bir kısmı doğrudan sürüş güvenliğidir: sürerken yazı girişi yoktur, dokunma hedefleri büyüktür ve hız bilinmiyorsa sahte `0` gösterilmez.
+Uygulamanın amacı, telefonu veya tableti araç içi montajda hızlı bakışta okunabilen, büyük ve yüksek kontrastlı hedeflerle kullanılabilen bir sürüş paneline çevirmektir. Bu yüzden mimari kararların bir kısmı doğrudan sürüş güvenliğidir: sürerken yazı girişi yoktur, dokunma hedefleri büyüktür ve hız bilinmiyorsa sahte `0` gösterilmez.
 
 ## 2. Çalışma zamanı giriş noktaları
 
@@ -41,7 +41,7 @@ Tek `Activity`'dir (`singleTask`, `sensorLandscape`). Edge-to-edge çalışır, 
 `setContent` tek Compose ağacını kurar:
 
 ```kotlin
-MotoTheme(isDay) { DashboardScreen(viewModel) }
+DeckTheme(isDay) { DashboardScreen(viewModel) }
 ```
 
 Navigasyon kütüphanesi, Fragment ve ayrı Activity yoktur. Ekran geçişleri `DashboardScreen` içindeki yerel durumla ve `AnimatedContent` ile yapılır. Bağımlılıklar elle bağlanır; DI framework'ü yoktur.
@@ -75,7 +75,7 @@ ViewModel'in ürettiği `gps` akışı üç ayrı bilgi taşır:
 | `com.ridedeck.app` | Giriş noktaları ve bağlama | `MainActivity.kt`, `RideDeckApplication.kt`, `DashboardViewModel.kt` |
 | `data/` | Saf mantık, repository'ler, sensör/SOS, kalıcılık, ağ | `LocationRepository.kt`, `NavigationController.kt`, `RideSafety.kt`, `Http.kt` |
 | `ui/` | Compose ekranları, kartlar, tema, harita | `DashboardScreen.kt`, `MapScreen.kt`, `SettingsScreen.kt`, `TripsScreen.kt` |
-| `service/` | Ön plan servisleri, bildirimler, çağrı köprüleri | `RideTrackingService.kt`, `OverlayService.kt`, `CarNotificationListener.kt`, `MotoInCallService.kt` |
+| `service/` | Ön plan servisleri, bildirimler, çağrı köprüleri | `RideTrackingService.kt`, `OverlayService.kt`, `CarNotificationListener.kt`, `DeckInCallService.kt` |
 | `util/` | Tercihler, birim dönüşümü, dış uygulama açma, metin yardımcıları | `Prefs.kt`, `Units.kt`, `Launch.kt`, `MessageText.kt` |
 
 ### `data/` altındaki ana gruplar
@@ -102,7 +102,7 @@ ViewModel'in ürettiği `gps` akışı üç ayrı bilgi taşır:
 - `OverlayService`: başka uygulama öndeyken hız/saat şeridi; RideDeck görünürken gizlenir.
 - `CarNotificationListener`: bildirim erişimiyle müzik, mesaj ve arayan adı bilgisi; gizli bildirimlerde içerik okunmaz, kilitli özel içerik yalnız uygulama adıyla gösterilir; son mesaj yalnız bellekte tutulur.
 - `SosActionReceiver`: kilit ekranı bildirimindeki **İyiyim/Kapat** eylemlerini işler.
-- `MotoInCallService` / `IncomingCallNotification`: RideDeck varsayılan telefon uygulamasıysa görüşme ekranı ve gelen arama bildirimi.
+- `DeckInCallService` / `IncomingCallNotification`: RideDeck varsayılan telefon uygulamasıysa görüşme ekranı ve gelen arama bildirimi.
 
 `util/` içinde `Prefs` tüm `SharedPreferences` anahtarlarını, `Units`/`UnitMath` yalnız gösterim dönüşümünü (içte km/sa ve metre), `Launch` dış uygulama ve izin yardımcılarını barındırır.
 
@@ -130,7 +130,7 @@ ProviderHttp: genel HTTP çağrılarında iptal + sağlayıcı bazlı eşzamanl�
 
 **Navigasyon.** Arama yalnız "Ara"ya basınca çalışır. `NavigationController` Nominatim sonucunu seçilen yere çevirir, Valhalla'dan rota ister, her fix'i rota üzerinde eşler ve anonsları planlar. Her istek bir `generation` taşır; eski veya iptal edilmiş cevap yok sayılır. `RideNavigation` bu oturumu süreçte tutar; ekran kapansa da başlatılmış rehberlik ve ses devam eder.
 
-**Güvenlik.** `RideSafety`, ivmeölçer ve GPS hızını `CrashDetector`'a verir; darbe, yakın zamanda sürüş ve hareketsizlik koşulları (motosiklette ayrıca eğim veya çift eşik) oluşursa `SosController` geri sayım başlatır, ardından kişi başına tek SMS denemesi yapar; arama açmaz. SOS varsayılan kapalıdır; kişi listesi boşsa tetikleyiciler kapanır. Kaza algılama yalnız pano görünürken veya açıkça başlatılmış yolculuk sürerken dinler. Ekran kapalıyken başlayan geri sayım kilit ekranı bildirimi, tam ekran bildirim ve uyandırma kilidiyle öne alınmaya çalışılır; FSI reddedilirse yüksek öncelikli bildirim kalır. **Bu bir güvenlik garantisi değildir:** eşikler sahada ayarlanmamıştır, gerçek SMS teslimi ve kilit ekranı/OEM davranışı garanti edilmez, yanlış alarm ve kaçırılmış olay mümkündür.
+**Güvenlik.** `RideSafety`, ivmeölçer ve GPS hızını `CrashDetector`'a verir; darbe, yakın zamanda sürüş ve hareketsizlik koşulları (genel araç profilinde eğim koşulu yoktur; 5,0 g darbe ve 30 km/sa hareket eşiği kullanılır) oluşursa `SosController` geri sayım başlatır, ardından kişi başına tek SMS denemesi yapar; arama açmaz. SOS varsayılan kapalıdır; kişi listesi boşsa tetikleyiciler kapanır. Kaza algılama yalnız pano görünürken veya açıkça başlatılmış yolculuk sürerken dinler. Ekran kapalıyken başlayan geri sayım kilit ekranı bildirimi, tam ekran bildirim ve uyandırma kilidiyle öne alınmaya çalışılır; FSI reddedilirse yüksek öncelikli bildirim kalır. **Bu bir güvenlik garantisi değildir:** eşikler sahada ayarlanmamıştır, gerçek SMS teslimi ve kilit ekranı/OEM davranışı garanti edilmez, yanlış alarm ve kaçırılmış olay mümkündür.
 
 **Yolculuk kaydı.** `TripRecorder` art arda üç fix en az `8 km/sa` ise kaydı başlatır, üç dakika hareket yoksa bitirir; `300 m` veya `60 sn` altındaki kayıtları siler. Noktalar geldikçe SQLite'a yazılır; süreç ölürse yarım kayıt sonraki açılışta kapatılır. Kayıt tercihi kapalıysa yalnız GPS takibi yapılır.
 
@@ -147,7 +147,7 @@ RideDeck/<sürüm> (+https://github.com/yigitbuyukeren/ridedeck)
 | Servis | Kullanım | Not |
 |---|---|---|
 | Nominatim | Yer arama ve ters geocode | Yalnız açık aramada; yazarken arama yok; merkezi sınır en çok 1 istek/sn |
-| Valhalla | `motorcycle` rota ve `trace_attributes` hız limiti | Anahtarsız genel sunucu; `X-Client-Id` başlığı |
+| Valhalla | `auto` rota ve `trace_attributes` hız limiti | Anahtarsız genel sunucu; `X-Client-Id` başlığı |
 | Open-Meteo | Sıcaklık, yağmur ve buzlanma tahmini | Yaklaşık konum; anahtarsız |
 | Overpass | Benzinlik sorgusu | En çok iki farklı operatöre paralel; yanıt yoksa Nominatim koridoruna düşer |
 | OpenFreeMap | Harita stilleri, karoları ve çevrimdışı indirme | MapLibre'nin kendi HTTP motoru; `Http`/`ProviderHttp` dışında |
@@ -162,7 +162,7 @@ RideDeck/<sürüm> (+https://github.com/yigitbuyukeren/ridedeck)
 4. Çağrıyı `Http`'nin iptal edilebilir yolundan yapın; coroutine iptalinde soketin kapandığından emin olun.
 5. `User-Agent` ve zaman aşımı davranışını `Http.kt`'de bırakın; servis politikasına uyun (ör. Nominatim'de yazarken arama yok, istek hızı sınırlı).
 6. Sahte `ServiceHttp` ile JVM testi ekleyin; ağ yokken sahte veri üretmeyin, hatayı kullanıcıya güvenli biçimde gösterin.
-7. Dışarıya giden veriyi, atfı ve varsa yeni izni README/gizlilik metnine ekleyin. Anahtar veya hesap gerektiren servis bu mimariye uymaz; önce tartışılmalıdır.
+7. Dışarıya giden veriyi, atfı ve varsa yeni izni `docs/FEATURES-REFERENCE.md`/gizlilik metnine ekleyin. Anahtar veya hesap gerektiren servis bu mimariye uymaz; önce tartışılmalıdır.
 
 ## 6. Kalıcılık ve veri
 
@@ -174,7 +174,7 @@ RideDeck/<sürüm> (+https://github.com/yigitbuyukeren/ridedeck)
 | Rota geometrisi | `noBackupFilesDir/route_geometry_v1.json` | `AtomicFile`, boyut/şema/tazelik/kimlik denetimi; yalnız önizleme |
 | Çevrimdışı bölgeler | Prefs metadata + MapLibre yerel bölgeleri | Mevcut bölgeler korunur; yeni indirme başlatılmaz |
 
-Tüm veri telefonda kalır. `android:allowBackup="false"` olduğu için Android bulut yedeklemesi yoktur. RideDeck hesabı, senkronizasyonu veya dışa aktarma sunucusu yoktur.
+Tüm veri cihazda kalır. `android:allowBackup="false"` olduğu için Android bulut yedeklemesi yoktur. RideDeck hesabı, senkronizasyonu veya dışa aktarma sunucusu yoktur.
 
 **Süreç ölümü sonrası rota.** Kaydedilmiş rota geometrisi yalnız önizleme olarak geri gelir; rehberlik kendiliğinden başlamaz. **Başlat** yalnız taze ve hassas GPS fix'i rotanın ilk 50 m'lik ilerleme diliminde ve rota koridorundaysa açılır. Aksi hâlde **Rotayı güncelle** ile açıkça yeni rota istenir. Bu, çevrimdışı rota hesabı değildir.
 
@@ -187,7 +187,7 @@ Tüm veri telefonda kalır. `android:allowBackup="false"` olduğu için Android 
 - **Büyük hedefler.** Dokunma hedefleri için tasarım kuralı 64–84 dp aralığıdır; birincil eylemler 72–84 dp'ye çıkar. Yeni hedefler bu aralığın altına inmemelidir. Mevcut birkaç 56 dp istisnası (ör. konum izni düğmesi, bazı arama sonuçları) ayrı bir iyileştirme konusudur.
 - **Yüksek kontrast.** Gündüz ve gece paletleri ayrıdır; metin, uyarı ve harita işaretleri arka plandan net ayrılır.
 - **Sığdırma.** `isNarrowScreen()` ekran genişliği 560 dp altındaysa kompakt düzeni seçer. `cappedSp()` sistem yazı ölçeğini varsayılan olarak 1.15 ile sınırlar; kadran ve dock gibi sabit alanlarda metin taşmaz.
-- **Yatay gidon düzeni.** Manifest `sensorLandscape` kullanır; telefon 180° çevrildiğinde çentik tarafı değişse de içerik kaymasın diye simetrik güvenli boşluk uygulanır.
+- **Yatay araç içi düzen.** Manifest `sensorLandscape` kullanır; telefon 180° çevrildiğinde çentik tarafı değişse de içerik kaymasın diye simetrik güvenli boşluk uygulanır.
 - **TR/EN.** Kullanıcıya görünen her metin ilgili `values/strings*.xml` (İngilizce, varsayılan) ve `values-tr/strings*.xml` (Türkçe) dosyalarında birlikte güncellenir; `strings.xml`, `strings_data.xml`, `strings_nav.xml`, `strings_sos.xml` ve `strings_ui.xml` gibi gruplar vardır. Sesli yönlendirme telefon diline göre Türkçe veya İngilizce konuşur (`GuidanceLanguage`).
 
 ## 8. Test edilebilirlik
@@ -239,6 +239,6 @@ Burada `test` debug ve release JVM testlerini çalıştırır. Ayrı CI işi x86
 | [docs/CASE-STUDY.en.md](CASE-STUDY.en.md) | Vaka analizinin İngilizce özeti | Güncel özet |
 | [docs/STATUS.md](STATUS.md) | Tarihli doğrulama ve iş günlüğü | Güncel durum/kanıt; eski bölümler tarihsel |
 | [docs/RELEASE_READINESS.md](RELEASE_READINESS.md) | Yayın/saha kapıları | Güncel kapılar; tarihli alt bölümler tarihsel |
-| [README.md](../README.md) | Kullanıcıya dönük özellikler ve sınırlamalar | Güncel ürün özeti |
+| [docs/FEATURES-REFERENCE.md](FEATURES-REFERENCE.md) | Kullanıcıya dönük özellikler ve sınırlamalar | Güncel ürün özeti |
 
 Güncel işler, açık hatalar ve öneriler GitHub issue'larında izlenir. Eski bir belgedeki davranış ile kod çelişirse **kod ve güncel testler** esas alınır; belgeyi de düzeltin.

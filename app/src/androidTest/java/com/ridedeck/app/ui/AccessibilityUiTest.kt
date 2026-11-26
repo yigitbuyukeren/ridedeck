@@ -59,7 +59,7 @@ class AccessibilityUiTest {
             SavedPlace(PlaceKind.WORK, Place("İş", "", GeoPoint(41.1, 29.1))),
         )
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(380.dp, 170.dp)) {
                     NavCard(
                         nav = NavUi(), places = places, weather = null, me = LocationState(),
@@ -89,7 +89,7 @@ class AccessibilityUiTest {
         var cancelled = 0
         val visible = mutableStateOf(true)
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 StopConfirmDialog(
                     visible = visible.value,
                     onConfirm = { confirmed++ },
@@ -123,7 +123,7 @@ class AccessibilityUiTest {
         val reconcileError = MutableStateFlow<String?>(null)
         val actionError = MutableStateFlow<String?>(null)
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 OfflineMapsCard(
                     here = GeoPoint(41.0, 29.0),
                     areasFlow = areas,
@@ -141,7 +141,7 @@ class AccessibilityUiTest {
 
     @Test fun mapStatusChipIsAPoliteLiveRegion() {
         compose.setContent {
-            MotoTheme { MapStatusChips(rerouting = true, degraded = false, error = null, navigating = true) }
+            DeckTheme { MapStatusChips(rerouting = true, degraded = false, error = null, navigating = true) }
         }
         // The live region belongs to the changing text, not the bounded scrolling container:
         // merging it into the container would make the semantics bounds report the full text
@@ -152,7 +152,7 @@ class AccessibilityUiTest {
     }
 
     @Test fun speedReadoutHasOneSpokenLabelWithItsUnit() {
-        compose.setContent { MotoTheme { SpeedChip(shown = 48, over = false) } }
+        compose.setContent { DeckTheme { SpeedChip(shown = 48, over = false) } }
         val expected = context.getString(
             R.string.speed_readout_desc,
             Units.speed(48).toString(),
@@ -170,7 +170,7 @@ class AccessibilityUiTest {
         }
         compose.setContent {
             CompositionLocalProvider(LocalUriHandler provides handler) {
-                MotoTheme {
+                DeckTheme {
                     Box(Modifier.size(320.dp, 120.dp)) {
                         MapCredit(Modifier.testTag("credit"))
                     }

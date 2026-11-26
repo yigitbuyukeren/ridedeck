@@ -52,7 +52,7 @@ object KeyboardLayout {
 }
 
 /**
- * Keyboard drawn by the app itself, so it can be made for a gloved hand and a landscape screen: big
+ * Keyboard drawn by the app itself, so it can be used with one hand and a landscape screen: big
  * keys across the whole width, the search button always in view, nothing resized behind it.
  */
 @Composable
@@ -101,7 +101,7 @@ fun SearchKeyboard(
                 Icon(Icons.Rounded.KeyboardArrowDown, stringResource(R.string.key_hide), tint = Color.White, modifier = Modifier.size(34.dp))
             }
             Key(Modifier.weight(3.4f), onClick = { type(" ") }) { Box(Modifier.fillMaxWidth(0.5f).height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0x66FFFFFF))) }
-            Key(Modifier.weight(2.2f), onClick = onSearch, color = MotoColors.Blue) {
+            Key(Modifier.weight(2.2f), onClick = onSearch, color = DeckColors.Blue) {
                 Text(stringResource(R.string.search), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
             }
         }
@@ -126,7 +126,7 @@ private fun Key(
 ) {
     Box(
         modifier = modifier.fillMaxHeight().clip(RoundedCornerShape(12.dp))
-            .background(if (highlight) MotoColors.Blue else color)
+            .background(if (highlight) DeckColors.Blue else color)
             .pressKey(enabled = true, onClick = onClick, onLongClick = onLongClick),
         contentAlignment = Alignment.Center,
     ) { content() }

@@ -92,7 +92,7 @@ fun TrackCover(
                 Image(picture.asImageBitmap(), null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             } else {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.MusicNote, null, tint = LocalMotoPalette.current.muted, modifier = Modifier.size(iconSize))
+                    Icon(Icons.Rounded.MusicNote, null, tint = LocalDeckPalette.current.muted, modifier = Modifier.size(iconSize))
                 }
             }
         }
@@ -126,7 +126,7 @@ internal class ArtworkMemory<T> {
 }
 
 @Composable
-internal fun rememberMediaTint(state: MediaState, palette: MotoPalette): Color {
+internal fun rememberMediaTint(state: MediaState, palette: DeckPalette): Color {
     val memory = remember { ArtworkMemory<Bitmap>() }
     // The app icon is only a placeholder; it must not colour the card while the cover loads.
     val realArt = if (state.artIsPlaceholder) null else state.art

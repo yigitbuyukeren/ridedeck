@@ -43,7 +43,7 @@ class SosAccessibilityUiTest {
     @Test
     fun sosButtonIsAButtonTalkBackCanActivateWithA68DpTarget() {
         var triggered = 0
-        compose.setContent { MotoTheme { SosButton(onTrigger = { triggered++ }) } }
+        compose.setContent { DeckTheme { SosButton(onTrigger = { triggered++ }) } }
         val node = compose.onNodeWithContentDescription(context.getString(R.string.sos_button_a11y), useUnmergedTree = true)
         node.assertExists()
         val config = node.fetchSemanticsNode().config
@@ -60,7 +60,7 @@ class SosAccessibilityUiTest {
     @Test
     fun countdownAnnouncesTheSecondsAndKeepsTheCancelTargetAt64() {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(480.dp, 320.dp)) {
                     SosScreen(SosUi(SosPhase.COUNTDOWN, SosReason.AUTO, secondsLeft = 12), emptyList(), {}, {})
                 }
@@ -81,7 +81,7 @@ class SosAccessibilityUiTest {
     @Test
     fun resultTitleIsAHeadingAndCloseStaysAt64() {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(480.dp, 320.dp)) {
                     SosScreen(SosUi(SosPhase.SENT, SosReason.MANUAL, sentTo = listOf("Contact")), listOf("Contact"), {}, {})
                 }
@@ -96,7 +96,7 @@ class SosAccessibilityUiTest {
     @Test
     fun settingsCardRendersReadinessWithoutCrashing() {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(480.dp, 900.dp)) {
                     SosSettingsCard(
                         contacts = listOf(SosContact("One", "15550000001")),
@@ -113,7 +113,7 @@ class SosAccessibilityUiTest {
     @Test
     fun notificationAndFullScreenWarningsAreShownWithoutDisablingSos() {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(480.dp, 1400.dp)) {
                     SosSettingsCard(
                         contacts = listOf(SosContact("One", "15550000001")),
@@ -139,7 +139,7 @@ class SosAccessibilityUiTest {
     @Test
     fun notificationsSwitchedOffStillNamesTheRefusedFullScreenIntent() {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(480.dp, 1400.dp)) {
                     SosSettingsCard(
                         contacts = listOf(SosContact("One", "15550000001")),

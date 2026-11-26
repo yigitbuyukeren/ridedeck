@@ -57,7 +57,7 @@ class RouteSnapTest {
     @Test
     fun turningOffTheRouteIsNotHidden() {
         val route = straight()
-        // Still only 6 m from the line, but the rider now heads east: that is a real turn, not GPS jitter.
+        // Still only 6 m from the line, but the driver now heads east: that is a real turn, not GPS jitter.
         val fix = east(41.0003, 6.0)
         val shown = RouteSnap().display(route, 0, 0.0, fix, bearing = 90.0, speedMps = 10.0)
         assertFalse(shown.onRoute)

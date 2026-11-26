@@ -56,7 +56,7 @@ fun DockStatus(battery: BatteryState) {
         }
     }
     val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(now))
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val tempColor = when {
         battery.tempC >= 45f -> dangerColor(palette)
         battery.tempC >= 40f -> warningColor(palette)
@@ -104,7 +104,7 @@ private const val BATTERY_CRITICAL_PERCENT = 15
 private const val BATTERY_LOW_PERCENT = 30
 private const val BATTERY_ALERT_PERCENT = 5
 
-private fun batterySeverityColor(level: Int, hasReading: Boolean, palette: MotoPalette): Color? = when {
+private fun batterySeverityColor(level: Int, hasReading: Boolean, palette: DeckPalette): Color? = when {
     !hasReading -> null
     level <= BATTERY_CRITICAL_PERCENT -> dangerColor(palette)
     level <= BATTERY_LOW_PERCENT -> warningColor(palette)
@@ -118,7 +118,7 @@ private fun batterySeverityColor(level: Int, hasReading: Boolean, palette: MotoP
  */
 @Composable
 private fun BatteryIndicator(level: Int, charging: Boolean, hasReading: Boolean) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val fillColor = batterySeverityColor(level, hasReading, palette) ?: palette.text.copy(alpha = 0.92f)
     val frameColor = palette.muted.copy(alpha = 0.55f)
     val boltColor = successColor(palette)

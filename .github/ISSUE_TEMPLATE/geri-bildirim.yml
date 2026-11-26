@@ -9,8 +9,8 @@ body:
   - type: input
     id: device
     attributes:
-      label: "Telefon modeli ve Android sürümü"
-      description: "Örn. Pixel 7, Android 15"
+      label: "Cihaz modeli ve Android sürümü"
+      description: "Telefon, tablet veya bağımsız head unit; örn. Pixel 7, Android 15"
       placeholder: "Örn. Pixel 7, Android 15"
     validations:
       required: true
@@ -19,7 +19,7 @@ body:
     attributes:
       label: "RideDeck sürümü"
       description: "APK dosya adındaki veya uygulama içindeki sürüm."
-      placeholder: "Örn. 0.6.0"
+      placeholder: "Örn. 0.7.1"
     validations:
       required: true
   - type: dropdown
@@ -50,12 +50,14 @@ body:
   - type: dropdown
     id: vehicle
     attributes:
-      label: "Araç"
-      description: "RideDeck yalnız motosiklet için tasarlanmıştır; farklı bir araçta denediysen yine de belirt."
+      label: "Araç ve montaj"
+      description: "RideDeck tek genel araç profilini kullanır; hangi araçta ve nasıl bir montajla denediğini belirt."
       options:
+        - "Otomobil"
+        - "Kamyonet / minibüs"
         - "Motosiklet"
-        - "Araba"
-        - "Bisiklet"
+        - "Tablet / bağımsız head unit"
+        - "Diğer"
     validations:
       required: true
   - type: textarea

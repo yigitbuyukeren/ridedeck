@@ -65,14 +65,14 @@ data class GpsUi(
     val speedAccuracyMps: Float? = null,
     /** The speed every readout shows: the filtered speed rounded to km/h, null while unknown (same source as the dial). `speedKmh` stays the raw fix. */
     val displayKmh: Int? = null,
-    /** Riding, stopped or unknown, with hysteresis; every "while riding" lock reads [inputLocked], never a raw speed. */
+    /** Driving, stopped or unknown, with hysteresis; every "while driving" lock reads [inputLocked], never a raw speed. */
     val motion: com.ridedeck.app.data.Motion = com.ridedeck.app.data.Motion.UNKNOWN,
     val inputLocked: Boolean = false,
 )
 
 internal data class SpeedLimitSpeech(val value: Int, val unitRes: Int)
 
-/** The limit in the rider's unit, plus the matching unit label resource (km/h or mph). */
+/** The limit in the driver's unit, plus the matching unit label resource (km/h or mph). */
 internal fun speedLimitSpeech(limitKmh: Int, miles: Boolean): SpeedLimitSpeech =
     SpeedLimitSpeech(UnitMath.speed(limitKmh, miles), if (miles) R.string.speed_unit_mph else R.string.speed_unit)
 
@@ -134,11 +134,11 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
 
     val locationState: StateFlow<LocationState> = location.state
 
-    private val profileNow: VehicleProfile get() = VehicleProfile.MOTORCYCLE
+    private val profileNow: VehicleProfile get() = VehicleProfile.AUTO
 
     val nav = navigation.nav
 
-    /** Chat apps seen in notifications, each with whether the rider silenced it. */
+    /** Chat apps seen in notifications, each with whether the driver silenced it. */
     data class MessageAppRow(val pkg: String, val label: String, val muted: Boolean)
 
     val messageApps = MutableStateFlow(readMessageApps())
@@ -174,7 +174,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     val pinnedApps = MutableStateFlow(PinnedApps.fromJson(Prefs.pinnedApps(app)))
     val places = rideTracking.places
 
-    /** Destinations the rider chose lately (this phone only); empty and not recorded while the history is off. */
+    /** Destinations the driver chose lately (this phone only); empty and not recorded while the history is off. */
     val recents = navigation.recents
 
     fun clearRecents() {
@@ -384,7 +384,7 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     fun onResume() {
         onScreen = true
         // A permission dialog pauses but usually does not stop the activity, so onStart's SOS
-        // refresh may not run after the rider grants SMS. Re-read the send path on every resume.
+        // refresh may not run after the driver grants SMS. Re-read the send path on every resume.
         safety.refreshReadiness()
         rideTracking.refresh()
         battery.start()

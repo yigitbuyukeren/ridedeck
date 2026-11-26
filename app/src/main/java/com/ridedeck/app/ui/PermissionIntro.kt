@@ -42,7 +42,7 @@ data class PermissionRow(
  */
 @Composable
 fun PermissionIntro(row: PermissionRow, onClose: () -> Unit, onOpenReadiness: (() -> Unit)? = null) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Box(modifier = Modifier.fillMaxSize().background(palette.wallpaper), contentAlignment = Alignment.Center) {
         Column(
             modifier = Modifier.fillMaxHeight().symmetricSafePadding().padding(horizontal = 32.dp, vertical = 12.dp).widthIn(max = 640.dp),
@@ -70,8 +70,8 @@ fun PermissionIntro(row: PermissionRow, onClose: () -> Unit, onOpenReadiness: ((
             }
             PillButton(
                 stringResource(if (row.granted) R.string.perm_intro_done else R.string.perm_intro_later),
-                if (row.granted) MotoColors.Blue else palette.track, onClose, Modifier.widthIn(min = 260.dp),
-                textColor = if (row.granted) readableOn(MotoColors.Blue) else palette.text, minHeight = 64.dp,
+                if (row.granted) DeckColors.Blue else palette.track, onClose, Modifier.widthIn(min = 260.dp),
+                textColor = if (row.granted) readableOn(DeckColors.Blue) else palette.text, minHeight = 64.dp,
             )
         }
     }
@@ -79,7 +79,7 @@ fun PermissionIntro(row: PermissionRow, onClose: () -> Unit, onOpenReadiness: ((
 
 @Composable
 private fun PermissionCard(row: PermissionRow) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Row(
         modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(palette.cardHigh).padding(start = 16.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -90,6 +90,6 @@ private fun PermissionCard(row: PermissionRow) {
             Text(row.description, fontSize = 13.sp, lineHeight = 16.sp, color = palette.textSecondary)
         }
         if (row.granted) Text(stringResource(R.string.perm_granted), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = successColor(palette))
-        else PillButton(row.actionLabel, MotoColors.Blue, row.onAction, minHeight = 64.dp, fontSize = 16.sp, horizontalPadding = 18.dp, singleLine = true)
+        else PillButton(row.actionLabel, DeckColors.Blue, row.onAction, minHeight = 64.dp, fontSize = 16.sp, horizontalPadding = 18.dp, singleLine = true)
     }
 }

@@ -38,7 +38,7 @@ class ThermalTest {
     }
 
     @Test
-    fun hotPhoneWhileRidingDimsToTheCapAndSlowsTheMap() {
+    fun hotPhoneWhileDrivingDimsToTheCapAndSlowsTheMap() {
         val s = ThermalMath.next(ThermalState(), 44f, 60, 1_000L, true)
         assertEquals(0.675f, s.brightness, 1e-3f)
         assertTrue(s.lowPower)

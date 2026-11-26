@@ -69,7 +69,7 @@ class SosSafetyRegressionTest {
         val r = Rig(this)
         r.controller.trigger(SosReason.MANUAL); runCurrent(); advanceTimeBy(5_001); runCurrent()
         assertEquals(SosPhase.SENT, r.controller.ui.value.phase)
-        // The rider never taps OK; a second, automatic crash must still start a fresh countdown.
+        // The driver never taps OK; a second, automatic crash must still start a fresh countdown.
         r.controller.trigger(SosReason.AUTO); runCurrent()
         assertEquals(SosPhase.COUNTDOWN, r.controller.ui.value.phase)
         advanceTimeBy(30_001); runCurrent()
@@ -130,35 +130,35 @@ class SmsPartTrackerTest {
 }
 
 class CrashSafetyRegressionTest {
-    private fun riding(d: CrashDetector) { for (t in 0L until 5_000L step 20) d.onSample(t, 1f, 60, 0f, 0f, 1f) }
+    private fun driving(d: CrashDetector) { for (t in 0L until 5_000L step 20) d.onSample(t, 1f, 60, 0f, 0f, 1f) }
     private fun quiet(d: CrashDetector, start: Long, seconds: Int = 10): Boolean {
         var hit = false
         for (t in start until start + seconds * 1_000L step 20) hit = d.onSample(t, 1f, 0, 0f, 0f, 1f) || hit
         return hit
     }
     @Test fun lifecycleResetAndUnknownSpeedCannotReuseAnEarlierImpact() {
-        val d = CrashDetector(); riding(d); d.onSample(5_000, 7f, 60)
+        val d = CrashDetector(); driving(d); d.onSample(5_000, 7f, 60)
         d.reset()
         assertFalse(quiet(d, 5_020))
     }
     @Test fun aSensorGapIsNotEightSecondsOfObservedStillness() {
-        val d = CrashDetector(); riding(d); d.onSample(5_000, 7f, 60)
+        val d = CrashDetector(); driving(d); d.onSample(5_000, 7f, 60)
         d.onSample(5_020, 1f, 0)
         assertFalse(quiet(d, 20_000))
     }
-    @Test fun twoWheelsRequireTiltEvidenceForAnOrdinaryImpact() {
-        val d = CrashDetector(needsTilt = { true }); riding(d); d.onSample(5_000, 4.5f, 60)
+    @Test fun tiltSensitiveDetectorRequiresTiltEvidenceForAnOrdinaryImpact() {
+        val d = CrashDetector(needsTilt = { true }); driving(d); d.onSample(5_000, 5.5f, 60)
         var hit = false
         for (t in 5_020L until 15_000L step 20) hit = d.onSample(t, 1f, 0) || hit
         assertFalse(hit)
     }
     @Test fun corruptSamplesAndClockReorderingCannotArmAnAlert() {
-        val d = CrashDetector(); riding(d); d.onSample(5_000, Float.POSITIVE_INFINITY, 60)
+        val d = CrashDetector(); driving(d); d.onSample(5_000, Float.POSITIVE_INFINITY, 60)
         assertFalse(quiet(d, 5_020))
         assertFalse(d.onSample(1, 9f, 60))
     }
     @Test fun resetDoesNotBypassAutomaticAlertCooldown() {
-        val d = CrashDetector(); riding(d); d.onSample(5_000, 7f, 60)
+        val d = CrashDetector(); driving(d); d.onSample(5_000, 7f, 60)
         assertTrue(quiet(d, 5_020))
         d.reset(); d.onSample(16_000, 7f, 60)
         assertFalse(quiet(d, 16_020))

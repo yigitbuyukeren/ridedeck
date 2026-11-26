@@ -53,7 +53,7 @@ data class OfflineMapsCardActions(
     val clearError: () -> Unit = OfflineMaps::clearError,
 )
 
-/** Settings > Setup: download the map around the rider, list, cancel and delete the areas already stored. */
+/** Settings > Setup: download the map around the driver, list, cancel and delete the areas already stored. */
 @Composable
 fun OfflineMapsCard(
     here: GeoPoint?,
@@ -65,7 +65,7 @@ fun OfflineMapsCard(
     actions: OfflineMapsCardActions = OfflineMapsCardActions(),
 ) {
     val context = LocalContext.current
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val loadAction = rememberUpdatedState(actions.load)
     LaunchedEffect(context) { loadAction.value(context) }
     val areas by areasFlow.collectAsStateWithLifecycle()
@@ -97,10 +97,10 @@ fun OfflineMapsCard(
             val block = p.block
             if (block != null) {
                 Text(offlineBlockText(block), fontSize = 15.sp, color = dangerColor(palette))
-                PillButton(stringResource(R.string.cancel), MotoColors.PanelHigh, actions.clearError, Modifier.fillMaxWidth())
+                PillButton(stringResource(R.string.cancel), DeckColors.PanelHigh, actions.clearError, Modifier.fillMaxWidth())
             } else if (p.error != null) {
                 Text(p.error.orEmpty(), fontSize = 15.sp, color = dangerColor(palette))
-                PillButton(stringResource(R.string.cancel), MotoColors.PanelHigh, actions.clearError, Modifier.fillMaxWidth())
+                PillButton(stringResource(R.string.cancel), DeckColors.PanelHigh, actions.clearError, Modifier.fillMaxWidth())
             } else {
                 LinearProgressIndicator(progress = { p.fraction }, modifier = Modifier.fillMaxWidth())
                 Text(stringResource(R.string.offline_progress, (p.fraction * 100).toInt()), fontSize = 14.sp, color = palette.muted)
@@ -119,7 +119,7 @@ fun OfflineMapsCard(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OfflinePlan.RADII_KM.filter { OfflinePlan.blockFor(here, it) == null }.forEach { km ->
                     PillButton(
-                        stringResource(R.string.offline_download, km), MotoColors.Blue,
+                        stringResource(R.string.offline_download, km), DeckColors.Blue,
                         { actions.download(context, here, km, "${"%.2f".format(java.util.Locale.US, here.lat)},${"%.2f".format(java.util.Locale.US, here.lon)}~$km") },
                         Modifier.weight(1f), horizontalPadding = 8.dp,
                     )
@@ -148,7 +148,7 @@ fun OfflineMapsCard(
                     )
                     if (confirming != a) {
                         PillButton(
-                            stringResource(R.string.offline_delete), MotoColors.PanelHigh,
+                            stringResource(R.string.offline_delete), DeckColors.PanelHigh,
                             { confirming = a }, Modifier.testTag("offline-delete"),
                             horizontalPadding = 12.dp, minHeight = 64.dp, fontSize = 16.sp,
                         )
@@ -162,7 +162,7 @@ fun OfflineMapsCard(
                 // the existing OfflineMaps.cancel path, separate from the provider-block message above.
                 if (reconciled?.state == NativeRegionState.DOWNLOADING) {
                     PillButton(
-                        stringResource(R.string.cancel), MotoColors.PanelHigh,
+                        stringResource(R.string.cancel), DeckColors.PanelHigh,
                         { actions.cancel(context, a) }, Modifier.fillMaxWidth().testTag("offline-cancel"),
                         horizontalPadding = 8.dp, minHeight = 64.dp, fontSize = 16.sp,
                     )
@@ -174,12 +174,12 @@ fun OfflineMapsCard(
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         PillButton(
-                            stringResource(R.string.offline_delete_cancel), MotoColors.PanelHigh,
+                            stringResource(R.string.offline_delete_cancel), DeckColors.PanelHigh,
                             { confirming = null }, Modifier.weight(1f).testTag("offline-delete-cancel"),
                             horizontalPadding = 8.dp, minHeight = 64.dp, fontSize = 16.sp,
                         )
                         PillButton(
-                            stringResource(R.string.offline_delete_confirm), MotoColors.Red,
+                            stringResource(R.string.offline_delete_confirm), DeckColors.Red,
                             {
                                 // Guard the callback itself: a second click before recomposition
                                 // must not issue a second delete.

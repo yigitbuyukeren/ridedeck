@@ -17,23 +17,38 @@ import org.junit.Test
 
 class VehicleProfileTest {
     @Test
-    fun theOnlyProfileRoutesWithValhallaMotorcycleCosting() {
-        assertEquals("motorcycle", VehicleProfile.MOTORCYCLE.config.costing)
-        assertEquals(listOf(VehicleProfile.MOTORCYCLE), VehicleProfile.entries)
+    fun theOnlyProfileRoutesWithValhallaAutoCosting() {
+        assertEquals("auto", VehicleProfile.AUTO.config.costing)
+        assertEquals(listOf(VehicleProfile.AUTO), VehicleProfile.entries)
     }
 
     @Test
-    fun theMotorcycleLooksForFuelOnly() {
-        assertEquals(listOf(StopKind.FUEL), VehicleProfile.MOTORCYCLE.config.stops.map { it.kind })
+    fun theGeneralVehicleProfileCarriesItsGaugeAndCrashThresholds() {
+        val config = VehicleProfile.AUTO.config
+        assertEquals(240f, config.gaugeMaxKmh, 0f)
+        assertEquals(5.0f, config.crashImpactG, 0f)
+        assertEquals(30, config.crashMovingKmh)
+        assertFalse(config.crashNeedsTilt)
+    }
+
+    @Test
+    fun theDefaultCrashDetectorMatchesTheProfileThresholds() {
+        assertEquals(5.0f, CrashDetector.IMPACT_G, 0f)
+        assertEquals(30, CrashDetector.RIDING_KMH)
+    }
+
+    @Test
+    fun theVehicleLooksForFuelOnly() {
+        assertEquals(listOf(StopKind.FUEL), VehicleProfile.AUTO.config.stops.map { it.kind })
     }
 
     // ---- route options ---------------------------------------------------------------------
 
     @Test
-    fun avoidingHighwaysAndTollsUsesTheMotorcycleCosting() {
+    fun avoidingHighwaysAndTollsUsesTheAutoCosting() {
         val o = RouteOptions(avoidHighways = true, avoidTolls = true).costingOptions()!!
-        assertEquals(0, o.getJSONObject("motorcycle").getInt("use_highways"))
-        assertEquals(0, o.getJSONObject("motorcycle").getInt("use_tolls"))
+        assertEquals(0, o.getJSONObject("auto").getInt("use_highways"))
+        assertEquals(0, o.getJSONObject("auto").getInt("use_tolls"))
     }
 
     @Test
@@ -46,7 +61,7 @@ class VehicleProfileTest {
     private val here = GeoPoint(41.0, 29.0)
 
     @Test
-    fun theMotorcycleQueryIsFuelOnly() {
+    fun theVehicleQueryIsFuelOnly() {
         val q = FuelMath.nearQuery(here)
         assertTrue(q.contains("\"amenity\"=\"fuel\""))
         assertFalse(q.contains("charging_station"))
@@ -76,7 +91,7 @@ class VehicleProfileTest {
 
     // ---- crash thresholds --------------------------------------------------------------------
 
-    /** Rides at [kmh] for two seconds, takes a hit of [g], then lies still. True if an alarm came. */
+    /** Drives at [kmh] for two seconds, takes a hit of [g], then lies still. True if an alarm came. */
     private fun crashAlarm(detector: CrashDetector, kmh: Int, g: Float): Boolean {
         var t = 0L
         repeat(20) { detector.onSample(t, 1f, kmh); t += 100 }
@@ -91,14 +106,17 @@ class VehicleProfileTest {
 
     @Test
     fun aLowSpeedFallAt15KmhDoesNotRaiseTheAlarm() {
-        val moto = VehicleProfile.MOTORCYCLE.config
-        assertFalse(crashAlarm(CrashDetector({ moto.crashImpactG }, { moto.crashMovingKmh }), 15, 3.2f))
+        val vehicle = VehicleProfile.AUTO.config
+        assertFalse(crashAlarm(CrashDetector({ vehicle.crashImpactG }, { vehicle.crashMovingKmh }), 15, 5.4f))
     }
 
     @Test
-    fun theDefaultDetectorKeepsTheMotorcycleThresholds() {
-        assertTrue(crashAlarm(CrashDetector(), 60, 4.5f))
-        assertFalse(crashAlarm(CrashDetector(), 60, 3.5f))
+    fun theDefaultDetectorKeepsTheVehicleThresholds() {
+        // 5.0 g at the 30 km/h moving threshold: the profile defaults arm the alarm.
+        assertTrue(crashAlarm(CrashDetector(), 60, 5.1f))
+        assertFalse(crashAlarm(CrashDetector(), 60, 4.9f))
+        // Below the moving threshold a hard hit never arms, however strong it is.
+        assertFalse(crashAlarm(CrashDetector(), 29, 8f))
     }
 
     // ---- wind ------------------------------------------------------------------------------

@@ -2,6 +2,8 @@
 
 > **Kanıt yolları:** Metindeki `/tmp/...` yolları yerel kanıt dosyalarıdır; repoda yer almaz.
 
+> **Ürün kapsamı (2026-11-26):** RideDeck, CarPlay/Android Auto'dan ilham alan bağımsız bir Android araç içi sürüş panelidir; CarPlay veya Android Auto ile entegre değildir. Tek genel araç profili `VehicleProfile.AUTO` kullanılır (Valhalla `auto`, 240 km/sa gösterge, 5,0 g kaza eşiği, 30 km/sa hareket eşiği, eğim koşulu yok, yalnız benzin durağı).
+
 > **Güncel durum (2026-11-26):** Ürün sürümü `0.7.1` / `versionCode 9`; imzalı `v0.7.1` kararlı APK'sı `prerelease=false` olarak yayımlandı. 1.0 sürümü, etiketi veya mağaza yayını yoktur. Önceki `0.4.0–0.7.0` test sayıları tarihseldir.
 
 ## 26 Kasım 2026 — v0.7.1 doğrulama sonuçları
@@ -10,7 +12,7 @@
 - **Lint:** **0 hata**; debug **105**, release **104** uyarı, 3'er öneri; uyarılar bastırılmadı.
 - **Release APK ve AAB:** ARM-only, v2 imzalı; sertifika SHA-256 `9d9164ef8c679f2909e2a851d1327839c684cad238ca0932488a9f8d0f622427`; APK SHA-256 `6922b84fe938c28649d429eb2dbd8dc7ed60443c48d1ba4f64ab9afa1300c1fa`; `zipalign -c -P 16 4`, 16 KB ELF LOAD ve fastlane metadata **PASS**.
 - **Instrumentation:** Bu turda yerelde yeniden çalıştırılmadı; `v0.7.1` etiketi uzak Full CI x86_64 API 35 emülatör koşusunu tetikler (son tam yerel koşu `v0.7.0` / 18 Kasım 2026: **208 PASS + 1 atlandı**, izin testi ayrı **1/1 PASS**).
-- **Bilinen sınırlama:** Gerçek TTS ses çıkışı, fiziksel cihaz, gerçek sürüş/SMS/interkom, Doze/OEM, fiziksel kilit ekranı ve 16 KB runtime **UNVERIFIED**.
+- **Bilinen sınırlama:** Gerçek TTS ses çıkışı, fiziksel cihaz, gerçek sürüş/SMS/Bluetooth ses (eller serbest), Doze/OEM, fiziksel kilit ekranı ve 16 KB runtime **UNVERIFIED**.
 
 ## 18 Kasım 2026 — v0.7.0 doğrulama sonuçları
 
@@ -19,7 +21,7 @@
 - **Instrumentation (x86_64 API 35 emülatör):** **209 testte 208 PASS + 1 atlandı, 0 hata**; atlanan izin testi ayrı `am instrument` koşusunda **1/1 PASS** (toplam 209 doğrulandı).
 - **Dil geçişi:** `en-US` → `tr-TR` geçişinde süreç PID'i değişmedi, arayüz Türkçeye döndü, çökme görülmedi. 470 string/plurals anahtarı iki dilde (`values/` EN varsayılan, `values-tr/` TR) birebir eşleşir; `locales_config.xml` `en`/`tr` bildirir.
 - **Release APK:** ARM-only, v2 imzalı; sertifika SHA-256 `9d9164ef8c679f2909e2a851d1327839c684cad238ca0932488a9f8d0f622427`; APK SHA-256 `08e264b2c6a1235418aa89ed4646074dca71677a4ca01e5ea031811d084b845d`; `zipalign -c -P 16 4` ve 16 KB ELF LOAD **PASS**.
-- **Bilinen sınırlama:** TTS motorunun gerçek ses çıkışı kulakla TR/EN doğrulanmadı; fiziksel cihaz, gerçek sürüş/SMS/interkom, Doze/OEM, fiziksel kilit ekranı ve 16 KB runtime **UNVERIFIED**.
+- **Bilinen sınırlama:** TTS motorunun gerçek ses çıkışı kulakla TR/EN doğrulanmadı; fiziksel cihaz, gerçek sürüş/SMS/Bluetooth ses (eller serbest), Doze/OEM, fiziksel kilit ekranı ve 16 KB runtime **UNVERIFIED**.
 
 ## CI kapıları (`.github/workflows/ci.yml`)
 
@@ -32,7 +34,7 @@
 | 1.0 kapısı | Durum | Not |
 |---|---|---|
 | Fiziksel cihaz, gerçek GPS/sürüş, ekran kilidi/Doze/OEM | **OPEN/UNVERIFIED** | Emülatör ve sentetik GPS yerine geçmez |
-| Gerçek SMS/SIM/operatör, gerçek arama, interkom | **OPEN/UNVERIFIED** | Sahte gateway/emülatör teslim kanıtı değildir |
+| Gerçek SMS/SIM/operatör, gerçek arama, Bluetooth ses/eller serbest | **OPEN/UNVERIFIED** | Sahte gateway/emülatör teslim kanıtı değildir |
 | Kaza algılama eşikleri ve yanlış alarm oranı | **OPEN/UNVERIFIED** | Saha verisi gerekir |
 | 16 KB runtime | **OPEN/UNVERIFIED** | Yalnız statik ELF/ZIP kontrolü var |
 | Mağaza/Data safety, lisans/ticari karar | **OPEN** | Ayrı ürün/mağaza kararı |

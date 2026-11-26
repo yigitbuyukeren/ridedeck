@@ -78,7 +78,7 @@ class OfflineMapsCardStatusUiTest {
         compose.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
-                MotoTheme {
+                DeckTheme {
                     // Production mounts the card in the settings LazyColumn, whose item gets an
                     // unbounded vertical measure. A bare root would compress the trailing controls.
                     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {

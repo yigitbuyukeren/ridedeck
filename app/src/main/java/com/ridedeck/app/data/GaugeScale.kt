@@ -3,7 +3,7 @@ package com.ridedeck.app.data
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
-/** One numbered tick on the speed dial: where it sits (0..1 of the full scale) and the number shown in the rider's unit. */
+/** One numbered tick on the speed dial: where it sits (0..1 of the full scale) and the number shown in the driver's unit. */
 data class GaugeLabel(val fraction: Float, val text: String)
 
 /** Which numbers go around the dial, for the vehicle's full scale and the unit in use. */

@@ -61,7 +61,7 @@ fun Modifier.pressClickable(
             }
         } else null,
         onLongClickLabel = onLongClickLabel,
-    ).focusRing(enabled && focused, LocalMotoPalette.current.text)
+    ).focusRing(enabled && focused, LocalDeckPalette.current.text)
 }
 
 /** A key that squeezes while pressed, with an optional long-press action. */
@@ -87,7 +87,7 @@ internal fun Modifier.pressKey(enabled: Boolean, onClick: () -> Unit, onLongClic
                 }
             } else null,
         )
-        .focusRing(enabled && focused, LocalMotoPalette.current.text)
+        .focusRing(enabled && focused, LocalDeckPalette.current.text)
 }
 
 /**
@@ -124,7 +124,7 @@ fun Modifier.hapticClickable(
     val source = remember { MutableInteractionSource() }
     val focused by source.collectIsFocusedAsState()
     val haptics = rememberRideHaptics()
-    this.focusRing(enabled && focused, LocalMotoPalette.current.text)
+    this.focusRing(enabled && focused, LocalDeckPalette.current.text)
         .clickable(
             interactionSource = source,
             indication = LocalIndication.current,

@@ -502,7 +502,7 @@ class NavigationControllerTest {
     }
 
     @Test
-    fun aRerouteStartsAheadOfTheRiderAlongTheHeading() {
+    fun aRerouteStartsAheadOfTheDriverAlongTheHeading() {
         startGuidance()
         val before = routing.requests.size
         // 300 m east of the road, heading north at 72 km/h (20 m/s): four fixes off the route.
@@ -517,7 +517,7 @@ class NavigationControllerTest {
     }
 
     @Test
-    fun remainingDistanceAndNextManeuverFollowTheRider() {
+    fun remainingDistanceAndNextManeuverFollowTheDriver() {
         startGuidance()
         drive(10)
         val ui = nav.ui.value
@@ -647,7 +647,7 @@ class NavigationControllerTest {
         startGuidance()
         drive(3)
         val stop = Place("Opet", "", GeoPoint(start.lat + 3 * STEP + 5 * STEP, start.lon))
-        nav.detourVia(stop) // the fake returns a 2 km straight road from the rider; shape ends at point 23
+        nav.detourVia(stop) // the fake returns a 2 km straight road from the driver; shape ends at point 23
         location.value = fixAt(nav.ui.value.route!!.shape.last())
         assertTrue(nav.ui.value.arrived)
         assertEquals("t${R.string.stop_arrived}", speaker.said.last())
@@ -1292,7 +1292,7 @@ class NavigationControllerTest {
         gpsProviderEnabled = true, locationPermissionGranted = true,
     )
 
-    @Test fun wrongWayRidingAnnouncesUTurnOnceAndRecomputesTheRoute() {
+    @Test fun wrongWayDrivingAnnouncesUTurnOnceAndRecomputesTheRoute() {
         startGuidance()
         speaker.said.clear()
         val before = routing.requests.size

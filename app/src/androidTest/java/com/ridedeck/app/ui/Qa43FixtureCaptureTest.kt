@@ -95,7 +95,7 @@ class Qa43FixtureCaptureTest {
 
     @Composable
     private fun FixtureFrame(day: Boolean, content: @Composable () -> Unit) {
-        MotoTheme(isDay = day) {
+        DeckTheme(isDay = day) {
             Box(Modifier.fillMaxSize()) {
                 content()
                 Text(

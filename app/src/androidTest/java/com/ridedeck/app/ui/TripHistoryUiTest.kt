@@ -38,7 +38,7 @@ class TripHistoryUiTest {
 
     private fun render(fontScale: Float, width: Dp, height: Dp, content: @Composable () -> Unit) {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 val density = LocalDensity.current
                 CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
                     Box(Modifier.width(width).height(height)) { content() }
@@ -157,7 +157,7 @@ class TripHistoryUiTest {
         var deletes = 0
 
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 CompositionLocalProvider(LocalDensity provides Density(scaledContext)) {
                     Box(Modifier.width(300.dp).height(240.dp)) {
                         TripDetail(longTrip, onDelete = { deletes++ }, modifier = Modifier.fillMaxSize())
@@ -184,7 +184,7 @@ class TripHistoryUiTest {
         val configuration = Configuration(context.resources.configuration).apply { fontScale = 2f }
         val scaledContext = context.createConfigurationContext(configuration)
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 CompositionLocalProvider(LocalDensity provides Density(scaledContext)) {
                     Box(Modifier.width(300.dp).height(240.dp)) {
                         TripMapPanel(

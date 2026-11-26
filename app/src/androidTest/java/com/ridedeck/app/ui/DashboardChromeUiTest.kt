@@ -66,7 +66,7 @@ class DashboardChromeUiTest {
         val configuration = Configuration(context.resources.configuration).apply { this.fontScale = fontScale }
         val density = Density(context.createConfigurationContext(configuration))
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 CompositionLocalProvider(LocalDensity provides density) {
                     Box(Modifier.size(width, height)) { content() }
                 }

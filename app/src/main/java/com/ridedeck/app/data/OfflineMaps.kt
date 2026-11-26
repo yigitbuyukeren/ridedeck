@@ -19,7 +19,7 @@ import org.maplibre.android.offline.OfflineRegionStatus
 import org.maplibre.android.offline.OfflineTilePyramidRegionDefinition
 
 /**
- * Downloads the map around the rider for use without a connection. Each area is two MapLibre regions (the day and the
+ * Downloads the map around the driver for use without a connection. Each area is two MapLibre regions (the day and the
  * night style), which share their tiles. Everything runs on the main thread, as MapLibre requires.
  */
 object OfflineMaps {

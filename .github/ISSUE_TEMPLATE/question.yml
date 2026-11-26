@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Sorunu paylaşmadan önce [README](https://github.com/yigitbuyukeren/ridedeck/blob/main/README.md), [geliştirme rehberi](https://github.com/yigitbuyukeren/ridedeck/blob/main/docs/DEVELOPMENT.md) ve [destek](https://github.com/yigitbuyukeren/ridedeck/blob/main/SUPPORT.md) bölümlerine bak.
+        Sorunu paylaşmadan önce [özellik referansı](https://github.com/yigitbuyukeren/ridedeck/blob/main/docs/FEATURES-REFERENCE.md), [geliştirme rehberi](https://github.com/yigitbuyukeren/ridedeck/blob/main/docs/DEVELOPMENT.md) ve [destek](https://github.com/yigitbuyukeren/ridedeck/blob/main/SUPPORT.md) bölümlerine bak.
 
         Hata için **Hata bildirimi**, özellik fikri için **Özellik isteği**, güvenlik açığı için [SECURITY.md](https://github.com/yigitbuyukeren/ridedeck/blob/main/SECURITY.md) yolunu kullan. Kişisel veri, gerçek konum, telefon numarası veya SMS içeriği paylaşma.
   - type: textarea
@@ -41,8 +41,8 @@ body:
     id: environment
     attributes:
       label: Ortam (isteğe bağlı)
-      description: RideDeck sürümü, telefon/emülatör ve Android sürümü.
-      placeholder: "Örn. 0.6.0, Pixel 7, Android 15"
+      description: RideDeck sürümü, cihaz/emülatör ve Android sürümü.
+      placeholder: "Örn. 0.7.1, Pixel 7 veya tablet, Android 15"
     validations:
       required: false
   - type: checkboxes

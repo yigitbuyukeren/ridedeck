@@ -3,7 +3,7 @@
     <!-- Notification privacy: shown instead of a locked private message's sender/text. -->
     <string name="data_message_redacted">İçerik kilitli ekranda gizli</string>
 
-    <!-- Ending an active ride is destructive-ish: one tap only opens this confirmation. -->
+    <!-- Ending an active trip is destructive-ish: one tap only opens this confirmation. -->
     <string name="data_ride_stop_confirm_title">Yolculuğu bitir?</string>
     <string name="data_ride_stop_confirm_body">Etkin yolculuk kaydedilerek bitirilecek. Yolculuk geçmişi silinmez.</string>
     <string name="data_ride_stop_confirm_action">Bitir</string>

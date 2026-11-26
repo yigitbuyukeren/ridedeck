@@ -125,7 +125,7 @@ class RouteGeometryStore(
             }
         }
 
-    /** Explicit rider cancel / ActiveTrip clear only; never called by a rejected read. */
+    /** Explicit driver cancel / ActiveTrip clear only; never called by a rejected read. */
     suspend fun clear(): Boolean = withContext(dispatcher) {
         mutex.withLock { runCatching { gateway.delete(); true }.getOrDefault(false) }
     }

@@ -25,7 +25,7 @@ class ManeuverRowContrastUiTest {
     @Test fun dayManeuverTextGetsADarkScrimAndNightKeepsItsCurrentRow() {
         val day = mutableStateOf(true)
         compose.setContent {
-            MotoTheme(isDay = day.value) {
+            DeckTheme(isDay = day.value) {
                 Box(
                     Modifier.background(Color(0xFFDCE4EE)).padding(20.dp).testTag(SAMPLE)
                 ) {

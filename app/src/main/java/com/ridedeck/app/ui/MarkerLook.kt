@@ -20,7 +20,7 @@ data class MarkerLook(val shape: MarkerShape = MarkerShape.MODERN, val colorInde
     val color: Int get() = MARKER_COLORS[colorIndex.coerceIn(0, MARKER_COLORS.lastIndex)].toInt()
 }
 
-/** The rider's chosen map marker; shared by the full map and the dashboard mini map. */
+/** The driver's chosen map marker; shared by the full map and the dashboard mini map. */
 object MarkerStyle {
     private val _look = MutableStateFlow(MarkerLook())
     val look: StateFlow<MarkerLook> = _look

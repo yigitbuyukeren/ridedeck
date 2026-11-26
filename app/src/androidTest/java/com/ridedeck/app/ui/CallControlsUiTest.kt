@@ -19,7 +19,7 @@ class CallControlsUiTest {
     @Test fun rejectedDtmfIsNotAddedToTheDisplayedEnteredDigits() {
         var attempts = 0
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 CallScreen(CallState(CallPhase.ACTIVE, managed = true), "Contact", null, NavUi(), {}, {},
                     onDigit = { attempts++; false })
             }
@@ -31,7 +31,7 @@ class CallControlsUiTest {
     }
 
     @Test fun heldCallDoesNotAdvertiseActiveMuteKeypadControls() {
-        compose.setContent { MotoTheme { CallScreen(CallState(CallPhase.HELD, managed = true), "Contact", null, NavUi(), {}, {}) } }
+        compose.setContent { DeckTheme { CallScreen(CallState(CallPhase.HELD, managed = true), "Contact", null, NavUi(), {}, {}) } }
         compose.onNodeWithText(context.getString(R.string.call_held)).assertExists()
         compose.onNodeWithText(context.getString(R.string.call_keys)).assertDoesNotExist()
         compose.onNodeWithText(context.getString(R.string.call_mute)).assertDoesNotExist()

@@ -22,7 +22,7 @@ class CallHangUpCapabilityUiTest {
 
     private fun render(support: CallCapability.HangUpSupport, onHangUp: () -> Unit) {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 CallScreen(
                     call = CallState(CallPhase.ACTIVE, managed = false),
                     callerName = "Test",

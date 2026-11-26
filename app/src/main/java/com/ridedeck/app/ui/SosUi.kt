@@ -130,7 +130,7 @@ fun SosButton(onTrigger: () -> Unit, modifier: Modifier = Modifier) {
     val actionLabel = stringResource(R.string.sos_button_action)
     val holdState = stringResource(R.string.sos_button_hold_state, (progress * 100f).toInt().coerceIn(0, 100))
     // The fill darkens while held; pick the text colour from the actual fill, not a fixed white.
-    val fill = lerp(MotoColors.Red, Color(0xFF8E0B0B), SosHoldMath.halo(progress) * 0.6f)
+    val fill = lerp(DeckColors.Red, Color(0xFF8E0B0B), SosHoldMath.halo(progress) * 0.6f)
     Box(
         modifier = modifier
             .size(68.dp)
@@ -145,7 +145,7 @@ fun SosButton(onTrigger: () -> Unit, modifier: Modifier = Modifier) {
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .drawBehind {
                 val halo = SosHoldMath.halo(progress)
-                if (halo > 0f) drawCircle(MotoColors.Red.copy(alpha = 0.35f * halo), radius = size.minDimension / 2f + 6.dp.toPx() * halo)
+                if (halo > 0f) drawCircle(DeckColors.Red.copy(alpha = 0.35f * halo), radius = size.minDimension / 2f + 6.dp.toPx() * halo)
             }
             .pointerInput(Unit) {
                 detectTapGestures(onPress = {
@@ -245,7 +245,7 @@ private fun Countdown(ui: SosUi, contactNames: List<String>, onCancel: () -> Uni
         Text(
             ui.secondsLeft.toString(),
             fontSize = if (narrow) 120.sp else 140.sp, fontWeight = FontWeight.Black, color = Color.White, textAlign = TextAlign.Center,
-            // Every second is announced: the rider does not have to look at the screen.
+            // Every second is announced: the driver does not have to look at the screen.
             modifier = m.semantics { liveRegion = LiveRegionMode.Assertive },
         )
     }
@@ -353,7 +353,7 @@ fun SosSettingsCard(
     alertFacts: SosAlertPermissionFacts? = null,
 ) {
     val context = LocalContext.current
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     var smsOk by remember { mutableStateOf(context.hasPermission(Manifest.permission.SEND_SMS)) }
     // A denied request that no longer shows a rationale can only be fixed in the system settings.
     var smsAsked by remember { mutableStateOf(Prefs.sosSmsAsked(context)) }
@@ -409,7 +409,7 @@ fun SosSettingsCard(
     val radioProblem = SosReadiness.blocker(contacts = 1, smsPermission = true, telephony = telephony, defaultSmsUsable = simUsable)
 
     Column(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(16.dp),
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(DeckColors.Card).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(stringResource(R.string.sos_title), fontSize = 20.sp, color = palette.text, fontWeight = FontWeight.SemiBold)
@@ -424,7 +424,7 @@ fun SosSettingsCard(
             }
         }
         if (contacts.size < SosMath.MAX_CONTACTS) {
-            PillButton(stringResource(R.string.sos_add_contact), MotoColors.Blue, {
+            PillButton(stringResource(R.string.sos_add_contact), DeckColors.Blue, {
                 try {
                     pickLauncher.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
                 } catch (e: ActivityNotFoundException) {
@@ -443,10 +443,10 @@ fun SosSettingsCard(
                     )
                 }
                 if (smsDeniedForGood) {
-                    // Requesting again would be silently ignored: send the rider to the app settings.
-                    PillButton(stringResource(R.string.sos_open_settings), MotoColors.Blue, { context.openAppSettings() })
+                    // Requesting again would be silently ignored: send the driver to the app settings.
+                    PillButton(stringResource(R.string.sos_open_settings), DeckColors.Blue, { context.openAppSettings() })
                 } else {
-                    PillButton(stringResource(R.string.action_allow), MotoColors.Blue, {
+                    PillButton(stringResource(R.string.action_allow), DeckColors.Blue, {
                         smsAsked = true
                         Prefs.setSosSmsAsked(context)
                         smsLauncher.launch(Manifest.permission.SEND_SMS)
@@ -527,7 +527,7 @@ private fun Context.openAppSettings() {
 
 @Composable
 private fun SosToggle(title: String, desc: String, checked: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
             Text(title, fontSize = 18.sp, color = palette.text, fontWeight = FontWeight.Medium)
@@ -540,13 +540,13 @@ private fun SosToggle(title: String, desc: String, checked: Boolean, enabled: Bo
 /** A warning with one fix action; deliberately not a switch, so nothing about SOS gets disabled. */
 @Composable
 private fun SosWarning(title: String, desc: String, action: String, onAction: () -> Unit) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
             Text(title, fontSize = 18.sp, color = warningColor(palette), fontWeight = FontWeight.Medium)
             Text(desc, fontSize = 14.sp, color = palette.muted)
         }
-        PillButton(action, MotoColors.Blue, onAction)
+        PillButton(action, DeckColors.Blue, onAction)
     }
 }
 

@@ -83,7 +83,7 @@ class TripSummaryUiTest {
         )
 
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 CompositionLocalProvider(LocalDensity provides Density(scaled)) {
                     LazyColumn(Modifier.width(300.dp).height(300.dp)) {
                         item {
@@ -127,7 +127,7 @@ class TripSummaryUiTest {
         )
         val negative = empty.copy(tripCount = -1)
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.width(300.dp).height(300.dp)) {
                     TripSummaryHeader(empty, negative, Modifier.testTag("trip-summary-empty"))
                 }
@@ -152,7 +152,7 @@ class TripSummaryUiTest {
         )
         val month = week.copy(tripCount = 1, omittedCount = 0, capped = true)
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 CompositionLocalProvider(LocalDensity provides Density(scaled)) {
                     Box(Modifier.width(300.dp).height(600.dp)) {
                         TripSummaryHeader(

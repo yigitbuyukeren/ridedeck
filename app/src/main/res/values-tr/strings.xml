@@ -180,7 +180,7 @@
     <string name="fuel_add_stop">Ara durak</string>
     <string name="fuel_go">Git</string>
     <string name="thermal_title">Isınma koruması</string>
-    <string name="thermal_desc">Telefon 42°C\'yi aşınca ekran kısılır ve harita yavaşlar; motosiklet bir dakika durursa ekran kararır, hareket edince geri açılır. Normal sıcaklıkta hiçbir şey değişmez.</string>
+    <string name="thermal_desc">Telefon 42°C\'yi aşınca ekran kısılır ve harita yavaşlar; araç bir dakika durursa ekran kararır, hareket edince geri açılır. Normal sıcaklıkta hiçbir şey değişmez.</string>
     <string name="thermal_banner">Telefon ısınıyor, şarjı kesmeyi düşün</string>
     <string name="thermal_voice">Telefon çok ısındı</string>
     <string name="sos_title">Acil durum (SOS)</string>
@@ -192,7 +192,7 @@
     <string name="sos_perm_title">SMS izni</string>
     <string name="sos_perm_desc">Mesajı göndermek için</string>
     <string name="sos_crash_title">Otomatik kaza algılama</string>
-    <string name="sos_crash_desc">Sert darbe ve ardından hareketsizlik olursa geri sayım başlar. Ekran kapalıyken de çalışması için yolculuğu Başlat ile aç. Telefon motosiklete sabitken kullan.</string>
+    <string name="sos_crash_desc">Sert darbe ve ardından hareketsizlik olursa geri sayım başlar. Ekran kapalıyken de çalışması için yolculuğu Başlat ile aç. Telefon araca sabitken kullan.</string>
     <string name="sos_button_title">SOS düğmesi</string>
     <string name="sos_button_desc">Hız göstergesinin köşesindeki düğmeye 1,5 saniye basılı tut.</string>
     <string name="sos_test">Test et (SMS gitmez)</string>
@@ -274,8 +274,8 @@
     <string name="gps_fair">GPS orta</string>
     <string name="gps_poor">GPS zayıf</string>
 
-    <!-- Motorcycle profile -->
-    <string name="sos_noun_moto">Motosiklet</string>
+    <!-- Vehicle profile -->
+    <string name="sos_noun_vehicle">Arac</string>
     <string name="perm_location_precise">Hız göstergesi için GPS. Yalnızca yaklaşık konum verilmiş; Ayarlar\'dan "Tam konum"a izin ver.</string>
     <string name="speed_unit_mph">mil/sa</string>
     <string name="haptics_title">Dokunma titremesi</string>

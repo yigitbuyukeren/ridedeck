@@ -1,26 +1,27 @@
-RideDeck, CarPlay/Android Auto'dan ilham alan, açık kaynaklı bir Android sürüş gösterge panelidir. Şu anda motosiklet odaklıdır; uzun vadeli hedefi diğer araç türlerine de yayılmektir. CarPlay veya Android Auto ile entegrasyonu yoktur.
+RideDeck, CarPlay ve Android Auto'dan ilham alan, ücretsiz ve açık kaynaklı bağımsız bir Android araç içi sürüş panelidir. Uyumlu, monte edilmiş herhangi bir Android telefon, tablet veya bağımsız head unit üzerinde çalışır; CarPlay ya da Android Auto ile entegre olmaz ve projeksiyon yapmaz.
 
 GÜNLÜK SÜRÜŞ
-- Yatay gidon düzeni; GPS hızı, saat, pil seviyesi ve telefon sıcaklığı; büyük, eldivenle basılabilen dokunma alanları ve otomatik gündüz/gece teması.
+- Yatay araç içi düzen; GPS hızı, saat, pil seviyesi ve telefon sıcaklığı; hızlı bakış ve kolay dokunma için büyük, yüksek kontrastlı dokunma alanları (64-84 dp) ve otomatik gündüz/gece teması.
+- Hareket halindeyken (5 km/sa ve üzeri) ayarlar ve yazı girişi kilitlenir; ekran bakışa uygun kalır.
 
 NAVİGASYON (internet gerekir)
-- MapLibre/OpenFreeMap ile çizilen OpenStreetMap tabanlı harita, Valhalla ile motosiklet rotası, adım adım sesli yönlendirme ve rotadan çıkınca yeniden hesaplama.
+- MapLibre/OpenFreeMap ile çizilen OpenStreetMap tabanlı harita, Valhalla "auto" costing ile araç rotası, adım adım sesli yönlendirme ve rotadan çıkınca yeniden hesaplama.
 - Kayıtlı yerler (Ev, İş, favoriler), ara duraklar, rotanın üzerindeki veya yakınındaki benzinlikler, hız limiti uyarıları ve varış saati.
 - Rota hesabı, yer arama, hava durumu ve hız limiti sorguları herkese açık üçüncü taraf servislere istek gönderir. Çevrimdışı rota hesabı yoktur. Önceden indirilmiş harita alanları korunur, ancak yeni çevrimdışı indirmeler durdurulmuştur.
 
 DİL, MEDYA VE TELEFON
 - Android 13+ uygulama dili ayarlarından Türkçe veya İngilizce seçimi; TTS sesi ve rota talimatları uygulamayı yeniden başlatmadan değişir. Desteklenmeyen cihaz dilleri İngilizceye düşer.
-- Uyumlu müzik uygulamaları için medya oturumu kontrolleri, isteğe bağlı mesaj seslendirme ve rehber, son aramalar ile tuş takımı içeren uygulama içi telefon. Bazı işlevler Android izinlerine ve varsayılan telefon uygulaması rolüne bağlıdır.
+- Uyumlu müzik uygulamaları için medya oturumu kontrolleri, isteğe bağlı mesaj seslendirme ve rehber, son aramalar ile tuş takımı içeren uygulama içi telefon. Bazı işlevler Android izinlerine ve varsayılan telefon uygulaması rolüne bağlıdır; Bluetooth/eller serbest arama sesi de bu kapsamdadır.
 
 YOLCULUK, SOS VE GİZLİLİK
 - Yolculukları cihazda kaydetme ve geçmişten görüntüleme; yolculuklar ve ayarlar cihazda kalır. Hesap açmak veya RideDeck sunucusuna bağlanmak gerekmez.
-- İsteğe bağlı, deneysel SOS: algılanan sert darbe ve hareketsizlikten sonra geri sayım; ardından konum linkli bir SMS'in en fazla 3 kişiye gönderilmesi denenir. Saha testi yapılmamıştır, teslim garantisi yoktur ve acil durum hizmetinin veya güvenlik ekipmanının yerine geçmez.
+- İsteğe bağlı, deneysel SOS: hareket halindeyken (30 km/sa ve üzeri) algılanan 5,0 g sert darbe ve hareketsizlikten sonra geri sayım; ardından konum linkli bir SMS'in en fazla 3 kişiye gönderilmesi denenir. Saha testi yapılmamıştır, teslim garantisi yoktur ve acil durum hizmetinin veya güvenlik ekipmanının yerine geçmez.
 - Harita karoları, arama metni, rota uç noktaları, hava durumu için yaklaşık konum ve benzinlik sorguları üçüncü taraf sağlayıcılara gönderilir; bu sağlayıcılar IP adresini görebilir.
 
 DURUM VE SINIRLAR
-- v0.7.1 kararlı bir sürümdür, ancak proje henüz 1.0 ürünü değildir. Gerçek cihaz ve gerçek sürüş doğrulaması, gerçek SMS/arama, kilit ekranı/üretici yazılımı davranışları ve kaza algılama eşikleri doğrulanmamıştır.
-- Canlı trafik, radar uyarısı veya CarPlay/Android Auto entegrasyonu yoktur. Android 8.0+ (API 26).
+- v0.7.1 kararlı bir sürümdür, ancak proje henüz 1.0 ürünü değildir. Gerçek cihaz ve gerçek sürüş doğrulaması, gerçek SMS/arama, Bluetooth eller serbest ses, kilit ekranı/üretici yazılımı davranışları ve kaza algılama eşikleri doğrulanmamıştır.
+- Canlı trafik, radar uyarısı, CarPlay veya Android Auto entegrasyonu yoktur. Android 8.0+ (API 26).
 
 Mağaza ekran görüntüleri Android emülatöründe sentetik/simüle edilmiş GPS (synthetic/simulated GPS) ile alınmıştır; gerçek sürüş değildir.
 
-RideDeck sürüş sırasında dikkat dağıtabilir: telefonu sabitle, ayarları park halindeyken yap ve trafik kurallarına uy. Apache 2.0 lisanslıdır.
+RideDeck sürüş sırasında dikkat dağıtabilir: telefonu veya tableti güvenli biçimde sabitle, ayarları park halindeyken yap ve trafik kurallarına uy. Apache 2.0 lisanslıdır.

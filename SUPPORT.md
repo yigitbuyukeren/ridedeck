@@ -9,7 +9,7 @@ RideDeck gönüllü bir açık kaynak projesidir. Yardım isterken doğru kanal�
 | Tekrarlanabilir hata | [Hata bildirimi](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=bug_report.yml) |
 | Yeni özellik veya tasarım fikri | [Özellik isteği](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=feature_request.yml) |
 | Kullanım, kurulum veya katkı sorusu | [Soru formu](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=question.yml) |
-| Belge, README veya çeviri sorunu | [Belge/çeviri bildirimi](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=documentation.yml) |
+| Belge veya çeviri sorunu | [Belge/çeviri bildirimi](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=documentation.yml) |
 | Deneyim/geri bildirim | [Geri bildirim formu](https://github.com/yigitbuyukeren/ridedeck/issues/new?template=geri-bildirim.yml) |
 | Güvenlik açığı | **Gizli:** [SECURITY.md](SECURITY.md) → [mail@yigitbuyukeren.com](mailto:mail@yigitbuyukeren.com) |
 | Özel/hassas konu | [mail@yigitbuyukeren.com](mailto:mail@yigitbuyukeren.com) |
@@ -18,8 +18,8 @@ Gerçek zamanlı acil durum, tıbbi yardım, kaza müdahalesi veya güvenlik gar
 
 ## İyi bir bildirim nasıl olur?
 
-- **Sürüm:** Uygulama sürümü veya APK dosya adı (ör. 0.7.0).
-- **Ortam:** Telefon modeli, Android sürümü, emülatör mü fiziksel cihaz mı?
+- **Sürüm:** Uygulama sürümü veya APK dosya adı (ör. 0.7.1).
+- **Ortam:** Telefon/tablet/head unit modeli, Android sürümü, emülatör mü fiziksel cihaz mı? Araç ve montaj türü (ön cam, gösterge paneli, bağımsız ekran) da yardımcı olur.
 - **Adımlar:** En kısa yeniden üretme yolu. "Navigasyon çalışmıyor" yerine "rota hesaplandıktan sonra 3. dönüşte ses kesildi" gibi.
 - **Beklenen / gerçekleşen:** Ne olmasını bekliyordun, ne oldu?
 - **Kanıt:** Ekran görüntüsü, ekran kaydı veya logcat. Kişisel verileri (konum, telefon numarası, kişi adı, SMS içeriği) anonimleştir.
@@ -27,7 +27,7 @@ Gerçek zamanlı acil durum, tıbbi yardım, kaza müdahalesi veya güvenlik gar
 
 ## Neyi nerede bulabilirim?
 
-- Kurulum, özellikler ve bilinen sınırlamalar: [README.md](README.md)
+- Kurulum, özellikler ve bilinen sınırlamalar: [docs/FEATURES-REFERENCE.md](docs/FEATURES-REFERENCE.md)
 - Derleme, test ve emülatör: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 - Mimari ve kod haritası: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - Güncel durum ve doğrulanmamış saha işleri: [docs/STATUS.md](docs/STATUS.md), [docs/RELEASE_READINESS.md](docs/RELEASE_READINESS.md)

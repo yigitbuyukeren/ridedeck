@@ -1,11 +1,11 @@
 # RideDeck
 
-Android Kotlin/Compose motosiklet sürüş paneli. Kaynak kod, `README.md` ve `docs/STATUS.md` güncel durum/kanıttır; eski tarihli kayıtlar tarihseldir.
+Android Kotlin/Compose araç içi sürüş paneli (CarPlay/Android Auto'dan ilham alan bağımsız pano; entegrasyon değil). Kaynak kod ve `docs/STATUS.md` güncel durum/kanıttır; eski tarihli kayıtlar tarihseldir.
 
 ## Bağlam ve belgeler
 
-- Görevle ilgili belgeleri gerektiğinde oku: ürün özeti `README.md`, açık işler GitHub issue'ları, güncel durum/kanıt `docs/STATUS.md`, saha/yayın kapıları `docs/RELEASE_READINESS.md`, denetim takibi `docs/AUDIT-TRACKING.md`.
-- Özellik veya mimari değişince ilgili `README.md` bölümünü, doğrulama/durum değişince `docs/STATUS.md` dosyasını güncelle.
+- Görevle ilgili belgeleri gerektiğinde oku: ürün özeti `docs/FEATURES-REFERENCE.md`, açık işler GitHub issue'ları, güncel durum/kanıt `docs/STATUS.md`, saha/yayın kapıları `docs/RELEASE_READINESS.md`, denetim takibi `docs/AUDIT-TRACKING.md`.
+- Özellik veya mimari değişince ilgili `docs/` belgesini, doğrulama/durum değişince `docs/STATUS.md` dosyasını güncelle.
 
 ## Derleme ve CI kapıları
 
@@ -17,6 +17,7 @@ Android Kotlin/Compose motosiklet sürüş paneli. Kaynak kod, `README.md` ve `d
 
 - Sürüş güvenliği, SOS, GPS ve navigasyon davranışlarını değiştirmeden önce ilgili testleri doğrula. Gerçek cihazda denenmeyen özellikleri doğrulanmış gösterme.
 - Navigasyon servislerinde mevcut anahtarsız yapıyı ve merkezi HTTP katmanını koru.
+- RideDeck'i CarPlay veya Android Auto entegrasyonu/projeksiyonu olarak tanıtma; tek genel araç profili `VehicleProfile.AUTO` kullanılır.
 - Sürüşte yazı girişi ekleme; dokunma hedefi 64–84dp olsun (yeni hedefler altına inmesin; mevcut 56dp istisnaları ayrı iyileştirme) ve yüksek kontrast korunsun.
 - Yeni arayüz metinlerini `values/strings*.xml` (İngilizce varsayılan) ve `values-tr/strings*.xml` (Türkçe) dosyalarında birlikte güncelle.
 - Arayüz değişince emülatör doğrulaması yap; fiziksel cihaz ve gerçek sürüş doğrulamasını ayrı bildir. Debug APK x86_64 + ARM, release yalnız ARM'dır (`$ANDROID_HOME/emulator/emulator -avd <avd-adı> -no-snapshot`).

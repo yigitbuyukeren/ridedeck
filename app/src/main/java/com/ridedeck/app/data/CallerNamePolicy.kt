@@ -1,7 +1,7 @@
 package com.ridedeck.app.data
 
 /**
- * Pure naming decisions for the in-call screen. Kept out of [com.ridedeck.app.service.MotoInCallService]
+ * Pure naming decisions for the in-call screen. Kept out of [com.ridedeck.app.service.DeckInCallService]
  * so the Android service only has to supply the platform values.
  */
 object CallerNamePolicy {

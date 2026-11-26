@@ -5,12 +5,12 @@ import org.json.JSONObject
 import java.util.Locale
 
 /**
- * Typo tolerance for place searches, pure logic: Turkish letter variants, a fuzzy match against places the rider
+ * Typo tolerance for place searches, pure logic: Turkish letter variants, a fuzzy match against places the driver
  * already knows (saved, recent) and a short list of well-known names, and the candidate queries worth sending to the
  * search service when the typed text finds nothing. Nothing here talks to the network.
  */
 object PlaceQuery {
-    /** A name the rider (or the built-in list) knows and how close it is to the typed text, 0..1. */
+    /** A name the driver (or the built-in list) knows and how close it is to the typed text, 0..1. */
     data class Match(val name: String, val score: Double)
 
     const val SUGGEST_THRESHOLD = 0.75
@@ -136,7 +136,7 @@ object PlaceQuery {
     )
 }
 
-/** The last places the rider searched for and chose, newest first, kept on the device only. */
+/** The last places the driver searched for and chose, newest first, kept on the device only. */
 object RecentPlaces {
     const val MAX = 10
     private const val SAME_SPOT_M = 30.0

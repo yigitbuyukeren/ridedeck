@@ -64,7 +64,7 @@ object ActiveTripPersistence {
 }
 
 /**
- * Startup restore gate: re-check age after the GPS wait and never resurrect a trip after the rider has chosen or
+ * Startup restore gate: re-check age after the GPS wait and never resurrect a trip after the driver has chosen or
  * cancelled a route in this process. [originalJson] must still be the stored record; a newer save wins.
  */
 object ActiveTripRestoreGate {

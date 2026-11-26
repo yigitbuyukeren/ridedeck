@@ -27,7 +27,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import com.ridedeck.app.ui.DashboardScreen
-import com.ridedeck.app.ui.MotoTheme
+import com.ridedeck.app.ui.DeckTheme
 
 class MainActivity : ComponentActivity() {
     private val viewModel: DashboardViewModel by viewModels()
@@ -52,11 +52,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-        // The motorcycle dashboard is made for a landscape handlebar mount.
+        // The dashboard is made for a landscape vehicle mount.
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         setContent {
             val isDay by viewModel.theme.isDay.collectAsStateWithLifecycle()
-            MotoTheme(isDay) { DashboardScreen(viewModel) }
+            DeckTheme(isDay) { DashboardScreen(viewModel) }
         }
     }
 

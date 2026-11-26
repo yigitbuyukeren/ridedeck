@@ -51,7 +51,7 @@ fun MessageBanner(
     ) {
         Text(
             message.app,
-            fontSize = 14.sp, color = MotoColors.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            fontSize = 14.sp, color = DeckColors.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis,
         )
         if (message.sender.isNotBlank()) {
             Text(
@@ -65,7 +65,7 @@ fun MessageBanner(
             modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            PillButton(stringResource(R.string.message_read), MotoColors.Blue, onRead, Modifier.weight(1f))
+            PillButton(stringResource(R.string.message_read), DeckColors.Blue, onRead, Modifier.weight(1f))
             PillButton(stringResource(R.string.message_dismiss), Color(0xFF2C2C2E), onDismiss, Modifier.weight(1f))
         }
     }

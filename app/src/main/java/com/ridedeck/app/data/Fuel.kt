@@ -28,8 +28,8 @@ object FuelMath {
     private fun around(radiusM: Int, points: List<GeoPoint>): String =
         "(around:$radiusM," + points.joinToString(",") { "%.5f,%.5f".format(Locale.US, it.lat, it.lon) } + ")"
 
-    /** What the motorcycle profile looks for; the default wherever no source is given. */
-    val FUEL_ONLY: List<StopSource> = VehicleProfile.MOTORCYCLE.config.stops
+    /** What the vehicle profile looks for; the default wherever no source is given. */
+    val FUEL_ONLY: List<StopSource> = VehicleProfile.AUTO.config.stops
 
     // Nodes and ways only: relations make the public servers scan far more for no gain here.
     private fun query(around: String, sources: List<StopSource>): String {
@@ -136,7 +136,7 @@ object FuelMath {
 /**
  * Fuel stations from two free sources. The volunteer-run Overpass servers take turns being down or slow,
  * so a search asks at most two of them (from distinct operators) and takes the first good answer; Nominatim
- * is the quick fallback (and the first choice around the rider). Searches are rare, explicit taps.
+ * is the quick fallback (and the first choice around the driver). Searches are rare, explicit taps.
  */
 class FuelRepository(private val http: ServiceHttp = ProviderHttp) : FuelFinder {
     private companion object {
@@ -145,7 +145,7 @@ class FuelRepository(private val http: ServiceHttp = ProviderHttp) : FuelFinder 
         const val FALLBACK_POINTS = 14
     }
 
-    /** Around the rider: Nominatim first (fast), the Overpass mirrors when it finds nothing or fails. */
+    /** Around the driver: Nominatim first (fast), the Overpass mirrors when it finds nothing or fails. */
     override suspend fun near(here: GeoPoint, sources: List<StopSource>): Result<List<FuelStation>> = withContext(Dispatchers.IO) {
         safely("fuel") {
             val viaNominatim = try {

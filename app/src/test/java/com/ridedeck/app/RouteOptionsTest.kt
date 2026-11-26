@@ -14,14 +14,14 @@ class RouteOptionsTest {
 
     @Test
     fun avoidingHighwaysOnlySetsUseHighwaysToZero() {
-        val m = RouteOptions(avoidHighways = true).costingOptions()!!.getJSONObject("motorcycle")
+        val m = RouteOptions(avoidHighways = true).costingOptions()!!.getJSONObject("auto")
         assertEquals(0, m.getInt("use_highways"))
         assertFalse(m.has("use_tolls"))
     }
 
     @Test
     fun avoidingBothSetsBoth() {
-        val m = RouteOptions(avoidHighways = true, avoidTolls = true).costingOptions()!!.getJSONObject("motorcycle")
+        val m = RouteOptions(avoidHighways = true, avoidTolls = true).costingOptions()!!.getJSONObject("auto")
         assertEquals(0, m.getInt("use_highways"))
         assertEquals(0, m.getInt("use_tolls"))
     }

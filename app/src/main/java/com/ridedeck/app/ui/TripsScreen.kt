@@ -174,7 +174,7 @@ internal fun rememberTripSummaryCalendar(
 
 @Composable
 fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val version by trips.version.collectAsState()
@@ -241,7 +241,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 PillButton(
                     stringResource(if (ride.running) R.string.ride_stop else R.string.ride_start),
-                    if (ride.running) MotoColors.Red else MotoColors.Green,
+                    if (ride.running) DeckColors.Red else DeckColors.Green,
                     { if (ride.running) confirmStopRide = true else startRide() },
                     Modifier.weight(1f),
                 )
@@ -308,7 +308,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
                             Column(
                                 modifier = Modifier.fillMaxWidth()
                                     .clip(RoundedCornerShape(20.dp))
-                                    .background(if (isSelected) MotoColors.Blue else MotoColors.Card)
+                                    .background(if (isSelected) DeckColors.Blue else DeckColors.Card)
                                     .hapticClickable(haptic = RideHaptic.Select) {
                                         selectedId = trip.id
                                         deleteFeedback = null
@@ -419,7 +419,7 @@ fun TripsScreen(trips: TripRecorder, tracking: RideTracking, onClose: () -> Unit
 /** Confirmation for ending an active ride; [onConfirm] runs at most once per dialog instance. */
 @Composable
 internal fun RideStopConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     var submitted by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -475,14 +475,14 @@ private fun SplitPane(modifier: Modifier, first: @Composable (Modifier) -> Unit,
 private val DayFeedbackGreen = Color(0xFF0B6B35)
 private val DayFeedbackRed = Color(0xFFB00020)
 
-/** Themed trip feedback color; always-dark map panels keep their fixed [MotoColors]. */
+/** Themed trip feedback color; always-dark map panels keep their fixed [DeckColors]. */
 @Composable
 private fun tripFeedbackColor(succeeded: Boolean): Color {
-    val day = LocalMotoPalette.current.isDay
+    val day = LocalDeckPalette.current.isDay
     return if (succeeded) {
-        if (day) DayFeedbackGreen else MotoColors.Green
+        if (day) DayFeedbackGreen else DeckColors.Green
     } else {
-        if (day) DayFeedbackRed else MotoColors.Red
+        if (day) DayFeedbackRed else DeckColors.Red
     }
 }
 
@@ -501,7 +501,7 @@ internal fun TripDeleteFeedbackText(feedback: TripDeleteFeedback, modifier: Modi
     )
 }
 
-/** Result of an explicit "delete all"; states the outcome instead of leaving the rider guessing. */
+/** Result of an explicit "delete all"; states the outcome instead of leaving the driver guessing. */
 @Composable
 internal fun TripDeleteAllFeedbackText(succeeded: Boolean, modifier: Modifier = Modifier) {
     Text(
@@ -523,7 +523,7 @@ internal fun TripSummaryHeader(
     modifier: Modifier = Modifier,
     unassignedDateCount: Int = 0,
 ) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val context = LocalContext.current
     val baseStyle = LocalTextStyle.current
     Column(
@@ -548,7 +548,7 @@ private fun SummaryLine(
     summary: TripSummary,
     context: android.content.Context,
     baseStyle: TextStyle,
-    palette: MotoPalette,
+    palette: DeckPalette,
 ) {
     val unit = stringResource(if (Units.miles) R.string.speed_unit_mph else R.string.speed_unit)
     Text(label, style = baseStyle.statText(14f, FontWeight.SemiBold, palette.text))
@@ -595,7 +595,7 @@ internal fun TripDetail(
     onLoadPoints: (suspend () -> List<TripPoint>)? = null,
 ) {
     val context = LocalContext.current
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val baseStyle = LocalTextStyle.current
     val dateFormat = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
     val tripDate = remember(trip.startedAt) { dateFormat.format(Date(trip.startedAt)) }
@@ -638,7 +638,7 @@ internal fun TripDetail(
                 if (onLoadPoints != null) {
                     PillButton(
                         stringResource(R.string.trip_map_open),
-                        MotoColors.Blue,
+                        DeckColors.Blue,
                         { showMap = true },
                         Modifier.fillMaxWidth(),
                     )
@@ -646,7 +646,7 @@ internal fun TripDetail(
             }
             Spacer(Modifier.height(12.dp))
             // Fixed at the bottom: never hidden behind the scrollable stats, with the usual 72 dp target.
-            PillButton(stringResource(R.string.trip_delete), MotoColors.Red, { confirmingDelete = true }, Modifier.fillMaxWidth())
+            PillButton(stringResource(R.string.trip_delete), DeckColors.Red, { confirmingDelete = true }, Modifier.fillMaxWidth())
         }
     }
 
@@ -689,10 +689,10 @@ internal fun TripDetail(
 
 @Composable
 private fun Stat(label: Int, value: String, modifier: Modifier = Modifier) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val baseStyle = LocalTextStyle.current
     Column(
-        modifier = modifier.clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(18.dp),
+        modifier = modifier.clip(RoundedCornerShape(20.dp)).background(DeckColors.Card).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(stringResource(label), style = baseStyle.statText(15f, FontWeight.Normal, palette.muted))
@@ -703,10 +703,10 @@ private fun Stat(label: Int, value: String, modifier: Modifier = Modifier) {
 /** Speed card: the number and the unit are sized separately so a long value or unit never clips. */
 @Composable
 internal fun SpeedStat(label: Int, value: Int, modifier: Modifier = Modifier) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val baseStyle = LocalTextStyle.current
     Column(
-        modifier = modifier.clip(RoundedCornerShape(20.dp)).background(MotoColors.Card).padding(18.dp),
+        modifier = modifier.clip(RoundedCornerShape(20.dp)).background(DeckColors.Card).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(stringResource(label), style = baseStyle.statText(15f, FontWeight.Normal, palette.muted))
@@ -721,7 +721,7 @@ internal fun SpeedStat(label: Int, value: Int, modifier: Modifier = Modifier) {
  */
 @Composable
 internal fun SpeedValue(value: Int, unit: String, modifier: Modifier = Modifier) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val valueText = value.toString()

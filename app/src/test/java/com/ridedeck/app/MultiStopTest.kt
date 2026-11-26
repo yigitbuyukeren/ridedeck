@@ -145,7 +145,7 @@ class MultiStopTest {
         // Nothing can be added to the pump leg; the stops are edited once the trip continues.
         nav.addStop(Place("X", "", GeoPoint(41.004, 29.0)))
         assertEquals(listOf("S1", "S2"), nav.ui.value.stops.map { it.name })
-        // Ride the pump leg to its end (fixes carry the test clock), continue: the route goes start -> S1 -> S2 -> D.
+        // Drive the pump leg to its end (fixes carry the test clock), continue: the route goes start -> S1 -> S2 -> D.
         ui.route!!.shape.forEach { pt -> loc.value = LocationState(speedKmh = 30, fixAtMs = 5, lat = pt.lat, lon = pt.lon) }
         assertTrue(nav.ui.value.arrived)
         nav.continueToFinal()
@@ -285,7 +285,7 @@ class MultiStopTest {
         val stop = Place("S1", "", GeoPoint(41.01, 29.0))
         assertEquals(0L, nav.userRouteChoiceCount())
 
-        // A delayed process-death restore is not the rider's choice.
+        // A delayed process-death restore is not the driver's choice.
         nav.restoreTrip(dest, null)
         assertEquals(0L, nav.userRouteChoiceCount())
 

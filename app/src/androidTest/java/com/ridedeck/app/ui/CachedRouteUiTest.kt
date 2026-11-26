@@ -58,7 +58,7 @@ class CachedRouteUiTest {
         val configuration = Configuration(context.resources.configuration).apply { fontScale = 2f }
         val density = Density(context.createConfigurationContext(configuration))
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 CompositionLocalProvider(LocalDensity provides density) {
                     Box(Modifier.size(width, height)) { content() }
                 }

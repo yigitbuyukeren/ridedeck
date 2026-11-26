@@ -23,13 +23,13 @@ class LocaleFallbackTest {
     private fun assertEnglish(languageTag: String) {
         val context = contextFor(languageTag)
         assertEquals("Settings", context.getString(R.string.settings_title))
-        assertEquals("End the ride?", context.getString(R.string.data_ride_stop_confirm_title))
+        assertEquals("End the trip?", context.getString(R.string.data_ride_stop_confirm_title))
         assertEquals(
             "You are going the wrong way. Make a U-turn when it is safe.",
             context.getString(R.string.wrong_way_uturn_voice),
         )
         assertEquals("I'm OK", context.getString(R.string.sos_action_fine))
-        assertEquals("End the ride?", context.getString(R.string.stop_confirm_title))
+        assertEquals("End the trip?", context.getString(R.string.stop_confirm_title))
     }
 
     @Test

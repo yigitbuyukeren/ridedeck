@@ -196,7 +196,7 @@ class PositionSmootherTest {
 
     @Test
     fun turningBackStopsTheOldExtrapolationWithinOneFix() {
-        // 0, 30, 60 at 30 deg/s, then the rider turns back: next fix at 30. The forward rate may hold
+        // 0, 30, 60 at 30 deg/s, then the driver turns back: next fix at 30. The forward rate may hold
         // until that reverse fix arrives, but bounded by the deviation cap, and the heading must come
         // back down promptly afterwards instead of circling on.
         var reverseArrived = false

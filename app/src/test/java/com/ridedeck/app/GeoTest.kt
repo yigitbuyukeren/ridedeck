@@ -33,7 +33,7 @@ class GeoTest {
     }
 
     @Test
-    fun splitRouteMeetsAtTheRidersPosition() {
+    fun splitRouteMeetsAtTheDriversPosition() {
         val shape = listOf(GeoPoint(41.0, 29.0), GeoPoint(41.0, 29.01), GeoPoint(41.0, 29.02))
         val (behind, ahead) = Geo.splitRoute(shape, 1, 0.5)
         assertEquals(3, behind.size)

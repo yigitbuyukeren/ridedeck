@@ -48,7 +48,7 @@ class UnitsTest {
 
     @Test
     fun thresholdSpeedInMilesIsFive() {
-        // TripRecorder.START_KMH = 8 km/h shown to a mile-based rider
+        // TripRecorder.START_KMH = 8 km/h shown to a mile-based driver
         assertEquals(5, UnitMath.speed(8, miles = true))
     }
 

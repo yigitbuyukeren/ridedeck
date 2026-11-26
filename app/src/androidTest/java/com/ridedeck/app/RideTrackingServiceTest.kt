@@ -14,7 +14,7 @@ import android.os.SystemClock
 import androidx.lifecycle.ViewModelProvider
 import androidx.core.app.NotificationManagerCompat
 import androidx.activity.compose.setContent
-import com.ridedeck.app.ui.MotoTheme
+import com.ridedeck.app.ui.DeckTheme
 import com.ridedeck.app.ui.TripsScreen
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
@@ -176,7 +176,7 @@ class RideTrackingServiceTest {
         try {
             val before = store.unfinishedIds().toSet()
             scenario!!.onActivity { activity ->
-                activity.setContent { MotoTheme { TripsScreen(tracking.trips, tracking, onClose = {}) } }
+                activity.setContent { DeckTheme { TripsScreen(tracking.trips, tracking, onClose = {}) } }
             }
             instrumentation.waitForIdleSync()
             findText(instrumentation.uiAutomation.rootInActiveWindow, "Got it")?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)

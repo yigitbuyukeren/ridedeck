@@ -77,7 +77,7 @@ import com.ridedeck.app.data.PhoneMath
 import com.ridedeck.app.data.RecentCall
 import java.util.Date
 
-/** Gloved fingers: every tap target on this screen is at least this tall. */
+/** Driving: every tap target on this screen is at least this tall. */
 private val TAP = 72.dp
 
 
@@ -87,7 +87,7 @@ private enum class PhoneTab(val label: Int) {
     KEYPAD(R.string.phone_keypad),
 }
 
-/** In-app phone, CarPlay style: recents, starred contacts and a keypad; the keypad locks while riding. */
+/** In-app phone, CarPlay style: recents, starred contacts and a keypad; the keypad locks while driving. */
 @Composable
 fun PhoneScreen(
     recents: List<RecentCall>,
@@ -102,7 +102,7 @@ fun PhoneScreen(
     modifier: Modifier = Modifier,
 ) {
     var tab by remember(initialNumber) { mutableStateOf(if (initialNumber != null) PhoneTab.KEYPAD else PhoneTab.RECENTS) }
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val narrow = isNarrowScreen()
     val dialerHintRow: @Composable () -> Unit = {
         DialerHint(onSetDialer = onSetDialer)
@@ -118,7 +118,7 @@ fun PhoneScreen(
                     modifier = Modifier
                         .weight(1f).height(TAP).clip(RoundedCornerShape(TAP / 2))
                         // Green stays the selected fill; black text keeps it readable instead of white on green.
-                        .background(if (isSelected) MotoColors.Green else palette.card)
+                        .background(if (isSelected) DeckColors.Green else palette.card)
                         .semantics { this.selected = isSelected }
                         .testTag("phone-tab-${t.name.lowercase()}")
                         .hapticClickable(role = Role.Tab, haptic = RideHaptic.Select) { tab = t },
@@ -159,14 +159,14 @@ private fun Notice(text: String, action: String?, onAction: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(text, fontSize = 18.sp, color = LocalMotoPalette.current.textSecondary)
-        if (action != null) PillButton(action, MotoColors.Green, onAction, textColor = Color.Black)
+        Text(text, fontSize = 18.sp, color = LocalDeckPalette.current.textSecondary)
+        if (action != null) PillButton(action, DeckColors.Green, onAction, textColor = Color.Black)
     }
 }
 
 @Composable
 private fun DialerHint(onSetDialer: () -> Unit) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Row(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(palette.card)
             .testTag("phone-dialer-hint").padding(start = 16.dp, top = 4.dp, bottom = 4.dp, end = 4.dp),
@@ -174,7 +174,7 @@ private fun DialerHint(onSetDialer: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(stringResource(R.string.dialer_hint), fontSize = 16.sp, color = palette.textSecondary, modifier = Modifier.weight(1f))
-        PillButton(stringResource(R.string.action_set), MotoColors.Blue, onSetDialer, horizontalPadding = 20.dp)
+        PillButton(stringResource(R.string.action_set), DeckColors.Blue, onSetDialer, horizontalPadding = 20.dp)
     }
 }
 
@@ -192,12 +192,12 @@ private fun RecentsList(recents: List<RecentCall>, onDial: (String, String?) -> 
                 title = title,
                 subtitle = if (call.name != null) call.number else null,
                 trailing = whenLabel(call.atMs),
-                titleColor = if (missed) MotoColors.Red else LocalMotoPalette.current.text,
+                titleColor = if (missed) DeckColors.Red else LocalDeckPalette.current.text,
                 leading = {
                     val (icon, tint) = when (call.kind) {
-                        CallKind.INCOMING -> Icons.AutoMirrored.Rounded.CallReceived to MotoColors.Green
-                        CallKind.OUTGOING -> Icons.AutoMirrored.Rounded.CallMade to MotoColors.Blue
-                        CallKind.MISSED -> Icons.AutoMirrored.Rounded.CallMissed to MotoColors.Red
+                        CallKind.INCOMING -> Icons.AutoMirrored.Rounded.CallReceived to DeckColors.Green
+                        CallKind.OUTGOING -> Icons.AutoMirrored.Rounded.CallMade to DeckColors.Blue
+                        CallKind.MISSED -> Icons.AutoMirrored.Rounded.CallMissed to DeckColors.Red
                     }
                     Icon(icon, null, tint = tint, modifier = Modifier.size(32.dp))
                 },
@@ -228,9 +228,9 @@ private fun ContactsList(contacts: List<Contact>, onDial: (String, String?) -> U
             if (row is Contact) {
                 ContactRow(
                     title = row.name, subtitle = row.number, trailing = null,
-                    titleColor = LocalMotoPalette.current.text,
+                    titleColor = LocalDeckPalette.current.text,
                     leading = {
-                        Box(Modifier.size(44.dp).clip(CircleShape).background(MotoColors.Blue), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(44.dp).clip(CircleShape).background(DeckColors.Blue), contentAlignment = Alignment.Center) {
                             Text(PhoneMath.initialOf(row.name).toString(), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     },
@@ -239,7 +239,7 @@ private fun ContactsList(contacts: List<Contact>, onDial: (String, String?) -> U
             } else {
                 Text(
                     if (row == STARRED) stringResource(R.string.phone_favorites) else row.toString(),
-                    fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MotoColors.Blue,
+                    fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeckColors.Blue,
                     modifier = Modifier.padding(start = 8.dp, top = 6.dp),
                 )
             }
@@ -259,7 +259,7 @@ private const val WANTED_ROWS = 4
 private val LocalRowHeight = androidx.compose.runtime.compositionLocalOf { ROW_HEIGHT }
 
 /**
- * A list with big page up / page down buttons on the right, because flicking a long list is hard with gloves.
+ * A list with big page up / page down buttons on the right, because flicking a long list is hard while driving.
  * The viewport is cut to a whole number of rows, so no row is ever sliced in half at the bottom; a page moves
  * by exactly those rows.
  */
@@ -267,9 +267,9 @@ private val LocalRowHeight = androidx.compose.runtime.compositionLocalOf { ROW_H
 private fun PagedList(content: androidx.compose.foundation.lazy.LazyListScope.(LazyListState) -> Unit) {
     val state = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        // Four rows when they fit at a glove-sized height (64-80 dp each), else as many 80 dp rows as fit.
+        // Four rows when they fit at a driving-friendly height (64-80 dp each), else as many 80 dp rows as fit.
         val fourFit = (maxHeight - ROW_GAP * (WANTED_ROWS - 1)) / WANTED_ROWS
         val rowHeight = if (fourFit >= ROW_MIN) fourFit.coerceAtMost(ROW_HEIGHT) else ROW_HEIGHT
         val pitch = rowHeight + ROW_GAP
@@ -308,7 +308,7 @@ private fun ContactRow(
     leading: @Composable () -> Unit,
     onClick: () -> Unit,
 ) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val rowHeight = LocalRowHeight.current
     // Upright, the time joins the number underneath so the name gets the whole width.
     val compact = isNarrowScreen()
@@ -339,7 +339,7 @@ private fun ContactRow(
             lineHeight = cappedSp(20f, maxScale = 1.3f),
             color = palette.textSecondary, maxLines = 1,
         )
-        Box(Modifier.size(minOf(60.dp, rowHeight - 12.dp)).clip(CircleShape).background(MotoColors.Green), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(minOf(60.dp, rowHeight - 12.dp)).clip(CircleShape).background(DeckColors.Green), contentAlignment = Alignment.Center) {
             Icon(Icons.Rounded.Call, stringResource(R.string.phone_call), tint = Color.Black, modifier = Modifier.size(28.dp))
         }
     }
@@ -357,7 +357,7 @@ private fun Keypad(
 ) {
     var number by remember(initial) { mutableStateOf(PhoneMath.dialable(initial)) }
     var name by remember(initial) { mutableStateOf<String?>(null) }
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val haptics = rememberRideHaptics()
     val keyTone = rememberKeypadTone()
     val suggestions = remember(number, contacts, recents) { PhoneMath.matches(number, contacts, recents) }
@@ -384,7 +384,7 @@ private fun Keypad(
                 }
             }
             if (locked) {
-                Text(stringResource(R.string.phone_keypad_locked), fontSize = 15.sp, color = MotoColors.Orange)
+                Text(stringResource(R.string.phone_keypad_locked), fontSize = 15.sp, color = DeckColors.Orange)
             } else {
                 // People whose number matches what is typed: a tap fills in the whole number.
                 suggestions.forEach { c ->
@@ -442,7 +442,7 @@ private fun Keypad(
                 Row(
                     modifier = Modifier
                         .weight(1f).height(72.dp).clip(RoundedCornerShape(36.dp))
-                        .background(if (canCall) MotoColors.Green else palette.track)
+                        .background(if (canCall) DeckColors.Green else palette.track)
                         .pressClickable(enabled = canCall, haptic = RideHaptic.Confirm) { onDial(number, name) },
                     horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically,

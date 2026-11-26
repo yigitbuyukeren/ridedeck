@@ -8,7 +8,10 @@ class GaugeScaleTest {
     private fun texts(max: Float, miles: Boolean) = GaugeScale.labels(max, miles).map { it.text }
 
     @Test
-    fun motorcycleDialRunsInFifties() = assertEquals(listOf("0", "50", "100", "150", "200"), texts(200f, false))
+    fun dialRunsInFiftiesOnA200Scale() = assertEquals(listOf("0", "50", "100", "150", "200"), texts(200f, false))
+
+    @Test
+    fun vehicleDialRunsInFortiesOnA240Scale() = assertEquals(listOf("0", "40", "80", "120", "160", "200", "240"), texts(240f, false))
 
     @Test
     fun milesLabelsAreConvertedAndSitAtTheirKmhPosition() {

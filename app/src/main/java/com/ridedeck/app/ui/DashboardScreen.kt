@@ -78,7 +78,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
     val callerName by vm.callerName.collectAsStateWithLifecycle()
     val resume by vm.resumeTick.collectAsStateWithLifecycle()
     val routeOptions by vm.nav.options.collectAsStateWithLifecycle()
-    val cfg = com.ridedeck.app.data.VehicleProfile.MOTORCYCLE.config
+    val cfg = com.ridedeck.app.data.VehicleProfile.AUTO.config
     val speedLimitOn by vm.speedLimitEnabled.collectAsStateWithLifecycle()
     val speedLimit by vm.speedLimit.limit.collectAsStateWithLifecycle()
     val recordTrips by vm.recordTrips.collectAsStateWithLifecycle()
@@ -257,7 +257,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
         )
     }
 
-    // Settings are a place to read and tap: locked while riding (with a live fix), as the keypad and the map search are.
+    // Settings are a place to read and tap: locked while driving (with a live fix), as the keypad and the map search are.
     val settingsLocked = gps.inputLocked
     val tellSettingsLocked = { android.widget.Toast.makeText(context, R.string.settings_locked, android.widget.Toast.LENGTH_SHORT).show() }
     LaunchedEffect(settingsLocked) {
@@ -282,11 +282,11 @@ fun DashboardScreen(vm: DashboardViewModel) {
     BackHandler(enabled = readinessUi.open) { readinessUi = readinessUi.dismiss() }
     BackHandler(enabled = sosUi.phase != SosPhase.IDLE) { if (sosUi.phase != SosPhase.COUNTDOWN) vm.sos.dismiss() }
 
-    Surface(color = Color.Transparent, modifier = Modifier.fillMaxSize().background(LocalMotoPalette.current.wallpaper)) {
+    Surface(color = Color.Transparent, modifier = Modifier.fillMaxSize().background(LocalDeckPalette.current.wallpaper)) {
         Box(modifier = Modifier.fillMaxSize()) {
         val risePx = with(LocalDensity.current) { 32.dp.roundToPx() }
-        val overlayEnter = MotoMotion.overlayEnter(lowPower, risePx)
-        val overlayExit = MotoMotion.overlayExit(lowPower, risePx)
+        val overlayEnter = DeckMotion.overlayEnter(lowPower, risePx)
+        val overlayExit = DeckMotion.overlayExit(lowPower, risePx)
         // Symmetric side padding: the camera cutout's side changes when the phone is turned the
         // other way round, and a one-sided inset would slide the whole dashboard sideways.
         Box(modifier = Modifier.fillMaxSize().symmetricSafePadding()) {
@@ -304,13 +304,13 @@ fun DashboardScreen(vm: DashboardViewModel) {
                 )
             }
             val content: @Composable (Modifier) -> Unit = { outer ->
-                val screen = when { showPhone -> MotoScreen.PHONE; showNowPlaying -> MotoScreen.MUSIC; showMap -> MotoScreen.MAP; else -> MotoScreen.HOME }
+                val screen = when { showPhone -> DeckScreen.PHONE; showNowPlaying -> DeckScreen.MUSIC; showMap -> DeckScreen.MAP; else -> DeckScreen.HOME }
                 AnimatedContent(
                     targetState = screen, modifier = outer, label = "screen",
-                    transitionSpec = { MotoMotion.screen(initialState, targetState, lowPower) },
+                    transitionSpec = { DeckMotion.screen(initialState, targetState, lowPower) },
                 ) { target ->
                 val m = Modifier.fillMaxSize()
-                if (target == MotoScreen.PHONE) {
+                if (target == DeckScreen.PHONE) {
                     PhoneScreen(
                         recents = recents,
                         contacts = contacts,
@@ -330,14 +330,14 @@ fun DashboardScreen(vm: DashboardViewModel) {
                         },
                         modifier = m,
                     )
-                } else if (target == MotoScreen.MUSIC) {
+                } else if (target == DeckScreen.MUSIC) {
                     NowPlayingScreen(
                         state = mediaState,
                         media = vm.media,
                         onGrantAccess = { context.openSettingsAction(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) },
                         modifier = m,
                     )
-                } else if (target == MotoScreen.MAP) {
+                } else if (target == DeckScreen.MAP) {
                     MapScreen(
                         onStartNavigation = startNavigation,
                         onContinueNavigation = continueNavigation,
@@ -429,7 +429,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     thermal.warn && !heatDismissed -> { m ->
                         AlertStrip(
                             text = stringResource(R.string.thermal_banner),
-                            accent = MotoColors.Red,
+                            accent = DeckColors.Red,
                             onDismiss = { heatDismissed = true },
                             modifier = m,
                         )
@@ -437,7 +437,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     weatherOn && w != null && rainIn != null && !rainDismissed -> { m ->
                         AlertStrip(
                             text = if (rainIn > 0) stringResource(R.string.rain_banner_fmt, rainIn) else stringResource(R.string.rain_banner_now),
-                            accent = MotoColors.Blue,
+                            accent = DeckColors.Blue,
                             onDismiss = { rainDismissed = true },
                             modifier = m,
                         )
@@ -445,7 +445,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     weatherOn && w != null && w.iceRisk && !iceDismissed -> { m ->
                         AlertStrip(
                             text = stringResource(R.string.ice_banner_fmt, w.tempC),
-                            accent = MotoColors.Cyan,
+                            accent = DeckColors.Cyan,
                             onDismiss = { iceDismissed = true },
                             modifier = m,
                         )
@@ -681,7 +681,7 @@ internal object PermissionRequestPolicy {
      * Android reports no rationale both before the first ask and after "don't ask again". Only a
      * recorded earlier ask turns the second case into the app's system page; asking again would be a
      * silent no-op there. [settingsOnly] covers states the dialog cannot fix (e.g. approximate-only
-     * location, where the rider needs the "Precise location" switch in Settings).
+     * location, where the driver needs the "Precise location" switch in Settings).
      */
     fun decide(
         granted: Boolean,

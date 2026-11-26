@@ -36,7 +36,7 @@ class CardPressUiTest {
 
     private fun showNavCard(onOpenMap: () -> Unit) {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 NavCard(
                     nav = NavUi(), places = emptyList(), weather = null,
                     me = LocationState(), isDay = false, lowPower = false,
@@ -65,7 +65,7 @@ class CardPressUiTest {
     @Test fun disabledPressDoesNotClick() {
         var clicked = 0
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(120.dp).testTag(DISABLED).pressClickable(enabled = false) { clicked++ })
             }
         }
@@ -76,7 +76,7 @@ class CardPressUiTest {
     @Test fun sharedTwoLayerPressHasOneClickTargetAndFiresOnce() {
         var clicked = 0
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 val press = remember { MutableInteractionSource() }
                 Box(
                     Modifier.size(200.dp).testTag(SHARED_CARD)
@@ -108,7 +108,7 @@ class CardPressUiTest {
         try {
             Prefs.setHapticsEnabled(context, false)
             compose.setContent {
-                MotoTheme {
+                DeckTheme {
                     CompositionLocalProvider(LocalHapticFeedback provides feedback) {
                         Box(Modifier.size(120.dp).testTag(HAPTIC).pressClickable { clicked++ })
                     }

@@ -119,7 +119,7 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
                 pendingLanguageTag = null
                 return@onMain
             }
-            // Never flush an SOS message just because the rider changed the app language.
+            // Never flush an SOS message just because the driver changed the app language.
             if (session.activePriority == SpeechPriority.SOS) return@onMain
             pendingLanguageTag = null
             session.stop()
@@ -194,7 +194,7 @@ class Voice(context: Context, private val onVoices: (List<String>) -> Unit = {})
             languageAvailable = languageReady || voiceReady,
             selectedVoiceRequiresNetwork = activeVoiceRequiresNetwork,
         )
-        // A language switch must not overwrite the rider's explicit voice choice with a policy default.
+        // A language switch must not overwrite the driver's explicit voice choice with a policy default.
         if (voiceReady && persistSelection) Prefs.setVoiceTtsName(appContext, chosen?.name)
         runCatching { onVoices(if (ready) plan.voices.map { it.name } else emptyList()) }
     }

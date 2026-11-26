@@ -13,11 +13,11 @@ import org.junit.Test
 /**
  * Pure UI contrast and policy checks: no Android context, no Compose rule. Every number comes from
  * the real palette/helper implementation, so a low-contrast accent or a permission/voice regression
- * fails here before it reaches a rider.
+ * fails here before it reaches a driver.
  */
 class UiContrastTest {
-    private val day = motoPalette(true)
-    private val night = motoPalette(false)
+    private val day = deckPalette(true)
+    private val night = deckPalette(false)
 
     @Test fun relativeLuminanceMatchesTheWcagEndpoints() {
         assertEquals(0f, relativeLuminance(Color.Black), 0.0001f)
@@ -38,10 +38,10 @@ class UiContrastTest {
 
     @Test fun filledButtonsChooseTheHigherContrastForeground() {
         listOf(
-            "green" to MotoColors.Green,
-            "orange" to MotoColors.Orange,
-            "blue" to MotoColors.Blue,
-            "red" to MotoColors.Red,
+            "green" to DeckColors.Green,
+            "orange" to DeckColors.Orange,
+            "blue" to DeckColors.Blue,
+            "red" to DeckColors.Red,
         ).forEach { (name, fill) ->
             val foreground = readableOn(fill)
             val ratio = contrastRatio(fill, foreground)
@@ -95,7 +95,7 @@ class UiContrastTest {
         )
     }
 
-    @Test fun speedLimitSpeechUsesTheRidersUnit() {
+    @Test fun speedLimitSpeechUsesTheDriversUnit() {
         val metric = speedLimitSpeech(96, miles = false)
         assertEquals(96, metric.value)
         assertEquals(R.string.speed_unit, metric.unitRes)

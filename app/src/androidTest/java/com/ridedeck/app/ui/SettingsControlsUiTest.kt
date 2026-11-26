@@ -109,7 +109,7 @@ class SettingsControlsUiTest {
         var sliderCalls = 0
         var actionCalls = 0
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Column(Modifier.size(600.dp, 300.dp)) {
                     SettingRow(
                         SettingItem(
@@ -146,7 +146,7 @@ class SettingsControlsUiTest {
         var calls = 0
         compose.setContent {
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                MotoTheme {
+                DeckTheme {
                     Box(Modifier.size(600.dp, 120.dp)) {
                         VoiceControlsRow(rate) { rate = it; calls++ }
                     }
@@ -180,7 +180,7 @@ class SettingsControlsUiTest {
         var calls = 0
         val listState = LazyListState()
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(600.dp, 300.dp)) {
                     LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                         item { VoiceControlsRow(rate) { rate = it; calls++ } }
@@ -209,7 +209,7 @@ class SettingsControlsUiTest {
     fun sliderSemanticsSetProgressStillWorks() {
         var rate by mutableStateOf(1f)
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(600.dp, 120.dp)) {
                     VoiceControlsRow(rate) { rate = it }
                 }
@@ -228,7 +228,7 @@ class SettingsControlsUiTest {
     fun disabledToggleRowKeepsItsDisabledStateAndDoesNotToggle() {
         var calls = 0
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(600.dp, 120.dp)) {
                     ToggleRow(
                         ToggleItem(
@@ -312,7 +312,7 @@ class SettingsControlsUiTest {
         )
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides androidDensity) {
-                MotoTheme(isDay = isDay.value) {
+                DeckTheme(isDay = isDay.value) {
                     Box(Modifier.size(600.dp, 320.dp)) {
                         SettingsScreen(pages = pages, onClose = {})
                     }

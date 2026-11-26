@@ -14,19 +14,19 @@ import androidx.compose.animation.togetherWith
 import kotlin.math.sign
 
 /** The four things the main area can show; the order is the dock's order, so it decides which way a change slides. */
-enum class MotoScreen { HOME, MAP, MUSIC, PHONE }
+enum class DeckScreen { HOME, MAP, MUSIC, PHONE }
 
 /** Small, quick screen changes in one place. All of them are skipped when [reduce] is set (a hot or low phone). */
-object MotoMotion {
+object DeckMotion {
     const val MS = 220
 
     /** -1, 0 or +1: which way the new screen comes from. */
-    fun direction(from: MotoScreen, to: MotoScreen): Int = sign((to.ordinal - from.ordinal).toFloat()).toInt()
+    fun direction(from: DeckScreen, to: DeckScreen): Int = sign((to.ordinal - from.ordinal).toFloat()).toInt()
 
     /** Main area: a short fade with a slight slide; the map only fades (it is costly to move). */
-    fun screen(from: MotoScreen, to: MotoScreen, reduce: Boolean): ContentTransform {
+    fun screen(from: DeckScreen, to: DeckScreen, reduce: Boolean): ContentTransform {
         if (reduce) return EnterTransition.None togetherWith ExitTransition.None
-        if (from == MotoScreen.MAP || to == MotoScreen.MAP) {
+        if (from == DeckScreen.MAP || to == DeckScreen.MAP) {
             return fadeIn(tween(MS)) togetherWith fadeOut(tween(MS * 2 / 3))
         }
         val dir = direction(from, to).coerceAtLeast(-1).let { if (it == 0) 1 else it }

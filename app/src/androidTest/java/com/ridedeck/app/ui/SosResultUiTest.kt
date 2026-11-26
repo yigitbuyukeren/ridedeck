@@ -23,7 +23,7 @@ class SosResultUiTest {
     @Test fun partialResultNamesConfirmedFailedAndUnknownRecipientsAndCanCloseOnCompactScreen() {
         var dismissed = false
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(480.dp, 280.dp)) {
                     SosScreen(SosUi(SosPhase.PARTIAL, sentTo = listOf("Confirmed contact"),
                         failedTo = listOf("Failed contact"), unknownTo = listOf("Unknown contact")),
@@ -41,14 +41,14 @@ class SosResultUiTest {
     }
 
     @Test fun unknownResultDoesNotClaimDeliveryOrOfferAnAutomaticRetry() {
-        compose.setContent { MotoTheme { SosScreen(SosUi(SosPhase.UNKNOWN, unknownTo = listOf("Contact")), emptyList(), {}, {}) } }
+        compose.setContent { DeckTheme { SosScreen(SosUi(SosPhase.UNKNOWN, unknownTo = listOf("Contact")), emptyList(), {}, {}) } }
         compose.onNodeWithText(context.getString(R.string.sos_unknown)).assertExists()
         compose.onNodeWithText(context.getString(R.string.sos_delivery_note), substring = true).assertExists()
         compose.onNodeWithText(context.getString(R.string.sos_sent)).assertDoesNotExist()
     }
 
     @Test fun pendingSendCannotBeDismissedAsIfNothingWereSent() {
-        compose.setContent { MotoTheme { SosScreen(SosUi(SosPhase.SENDING), emptyList(), {}, {}) } }
+        compose.setContent { DeckTheme { SosScreen(SosUi(SosPhase.SENDING), emptyList(), {}, {}) } }
         compose.onNodeWithText(context.getString(R.string.sos_sending)).assertExists()
         compose.onNodeWithText(context.getString(R.string.ok)).assertDoesNotExist()
     }

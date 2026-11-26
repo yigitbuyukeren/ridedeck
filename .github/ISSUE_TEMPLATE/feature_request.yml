@@ -8,7 +8,7 @@ body:
       value: |
         Fikrini paylaştığın için teşekkürler. Önce [açık issue'larda](https://github.com/yigitbuyukeren/ridedeck/issues?q=is%3Aissue+is%3Aopen) benzer bir öneri olup olmadığına bak.
 
-        RideDeck **yalnız motosiklet** için tasarlanır. Sürerken yazı girişi yoktur; dokunma hedefleri büyük ve eldivenle kullanılabilir olmalıdır. Yeni dış servisler ücretsiz ve anahtarsız olmalı, kullanım koşullarına uymalıdır.
+        RideDeck, CarPlay/Android Auto'dan ilham alan bağımsız bir Android araç içi sürüş panelidir; CarPlay veya Android Auto ile entegre değildir. Tek genel araç profili kullanır. Sürerken yazı girişi yoktur; dokunma hedefleri 64-84 dp, büyük ve yüksek kontrastlı olmalıdır. Yeni dış servisler ücretsiz ve anahtarsız olmalı, kullanım koşullarına uymalıdır.
 
         Lütfen gerçek konum, telefon numarası, kişi adı veya başka kişisel veri paylaşma. **Güvenlik açığı mı?** Herkese açık issue açma; [SECURITY.md](https://github.com/yigitbuyukeren/ridedeck/blob/main/SECURITY.md) adımlarını izle.
   - type: textarea
@@ -54,7 +54,7 @@ body:
     id: safety
     attributes:
       label: Sürüş güvenliği ve dikkat etkisi
-      description: "Sürerken nasıl kullanılacak? Dokunma hedefi yaklaşık kaç dp olmalı, kaç saniyelik bakış gerektirir, eldivenle kullanılabilir mi? Yazı girişi gerekiyorsa yalnızca park halinde olmalı."
+      description: "Sürerken nasıl kullanılacak? Dokunma hedefi yaklaşık kaç dp olmalı, kaç saniyelik bakış gerektirir, araç içi montajda tek bakışta kullanılabilir mi? Yazı girişi gerekiyorsa yalnızca park halinde olmalı."
       placeholder: "Örn. Tek 72 dp düğme; sürerken yalnız tek dokunuş, yazı girişi yok."
     validations:
       required: true
@@ -87,7 +87,7 @@ body:
       options:
         - label: Aynı öneri için açılmış bir issue olup olmadığına baktım.
           required: true
-        - label: Önerimin motosiklet-only ve sürüş güvenliği ilkelerine uyduğunu okudum.
+        - label: Önerimin tek genel araç profili ve sürüş güvenliği ilkelerine uyduğunu okudum.
           required: true
         - label: Bu bir güvenlik açığı değil; güvenlik açıklarını SECURITY.md'deki yolla bildireceğim.
           required: true

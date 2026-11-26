@@ -16,7 +16,7 @@ body:
     attributes:
       label: RideDeck sürümü
       description: APK dosya adındaki veya uygulama içindeki sürüm.
-      placeholder: "Örn. 0.6.0"
+      placeholder: "Örn. 0.7.1"
     validations:
       required: true
   - type: dropdown
@@ -34,9 +34,9 @@ body:
   - type: input
     id: device
     attributes:
-      label: Telefon modeli
-      description: Marka ve model yeterli; seri numarası veya IMEI yazma.
-      placeholder: "Örn. Pixel 7"
+      label: Cihaz modeli
+      description: Telefon, tablet veya bağımsız head unit; marka ve model yeterli, seri numarası veya IMEI yazma.
+      placeholder: "Örn. Pixel 7, tablet veya head unit"
     validations:
       required: true
   - type: input

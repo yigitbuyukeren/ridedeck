@@ -33,7 +33,7 @@ internal data class DetourRouteContextKey(
 
 /**
  * VM-only binding: combines only route-context changes and the existing motion-lock flow.
- * The initial context/motion emissions never invalidate a quote the rider has just started.
+ * The initial context/motion emissions never invalidate a quote the driver has just started.
  */
 internal fun bindDetourQuoteSignals(
     scope: CoroutineScope,

@@ -32,7 +32,7 @@ class SosSmsLengthTest {
         fun get(k: String) = map[k] ?: error("$dir missing $k")
         return Texts(
             get("sos_sms_auto"), get("sos_sms_manual"), get("sos_loc"), get("sos_loc_stale"), get("sos_loc_none"),
-            listOf(get("sos_noun_moto")),
+            listOf(get("sos_noun_vehicle")),
         )
     }
 

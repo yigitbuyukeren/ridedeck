@@ -98,7 +98,7 @@ class ActiveTripPersistenceTest {
     }
 
     @Test
-    fun restoreGateNeverResurrectsAfterARiderChoiceEvenWhenDestinationIsNull() {
+    fun restoreGateNeverResurrectsAfterADriverChoiceEvenWhenDestinationIsNull() {
         val saved = ActiveTrip(dest, null, 1_000, listOf(s1), RouteOptions())
         val json = saved.toJson()
         assertFalse(gate(json, json, saved, routeChoicesAtStart = 0, routeChoicesNow = 1))

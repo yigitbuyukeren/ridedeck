@@ -9,14 +9,14 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 
 /**
- * What the screen should do to keep a phone in the sun on a handlebar from overheating.
+ * What the screen should do to keep a phone in the sun on a dashboard from overheating.
  * [brightness] is the window brightness to apply, or [NO_OVERRIDE] to follow the system setting.
  */
 data class ThermalState(
     val brightness: Float = NO_OVERRIDE,
     /** Slow the map down when true. */
     val lowPower: Boolean = false,
-    /** Hot enough to tell the rider. */
+    /** Hot enough to tell the driver. */
     val warn: Boolean = false,
     val stoppedSinceMs: Long = 0L,
 ) {
@@ -45,7 +45,7 @@ object ThermalMath {
 
     /**
      * One step of the guard. A cool phone is never touched: the screen only dims when the battery is
-     * hot, and goes nearly dark only if it is hot *and* the bike has stood still for a minute.
+     * hot, and goes nearly dark only if it is hot *and* the vehicle has stood still for a minute.
      */
     fun next(prev: ThermalState, tempC: Float, speedKmh: Int?, nowMs: Long, enabled: Boolean): ThermalState {
         if (!enabled) return ThermalState()
@@ -74,7 +74,7 @@ class ThermalGuard(
     val state: StateFlow<ThermalState> = _state
 
     /**
-     * StateFlows only emit on change, and a bike standing still changes nothing, so without this
+     * StateFlows only emit on change, and a vehicle standing still changes nothing, so without this
      * beat the "still for a minute" timer would never advance.
      */
     private val beat = flow {

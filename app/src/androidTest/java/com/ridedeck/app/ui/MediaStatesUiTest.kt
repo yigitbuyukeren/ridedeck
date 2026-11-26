@@ -50,7 +50,7 @@ class MediaStatesUiTest {
         val configuration = Configuration(context.resources.configuration).apply { this.fontScale = fontScale }
         val androidDensity = Density(context.createConfigurationContext(configuration))
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 CompositionLocalProvider(LocalDensity provides androidDensity) {
                     Box(Modifier.size(width, height)) { content() }
                 }
@@ -78,7 +78,7 @@ class MediaStatesUiTest {
         var grants = 0
         var resumes = 0
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 MediaCard(
                     state = MediaState(hasAccess = false),
                     media = media,
@@ -104,7 +104,7 @@ class MediaStatesUiTest {
     fun emptySessionExplainsAndStartsLastAppOnce() {
         var resumes = 0
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 MediaCard(
                     state = MediaState(hasAccess = true, hasSession = false),
                     media = media,
@@ -129,7 +129,7 @@ class MediaStatesUiTest {
         var resumes = 0
         val state = mutableStateOf(MediaState(hasAccess = false))
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 NowPlayingScreen(
                     state = state.value,
                     media = media,
@@ -161,7 +161,7 @@ class MediaStatesUiTest {
         var opens = 0
         val longTitle = "Bu çok uzun bir parça adı: gece sürüşü için hazırlanmış özel bir kayıt"
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 MediaCard(
                     state = MediaState(
                         hasAccess = true,
@@ -188,7 +188,7 @@ class MediaStatesUiTest {
     fun fullScreenPlayingShowsLongTitleAndTimes() {
         val longTitle = "Bu çok uzun bir parça adı: gece sürüşü için hazırlanmış özel bir kayıt"
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 NowPlayingScreen(
                     state = MediaState(
                         hasAccess = true,
@@ -214,7 +214,7 @@ class MediaStatesUiTest {
     fun emptyCardBackgroundFollowsDayNightPalette() {
         val day = mutableStateOf(true)
         compose.setContent {
-            MotoTheme(isDay = day.value) {
+            DeckTheme(isDay = day.value) {
                 MediaCard(
                     state = MediaState(hasAccess = true, hasSession = false),
                     media = media,

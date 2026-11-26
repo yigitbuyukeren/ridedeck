@@ -22,9 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.pow
 
-/** Palette that changes between day and night. Fixed accent colors live in [MotoColors]. */
+/** Palette that changes between day and night. Fixed accent colors live in [DeckColors]. */
 @Immutable
-class MotoPalette(
+class DeckPalette(
     val isDay: Boolean,
     val wallpaper: Brush,
     val card: Color,
@@ -46,7 +46,7 @@ class MotoPalette(
     val scrim: Color,
 )
 
-private val NightPalette = MotoPalette(
+private val NightPalette = DeckPalette(
     isDay = false,
     wallpaper = Brush.radialGradient(
         colors = listOf(Color(0xFF14284D), Color(0xFF0A0F1E), Color(0xFF000000)),
@@ -69,7 +69,7 @@ private val NightPalette = MotoPalette(
     scrim = Color(0xFF000000),
 )
 
-private val DayPalette = MotoPalette(
+private val DayPalette = DeckPalette(
     isDay = true,
     wallpaper = Brush.radialGradient(
         colors = listOf(Color(0xFFF4F8FF), Color(0xFFDCE6F5), Color(0xFFC3D2E8)),
@@ -92,9 +92,9 @@ private val DayPalette = MotoPalette(
     scrim = Color(0xFFF4F8FF),
 )
 
-val LocalMotoPalette = staticCompositionLocalOf { NightPalette }
+val LocalDeckPalette = staticCompositionLocalOf { NightPalette }
 
-object MotoColors {
+object DeckColors {
     val Background = Color(0xFF000000)
     val Blue = Color(0xFF0A84FF)
     val Cyan = Color(0xFF64D2FF)
@@ -102,14 +102,14 @@ object MotoColors {
     val Orange = Color(0xFFFF9F0A)
     val Red = Color(0xFFFF453A)
 
-    /** Secondary text on the always-dark map panels. For themed surfaces use [MotoPalette.muted]. */
+    /** Secondary text on the always-dark map panels. For themed surfaces use [DeckPalette.muted]. */
     val Gray = Color(0xFF8E8E93)
 
     /** Raised fill inside the always-dark map panels (search field, secondary buttons). */
     val PanelHigh = Color(0xFF2C2C2E)
 
-    val Card: Color @Composable get() = LocalMotoPalette.current.card
-    val CardHigh: Color @Composable get() = LocalMotoPalette.current.cardHigh
+    val Card: Color @Composable get() = LocalDeckPalette.current.card
+    val CardHigh: Color @Composable get() = LocalDeckPalette.current.cardHigh
 }
 
 /**
@@ -138,22 +138,22 @@ fun readableOn(background: Color): Color =
     if (contrastRatio(background, Color.Black) >= contrastRatio(background, Color.White)) Color.Black else Color.White
 
 /**
- * Warning text on a themed card. [MotoColors.Orange] is tuned for the dark map panels; on the light
+ * Warning text on a themed card. [DeckColors.Orange] is tuned for the dark map panels; on the light
  * day cards it drops below WCAG AA, so the day variant uses a darker burnt amber.
  */
-fun warningColor(palette: MotoPalette): Color =
-    if (palette.isDay) Color(0xFF8A4B00) else MotoColors.Orange
+fun warningColor(palette: DeckPalette): Color =
+    if (palette.isDay) Color(0xFF8A4B00) else DeckColors.Orange
 
 /** Positive/confirmation text on a themed card; the bright green only works on dark surfaces. */
-fun successColor(palette: MotoPalette): Color =
-    if (palette.isDay) Color(0xFF0B6B2E) else MotoColors.Green
+fun successColor(palette: DeckPalette): Color =
+    if (palette.isDay) Color(0xFF0B6B2E) else DeckColors.Green
 
 /** Destructive text on a themed card; the night red is too light on white. */
-fun dangerColor(palette: MotoPalette): Color =
-    if (palette.isDay) Color(0xFFB3261E) else MotoColors.Red
+fun dangerColor(palette: DeckPalette): Color =
+    if (palette.isDay) Color(0xFFB3261E) else DeckColors.Red
 
 /** The active palette without going through composition, for pure contrast checks and previews. */
-internal fun motoPalette(isDay: Boolean): MotoPalette = if (isDay) DayPalette else NightPalette
+internal fun deckPalette(isDay: Boolean): DeckPalette = if (isDay) DayPalette else NightPalette
 
 /** Shared measurements for settings cards, so the six pages keep one card rhythm. */
 object SettingsCardDefaults {
@@ -163,20 +163,20 @@ object SettingsCardDefaults {
     val DescriptionSize = 14.sp
 }
 
-/** The settings card surface; its color still comes from the active [MotoPalette]. */
+/** The settings card surface; its color still comes from the active [DeckPalette]. */
 fun Modifier.settingsCard(): Modifier = composed {
-    clip(RoundedCornerShape(SettingsCardDefaults.Radius)).background(LocalMotoPalette.current.card)
+    clip(RoundedCornerShape(SettingsCardDefaults.Radius)).background(LocalDeckPalette.current.card)
 }
 
 @Composable
-fun MotoTheme(isDay: Boolean = false, content: @Composable () -> Unit) {
-    val palette = motoPalette(isDay)
-    CompositionLocalProvider(LocalMotoPalette provides palette) {
+fun DeckTheme(isDay: Boolean = false, content: @Composable () -> Unit) {
+    val palette = deckPalette(isDay)
+    CompositionLocalProvider(LocalDeckPalette provides palette) {
         MaterialTheme(
             colorScheme = if (isDay) {
-                lightColorScheme(background = palette.card, surface = palette.card, primary = MotoColors.Blue)
+                lightColorScheme(background = palette.card, surface = palette.card, primary = DeckColors.Blue)
             } else {
-                darkColorScheme(background = MotoColors.Background, surface = palette.card, primary = MotoColors.Blue)
+                darkColorScheme(background = DeckColors.Background, surface = palette.card, primary = DeckColors.Blue)
             },
             content = content,
         )
@@ -198,7 +198,7 @@ fun cappedSp(base: Float, maxScale: Float = 1.15f): TextUnit {
 }
 
 fun Modifier.card(shape: Int = 28): Modifier = composed {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val rounded = RoundedCornerShape(shape.dp)
     clip(rounded)
         .background(Brush.verticalGradient(listOf(palette.glassTop, palette.glassBottom)))

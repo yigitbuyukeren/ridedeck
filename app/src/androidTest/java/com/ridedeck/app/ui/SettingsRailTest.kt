@@ -37,7 +37,7 @@ class SettingsRailTest {
 
     @Test fun railKeepsSixCategoriesAndMarksOnlyTheSelectedOne() {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.width(280.dp)) {
                     SettingsCategoryRail(SettingsCategory.GENERAL, {})
                 }
@@ -53,7 +53,7 @@ class SettingsRailTest {
     @Test fun narrowRailScrollsTheLastTabFullyIntoViewAndThenHidesTheForwardHint() {
         var selected by mutableStateOf(SettingsCategory.GENERAL)
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.width(280.dp)) {
                     SettingsCategoryRail(selected, { selected = it })
                 }
@@ -78,7 +78,7 @@ class SettingsRailTest {
         compose.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
-                MotoTheme {
+                DeckTheme {
                     Box(Modifier.width(280.dp)) {
                         SettingsCategoryRail(selected, { selected = it })
                     }
@@ -100,7 +100,7 @@ class SettingsRailTest {
     @Test fun clickingTheLastTabAfterScrollingSelectsItAndKeepsItVisible() {
         var selected by mutableStateOf(SettingsCategory.GENERAL)
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.width(280.dp)) {
                     SettingsCategoryRail(selected, { selected = it })
                 }
@@ -122,7 +122,7 @@ class SettingsRailTest {
 
     @Test fun changingCategoryResetsContentScrollToTheTop() {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 SettingsScreen(pages = testPages(), onClose = {})
             }
         }

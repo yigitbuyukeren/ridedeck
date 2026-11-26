@@ -94,7 +94,7 @@ class CallReadabilityUiTest {
                 LocalDensity provides androidDensity,
                 LocalConfiguration provides configuration,
             ) {
-                MotoTheme {
+                DeckTheme {
                     Box(Modifier.requiredSize(914.dp, 320.dp).testTag("test-surface")) {
                         InCallKeysPane(
                             callerName = "Ayşe Nur Çok Uzun Bir Arayan Adı",
@@ -149,7 +149,7 @@ class CallReadabilityUiTest {
                 LocalDensity provides androidDensity,
                 LocalConfiguration provides configuration,
             ) {
-                MotoTheme {
+                DeckTheme {
                     Box(Modifier.fillMaxSize()) {
                         CallScreen(
                             state, "Ayşe Nur Çok Uzun Bir Arayan Adı", 92, NavUi(), {}, onHangUp,

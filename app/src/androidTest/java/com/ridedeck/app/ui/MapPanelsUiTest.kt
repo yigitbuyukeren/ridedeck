@@ -93,7 +93,7 @@ class MapPanelsUiTest {
         val configuration = Configuration(context.resources.configuration).apply { this.fontScale = fontScale }
         val density = Density(context.createConfigurationContext(configuration))
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 CompositionLocalProvider(LocalDensity provides density) {
                     Box(Modifier.size(width, height)) { content() }
                 }
@@ -109,7 +109,7 @@ class MapPanelsUiTest {
         val configuration = Configuration(context.resources.configuration).apply { fontScale = 2f }
         val density = Density(context.createConfigurationContext(configuration))
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 CompositionLocalProvider(LocalDensity provides density) {
                     Box(Modifier.size(screenWidth, screenHeight)) {
                         Row(Modifier.fillMaxSize().padding(end = 16.dp)) {
@@ -385,7 +385,7 @@ class MapPanelsUiTest {
         val rerouting = mutableStateOf(false)
         val error = mutableStateOf<String?>("Rota alınamadı")
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 MapStatusChips(rerouting.value, degraded = false, error = error.value, navigating = navigating.value)
             }
         }

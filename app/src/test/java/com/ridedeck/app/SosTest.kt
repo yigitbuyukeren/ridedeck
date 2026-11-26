@@ -80,7 +80,7 @@ class CrashDetectorTest {
     }
 
     @Test
-    fun hardImpactWhileRidingThenStillnessTriggersOnce() {
+    fun hardImpactWhileDrivingThenStillnessTriggersOnce() {
         val d = CrashDetector()
         assertFalse(run(d, 0, 10, 1.1f, 60))              // cruising
         assertFalse(d.onSample(10_000, 7.5f, 60))          // the impact
@@ -90,7 +90,7 @@ class CrashDetectorTest {
     }
 
     @Test
-    fun potholeWhileTheBikeKeepsRollingDoesNotTrigger() {
+    fun potholeWhileTheVehicleKeepsRollingDoesNotTrigger() {
         val d = CrashDetector()
         run(d, 0, 10, 1.1f, 60)
         d.onSample(10_000, 6f, 60)
@@ -106,7 +106,7 @@ class CrashDetectorTest {
     }
 
     @Test
-    fun bikeKnockedOverWhileParkedDoesNotTrigger() {
+    fun vehicleKnockedWhileParkedDoesNotTrigger() {
         val d = CrashDetector()
         run(d, 0, 30, 1.0f, 0)
         assertFalse(d.onSample(30_000, 8f, 0))
@@ -114,11 +114,11 @@ class CrashDetectorTest {
     }
 
     @Test
-    fun impactThenRidingOnCancelsTheAlert() {
+    fun impactThenDrivingOnCancelsTheAlert() {
         val d = CrashDetector()
         run(d, 0, 10, 1.1f, 50)
         d.onSample(10_000, 5f, 50)
-        // Wobbles, slows, then speeds up again: the rider is fine.
+        // Wobbles, slows, then speeds up again: the driver is fine.
         assertFalse(run(d, 10_020, 3, 1.5f, 10))
         assertFalse(run(d, 13_020, 30, 1.0f, 40))
     }

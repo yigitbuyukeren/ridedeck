@@ -9,14 +9,14 @@ import org.junit.Test
 /** Pure contrast/geometry helpers used by the phone and call screens; no Android or calls. */
 class UiContrastAndKeypadTest {
     @Test fun everyCallActionUsesTheHigherContrastContentColour() {
-        listOf(MotoColors.Green, MotoColors.Red, MotoColors.Blue, MotoColors.Gray).forEach { fill ->
+        listOf(DeckColors.Green, DeckColors.Red, DeckColors.Blue, DeckColors.Gray).forEach { fill ->
             assertEquals(fill.toString(), readableOn(fill), callActionForeground(fill))
         }
     }
 
     @Test fun phoneCallButtonUsesBlackWhenEnabledAndMutedWhenDisabled() {
-        assertEquals(Color.Black, phoneCallForeground(enabled = true, muted = MotoColors.Gray))
-        assertEquals(MotoColors.Gray, phoneCallForeground(enabled = false, muted = MotoColors.Gray))
+        assertEquals(Color.Black, phoneCallForeground(enabled = true, muted = DeckColors.Gray))
+        assertEquals(DeckColors.Gray, phoneCallForeground(enabled = false, muted = DeckColors.Gray))
     }
 
     @Test fun keypadFallbackNeverSqueezesAKeyBelow64() {

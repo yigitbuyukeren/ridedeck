@@ -78,7 +78,7 @@ Kontrol listesi:
 - [ ] Yer tutucular (`%1$s`, `%2$d`, `%%`) korunmuş.
 - [ ] Metinler yatay düzende ve 1,0×/1,5×/2,0× yazı boyutunda taşmıyor.
 - [ ] Navigasyon, izin, SOS ve hata mesajları ana dili konuşan biri tarafından gözden geçirildi (veya bunu PR'da belirttim).
-- [ ] README'deki dil listesi yeni dili yansıtıyor (yeni dil eklendiyse).
+- [ ] `docs/FEATURES-REFERENCE.md` içindeki dil listesi yeni dili yansıtıyor (yeni dil eklendiyse).
 - [ ] Gerçek konum, telefon numarası veya kişisel veri yok.
 
 ## İlgili belgeler

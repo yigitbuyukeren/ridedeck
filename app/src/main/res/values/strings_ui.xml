@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Strings for the UI/accessibility pass; kept separate so it never collides with other batches. -->
 <resources>
-    <string name="stop_confirm_title">End the ride?</string>
+    <string name="stop_confirm_title">End the trip?</string>
     <string name="stop_confirm_message">Active navigation will end. This cannot be undone.</string>
     <string name="stop_confirm_action">End</string>
     <string name="stop_confirm_cancel">Cancel</string>

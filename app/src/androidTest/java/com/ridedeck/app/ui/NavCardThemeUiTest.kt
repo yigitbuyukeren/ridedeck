@@ -24,7 +24,7 @@ class NavCardThemeUiTest {
     @Test fun staticMapTileAndTitleFollowDashboardTheme() {
         val day = mutableStateOf(true)
         compose.setContent {
-            MotoTheme(isDay = day.value) {
+            DeckTheme(isDay = day.value) {
                 NavCard(
                     nav = NavUi(), places = emptyList(), weather = null,
                     me = LocationState(), isDay = day.value, lowPower = false,

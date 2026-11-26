@@ -57,17 +57,17 @@ fun AppsCard(
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val context = LocalContext.current
     val pm = context.packageManager
     val shown = remember(pinned) { pinned.filter { pm.getLaunchIntentForPackage(it) != null } }
     Box(
-        modifier = modifier.clip(RoundedCornerShape(28.dp)).background(MotoColors.Card),
+        modifier = modifier.clip(RoundedCornerShape(28.dp)).background(DeckColors.Card),
         contentAlignment = Alignment.Center,
     ) {
         if (shown.isEmpty()) {
             Box(
-                modifier = Modifier.size(72.dp).clip(CircleShape).background(MotoColors.Blue).hapticClickable(haptic = RideHaptic.Select, onClick = onSettings),
+                modifier = Modifier.size(72.dp).clip(CircleShape).background(DeckColors.Blue).hapticClickable(haptic = RideHaptic.Select, onClick = onSettings),
                 contentAlignment = Alignment.Center,
             ) { Icon(Icons.Rounded.Settings, stringResource(R.string.apps_settings), tint = Color.White, modifier = Modifier.size(36.dp)) }
         } else {

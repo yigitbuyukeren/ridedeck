@@ -1,6 +1,6 @@
 # RideDeck'e katkı
 
-RideDeck, motosiklet kullanıcıları için bir Android sürüş panelidir. Kod, hata bildirimi, belge, çeviri, tasarım ve saha deneyimi katkıları değerlidir. Bu rehber, değişikliğini güvenli ve hızlı biçimde inceleyebilmemiz için gereken en az süreci anlatır.
+RideDeck, CarPlay/Android Auto'dan ilham alan bağımsız bir Android araç içi sürüş panelidir; CarPlay veya Android Auto ile entegre değildir. Kod, hata bildirimi, belge, çeviri, tasarım ve saha deneyimi katkıları değerlidir. Bu rehber, değişikliğini güvenli ve hızlı biçimde inceleyebilmemiz için gereken en az süreci anlatır.
 
 > Kısa yol: küçük bir düzeltme için doğrudan PR açabilirsin. Yeni özellik, mimari değişiklik veya sürüş güvenliğini etkileyen bir iş için önce issue açıp yaklaşımı netleştir.
 
@@ -22,7 +22,7 @@ RideDeck, motosiklet kullanıcıları için bir Android sürüş panelidir. Kod,
 - **Fikir öner:** Önce problemin kimin için ne zaman ortaya çıktığını anlat. Sürüş sırasında kullanım etkisini de ekle.
 - **Kod yaz:** Küçük ve tek konulu değişiklikler en hızlı birleşenlerdir. Yeni davranış için test ekle.
 - **Belge ve çeviri:** Yazım hatası, eksik adım, İngilizce/Türkçe tutarsızlık veya yeni dil desteği değerlidir.
-- **Saha deneyimi paylaş:** Hangi telefonda, hangi motosiklet/ekipman kurulumunda ve hangi koşulda denediğini yaz. Gerçek sürüş, emülatör ve masaüstü testi aynı kanıt değildir.
+- **Saha deneyimi paylaş:** Hangi telefonda/tablette, hangi araç ve montaj kurulumunda ve hangi koşulda denediğini yaz. Gerçek sürüş, emülatör ve masaüstü testi aynı kanıt değildir.
 
 ## Başlamadan önce
 
@@ -84,9 +84,9 @@ Mimari ve veri akışı için [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) dosya
 
 ## Kod ve tasarım kuralları
 
-- **Motosiklet odaklı kal.** Araç seçici, araba/bisiklet profili veya araca göre dallanan yeni davranış ekleme. Uygulama tek bir motosiklet deneyimi sunar. Gösterge üst sınırı, kaza eşiği ve durak türü gibi motosiklet sabitleri `data/VehicleProfile.kt` içindeki `ProfileConfig` üzerinden gelir; yeni sabiti oraya ekle, koda dağınık `if` serpiştirme.
+- **Tek genel araç profilini koru.** `VehicleProfile.AUTO` dışında araç seçici veya araca göre dallanan yeni davranış ekleme. Rota Valhalla `auto` costing kullanır; gösterge üst sınırı, kaza eşiği ve durak türü gibi sabitler `data/VehicleProfile.kt` içindeki `ProfileConfig` üzerinden gelir; yeni sabiti oraya ekle, koda dağınık `if` serpiştirme.
 - **Sürüş güvenliği pazarlık konusu değildir.** Sürerken yazı girişi, küçük dokunma hedefi veya dikkat dağıtan animasyon ekleme. Dokunma hedefi kuralı 64–84 dp'dir; yeni hedefler bu aralığın altına inmemeli, mevcut 56 dp istisnaları ayrı iyileştirme olarak ele alınmalı. Kontrast yüksek, metinler kısa olmalı.
-- **Yatay ve büyük yazıyı düşün.** Arayüz yatay gidon düzeninde çalışır; dar ekran için `isNarrowScreen()`, sabit alanlarda taşmayı önlemek için `cappedSp()` kullanılır. Sistem yazı boyutu 2,0× iken de dene.
+- **Yatay ve büyük yazıyı düşün.** Arayüz yatay araç içi düzende çalışır; dar ekran için `isNarrowScreen()`, sabit alanlarda taşmayı önlemek için `cappedSp()` kullanılır. Sistem yazı boyutu 2,0× iken de dene.
 - **Kullanıcıya görünen her metin kaynak dosyada olur.** Metinler `app/src/main/res/values/strings*.xml` (İngilizce, varsayılan) ve `app/src/main/res/values-tr/strings*.xml` (Türkçe) altındadır; `strings.xml`, `strings_data.xml`, `strings_nav.xml`, `strings_sos.xml`, `strings_ui.xml` grupları vardır. Aynı anahtarı iki dilde birlikte güncelle. Çeviri için [docs/TRANSLATING.md](docs/TRANSLATING.md).
 - **Saf mantığı Android kabuğundan ayır.** Hız filtresi, rota eşleme, SOS matematiği gibi çekirdekler Android API'sine bağlı olmamalı; saat/sensör girdisi dışarıdan gelmeli ve JVM testi yazılabilmeli.
 - **Tek ağ geçidi.** Genel servis çağrıları `data/Http.kt`/`ProviderHttp` üzerinden yapılır (MapLibre'nin harita karo istekleri motorun kendi ağ katmanındadır). Yeni bir dış servis eklemeden önce issue'da tartış; servis ücretsiz, anahtarsız ve kullanım koşullarına uygun olmalı.
@@ -162,17 +162,18 @@ Katkı yaparak kodunun ve belgenin [Apache 2.0](LICENSE) lisansı altında yayı
 <details>
 <summary><b>English quick start</b></summary>
 
-RideDeck is a motorcycle-only Android dashboard (Kotlin, Jetpack Compose, minSdk 26). Contributions are welcome.
+RideDeck is a standalone Android in-vehicle driving dashboard inspired by CarPlay and Android Auto (Kotlin, Jetpack Compose, minSdk 26); it does not integrate with or project to either. Contributions are welcome.
 
 1. Fork, clone, add `upstream`, and set `sdk.dir` in `local.properties`.
 2. Use JDK 17 and Android SDK 36. Build with `./gradlew testDebugUnitTest assembleDebug`.
 3. Keep changes focused. Add a JVM test for new logic; add a Compose/instrumentation test when UI behavior changes. The fast PR gate runs debug unit tests and lint; the full gate (request it with the `full-ci` label, a `v*` tag, the weekly schedule, or `workflow_dispatch`) runs the instrumentation suite on an x86_64 API 35 emulator. A physical-device check is still separate evidence.
 4. Update the relevant `app/src/main/res/values/strings*.xml` (English, default) and `values-tr/strings*.xml` (Turkish) files (for example `strings.xml`, plus `strings_data.xml` if present) for user-facing text.
-5. Preserve the driving-safety rules: no text input while riding, 64–84 dp target touch areas (existing 56 dp exceptions need separate fixes), high contrast, landscape layout, and large-font support.
-6. Route general network calls through `app/src/main/java/com/ridedeck/app/data/Http.kt`/`ProviderHttp` (MapLibre tile requests stay in the map engine). Do not add accounts, API keys, analytics, or a new external service without an issue.
-7. Never commit `local.properties`, `keystore.properties`, `*.jks`, or secrets. Report vulnerabilities privately via [SECURITY.md](SECURITY.md).
-8. Do not paste real locations, phone numbers, contact names or SMS content; anonymise logs and screenshots.
-9. Open a PR with the problem, the change, and test evidence. Link the issue with `Closes #123`.
+5. Preserve the driving-safety rules: no text input while driving, 64–84 dp target touch areas (existing 56 dp exceptions need separate fixes), high contrast, landscape layout, and large-font support.
+6. Keep the single general `VehicleProfile.AUTO` (Valhalla `auto` costing) and do not add a vehicle chooser or vehicle-specific branching. Do not describe RideDeck as CarPlay or Android Auto integration.
+7. Route general network calls through `app/src/main/java/com/ridedeck/app/data/Http.kt`/`ProviderHttp` (MapLibre tile requests stay in the map engine). Do not add accounts, API keys, analytics, or a new external service without an issue.
+8. Never commit `local.properties`, `keystore.properties`, `*.jks`, or secrets. Report vulnerabilities privately via [SECURITY.md](SECURITY.md).
+9. Do not paste real locations, phone numbers, contact names or SMS content; anonymise logs and screenshots.
+10. Open a PR with the problem, the change, and test evidence. Link the issue with `Closes #123`.
 
 Read [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the code map, and [SUPPORT.md](SUPPORT.md) for where to ask questions. Follow the [code of conduct](CODE_OF_CONDUCT.md). By contributing, you agree that your work is licensed under Apache 2.0.
 

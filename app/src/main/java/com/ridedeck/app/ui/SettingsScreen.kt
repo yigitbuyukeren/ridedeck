@@ -182,7 +182,7 @@ fun SettingsScreen(
     onClose: () -> Unit,
     initialCategory: SettingsCategory = SettingsCategory.GENERAL,
 ) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     var selectedOrdinal by rememberSaveable { mutableStateOf(initialCategory.ordinal) }
     val current = SettingsCategory.entries.firstOrNull { it.ordinal == selectedOrdinal } ?: SettingsCategory.GENERAL
     val page = pages.firstOrNull { it.category == current } ?: pages.firstOrNull()
@@ -209,7 +209,7 @@ fun SettingsScreen(
                     modifier = Modifier.weight(1f).padding(end = 12.dp),
                 )
                 Box(
-                    modifier = Modifier.size(72.dp).clip(CircleShape).background(MotoColors.CardHigh)
+                    modifier = Modifier.size(72.dp).clip(CircleShape).background(DeckColors.CardHigh)
                         .hapticClickable(onClick = onClose),
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Rounded.Close, null, tint = palette.text, modifier = Modifier.size(32.dp)) }
@@ -263,7 +263,7 @@ internal fun SettingsCategoryRail(
     modifier: Modifier = Modifier,
     state: LazyListState = rememberLazyListState(),
 ) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val density = LocalDensity.current
     val direction = LocalLayoutDirection.current
 
@@ -287,7 +287,7 @@ internal fun SettingsCategoryRail(
                 Row(
                     modifier = Modifier.height(64.dp).widthIn(max = tabMaxWidth)
                         .clip(RoundedCornerShape(32.dp))
-                        .background(if (active) MotoColors.Blue else palette.cardHigh)
+                        .background(if (active) DeckColors.Blue else palette.cardHigh)
                         .semantics { this.selected = active }
                         .testTag("settings-tab-${category.name.lowercase()}")
                         .hapticClickable(role = Role.Tab, haptic = RideHaptic.Select) { onSelect(category) }
@@ -348,8 +348,8 @@ fun ToggleRow(t: ToggleItem) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
-            Text(t.title, fontSize = SettingsCardDefaults.TitleSize, lineHeight = 24.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
-            Text(t.description, fontSize = SettingsCardDefaults.DescriptionSize, lineHeight = 19.sp, color = LocalMotoPalette.current.muted)
+            Text(t.title, fontSize = SettingsCardDefaults.TitleSize, lineHeight = 24.sp, color = LocalDeckPalette.current.text, fontWeight = FontWeight.SemiBold)
+            Text(t.description, fontSize = SettingsCardDefaults.DescriptionSize, lineHeight = 19.sp, color = LocalDeckPalette.current.muted)
         }
         Switch(
             checked = t.checked,
@@ -368,7 +368,7 @@ fun ToggleRow(t: ToggleItem) {
 @Composable
 fun ToggleGroupRow(title: String, description: String, toggles: List<ToggleItem>) {
     if (toggles.isEmpty()) return
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Column(
         modifier = Modifier.fillMaxWidth().settingsCard()
             .padding(SettingsCardDefaults.Padding),
@@ -415,27 +415,27 @@ fun SettingRow(item: SettingItem) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(item.title, fontSize = SettingsCardDefaults.TitleSize, lineHeight = 24.sp, color = LocalMotoPalette.current.text, fontWeight = FontWeight.SemiBold)
-            Text(item.description, fontSize = SettingsCardDefaults.DescriptionSize, lineHeight = 19.sp, color = LocalMotoPalette.current.muted)
+            Text(item.title, fontSize = SettingsCardDefaults.TitleSize, lineHeight = 24.sp, color = LocalDeckPalette.current.text, fontWeight = FontWeight.SemiBold)
+            Text(item.description, fontSize = SettingsCardDefaults.DescriptionSize, lineHeight = 19.sp, color = LocalDeckPalette.current.muted)
             item.progress?.let { progress ->
                 if (progress < 0f) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
                 else LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
-                item.progressLabel?.let { Text(it, fontSize = 13.sp, lineHeight = 18.sp, color = LocalMotoPalette.current.muted) }
+                item.progressLabel?.let { Text(it, fontSize = 13.sp, lineHeight = 18.sp, color = LocalDeckPalette.current.muted) }
             }
         }
         if (item.granted) {
-            Icon(Icons.Rounded.CheckCircle, null, tint = MotoColors.Green, modifier = Modifier.size(36.dp))
+            Icon(Icons.Rounded.CheckCircle, null, tint = DeckColors.Green, modifier = Modifier.size(36.dp))
         } else if (item.actionEnabled) {
-            PillButton(item.action, MotoColors.Blue, item.onClick)
+            PillButton(item.action, DeckColors.Blue, item.onClick)
         } else {
-            Text(item.action, color = LocalMotoPalette.current.muted, fontSize = 14.sp)
+            Text(item.action, color = LocalDeckPalette.current.muted, fontSize = 14.sp)
         }
     }
 }
 
 @Composable
 fun ThemeRow(mode: ThemeMode, onSelect: (ThemeMode) -> Unit) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Column(
         modifier = Modifier.fillMaxWidth().settingsCard().padding(SettingsCardDefaults.Padding),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -450,7 +450,7 @@ fun ThemeRow(mode: ThemeMode, onSelect: (ThemeMode) -> Unit) {
             ).forEach { (m, label) ->
                 PillButton(
                     stringResource(label),
-                    if (m == mode) MotoColors.Blue else palette.cardHigh,
+                    if (m == mode) DeckColors.Blue else palette.cardHigh,
                     { onSelect(m) },
                     Modifier.weight(1f),
                     textColor = if (m == mode) Color.White else palette.text,
@@ -467,7 +467,7 @@ fun ThemeRow(mode: ThemeMode, onSelect: (ThemeMode) -> Unit) {
 /** A title with a row of exclusive buttons; the selected one is blue. */
 @Composable
 fun ChoiceRow(title: String, description: String, choices: List<Pair<String, Boolean>>, onSelect: (Int) -> Unit) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Column(
         modifier = Modifier.fillMaxWidth().settingsCard().padding(SettingsCardDefaults.Padding),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -485,10 +485,10 @@ fun ChoiceRow(title: String, description: String, choices: List<Pair<String, Boo
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 rowItems.forEach { (i, choice) ->
                     val (label, selected) = choice
-                    // One line each: a long name such as "Motorcycle" must not wrap inside a third of the width.
+                    // One line each: a long name such as "Vehicle" must not wrap inside a third of the width.
                     Box(
                         modifier = Modifier.weight(1f).height(64.dp).clip(RoundedCornerShape(32.dp))
-                            .background(if (selected) MotoColors.Blue else palette.cardHigh)
+                            .background(if (selected) DeckColors.Blue else palette.cardHigh)
                             .hapticClickable(haptic = RideHaptic.Select) { onSelect(i) }.padding(horizontal = 4.dp),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -507,7 +507,7 @@ fun ChoiceRow(title: String, description: String, choices: List<Pair<String, Boo
 /** Speech rate for spoken guidance, kept as one big slider. */
 @Composable
 fun VoiceControlsRow(speechRate: Float, onSpeechRate: (Float) -> Unit) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Column(
         modifier = Modifier.fillMaxWidth().settingsCard().padding(SettingsCardDefaults.Padding),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -566,7 +566,7 @@ fun VoiceControlsRow(speechRate: Float, onSpeechRate: (Float) -> Unit) {
 
 @Composable
 fun MarkerRow() {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val look by MarkerStyle.look.collectAsStateWithLifecycle()
     Column(
@@ -584,7 +584,7 @@ fun MarkerRow() {
                 val picked = shape == look.shape
                 Column(
                     modifier = Modifier.weight(1f).clip(RoundedCornerShape(16.dp))
-                        .background(if (picked) MotoColors.Blue else palette.cardHigh)
+                        .background(if (picked) DeckColors.Blue else palette.cardHigh)
                         .hapticClickable(haptic = RideHaptic.Select) { MarkerStyle.set(context, look.copy(shape = shape)) }
                         .padding(vertical = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,

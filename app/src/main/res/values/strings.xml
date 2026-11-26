@@ -32,7 +32,7 @@
     <string name="recents_clear">Clear history</string>
     <string name="recents_title">Keep recent searches</string>
     <string name="recents_desc">Destinations you pick stay on this phone only; turning this off deletes them.</string>
-    <string name="settings_locked">Settings are locked while riding. Open them when stopped.</string>
+    <string name="settings_locked">Settings are locked while driving. Open them when stopped.</string>
     <string name="hint_long_press">Tip: long-press the map to pick a destination.</string>
     <string name="arrival_fmt">Arrive %1$s</string>
     <string name="start">Start</string>
@@ -98,7 +98,7 @@
     <string name="msg_auto_title">Read messages aloud</string>
     <string name="msg_auto_desc">Reads incoming messages automatically. When off, the card shows a Read button.</string>
     <string name="trips_title">Trip history</string>
-    <string name="trips_empty">No trips yet. With the app on screen, recording starts by itself once you ride faster than %1$s.</string>
+    <string name="trips_empty">No trips yet. With the app on screen, recording starts by itself once you drive faster than %1$s.</string>
     <string name="trips_empty_title">No trips yet</string>
     <string name="battery_percent_fmt">%1$d%%</string>
     <string name="battery_status_fmt">Battery %1$d percent</string>
@@ -141,7 +141,7 @@
     <string name="trip_map_local_only">Tiles unavailable; only the stored trace is shown on a local background. No offline routing is performed.</string>
     <string name="trip_map_tiles_unavailable">Some map tiles could not load. Saved GPS trace remains available.</string>
     <string name="record_trips_title">Record trips</string>
-    <string name="record_trips_desc">While the app is on screen, rides are recorded by themselves and stay on this phone. To record with the screen off, start the ride with Start.</string>
+    <string name="record_trips_desc">While the app is on screen, trips are recorded by themselves and stay on this phone. To record with the screen off, start the trip with Start.</string>
     <string name="speed_limit_title">Speed limit display</string>
     <string name="speed_limit_desc">Shows the road\'s speed limit during navigation and warns when you go over. Your position is sent to the OpenStreetMap (Valhalla) server.</string>
     <string name="speed_limit_warning">Speed limit %1$d, slow down</string>
@@ -150,7 +150,7 @@
     <string name="saved_favorite">Favorite</string>
     <string name="saved_hint">Tap ☆ to save Home, Work or a favorite. Long-press the map to pick a spot.</string>
     <string name="saved_delete_confirm">Tap to delete</string>
-    <string name="search_locked">Search is locked while riding. Pick a saved place or long-press the map.</string>
+    <string name="search_locked">Search is locked while driving. Pick a saved place or long-press the map.</string>
     <string name="go_home">Go home</string>
     <string name="go_work">Go to work</string>
     <string name="weather_title">Weather</string>
@@ -180,11 +180,11 @@
     <string name="fuel_add_stop">Add stop</string>
     <string name="fuel_go">Go</string>
     <string name="thermal_title">Heat protection</string>
-    <string name="thermal_desc">Above 42°C the screen dims and the map slows down; if the motorcycle stands still for a minute the screen goes dark and wakes when you move. Nothing changes at normal temperature.</string>
+    <string name="thermal_desc">Above 42°C the screen dims and the map slows down; if the vehicle stands still for a minute the screen goes dark and wakes when you move. Nothing changes at normal temperature.</string>
     <string name="thermal_banner">Phone is overheating, consider unplugging the charger</string>
     <string name="thermal_voice">The phone is getting too hot</string>
     <string name="sos_title">Emergency (SOS)</string>
-    <string name="sos_desc">If you crash, or hold the button, a countdown starts; when it ends one SMS with a location link goes to up to 3 people (no calls). Works while the app is on screen or a started ride is running; with the screen off the countdown comes to the front as a notification. Your carrier\'s SMS fee may apply.</string>
+    <string name="sos_desc">If you crash, or hold the button, a countdown starts; when it ends one SMS with a location link goes to up to 3 people (no calls). Works while the app is on screen or a started trip is running; with the screen off the countdown comes to the front as a notification. Your carrier\'s SMS fee may apply.</string>
     <string name="sos_add_contact">Add contact</string>
     <string name="sos_remove">Remove</string>
     <string name="sos_no_contacts">Add at least one emergency contact first.</string>
@@ -192,7 +192,7 @@
     <string name="sos_perm_title">SMS permission</string>
     <string name="sos_perm_desc">To send the message</string>
     <string name="sos_crash_title">Automatic crash detection</string>
-    <string name="sos_crash_desc">Starts the countdown after a hard impact followed by stillness. Start the ride with Start so it also works with the screen off. Use with the phone mounted on the motorcycle.</string>
+    <string name="sos_crash_desc">Starts the countdown after a hard impact followed by stillness. Start the trip with Start so it also works with the screen off. Use with the phone mounted in your vehicle.</string>
     <string name="sos_button_title">SOS button</string>
     <string name="sos_button_desc">Hold the button in the corner of the speed gauge for 1.5 seconds.</string>
     <string name="sos_test">Test (no SMS is sent)</string>
@@ -217,7 +217,7 @@
     <string name="sos_voice_auto">Crash detected. Are you OK? If you do not answer within %1$d seconds your location will be sent to your emergency contacts.</string>
     <string name="sos_voice_manual">Emergency message. The message will be sent in %1$d seconds unless you cancel.</string>
     <string name="sos_voice_test">SOS test. No message will be sent.</string>
-    <string name="sos_sms_auto">EMERGENCY (RideDeck): %1$s crash detected, rider not responding.</string>
+    <string name="sos_sms_auto">EMERGENCY (RideDeck): %1$s crash detected, driver not responding.</string>
     <string name="sos_sms_manual">EMERGENCY (RideDeck): I need help.</string>
     <string name="sos_loc">Location: %1$s</string>
     <string name="sos_loc_stale">Last known location: %1$s</string>
@@ -245,7 +245,7 @@
     <string name="phone_allow">Allow</string>
     <string name="phone_open_keypad">Open keypad</string>
     <string name="phone_empty_recents">No recent calls</string>
-    <string name="phone_keypad_locked">Number entry is locked while riding. Call from recents or favorites.</string>
+    <string name="phone_keypad_locked">Number entry is locked while driving. Call from recents or favorites.</string>
     <string name="phone_unknown">Unknown number</string>
     <string name="phone_yesterday">Yesterday</string>
     <string name="phone_call">Call</string>
@@ -274,8 +274,8 @@
     <string name="gps_fair">GPS fair</string>
     <string name="gps_poor">GPS weak</string>
 
-    <!-- Motorcycle profile -->
-    <string name="sos_noun_moto">motorcycle</string>
+    <!-- Vehicle profile -->
+    <string name="sos_noun_vehicle">Vehicle</string>
     <string name="perm_location_precise">GPS for the speedometer. Only approximate location is allowed; allow "Precise location" in Settings.</string>
     <string name="speed_unit_mph">mph</string>
     <string name="haptics_title">Touch vibration</string>
@@ -309,22 +309,22 @@
     <string name="voice_navigation_tracking_failed">Navigation guidance stopped because the location stream failed.</string>
     <string name="voice_navigation_location_disabled">Navigation guidance stopped because GPS was turned off. Enable location and restart the route.</string>
     <string name="voice_navigation_permission_revoked">Navigation guidance stopped because location permission was removed. Grant it again and restart the route.</string>
-    <string name="ride_channel">Ride tracking</string>
+    <string name="ride_channel">Trip tracking</string>
     <string name="ride_recording_off">Trip recording is disabled in settings; only GPS tracking is active.</string>
-    <string name="ride_start">Start ride</string>
-    <string name="ride_stop">End ride</string>
-    <string name="ride_active">Ride tracking active</string>
-    <string name="ride_notification">GPS tracking continues with the screen off. Tap to end your ride.</string>
-    <string name="ride_idle">A started ride keeps tracking with the screen off.</string>
+    <string name="ride_start">Start trip</string>
+    <string name="ride_stop">End trip</string>
+    <string name="ride_active">Trip tracking active</string>
+    <string name="ride_notification">GPS tracking continues with the screen off. Tap to end your trip.</string>
+    <string name="ride_idle">A started trip keeps tracking with the screen off.</string>
     <string name="ride_starting">Starting tracking…</string>
-    <string name="ride_stopping">Saving ride…</string>
-    <string name="ride_not_visible">Start your ride while the app is visible.</string>
-    <string name="ride_permission_error">Tracking stopped. Allow precise location and start the ride again.</string>
-    <string name="ride_gps_error">Tracking stopped. Enable GPS and start the ride again.</string>
-    <string name="ride_start_error">Ride tracking could not start. Open the app and try again.</string>
-    <string name="ride_gps_lost">GPS was lost for too long; ride tracking stopped.</string>
-    <string name="ride_interrupted">Ride tracking was interrupted. Start again to continue.</string>
-    <string name="ride_notifications_off">Notifications are off. End the ride here or stop it from Android Active apps.</string>
+    <string name="ride_stopping">Saving trip…</string>
+    <string name="ride_not_visible">Start your trip while the app is visible.</string>
+    <string name="ride_permission_error">Tracking stopped. Allow precise location and start the trip again.</string>
+    <string name="ride_gps_error">Tracking stopped. Enable GPS and start the trip again.</string>
+    <string name="ride_start_error">Trip tracking could not start. Open the app and try again.</string>
+    <string name="ride_gps_lost">GPS was lost for too long; trip tracking stopped.</string>
+    <string name="ride_interrupted">Trip tracking was interrupted. Start again to continue.</string>
+    <string name="ride_notifications_off">Notifications are off. End the trip here or stop it from Android Active apps.</string>
     <string name="call_held">Call on hold</string>
     <string name="call_control_failed">Call action could not be applied. Check call state and phone permissions.</string>
     <string name="call_route_failed">Audio route could not change. Check the current audio route.</string>
@@ -353,9 +353,9 @@
     <string name="key_hide">Hide keyboard</string>
     <string name="list_page_up">Scroll up</string>
     <string name="list_page_down">Scroll down</string>
-    <string name="readiness_title">Ready to ride?</string>
-    <string name="readiness_sub">For information only; it does not block starting a ride or SOS. No row guarantees message delivery or crash detection.</string>
-    <string name="readiness_entry_desc">Check GPS, permissions, connectivity, voice and optional features for information. It does not block riding.</string>
+    <string name="readiness_title">Ready to drive?</string>
+    <string name="readiness_sub">For information only; it does not block starting a trip or SOS. No row guarantees message delivery or crash detection.</string>
+    <string name="readiness_entry_desc">Check GPS, permissions, connectivity, voice and optional features for information. It does not block driving.</string>
     <string name="readiness_entry_action">Check</string>
     <string name="readiness_settings_unavailable">The system setting could not be opened; try from device settings.</string>
     <string name="readiness_status_ready">Ready</string>

@@ -7,7 +7,7 @@ import kotlin.math.sqrt
 
 /**
  * Turns the phone's rotation matrix into a compass heading in degrees (0 = north, clockwise).
- * Upright on a handlebar mount the heading is where the back of the phone faces; lying flat it is where the top
+ * Upright on a dashboard mount the heading is where the back of the phone faces; lying flat it is where the top
  * of the screen points. Pure maths, so it is unit tested without a sensor.
  */
 object CompassMath {

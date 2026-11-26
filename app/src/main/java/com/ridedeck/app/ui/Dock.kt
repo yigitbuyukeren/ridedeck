@@ -55,21 +55,21 @@ fun Dock(
 ) {
     // The column down the left side of the landscape dashboard.
     BoxWithConstraints(modifier = Modifier.fillMaxHeight().width(96.dp).padding(vertical = 8.dp).testTag("dock")) {
-        // Tiles take whatever height the status block leaves, up to a glove-sized 76dp (never below the 64dp target).
+        // Tiles take whatever height the status block leaves, up to a driving-sized 76dp (never below the 64dp target).
         val gap = 8.dp
         val tile = ((maxHeight - STATUS_HEIGHT - gap * 4) / 4).coerceIn(64.dp, 76.dp)
         Column(modifier = Modifier.fillMaxHeight()) {
-            // Glove-sized 64 dp targets are never shrunk; when a short screen cannot hold all four,
+            // Driving-sized 64 dp targets are never shrunk; when a short screen cannot hold all four,
             // the rail scrolls while the status block stays pinned and readable.
             Column(
                 modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(gap),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                DockTile(Icons.Rounded.Navigation, MotoColors.Blue, tile, onNavigation, active == DockTab.NAV, label = stringResource(R.string.nav_title))
-                DockTile(Icons.Rounded.MusicNote, MotoColors.Red, tile, onMusic, active == DockTab.MUSIC, label = stringResource(R.string.dock_music))
+                DockTile(Icons.Rounded.Navigation, DeckColors.Blue, tile, onNavigation, active == DockTab.NAV, label = stringResource(R.string.nav_title))
+                DockTile(Icons.Rounded.MusicNote, DeckColors.Red, tile, onMusic, active == DockTab.MUSIC, label = stringResource(R.string.dock_music))
                 DockTile(Icons.Rounded.Call, Color(0xFF34C759), tile, onPhone, active == DockTab.PHONE, label = stringResource(R.string.perm_phone))
-                DockTile(Icons.Rounded.Settings, MotoColors.Gray, tile, onSettings, active == DockTab.SETTINGS, label = stringResource(R.string.apps_settings))
+                DockTile(Icons.Rounded.Settings, DeckColors.Gray, tile, onSettings, active == DockTab.SETTINGS, label = stringResource(R.string.apps_settings))
             }
             DockStatus(battery)
         }

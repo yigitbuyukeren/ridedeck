@@ -43,7 +43,7 @@ interface SpeedLimitLookup {
 class SpeedLimitRepository(
     private val http: ServiceHttp = ProviderHttp,
     /** Valhalla costing that matches the vehicle, so the trail snaps to roads the vehicle may use. */
-    private val costing: () -> String = { "motorcycle" },
+    private val costing: () -> String = { VehicleProfile.AUTO.config.costing },
 ) : SpeedLimitLookup {
     override suspend fun limitAt(trail: List<GeoPoint>): Result<Int?> = withContext(Dispatchers.IO) {
         try {
@@ -77,7 +77,7 @@ class SpeedLimitRepository(
 /**
  * Keeps [limit] up to date while [active] (navigation guidance). Looks up at most every
  * [MIN_INTERVAL_MS] and only after moving [MIN_MOVE_M], so the public server sees roughly one
- * small request every ten seconds per rider. Calls [onWarn] when the rider stays over the limit.
+ * small request every ten seconds per driver. Calls [onWarn] when the driver stays over the limit.
  */
 class SpeedLimitController(
     private val scope: CoroutineScope,

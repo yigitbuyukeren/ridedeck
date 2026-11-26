@@ -29,7 +29,7 @@ class SosMessagingUiTest {
 
     @Test fun testResultExplicitlySaysNoSmsWasSentAndNeverLooksLikeARealSend() {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(480.dp, 320.dp)) {
                     SosScreen(SosUi(SosPhase.SENT, SosReason.TEST), emptyList(), {}, {})
                 }
@@ -43,7 +43,7 @@ class SosMessagingUiTest {
 
     @Test fun testCountdownDoesNotShowRecipientsOrPromiseSending() {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(480.dp, 320.dp)) {
                     SosScreen(
                         SosUi(SosPhase.COUNTDOWN, SosReason.TEST, secondsLeft = 8),
@@ -58,7 +58,7 @@ class SosMessagingUiTest {
 
     @Test fun realSendResultClaimsOnlyRequestConfirmationAndKeepsTheDeliveryCaveat() {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(480.dp, 320.dp)) {
                     SosScreen(
                         SosUi(SosPhase.SENT, SosReason.MANUAL, sentTo = listOf("Contact")),
@@ -76,7 +76,7 @@ class SosMessagingUiTest {
     @Test fun longRealResultKeepsFullMessageAndDismissReachableAtFont2Narrow() {
         var dismissed = false
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 val density = LocalDensity.current
                 CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
                     Box(Modifier.size(320.dp, 240.dp)) {
@@ -95,7 +95,7 @@ class SosMessagingUiTest {
     }
 
     @Test fun sosButtonExposesItsHoldInstructionToAccessibility() {
-        compose.setContent { MotoTheme { SosButton(onTrigger = {}) } }
+        compose.setContent { DeckTheme { SosButton(onTrigger = {}) } }
         compose.onNodeWithContentDescription(context.getString(R.string.sos_button_a11y), useUnmergedTree = true).assertExists()
     }
 }

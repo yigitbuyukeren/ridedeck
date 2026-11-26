@@ -64,7 +64,7 @@ fun SpeedCard(
     modifier: Modifier = Modifier,
     onSos: (() -> Unit)? = null,
     /** Full-scale of the gauge, km/h; depends on the vehicle. */
-    maxKmh: Float = 200f,
+    maxKmh: Float = 240f,
     /** The smoothed speed to draw this frame, km/h; the raw fix is only used for the limit colour. */
     speedProvider: () -> Double? = { gps.speedKmh.toDouble() },
     /** Hot or low battery: the dial updates at about 15 frames a second instead of every frame. */
@@ -97,7 +97,7 @@ fun SpeedCard(
             }
         }
     }
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val trackColor = palette.track
     val miles = Units.miles
     val labels = remember(maxKmh, miles) { GaugeScale.labels(maxKmh, miles) }
@@ -134,11 +134,11 @@ fun SpeedCard(
             val topLeft = Offset(inset, inset)
             // The day card is light: the amber/red arc uses the readable day variants, while night keeps
             // the bright accents. Blue already clears the 3:1 graphical-object threshold on both.
-            val arcWarm = if (palette.isDay) warningColor(palette) else MotoColors.Orange
-            val arcHot = if (palette.isDay) dangerColor(palette) else MotoColors.Red
+            val arcWarm = if (palette.isDay) warningColor(palette) else DeckColors.Orange
+            val arcHot = if (palette.isDay) dangerColor(palette) else DeckColors.Red
             val progressColor = when {
-                fraction < 0.4f -> lerp(MotoColors.Cyan, MotoColors.Blue, fraction / 0.4f)
-                fraction < 0.65f -> lerp(MotoColors.Blue, arcWarm, (fraction - 0.4f) / 0.25f)
+                fraction < 0.4f -> lerp(DeckColors.Cyan, DeckColors.Blue, fraction / 0.4f)
+                fraction < 0.65f -> lerp(DeckColors.Blue, arcWarm, (fraction - 0.4f) / 0.25f)
                 else -> lerp(arcWarm, arcHot, ((fraction - 0.65f) / 0.25f).coerceAtMost(1f))
             }
             // Ticks and numbers sit just inside the track; they never change, so they cost nothing per frame beyond the draw.
@@ -177,7 +177,7 @@ fun SpeedCard(
             if (!gps.hasFix && !locationGranted) {
                 Text(stringResource(R.string.speed_location_needed), fontSize = cappedSp(16f), color = warningColor(palette), modifier = Modifier.padding(top = 8.dp))
                 PillButton(
-                    stringResource(R.string.action_allow), MotoColors.Blue, onGrantLocation,
+                    stringResource(R.string.action_allow), DeckColors.Blue, onGrantLocation,
                     Modifier.padding(top = 8.dp), minHeight = 56.dp, fontSize = 17.sp, horizontalPadding = 20.dp, singleLine = true,
                 )
             } else if (unknown) {
@@ -194,7 +194,7 @@ fun SpeedCard(
 /** How good the GPS fix is: the accuracy radius turned into a word and a colour. */
 @Composable
 private fun GpsInfo(gps: GpsUi, showDebug: Boolean, onToggleDebug: () -> Unit, modifier: Modifier = Modifier) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val muted = palette.muted
     val (label, color) = when {
         gps.accuracyM == null -> R.string.gps_fair to warningColor(palette)

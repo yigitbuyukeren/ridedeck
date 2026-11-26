@@ -48,7 +48,7 @@ object Prefs {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(KEY_MESSAGE_APPS_SEEN, json).apply()
     }
 
-    /** Chat apps the rider does not want on the dashboard or read aloud. */
+    /** Chat apps the driver does not want on the dashboard or read aloud. */
     fun messageAppsMuted(context: Context): String? =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_MESSAGE_APPS_MUTED, null)
 
@@ -106,7 +106,7 @@ object Prefs {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_RECORD_TRIPS, enabled).apply()
     }
 
-    /** On by default; a rider who has flipped it keeps their choice. */
+    /** On by default; a driver who has flipped it keeps their choice. */
     fun speedLimit(context: Context): Boolean =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_SPEED_LIMIT, true)
 
@@ -138,7 +138,7 @@ object Prefs {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(KEY_PLACES, json).apply()
     }
 
-    /** The last chosen destinations (cleared when the rider turns the history off). */
+    /** The last chosen destinations (cleared when the driver turns the history off). */
     fun recentPlaces(context: Context): String? =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY_RECENT_PLACES, null)
 

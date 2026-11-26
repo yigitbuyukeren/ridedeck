@@ -1,7 +1,7 @@
 # RideDeck — Ayrıntılı özellikler ve teknik notlar
 
 > [!NOTE]
-> Bu belge, 17 Kasım 2026 tarihli kapsamlı README açıklamalarını **kaybetmeden korumak** için oluşturulmuştur. Geliştirme ağacıyla yayımlanan beta arasındaki farklar ve test sonuçları tarihsel bağlamında okunmalıdır. Güncel indirme için [ana README](../README.md) ve [v0.7.0 sürüm notları](https://github.com/yigitbuyukeren/ridedeck/releases/tag/v0.7.0); yayın kapıları için [RELEASE_READINESS.md](RELEASE_READINESS.md) esas alınmalıdır.
+> Bu belge, 17 Kasım 2026 tarihli kapsamlı ürün açıklamalarını **kaybetmeden korumak** için oluşturulmuştur. Geliştirme ağacıyla yayımlanan beta arasındaki farklar ve test sonuçları tarihsel bağlamında okunmalıdır. Güncel indirme için [GitHub Releases](https://github.com/yigitbuyukeren/ridedeck/releases) ve [v0.7.1 sürüm notları](https://github.com/yigitbuyukeren/ridedeck/releases/tag/v0.7.1); yayın kapıları için [RELEASE_READINESS.md](RELEASE_READINESS.md) esas alınmalıdır.
 
 Bu sayfa; özellik davranışlarını, bilinen sınırlamaları, SOS/gizlilik açıklamalarını ve harita sağlayıcısı notlarını ayrıntılı olarak saklar. Uygulama davranışının kesin kaynağı güncel koddur.
 
@@ -12,12 +12,12 @@ Bu sayfa; özellik davranışlarını, bilinen sınırlamaları, SOS/gizlilik a�
 Ayrıntılar için başlıklara dokun.
 
 <details>
-<summary><b>Motosiklet profili</b></summary>
+<summary><b>Genel araç profili</b></summary>
 
-- Uygulama yalnız motosiklet içindir; araç seçim ekranı ve Ayarlar'daki araç seçimi kaldırıldı
-- Rota her zaman Valhalla `motorcycle` costing'i ile hesaplanır; otoyolsuz ve ücretsiz yol seçenekleri hatırlanır
-- ⛽ düğmesi benzinlik arar; benzinlik, ara durak ve rota üzerindeki duraklar motosiklet akışında çalışır
-- Kaza algılama eşikleri ve 200 km/s hız göstergesi motosiklete sabittir; arayüz yatay gidon düzenindedir
+- Uygulama tek genel araç profili (`VehicleProfile.AUTO`) kullanır; araç seçim ekranı ve Ayarlar'daki araç seçimi kaldırıldı
+- Rota her zaman Valhalla `auto` costing'i ile hesaplanır; otoyolsuz ve ücretsiz yol seçenekleri hatırlanır
+- ⛽ düğmesi benzinlik arar; benzinlik, ara durak ve rota üzerindeki duraklar genel araç akışında çalışır
+- Kaza algılama eşiği 5,0 g, hareket eşiği 30 km/sa ve hız göstergesi üst sınırı 240 km/sa'dır; `crashNeedsTilt = false` olduğu için eğim aranmaz; arayüz yatay araç içi düzenindedir
 
 </details>
 
@@ -30,7 +30,7 @@ Ayrıntılar için başlıklara dokun.
 - Geliştirme ağacında rota, benzinlik, hız limiti ve hava durumu servis depoları merkezi iptal edilebilir HTTP katmanını kullanır; istek iptali ağ çağrısını da kapatır ve yavaş yanıt diğer kullanıcı eylemlerini bekletmez. Harita motorunun karo istekleri bu katmanın dışındadır. Yerel gecikme testleri gerçek sağlayıcı/Android ağ davranışının saha kanıtı değildir.
 - Geliştirme ağacındaki **Sürüşe hazır mı?** paneli ilk izin ekranından isteğe bağlı olarak veya Ayarlar → Genel üzerinden açılır. Konum/GPS, ağ, harita, ses ve izin durumlarını nedenleriyle gösterir; sürüşü başlatmayı engellemez ve hareket hâlinde ayar erişimi mevcut kilide tabidir. İzin bilgileri ekrana her dönüşte (RESUMED) tazelenir; eksik SMS izni satırı yalnız uygulamanın izin ayarlarını açar, gerçek SMS göndermez. Bilinmeyen yerel karo deposu hazır sayılmaz; SOS yapılandırması mesaj teslimi veya güvenlik garantisi değildir.
 - Geliştirme ağacında Ayarlar kartları ortak yarıçap, iç boşluk ve başlık/açıklama ölçülerini kullanır; altı sayfa aynı kart ritmini korur.
-- Hız kartında GPS durumu; büyük, eldivenle basılan tuşlar; ekranlar arasında kısa geçiş animasyonları (ısı koruması açıkken kapanır)
+- Hız kartında GPS durumu; büyük, hızlı bakışta kolay basılabilen tuşlar; ekranlar arasında kısa geçiş animasyonları (ısı koruması açıkken kapanır)
 - Yatay düzen iki yönde de aynıdır: telefon 180° çevrilince çentik bir yandan öbür yana geçse de arayüz kaymaz; güvenli boşluk iki yana eşit verilir
 - Türkçe ve İngilizce arayüz; sesli yönlendirme telefon diline göre konuşur (Türkçe telefonda Türkçe talimat ve ses, diğerlerinde İngilizce)
 
@@ -39,7 +39,7 @@ Ayrıntılar için başlıklara dokun.
 <details>
 <summary><b>Navigasyon</b></summary>
 
-- Gömülü harita ve sesli yönlendirme: MapLibre + OpenStreetMap (OpenFreeMap), Nominatim arama, Valhalla motosiklet rotası, rota dışına çıkınca yeniden hesaplama. Tam ekran harita telefonun ekran yenileme hızında (90/120 Hz) çizilir; yalnızca ısınma koruması açıkken kısılır
+- Gömülü harita ve sesli yönlendirme: MapLibre + OpenStreetMap (OpenFreeMap), Nominatim arama, Valhalla `auto` rotası, rota dışına çıkınca yeniden hesaplama. Tam ekran harita telefonun ekran yenileme hızında (90/120 Hz) çizilir; yalnızca ısınma koruması açıkken kısılır
 - Anonslar üç kademe: mesafeli uzak uyarı ("800 metre sonra sağa dön"), tam talimat, dönüşte kısa "şimdi"; uzun yolda "2 km devam". Mesaj ve hava uyarıları dönüş talimatını kesmez, sonra okunur. Rota isteği sürüş yönünü taşır (U dönüşüyle başlamaz). İnternet yokken yeniden hesaplama başarısız olursa bir kez söylenir, eski rota izlenir. Varış: rota sonu, hedefte durma veya kapalı otoparkta GPS kaybıyla; varış saati gerçek hıza uyum sağlar. Görüşmede talimat yerine titreşim, görüşme bitince talimat okunur.
 - Rota seçenekleri: otoyolsuz ve ücretsiz yol, seçim hatırlanır
 - Kayıtlı yerler: Ev, İş ve favoriler; büyük karolarla tek dokunuşla rota, dashboard'da "Eve git"
@@ -71,8 +71,8 @@ Ayrıntılar için başlıklara dokun.
 <summary><b>Güvenlik</b></summary>
 
 - Hava durumu: sıcaklık, 1 saat içinde yağmur ve buzlanma uyarısı; başarısız yenilemede eski tahmin süresiz tutulmaz, 30 dakikalık tazelik sınırı sonraki kontrolde uygulanır
-- Isınma koruması: telefon 42°C'yi aşınca ekran kısılır ve harita yavaşlar, motosiklet durunca ekran kararır
-- SOS (varsayılan kapalı): otomatik kaza algılama (sert darbe + hareketsizlik; iki tekerlekte yön değişimi veya çok yüksek darbe aranır) veya uzun basmalı düğme. Çukur/kırmızı ışık kaynaklı yanlış alarmları azaltan filtreler var; bilinmeyen GPS hızı duruş sayılmaz. Geri sayımdan sonra en fazla 3 kişiye konum linkli bir mesaj gönderimi denenir; arama ve otomatik tekrar gönderim yok. Onaylanan, başarısız ve belirsiz sonuçlar kişi bazında ayrılır; alıcıya teslim garantisi verilmez.
+- Isınma koruması: telefon 42°C'yi aşınca ekran kısılır ve harita yavaşlar, araç durunca ekran kararır
+- SOS (varsayılan kapalı): otomatik kaza algılama (5,0 g sert darbe, 30 km/sa hareket eşiği ve hareketsizlik; eğim koşulu yok) veya uzun basmalı düğme. Çukur/kırmızı ışık kaynaklı yanlış alarmları azaltan filtreler var; bilinmeyen GPS hızı duruş sayılmaz. Geri sayımdan sonra en fazla 3 kişiye konum linkli bir mesaj gönderimi denenir; arama ve otomatik tekrar gönderim yok. Onaylanan, başarısız ve belirsiz sonuçlar kişi bazında ayrılır; alıcıya teslim garantisi verilmez.
 - Geri sayım ekran kapalıyken kilit ekranı üstünde bildirim, tam ekran bildirim ve uyandırma kilidiyle öne alınmaya çalışılır; bildirim yoksa uygulama açılmaya çalışılır (Android 10+ yalnız üstte gösterme izni varsa), FSI reddedilirse yüksek öncelikli bildirim kalır; ses/titreşim ve SMS yolu sürer. Bildirimde geri sayım için **İyiyim**, sonuç için **Kapat** eylemi vardır. SMS izni/SIM yoksa hazırlık paneli bunu açıkça söyler. Gerçek kilit ekranı, SIM ve OEM davranışı doğrulanmadı.
 
 </details>
@@ -82,7 +82,7 @@ Ayrıntılar için başlıklara dokun.
 
 - Uygulama içi telefon: son aramalar, tüm rehber ve tuş takımı (eşleşen kişi önerisi, büyük silme tuşu, `0` uzun basınca `+`; her tuşta telefonlardaki gibi kısa DTMF "dit" sesi; yatay telefonda listede 4 satır görünür); sürerken tuş takımı kilitli
 - RideDeck'i varsayılan telefon uygulaması yaparsan arama ekranı da uygulamanın içinde: sessiz, ses yolu (telefon, hoparlör, Bluetooth), ses seviyesi, görüşme tuş takımı
-- Ses yolu seçimi sistemin bildirdiği kullanılabilir yollarla sınırlıdır ve onaylandığında güncellenir. Görüşme sırasında TTS anonsları kesilir; kask/kulaklık kopması algılanırsa otomatik müzik devamı durdurulur.
+- Ses yolu seçimi sistemin bildirdiği kullanılabilir yollarla sınırlıdır ve onaylandığında güncellenir. Görüşme sırasında TTS anonsları kesilir; Bluetooth kulaklık/araç ses bağlantısı koparsa otomatik müzik devamı durdurulur.
 - Müzik: yalnızca müzik uygulamalarının oturumu, ilerleme çubuğu, kapağı kaydırarak şarkı geçme, ses tuşları; hiçbir şey çalmıyorken Oynat son müziği başlatır (bildirim erişimi gerekir)
 - Mesajları sesli okuma (yalnızca RideDeck ekrandayken)
 - Diğer uygulamaların üstünde hız/saat şeridi
@@ -91,12 +91,12 @@ Ayrıntılar için başlıklara dokun.
 
 ### 🚧 Bilinen sınırlamalar
 
-- **Sahada doğrulanmayanlar:** kaza algılama eşikleri (gerçek düşüşte denenmedi), gerçek SMS gönderimi ve SIM/operatör davranışı, kilit ekranı/Doze/OEM, varsayılan telefon uygulamasıyken arama ses yolu ve interkom, gidonda ısınma ve mini harita pil etkisi, Android 8–10 davranışı, 16 KB runtime, mağaza/Data safety ve sağlayıcı toplam kotası. Güncel liste: [docs/STATUS.md](STATUS.md) ve [docs/RELEASE_READINESS.md](RELEASE_READINESS.md).
+- **Sahada doğrulanmayanlar:** kaza algılama eşikleri (gerçek kazada denenmedi), gerçek SMS gönderimi ve SIM/operatör davranışı, kilit ekranı/Doze/OEM, varsayılan telefon uygulamasıyken arama ses yolu ve Bluetooth ses/eller serbest, araç içi montajda ısınma ve mini harita pil etkisi, Android 8–10 davranışı, 16 KB runtime, mağaza/Data safety ve sağlayıcı toplam kotası. Güncel liste: [docs/STATUS.md](STATUS.md) ve [docs/RELEASE_READINESS.md](RELEASE_READINESS.md).
 - **Güncel QA görüntü seti:** 43 kimliğin tamamı toplanmış olsa da bu 43 gerçek sürüş değildir: 24'ü gerçek emülatör, 16'sı bileşen fixture'ı, 3'ü izole native/probe fixture'ıdır. 03 boş source-free altlık olduğu için harita/rota/işaret görünürlüğünü, 10 ise kırpılan ikincil etiket nedeniyle tüm metinlerin taşmasız olduğunu kanıtlamaz; fixture'lar gerçek navigasyon, çağrı, SMS veya medya yolculuğu değildir.
 - Navigasyon, yer arama ve hava durumu **internet gerektirir**. Önceden indirilmiş harita alanları korunur; **yeni çevrimdışı indirmeler ve mevcut bölge devamı kapalıdır**. [OpenFreeMap koşulları](https://openfreemap.org/tos/) 17 Kasım 2026'da doğrulandı: indirme başına 3.000 karo veya 50 MB, en çok 4 paralel istek ve uygulamayı tanımlayan User-Agent. Uygulama içi sınırlama sağlayıcının tüm kullanıcılar toplamını kanıtlamadığı için mevcut SDK yolunda indirme başlatılmaz; yeni indirme ve devam **BLOCKED** kalır. Devralınan etkin bir indirme listede **Vazgeç** ile kapatılabilir; bu yeni indirme veya devam başlatmaz. SDK'nın `NATIVE_COMPLETE` durumu karo kullanılabilirliği veya sağlayıcı uyumu kanıtı değildir. Rota hesabı ve arama çevrimdışı çalışmaz. Genel servisler garantisizdir.
 - Arka plan takibi için yolculuğu uygulama görünürken başlatmak gerekir (navigasyondaki **Başlat / Yola devam** da başlatır). Kesin konum izni ve açık GPS gerekir; overlay izni gerekmez. Bildirimler reddedilmişse uygulamadan veya Android Etkin uygulamalar bölümünden durdurulur. Navigasyon yokken 3 dk hareketsizlikte, 3 dk GPS alınamadığında veya izin/depolama hatasında kapanır. Android zorla durdurduğunda kendiliğinden yeniden başlamaz; yarım kalan kayıt sonraki açılışta toparlanır.
-- Açık yolculukta navigasyon ve TTS aynı uygulama süreci içinde ekran/Activity yeniden açılışından bağımsız sürer; ara durakta Yola devam beklenebilir. Bildirimden Bitir rehberliği ve bekleyen rotayı da iptal eder. Süreç ölümü veya zorla durdurma sonrasında geçerli yerel rota geometrisi yalnız önizleme olarak geri gelir; rota kendiliğinden devam etmez. Başlat yalnız taze/hassas GPS ilk 50 m içindeyse açılır; aksi hâlde **Rotayı güncelle** açık eylemi gerekir ve bu çevrimdışı rota hesabı değildir. Çevrimdışı harita indirmesinin gerçek boyutu, süresi ve uçak modunda çizimi ile fiziksel kilit/Doze/OEM ve interkom doğrulaması henüz tamamlanmadı.
-- Canlı trafik, radar uyarısı, iOS ve Android Auto desteği yok.
+- Açık yolculukta navigasyon ve TTS aynı uygulama süreci içinde ekran/Activity yeniden açılışından bağımsız sürer; ara durakta Yola devam beklenebilir. Bildirimden Bitir rehberliği ve bekleyen rotayı da iptal eder. Süreç ölümü veya zorla durdurma sonrasında geçerli yerel rota geometrisi yalnız önizleme olarak geri gelir; rota kendiliğinden devam etmez. Başlat yalnız taze/hassas GPS ilk 50 m içindeyse açılır; aksi hâlde **Rotayı güncelle** açık eylemi gerekir ve bu çevrimdışı rota hesabı değildir. Çevrimdışı harita indirmesinin gerçek boyutu, süresi ve uçak modunda çizimi ile fiziksel kilit/Doze/OEM ve Bluetooth ses doğrulaması henüz tamamlanmadı.
+- Canlı trafik, radar uyarısı ve iOS desteği yoktur. CarPlay veya Android Auto entegrasyonu/projeksiyonu yoktur; RideDeck uyumlu herhangi bir Android telefon, tablet veya bağımsız head unit üzerinde çalışan açık kaynak bir panodur.
 - SOS/kaza algılama yardımcı bir özelliktir, güvenlik garantisi değildir; uygulama ekrandayken veya başlatılmış bir yolculuk (ön plan servisi) sürerken çalışır. Ekran kapalıyken geri sayım kilit ekranı üstünde bildirim, tam ekran bildirim ve uyandırma kilidiyle öne alınmaya çalışılır; bildirim yoksa uygulama açılmaya çalışılır (Android 10+ yalnız üstte gösterme izni varsa), FSI reddedilirse bildirim kalır ve ses/titreşim/SMS yolu sürer. Bu yollar gerçek kilitli cihazda ve OEM yazılımında doğrulanmadı.
 
 📖 Tasarım kararları ve testler: [Teknik vaka analizi](CASE-STUDY.md) · [English](CASE-STUDY.en.md)
@@ -105,7 +105,7 @@ Ayrıntılar için başlıklara dokun.
 
 ### 🔒 Gizlilik ve izinler
 
-RideDeck hesabı veya uygulamaya ait sunucu yok; yolculuk kayıtları ve ayarlar telefonda tutulur, Android yedeklemesi kapalıdır (`dataExtractionRules` ve `allowBackup=false`). Bu, konumun cihazdan hiç çıkmadığı anlamına gelmez. Çevrimiçi özellikler şu verileri dış servislere gönderir: harita karoları ve stilleri için görünen bölge (OpenFreeMap), arama metni (Nominatim, yalnızca Ara'ya basınca), rota uç noktaları ve hız limiti için son konum noktaları (Valhalla; `X-Client-Id` başlığıyla), yaklaşık konum (hava durumu için 1 km hassasiyetle, Open-Meteo), çevre veya rota koridoru boyunca benzinlik sorgusu (Nominatim / Overpass). Bu servisler istekle birlikte IP adresini de görebilir. Kayıtlı yolculuğun yeni harita görünümü açılırsa da altlık istekleri görüntülenen bölgeyi sağlayıcıya gösterebilir; kayıtlı iz dosyası dışa aktarılmaz. Sistem TTS motorunda ağ gerektiren bir ses seçilirse okunacak metin motorun sağlayıcısında işlenebilir; çevrimdışı Türkçe ses varsa başlangıçta tercih edilir. Mesajları sesli okuma isteğe bağlıdır; kilit ekranında gizli bildirim okunmaz, özel içerik yalnız uygulama içinde gösterilir.
+RideDeck hesabı veya uygulamaya ait sunucu yok; yolculuk kayıtları ve ayarlar cihazda tutulur, Android yedeklemesi kapalıdır (`dataExtractionRules` ve `allowBackup=false`). Bu, konumun cihazdan hiç çıkmadığı anlamına gelmez. Çevrimiçi özellikler şu verileri dış servislere gönderir: harita karoları ve stilleri için görünen bölge (OpenFreeMap), arama metni (Nominatim, yalnızca Ara'ya basınca), rota uç noktaları ve hız limiti için son konum noktaları (Valhalla; `X-Client-Id` başlığıyla), yaklaşık konum (hava durumu için 1 km hassasiyetle, Open-Meteo), çevre veya rota koridoru boyunca benzinlik sorgusu (Nominatim / Overpass). Bu servisler istekle birlikte IP adresini de görebilir. Kayıtlı yolculuğun yeni harita görünümü açılırsa da altlık istekleri görüntülenen bölgeyi sağlayıcıya gösterebilir; kayıtlı iz dosyası dışa aktarılmaz. Sistem TTS motorunda ağ gerektiren bir ses seçilirse okunacak metin motorun sağlayıcısında işlenebilir; çevrimdışı Türkçe ses varsa başlangıçta tercih edilir. Mesajları sesli okuma isteğe bağlıdır; kilit ekranında gizli bildirim okunmaz, özel içerik yalnız uygulama içinde gösterilir.
 
 SOS yalnızca sen açarsan çalışır ve `SEND_SMS` izni ister; kişiler telefonun kişi seçicisinden eklenir (rehber izni gerekmez). Kaza algılama uygulama ekrandayken veya başlatılmış bir yolculuk (ön plan servisi) sürerken, güncel GPS/sensör verisiyle çalışır; yolculuk başlatılmamışsa ekran kapanınca durur. Ekran kapalıyken başlayan geri sayım kilit ekranı üstünde öne alınmaya çalışılır; bildirim yoksa uygulama açılmaya çalışılır (Android 10+ yalnız üstte gösterme izni varsa), FSI reddedilirse bildirim kalır ve ses/titreşim/SMS sürer. Varsayılan SMS SIM'i seçili olmalıdır; SMS izni, SIM veya kişi yoksa hazırlık görünümü bunu söyler. Uzun metin birden çok SMS parçasına bölünebilir ve operatörün SMS ücreti uygulanabilir. Gönderim onayı alıcıya teslim onayı değildir; belirsiz sonucu yeniden göndermek aynı mesajı çoğaltabilir. Bu özellik bir güvenlik garantisi değildir; gerçek SIM/kilit ekranı doğrulanmadı.
 

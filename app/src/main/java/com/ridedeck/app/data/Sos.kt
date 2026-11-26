@@ -153,7 +153,7 @@ enum class SosAlertWarning { NOTIFICATIONS_OFF, POST_NOTIFICATIONS_DENIED, FULL_
 
 /**
  * Lock-screen visibility is a warning, not a gate: with notifications off the beep, the voice and the
- * SMS still run. The card shows every problem so the rider can fix it before a ride.
+ * SMS still run. The card shows every problem so the driver can fix it before a trip.
  */
 data class SosAlertPermissionFacts(
     val notificationsEnabled: Boolean = true,
@@ -196,11 +196,11 @@ object SosReadiness {
 }
 
 /**
- * Decides from accelerometer samples and GPS speed whether a rider has crashed:
- * a hard impact while riding, followed by the phone staying still and the motorcycle not moving. A pothole
- * (impact but the motorcycle rolls on), a hard stop (no impact) and a motorcycle knocked over while parked (never
- * riding) all stay quiet. A pothole followed by a red light looks the same by speed and shaking alone, so
- * on two wheels the alarm also needs the phone to have tipped over ([needsTilt]) or the impact to have been
+ * Decides from accelerometer samples and GPS speed whether a vehicle has crashed:
+ * a hard impact while moving, followed by the phone staying still and the vehicle not moving. A pothole
+ * (impact but the vehicle rolls on), a hard stop (no impact) and a vehicle knocked while parked (never
+ * moving) all stay quiet. A pothole followed by a red light looks the same by speed and shaking alone, so
+ * the alarm can additionally require the phone to have tipped over ([needsTilt]) or the impact to have been
  * twice the threshold; the tilt is read from the gravity direction when the caller supplies it.
  */
 class CrashDetector(
@@ -230,10 +230,10 @@ class CrashDetector(
     }
 
     /**
-     * The rider saw the alert and pressed "I am fine". The cooldown only exists so one crash cannot
+     * The driver saw the alert and pressed "I am fine". The cooldown only exists so one crash cannot
      * alert twice; keeping it would swallow a *second* real crash in the next five minutes. Clearing it
      * is safe because everything belonging to the first crash is dropped too: a new alert still needs a
-     * fresh riding-speed window and a new impact, so the same recorded samples cannot fire again.
+     * fresh moving-speed window and a new impact, so the same recorded samples cannot fire again.
      */
     fun acknowledgeCancel() {
         lastRidingAt = Long.MIN_VALUE
@@ -326,8 +326,8 @@ class CrashDetector(
     }
 
     companion object {
-        const val IMPACT_G = 4.0f
-        const val RIDING_KMH = 25
+        const val IMPACT_G = 5.0f
+        const val RIDING_KMH = 30
         const val RIDING_WINDOW_MS = 5_000L
         const val STILL_KMH = 5
         const val RESUME_KMH = 15
@@ -368,7 +368,7 @@ class SosController(
     private val message: (SosReason, String?, Boolean) -> String,
     private val tick: suspend () -> Unit = { delay(1000) },
     private val now: () -> Long = System::currentTimeMillis,
-    /** Countdown cancelled by the rider ("I am fine" on screen or in the notification). */
+    /** Countdown cancelled by the driver ("I am fine" on screen or in the notification). */
     private val onCancelled: () -> Unit = {},
 ) {
     private val _ui = MutableStateFlow(SosUi())
@@ -378,7 +378,7 @@ class SosController(
     private var closed = false
 
     fun trigger(reason: SosReason) {
-        // A finished result screen must not become a permanent latch: an unconscious rider cannot
+        // A finished result screen must not become a permanent latch: an unconscious driver cannot
         // dismiss it, and a second crash still has to start a new countdown. Only an in-progress
         // countdown or an SMS already on the wire may not be superseded.
         val phase = _ui.value.phase
@@ -428,7 +428,7 @@ class SosController(
         job?.cancel()
         runCatching { alarm.stop() }
         _ui.value = SosUi()
-        // Only a cancel the rider chose re-arms crash detection; dismiss/close must not.
+        // Only a cancel the driver chose re-arms crash detection; dismiss/close must not.
         runCatching { onCancelled() }
     }
 

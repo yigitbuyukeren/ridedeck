@@ -53,7 +53,7 @@ class ReadinessPanelUiTest {
 
     @Test fun noGlobalReadyClaimAndSosNeverPromisesDelivery() {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(640.dp, 360.dp)) {
                     ReadinessContent(readiness(), onClose = {}, onAction = {})
                 }
@@ -73,7 +73,7 @@ class ReadinessPanelUiTest {
         val configuration = Configuration(context.resources.configuration).apply { fontScale = 2f }
         val density = Density(context.createConfigurationContext(configuration))
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 CompositionLocalProvider(LocalDensity provides density) {
                     Box(Modifier.size(300.dp, 240.dp)) {
                         ReadinessContent(readiness(), onClose = { closed = true }, onAction = { action = it })
@@ -117,7 +117,7 @@ class ReadinessPanelUiTest {
             )
         )
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(640.dp, 480.dp)) {
                     ReadinessContent(readiness, onClose = {}, onAction = { action = it })
                 }
@@ -149,7 +149,7 @@ class ReadinessPanelUiTest {
             )
         )
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(640.dp, 480.dp)) {
                     ReadinessContent(readiness, onClose = {}, onAction = { action = it })
                 }

@@ -20,7 +20,7 @@ class TripRideStopConfirmUiTest {
 
     private fun render(onConfirm: () -> Unit = {}, onDismiss: () -> Unit = {}) {
         compose.setContent {
-            MotoTheme(isDay = true) {
+            DeckTheme(isDay = true) {
                 RideStopConfirmDialog(onConfirm = onConfirm, onDismiss = onDismiss)
             }
         }

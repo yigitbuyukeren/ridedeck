@@ -4,7 +4,7 @@ package com.ridedeck.app.data
  * Whether RideDeck can end the current call without pretending it did.
  *
  * Two supported paths:
- *  - a [android.telecom.Call] handed to [com.ridedeck.app.service.MotoInCallService] while the app
+ *  - a [android.telecom.Call] handed to [com.ridedeck.app.service.DeckInCallService] while the app
  *    is the default phone app, which works on every supported API; and
  *  - `TelecomManager.endCall()`, which exists from API 28 and also needs ANSWER_PHONE_CALLS.
  *

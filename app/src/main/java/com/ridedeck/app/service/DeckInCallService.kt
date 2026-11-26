@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger
 /** What the dashboard knows about calls while RideDeck is the default phone app; null state means "not managing". */
 object InCallHub {
     val state = MutableStateFlow<CallState?>(null)
-    @Volatile var service: MotoInCallService? = null
+    @Volatile var service: DeckInCallService? = null
     @Volatile var call: Call? = null
 
     fun phaseOf(callState: Int): CallPhase = TelecomCallPolicy.phase(callState)
@@ -43,7 +43,7 @@ object InCallHub {
  * Lets RideDeck carry the whole call itself instead of handing over to the phone's own call screen.
  * The system only binds this once the user has made RideDeck the default phone app.
  */
-class MotoInCallService : InCallService() {
+class DeckInCallService : InCallService() {
     @Volatile private var latestAudio: CallAudioState? = null
     private val modern = if (Build.VERSION.SDK_INT >= 34) ModernAudio() else null
     private val muteState = com.ridedeck.app.data.CallMuteState(Build.VERSION.SDK_INT >= 34)
@@ -168,7 +168,7 @@ class MotoInCallService : InCallService() {
                 requestCallEndpointChange(endpoint, mainExecutor, object : OutcomeReceiver<Void, CallEndpointException> {
                     override fun onResult(result: Void?) {}
                     override fun onError(error: CallEndpointException) {
-                        if (InCallHub.service === this@MotoInCallService) { routeRequests.failure(generation); publish() }
+                        if (InCallHub.service === this@DeckInCallService) { routeRequests.failure(generation); publish() }
                     }
                 })
             } else {
@@ -185,7 +185,7 @@ class MotoInCallService : InCallService() {
     }
 
 
-    /** The call the rider cares about: one that is ringing first, otherwise the first live one. */
+    /** The call the driver cares about: one that is ringing first, otherwise the first live one. */
     private fun publish() {
         // A queued Telecom callback can arrive after onDestroy shut the contact executor down.
         if (destroyed) return

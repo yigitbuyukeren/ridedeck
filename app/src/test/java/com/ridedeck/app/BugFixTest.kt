@@ -90,7 +90,7 @@ class BugFixTest {
         val routing = ScriptedRouting().also { it.gate = CompletableDeferred() }
         val (nav, loc) = guiding(routing)
         repeat(4) { loc.value = fix(off) }          // off the road: a new route is requested and awaited
-        nav.stopNavigation()                         // the rider presses Finish meanwhile
+        nav.stopNavigation()                         // the driver presses Finish meanwhile
         routing.gate!!.complete(Result.success(road(off)))
         assertNull(nav.ui.value.route)
         assertNull(nav.ui.value.destination)
@@ -131,12 +131,12 @@ class BugFixTest {
 
     private class Sample(val g: Float, val kmh: Int, val vec: Triple<Float, Float, Float>)
 
-    /** Rides, takes a hit, brakes to a stop and waits for 10 s with the phone lying as [rest]. */
+    /** Drives, takes a hit, brakes to a stop and waits for 10 s with the phone lying as [rest]. */
     private fun alarm(detector: CrashDetector, hit: Float, rest: Triple<Float, Float, Float>): Boolean {
         val up = Triple(0f, 0f, 1f)
         val script = ArrayList<Sample>()
-        repeat(30) { script += Sample(1f, 25, up) }
-        script += Sample(hit, 25, Triple(0.3f, 0.3f, hit))
+        repeat(30) { script += Sample(1f, 35, up) }
+        script += Sample(hit, 35, Triple(0.3f, 0.3f, hit))
         repeat(15) { script += Sample(1f, 12, up) }
         repeat(120) { script += Sample(1f, 0, rest) }
         var t = 0L
@@ -147,31 +147,34 @@ class BugFixTest {
         return false
     }
 
-    private fun twoWheels() = VehicleProfile.MOTORCYCLE.config.let { c -> CrashDetector({ c.crashImpactG }, { c.crashMovingKmh }, { c.crashNeedsTilt }) }
+    /** Tilt-sensitive detector with the profile thresholds: the fall-over rule is tested explicitly. */
+    private fun tiltSensitive() = VehicleProfile.AUTO.config.let { c ->
+        CrashDetector({ c.crashImpactG }, { c.crashMovingKmh }, { true })
+    }
 
     @Test
     fun aPotholeFollowedByARedLightIsNotACrash() {
-        assertFalse(alarm(twoWheels(), hit = 4.5f, rest = Triple(0f, 0f, 1f)))
+        assertFalse(alarm(tiltSensitive(), hit = 5.5f, rest = Triple(0f, 0f, 1f)))
     }
 
     @Test
     fun aHitThatLeavesThePhoneTippedOverIsACrash() {
-        assertTrue(alarm(twoWheels(), hit = 4.5f, rest = Triple(1f, 0f, 0f)))
+        assertTrue(alarm(tiltSensitive(), hit = 5.5f, rest = Triple(1f, 0f, 0f)))
     }
 
     @Test
     fun aHitTwiceTheThresholdIsACrashEvenIfThePhoneStayedUpright() {
-        assertTrue(alarm(twoWheels(), hit = 8.5f, rest = Triple(0f, 0f, 1f)))
+        assertTrue(alarm(tiltSensitive(), hit = 10.5f, rest = Triple(0f, 0f, 1f)))
     }
 
     @Test
-    fun missingTiltEvidenceDoesNotConfirmAnOrdinaryTwoWheelImpact() {
-        val d = twoWheels()
+    fun missingTiltEvidenceDoesNotConfirmAnOrdinaryImpact() {
+        val d = tiltSensitive()
         var t = 0L
         var fired = false
         fun feed(g: Float, kmh: Int) { if (d.onSample(t, g, kmh)) fired = true; t += 100 }
         repeat(30) { feed(1f, 30) }
-        feed(4.5f, 30)
+        feed(5.5f, 30)
         repeat(15) { feed(1f, 10) }
         repeat(120) { feed(1f, 0) }
         assertFalse(fired)
@@ -197,7 +200,7 @@ class BugFixTest {
     }
 
     @Test
-    fun theMotorcycleNeedsAFallToCountACrash() {
-        assertTrue(VehicleProfile.MOTORCYCLE.config.crashNeedsTilt)
+    fun theGeneralVehicleProfileDoesNotRequireATilt() {
+        assertFalse(VehicleProfile.AUTO.config.crashNeedsTilt)
     }
 }

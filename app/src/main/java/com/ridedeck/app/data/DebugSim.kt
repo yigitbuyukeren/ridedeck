@@ -1,6 +1,6 @@
 package com.ridedeck.app.data
 
-/** Debug builds only: replays a planned route as GPS fixes so guidance can be watched without riding. */
+/** Debug builds only: replays a planned route as GPS fixes so guidance can be watched without driving. */
 object DebugSim {
     /** Set by the ride session; null when nothing can simulate. */
     var hook: ((Route, Int) -> Unit)? = null

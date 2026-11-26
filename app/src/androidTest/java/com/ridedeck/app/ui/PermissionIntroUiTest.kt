@@ -35,7 +35,7 @@ class PermissionIntroUiTest {
             onAction = { action++ },
         )
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(640.dp, 360.dp)) { PermissionIntro(row, onClose = { closed++ }) }
             }
         }
@@ -67,7 +67,7 @@ class PermissionIntroUiTest {
             onAction = { action++ },
         )
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 val density = LocalDensity.current
                 CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
                     Box(Modifier.size(600.dp, 320.dp)) { PermissionIntro(row, onClose = { closed++ }) }
@@ -96,7 +96,7 @@ class PermissionIntroUiTest {
             onAction = {},
         )
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 val density = LocalDensity.current
                 CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
                     Box(Modifier.size(600.dp, 320.dp)) {
@@ -129,7 +129,7 @@ class PermissionIntroUiTest {
             onAction = {},
         )
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(640.dp, 360.dp)) { PermissionIntro(row, onClose = {}) }
             }
         }

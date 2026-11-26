@@ -70,7 +70,7 @@ fun NavCard(
 ) {
     val shape = RoundedCornerShape(28.dp)
     // The card's static map tile follows the dashboard palette; the live mini map gets isDay below.
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val maneuver = nav.route?.maneuvers?.getOrNull(nav.maneuverIndex)
     // Keep the nullable maneuver itself as the smart-cast source; deriving a Boolean separate
     // from the value made the later null check look redundant to the compiler.
@@ -198,7 +198,7 @@ internal fun NavProgressRow(distance: String, arrival: String, modifier: Modifie
     ) {
         Text(distance, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
         Text("·", fontSize = 18.sp, color = Color(0x99FFFFFF))
-        Text(arrival, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MotoColors.Green, maxLines = 1)
+        Text(arrival, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeckColors.Green, maxLines = 1)
     }
 }
 
@@ -281,9 +281,9 @@ internal fun ManeuverRow(
 
 @Composable
 private fun WeatherChip(weather: WeatherSnapshot, modifier: Modifier = Modifier) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     // Cyan is reserved for the night chip; on the light day cardHigh it is too low-contrast.
-    val tint = if (weather.iceRisk && !palette.isDay) MotoColors.Cyan else palette.text
+    val tint = if (weather.iceRisk && !palette.isDay) DeckColors.Cyan else palette.text
     Row(
         modifier = modifier.clip(RoundedCornerShape(16.dp))
             .background(if (palette.isDay) palette.cardHigh else Color(0xCC0B1118))
@@ -318,9 +318,9 @@ private fun MapBackdrop(day: Boolean) {
             lineTo(w * 0.7f, h * 0.5f)
             lineTo(w * 0.7f, h * 0.2f)
         }
-        drawPath(route, MotoColors.Blue, style = Stroke(9.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(route, DeckColors.Blue, style = Stroke(9.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
         drawCircle(Color.White, 13.dp.toPx(), Offset(w * 0.5f, h * 0.62f))
-        drawCircle(MotoColors.Blue, 9.dp.toPx(), Offset(w * 0.5f, h * 0.62f))
-        drawCircle(MotoColors.Red, 8.dp.toPx(), Offset(w * 0.7f, h * 0.2f))
+        drawCircle(DeckColors.Blue, 9.dp.toPx(), Offset(w * 0.5f, h * 0.62f))
+        drawCircle(DeckColors.Red, 8.dp.toPx(), Offset(w * 0.7f, h * 0.2f))
     }
 }

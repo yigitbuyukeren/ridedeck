@@ -1,14 +1,14 @@
 package com.ridedeck.app.data
 
 /**
- * Keeps the drawn position marker on the road while the rider is actually on it: the smoothed fix is
+ * Keeps the drawn position marker on the road while the driver is actually on it: the smoothed fix is
  * projected onto the nearby route polyline, so a few metres of GPS noise no longer put the arrow
  * beside the line.
  *
  * This is display-only. Guidance, off-route detection and re-routing keep using the raw fix, and the
  * route progress split is not advanced by it. The marker is pulled onto the line only when the fix is
  * genuinely close and its heading agrees with that stretch of road; a real deviation or turn-off is
- * left where the GPS says, so the rider can see it.
+ * left where the GPS says, so the driver can see it.
  */
 class RouteSnap {
     private var snapped = false
@@ -61,7 +61,7 @@ class RouteSnap {
             var score = proj.distanceM
             if (bearing != null && speedMps >= MIN_HEADING_SPEED_MPS && segmentEndM - cumulative[i] > 3.0) {
                 val diff = RouteMatcher.angleBetween(Geo.bearing(shape[i], shape[i + 1]), bearing)
-                // Heading across the road: the rider has turned off, however close the fix still is.
+                // Heading across the road: the driver has turned off, however close the fix still is.
                 if (diff > MAX_ANGLE_DEG) continue
                 score += diff / 90.0
             }

@@ -1,6 +1,8 @@
 RideDeck
 Copyright 2026 Yiğit Eren Büyükeren
 
+RideDeck, CarPlay/Android Auto'dan ilham alan bağımsız bir Android araç içi sürüş panelidir; CarPlay veya Android Auto ile entegre değildir.
+
 Bu ürün Apache License 2.0 altında lisanslanmıştır (bkz. LICENSE). Uygulamanın kendi kaynak kodu bu lisansla sunulur; aşağıdaki üçüncü taraf bileşenler ve veriler kendi lisanslarına ve hizmet koşullarına tabidir.
 
 ## Üçüncü taraf yazılım bileşenleri

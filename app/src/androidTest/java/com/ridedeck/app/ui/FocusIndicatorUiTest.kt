@@ -51,7 +51,7 @@ class FocusIndicatorUiTest {
     @Test
     fun focusedPillButtonShowsNightPaletteRing() {
         renderWithConverterFont2 {
-            MotoTheme(isDay = false) {
+            DeckTheme(isDay = false) {
                 Row {
                     PillButton(
                         text = "Focus",
@@ -82,7 +82,7 @@ class FocusIndicatorUiTest {
     @Test
     fun focusedPillButtonShowsDayPaletteRing() {
         renderWithConverterFont2 {
-            MotoTheme(isDay = true) {
+            DeckTheme(isDay = true) {
                 Row {
                     PillButton(
                         text = "Focus",
@@ -115,7 +115,7 @@ class FocusIndicatorUiTest {
     @Test
     fun focusedPressKeyAlsoShowsRing() {
         renderWithConverterFont2 {
-            MotoTheme(isDay = false) {
+            DeckTheme(isDay = false) {
                 Box(
                     Modifier.size(120.dp).background(Color.Black)
                         .testTag(KEY)
@@ -137,7 +137,7 @@ class FocusIndicatorUiTest {
     fun hapticClickableKeepsSingleClickAction() {
         var clicks = 0
         renderWithConverterFont2 {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(160.dp).testTag(HAPTIC_CLICK).hapticClickable { clicks++ })
             }
         }
@@ -149,7 +149,7 @@ class FocusIndicatorUiTest {
     @Test
     fun focusedHapticClickableAlsoShowsRing() {
         renderWithConverterFont2 {
-            MotoTheme(isDay = false) {
+            DeckTheme(isDay = false) {
                 Box(
                     Modifier.size(160.dp).background(Color.Black)
                         .testTag(HAPTIC)
@@ -172,7 +172,7 @@ class FocusIndicatorUiTest {
     fun tabMovesFocusBetweenPressTargetsWithoutClicking() {
         var clicks = 0
         renderWithConverterFont2 {
-            MotoTheme {
+            DeckTheme {
                 Column {
                     Box(Modifier.size(120.dp).testTag(FIRST).pressClickable(onClick = { clicks++ }))
                     Box(Modifier.size(120.dp).testTag(SECOND).pressClickable(onClick = { clicks++ }))
@@ -195,7 +195,7 @@ class FocusIndicatorUiTest {
     fun dpadRightMovesFocusBetweenPressTargetsWithoutClicking() {
         var clicks = 0
         renderWithConverterFont2 {
-            MotoTheme {
+            DeckTheme {
                 Row {
                     Box(Modifier.size(120.dp).testTag(FIRST).pressClickable(onClick = { clicks++ }))
                     Box(Modifier.size(120.dp).testTag(SECOND).pressClickable(onClick = { clicks++ }))
@@ -223,7 +223,7 @@ class FocusIndicatorUiTest {
             }
         }
         renderWithConverterFont2 {
-            MotoTheme {
+            DeckTheme {
                 CompositionLocalProvider(LocalHapticFeedback provides feedback) {
                     Box(Modifier.size(120.dp).testTag(FOCUS_ONLY).pressClickable { clicks++ })
                 }
@@ -243,7 +243,7 @@ class FocusIndicatorUiTest {
     fun disabledPressTargetStaysDisabledAndDoesNotClick() {
         var clicks = 0
         renderWithConverterFont2 {
-            MotoTheme {
+            DeckTheme {
                 Box(Modifier.size(120.dp).testTag(DISABLED).pressClickable(enabled = false) { clicks++ })
             }
         }

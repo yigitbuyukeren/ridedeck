@@ -44,7 +44,7 @@ class TripStatFitUiTest {
 
     private fun render(fontScale: Float, width: Dp, height: Dp? = null, content: @Composable () -> Unit) {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 val density = LocalDensity.current
                 CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
                     Box(Modifier.width(width).then(if (height == null) Modifier else Modifier.height(height))) {
@@ -57,7 +57,7 @@ class TripStatFitUiTest {
 
     private fun renderWithDensity(density: Density, width: Dp, height: Dp? = null, content: @Composable () -> Unit) {
         compose.setContent {
-            MotoTheme {
+            DeckTheme {
                 CompositionLocalProvider(LocalDensity provides density) {
                     Box(Modifier.width(width).then(if (height == null) Modifier else Modifier.height(height))) {
                         content()

@@ -1,12 +1,12 @@
 name: Belge veya çeviri
-description: Belge, README veya çeviri hatası ve yeni dil önerisi.
+description: Belge veya çeviri hatası ve yeni dil önerisi.
 title: "[Belge]: "
 labels: ["documentation"]
 body:
   - type: markdown
     attributes:
       value: |
-        Belge, README ve çeviri bildirimleri için bu formu kullan. Kod hatası için **Hata bildirimi**, güvenlik açığı için [SECURITY.md](https://github.com/yigitbuyukeren/ridedeck/blob/main/SECURITY.md) yolunu kullan.
+        Belge ve çeviri bildirimleri için bu formu kullan. Kod hatası için **Hata bildirimi**, güvenlik açığı için [SECURITY.md](https://github.com/yigitbuyukeren/ridedeck/blob/main/SECURITY.md) yolunu kullan.
 
         Lütfen kişisel veri, gerçek konum veya telefon numarası paylaşma.
   - type: dropdown
@@ -17,7 +17,7 @@ body:
         - "Belge hatası (yanlış bilgi, yazım veya bozuk bağlantı)"
         - "Eksik bilgi veya adım"
         - "Yeni dil çevirisi"
-        - "README / İngilizce metin"
+        - "İngilizce metin"
         - "Diğer"
     validations:
       required: true
@@ -26,7 +26,7 @@ body:
     attributes:
       label: Sayfa veya bağlantı
       description: Dosya yolu veya tam URL.
-      placeholder: "Örn. README.md, CONTRIBUTING.md veya docs/STATUS.md#..."
+      placeholder: "Örn. docs/FEATURES-REFERENCE.md, CONTRIBUTING.md veya docs/STATUS.md#..."
     validations:
       required: true
   - type: textarea

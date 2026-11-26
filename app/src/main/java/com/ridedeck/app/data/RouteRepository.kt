@@ -94,7 +94,7 @@ data class Route(
         abs(distanceM - other.distanceM) < distanceM * 0.01 && Geo.distance(shape[shape.size / 2], other.shape[other.shape.size / 2]) < 50.0
 
     /**
-     * Seconds still to ride when [travelledM] metres are done, from the manoeuvre times Valhalla gave (the share of the
+     * Seconds still to drive when [travelledM] metres are done, from the manoeuvre times Valhalla gave (the share of the
      * current stretch left plus every later stretch); proportional to the distance when it gave none.
      */
     fun remainingTimeS(travelledM: Double): Double {
@@ -119,7 +119,7 @@ data class Route(
 }
 
 /**
- * What the rider wants to avoid. Everything off leaves Valhalla's own motorcycle defaults untouched.
+ * What the driver wants to avoid. Everything off leaves Valhalla's own general-vehicle defaults untouched.
  */
 data class RouteOptions(
     val avoidHighways: Boolean = false,
@@ -131,14 +131,14 @@ data class RouteOptions(
         if (avoidHighways) options.put("use_highways", 0)
         if (avoidTolls) options.put("use_tolls", 0)
         if (options.length() == 0) return null
-        return JSONObject().put(VehicleProfile.MOTORCYCLE.config.costing, options)
+        return JSONObject().put(VehicleProfile.AUTO.config.costing, options)
     }
 }
 
 interface Routing {
     suspend fun route(from: GeoPoint, to: GeoPoint, options: RouteOptions): Result<Route>
 
-    /** Like [route], telling the service which way the rider is already heading so the route does not begin with a U-turn. */
+    /** Like [route], telling the service which way the driver is already heading so the route does not begin with a U-turn. */
     suspend fun route(from: GeoPoint, to: GeoPoint, options: RouteOptions, headingDeg: Double?): Result<Route> = route(from, to, options)
     suspend fun search(query: String, near: GeoPoint?): Result<List<Place>>
 
@@ -148,7 +148,7 @@ interface Routing {
     /** One route through [points] (start, intermediate stops, destination); the default ignores the stops. */
     suspend fun routeVia(points: List<GeoPoint>, options: RouteOptions): Result<Route> = route(points.first(), points.last(), options)
 
-    /** [routeVia] with the rider's heading at the start. */
+    /** [routeVia] with the driver's heading at the start. */
     suspend fun routeVia(points: List<GeoPoint>, options: RouteOptions, headingDeg: Double?): Result<Route> = routeVia(points, options)
 
     /** Other routes to the same place (best first), for "another route"; empty when the service has none. */
@@ -179,10 +179,10 @@ private const val METRES_PER_MILE = 1609.344
 /** Identifying header requested by the public Valhalla demo server; not a credential. */
 internal val VALHALLA_HEADERS: Map<String, String> = mapOf("X-Client-Id" to Http.VALHALLA_CLIENT_ID)
 
-/** Valhalla (OSM) motorcycle routing and Nominatim geocoding, both public no-key services. */
+/** Valhalla (OSM) general vehicle routing and Nominatim geocoding, both public no-key services. */
 class RouteRepository(
     private val http: ServiceHttp = ProviderHttp,
-    /** Spoken and written route texts follow the rider's unit choice; lengths are converted back to metres. */
+    /** Spoken and written route texts follow the driver's unit choice; lengths are converted back to metres. */
     private val miles: () -> Boolean = { false },
     /** App-scoped language tag; the owner updates it when Android's app language changes. */
     private val language: () -> String = { GuidanceLanguage.current() },
@@ -231,7 +231,7 @@ class RouteRepository(
     private fun requestBody(from: GeoPoint, to: GeoPoint, options: RouteOptions, useMiles: Boolean, alternates: Int): JSONObject =
         requestBody(listOf(from, to), options, useMiles, alternates, null)
 
-    /** The start carries the rider's heading (±[HEADING_TOLERANCE_DEG]) when known, so the first instruction is not a U-turn. */
+    /** The start carries the driver's heading (±[HEADING_TOLERANCE_DEG]) when known, so the first instruction is not a U-turn. */
     internal fun requestBody(points: List<GeoPoint>, options: RouteOptions, useMiles: Boolean, alternates: Int, headingDeg: Double?): JSONObject {
         val body = JSONObject()
             .put("locations", JSONArray().also { arr ->
@@ -243,7 +243,7 @@ class RouteRepository(
                     arr.put(loc)
                 }
             })
-            .put("costing", VehicleProfile.MOTORCYCLE.config.costing)
+            .put("costing", VehicleProfile.AUTO.config.costing)
             .put("directions_options", JSONObject().put("language", language()).put("units", if (useMiles) "miles" else "kilometers"))
         if (alternates > 0) body.put("alternates", alternates)
         options.costingOptions()?.let { body.put("costing_options", it) }
@@ -269,7 +269,7 @@ class RouteRepository(
                 "&q=${URLEncoder.encode(query, "UTF-8")}"
             if (near == null) return@safely parsePlaces(http.get(base))
             val view = "&viewbox=${near.lon - 1.0},${near.lat + 1.0},${near.lon + 1.0},${near.lat - 1.0}"
-            // Places around the rider first; the whole country only when nothing is near (one request per second at most).
+            // Places around the driver first; the whole country only when nothing is near (one request per second at most).
             val nearby = parsePlaces(http.get("$base$view&bounded=1"))
             if (nearby.isNotEmpty()) return@safely nearby
             delay(SEARCH_GAP_MS)

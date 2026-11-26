@@ -28,14 +28,14 @@ class IncomingCallNotificationTest {
 
         val notification = IncomingCallNotification.build(
             context = context,
-            caller = "Test Rider",
+            caller = "Test Driver",
             contentIntent = open,
             fullScreenIntent = null,
         )
 
         assertSame(open, notification.contentIntent)
         assertNull(notification.fullScreenIntent)
-        assertEquals("Test Rider", notification.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString())
+        assertEquals("Test Driver", notification.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString())
     }
 
     @Test

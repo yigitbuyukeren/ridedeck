@@ -68,7 +68,7 @@ fun MediaCard(
     onResumeLast: () -> Unit = { media.resumeLast() },
     modifier: Modifier = Modifier,
 ) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     val tint = rememberMediaTint(state, palette)
     Box(
         modifier = modifier
@@ -103,7 +103,7 @@ fun MediaCard(
                     val coverScale by animateFloatAsState(if (state.playing) 1f else 0.92f, spring(stiffness = Spring.StiffnessLow), label = "cover")
                     Box(
                         modifier = Modifier.size(68.dp).graphicsLayer { scaleX = coverScale; scaleY = coverScale }
-                            .clip(RoundedCornerShape(16.dp)).background(MotoColors.CardHigh),
+                            .clip(RoundedCornerShape(16.dp)).background(DeckColors.CardHigh),
                         contentAlignment = Alignment.Center,
                     ) {
                         TrackCover(state.title, state.artist, state.art, state.artIsPlaceholder, { media.skipDirection }, 34.dp)
@@ -170,18 +170,18 @@ private fun ControlButton(
             .pressClickable(haptic = haptic, onClick = onClick)
             .size(size.dp)
             .clip(CircleShape)
-            .background(if (filled) LocalMotoPalette.current.strong else if (soft) LocalMotoPalette.current.track else Color.Transparent),
+            .background(if (filled) LocalDeckPalette.current.strong else if (soft) LocalDeckPalette.current.track else Color.Transparent),
         contentAlignment = Alignment.Center,
     ) {
         Crossfade(icon, animationSpec = tween(200), label = "icon") { shown ->
-            Icon(shown, description, tint = if (filled) LocalMotoPalette.current.onStrong else LocalMotoPalette.current.text, modifier = Modifier.size((size * 0.62f).dp))
+            Icon(shown, description, tint = if (filled) LocalDeckPalette.current.onStrong else LocalDeckPalette.current.text, modifier = Modifier.size((size * 0.62f).dp))
         }
     }
 }
 
 @Composable
 private fun Prompt(text: String, hint: String?, button: String, onClick: () -> Unit) {
-    val palette = LocalMotoPalette.current
+    val palette = LocalDeckPalette.current
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -208,7 +208,7 @@ private fun Prompt(text: String, hint: String?, button: String, onClick: () -> U
         }
         Spacer(Modifier.size(8.dp))
         PillButton(
-            button, MotoColors.Blue, onClick,
+            button, DeckColors.Blue, onClick,
             horizontalPadding = 20.dp, minHeight = 72.dp,
             fontSize = cappedSp(20f, maxScale = 1.25f), singleLine = true,
         )
@@ -219,7 +219,7 @@ private fun Prompt(text: String, hint: String?, button: String, onClick: () -> U
 private val CARD_FULL_CONTROLS_WIDTH = 328.dp
 
 /** Album-art tint for the media cards: a dark swatch at night, a light one by day. */
-internal fun mediaTint(art: android.graphics.Bitmap?, palette: MotoPalette): Color {
+internal fun mediaTint(art: android.graphics.Bitmap?, palette: DeckPalette): Color {
     val fallback = palette.card
     val bmp = art ?: return fallback
     val swatch = Palette.from(bmp).generate()
