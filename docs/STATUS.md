@@ -4,15 +4,33 @@ Güncel kurallar kökteki `AGENTS.md`, saha/yayın kapıları [RELEASE_READINESS
 
 > **Kanıt yolları:** Metindeki `/tmp/...` yolları yerel kanıt dosyalarıdır; repoda yer almaz.
 
-**Son güncelleme:** 2026-11-18
+**Son güncelleme:** 2026-11-26
 
 ## Güncel özet
 
-- **Sürüm ve yayın:** `versionName 0.7.0`, `versionCode 8` (`app/build.gradle.kts`); imzalı `v0.7.0` kararlı (prerelease değil) GitHub sürümü 2026-11-18'de yayımlandı. Release imzası 2026-11-08'de yenilendi (`0.5.0`'dan geçiş için kaldırıp kurma gerekir).
-- **Son doğrulama (18 Kasım 2026):** Debug + release JVM **848/848** (0 hata, 0 atlama), lint **0 hata** (debug 105 / release 104 uyarı, 3'er öneri), x86_64 API 35 instrumentation **209 testte 208 PASS + 1 atlandı** (atlanan izin testi ayrı **1/1 PASS**), 16 KB statik ELF/ZIP kontrolü **PASS**.
+- **Sürüm ve yayın:** `versionName 0.7.1`, `versionCode 9` (`app/build.gradle.kts`); imzalı `v0.7.1` kararlı (prerelease değil) GitHub sürümü 2026-11-26'da yayımlandı. Release imzası `0.6.x`/`0.7.0` ile aynıdır (`0.5.0`'dan geçiş için kaldırıp kurma gerekir).
+- **Son doğrulama (26 Kasım 2026):** Debug + release JVM **848/848** (toplam 1.696; 0 hata, 0 atlama), lint **0 hata** (debug 105 / release 104 uyarı, 3'er öneri), 16 KB statik ELF/ZIP, ARM-only ABI/AAB, v2 imza ve fastlane metadata **PASS**. Yerel emülatör instrumentation bu turda yeniden çalıştırılmadı (`v0.7.1` etiketi uzak Full CI instrumentation işini tetikler; son tam yerel instrumentation `v0.7.0` / 18 Kasım 2026: **209 testte 208 PASS + 1 atlandı**, izin testi ayrı **1/1 PASS**).
 - **Ürün kapsamı:** Yalnız motosiklet içindir (araç seçimi yok; eski araç/asistan/widget verisi göç kodu kaldırıldı). Ayarlar 6 bölüme ayrılmıştır (Genel, Görünüm, Harita, Ses ve bildirimler, Güvenlik, İzinler ve sistem).
 - **Çevrimdışı harita:** Yeni çevrimdışı indirmeler sağlayıcı uyumluluğu doğrulanana kadar durduruldu; önceden indirilmiş alanlar korunur.
 - **Açık kapılar:** Fiziksel cihaz, gerçek sürüş/GPS, gerçek SMS/arama/interkom, Doze/OEM, fiziksel kilit ekranı, 16 KB runtime, mağaza/Data safety ve sağlayıcı toplam kotası **UNVERIFIED/OPEN**; kamuya açık 1.0 kararı **NO-GO**.
+
+## 2026-11-26 — v0.7.1 harita/navigasyon hizalama ve kontrast düzeltmeleri
+
+**Kapsam:** `v0.7.0` sonrasında yapılan harita konum oku hizalaması (`RouteSnap` 35 m ileri yol yönü, `SmoothFollow` ve `MiniMap` akıcı takip), karanlık harita kontrastı (`MapScreen`), yatay ekran kesiği (`displayCutout`) kenar boşlukları (`SymmetricInsets`) ve navigasyon kartı görünürlüğü (`NavCard`) iyileştirmeleri `0.7.1` / `versionCode 9` olarak yayımlandı.
+
+**Testler:**
+
+| Kontrol | Sonuç |
+|---|---|
+| Debug + release JVM | Her varyantta **848/848 PASS** (toplam 1.696), 0 hata, 0 atlama |
+| Lint | **0 hata**; debug **105**, release **104** uyarı, 3'er öneri |
+| 16 KB ELF / zipalign / ABI / AAB | **PASS** (release ARM-only, test probe sızıntısı yok, `app-release.aab` üretildi) |
+| Fastlane metadata | **PASS** (`en-US` ve `tr-TR`, `changelogs/9.txt`) |
+| Emülatör instrumentation | Yerelde yeniden çalıştırılmadı; `v0.7.1` etiketi GitHub Full CI emülatör koşusunu tetikler |
+
+**Yayın:** `RideDeck-0.7.1.apk` aynı v2 imza sertifikasıyla imzalandı; sertifika SHA-256 `9d9164ef8c679f2909e2a851d1327839c684cad238ca0932488a9f8d0f622427`, APK SHA-256 `6922b84fe938c28649d429eb2dbd8dc7ed60443c48d1ba4f64ab9afa1300c1fa`.
+
+**UNVERIFIED:** Gerçek TTS sesinin kulakla TR/EN doğrulanması, fiziksel cihaz/gerçek sürüş/GPS, gerçek SMS/arama/interkom, Doze/OEM ve kilit ekranı, 16 KB runtime, mağaza/Data safety ve sağlayıcı toplam kotası.
 
 ## 2026-11-18 — v0.7.0 çalışma zamanı dil geçişi
 

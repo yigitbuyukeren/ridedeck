@@ -1,0 +1,6 @@
+# v0.7.1 (versionCode 9)
+- Navigasyon konum oku, hem tam haritada hem panel mini haritasında önündeki yol segmentine daha akıcı şekilde hizalandı.
+- Karanlık harita kontrastı, rota katmanları ve navigasyon kartı görünürlüğü iyileştirildi.
+- Yatay kenar boşlukları yalnızca fiziksel ekran kesiklerini (cutout) koruyacak şekilde düzenlendi; gizli sistem çubukları için gereksiz yan boşluk kaldırıldı.
+- Navigasyon kartındaki manevra alanı sınırlandırılarak canlı konum işaretçisinin görünür kalması sağlandı.
+- Gerçek TTS sesi, fiziksel cihaz, gerçek sürüş, SMS/arama ve kaza algılama eşikleri doğrulanmadı; bu bir 1.0 sürümü değildir.

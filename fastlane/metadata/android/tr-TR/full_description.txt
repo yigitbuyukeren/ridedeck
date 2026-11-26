@@ -18,7 +18,7 @@ YOLCULUK, SOS VE GİZLİLİK
 - Harita karoları, arama metni, rota uç noktaları, hava durumu için yaklaşık konum ve benzinlik sorguları üçüncü taraf sağlayıcılara gönderilir; bu sağlayıcılar IP adresini görebilir.
 
 DURUM VE SINIRLAR
-- v0.7.0 kararlı bir sürümdür, ancak proje henüz 1.0 ürünü değildir. Gerçek cihaz ve gerçek sürüş doğrulaması, gerçek SMS/arama, kilit ekranı/üretici yazılımı davranışları ve kaza algılama eşikleri doğrulanmamıştır.
+- v0.7.1 kararlı bir sürümdür, ancak proje henüz 1.0 ürünü değildir. Gerçek cihaz ve gerçek sürüş doğrulaması, gerçek SMS/arama, kilit ekranı/üretici yazılımı davranışları ve kaza algılama eşikleri doğrulanmamıştır.
 - Canlı trafik, radar uyarısı veya CarPlay/Android Auto entegrasyonu yoktur. Android 8.0+ (API 26).
 
 Mağaza ekran görüntüleri Android emülatöründe sentetik/simüle edilmiş GPS (synthetic/simulated GPS) ile alınmıştır; gerçek sürüş değildir.

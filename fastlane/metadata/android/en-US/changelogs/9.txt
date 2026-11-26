@@ -1,0 +1,6 @@
+# v0.7.1 (versionCode 9)
+- Aligned the navigation position arrow along the upcoming road segment with smoother follow behavior on both the full map and dashboard mini-map.
+- Improved dark map contrast and visibility for route layers and navigation cards.
+- Refined landscape side insets to clear physical display cutouts without reserving dead space for hidden immersive system bars.
+- Kept the navigation card maneuver area bounded so the live position marker remains unobstructed during turn-by-turn guidance.
+- Real TTS audio, physical devices, real riding, SMS/calls and crash-detection thresholds remain unverified; this is not a 1.0 release.

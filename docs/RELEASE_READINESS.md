@@ -2,7 +2,15 @@
 
 > **Kanıt yolları:** Metindeki `/tmp/...` yolları yerel kanıt dosyalarıdır; repoda yer almaz.
 
-> **Güncel durum (2026-11-18):** Ürün sürümü `0.7.0` / `versionCode 8`; imzalı `v0.7.0` kararlı APK'sı `prerelease=false` olarak yayımlandı. 1.0 sürümü, etiketi veya mağaza yayını yoktur. Önceki `0.4.0–0.6.1-beta.1` test sayıları tarihseldir.
+> **Güncel durum (2026-11-26):** Ürün sürümü `0.7.1` / `versionCode 9`; imzalı `v0.7.1` kararlı APK'sı `prerelease=false` olarak yayımlandı. 1.0 sürümü, etiketi veya mağaza yayını yoktur. Önceki `0.4.0–0.7.0` test sayıları tarihseldir.
+
+## 26 Kasım 2026 — v0.7.1 doğrulama sonuçları
+
+- **Debug + release JVM birim testleri:** Her varyantta **848/848 PASS** (toplam 1.696), 0 hata, 0 atlama.
+- **Lint:** **0 hata**; debug **105**, release **104** uyarı, 3'er öneri; uyarılar bastırılmadı.
+- **Release APK ve AAB:** ARM-only, v2 imzalı; sertifika SHA-256 `9d9164ef8c679f2909e2a851d1327839c684cad238ca0932488a9f8d0f622427`; APK SHA-256 `6922b84fe938c28649d429eb2dbd8dc7ed60443c48d1ba4f64ab9afa1300c1fa`; `zipalign -c -P 16 4`, 16 KB ELF LOAD ve fastlane metadata **PASS**.
+- **Instrumentation:** Bu turda yerelde yeniden çalıştırılmadı; `v0.7.1` etiketi uzak Full CI x86_64 API 35 emülatör koşusunu tetikler (son tam yerel koşu `v0.7.0` / 18 Kasım 2026: **208 PASS + 1 atlandı**, izin testi ayrı **1/1 PASS**).
+- **Bilinen sınırlama:** Gerçek TTS ses çıkışı, fiziksel cihaz, gerçek sürüş/SMS/interkom, Doze/OEM, fiziksel kilit ekranı ve 16 KB runtime **UNVERIFIED**.
 
 ## 18 Kasım 2026 — v0.7.0 doğrulama sonuçları
 
