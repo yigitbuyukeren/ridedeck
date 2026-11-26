@@ -65,8 +65,8 @@ fun MediaCard(
     media: MediaRepository,
     onGrantAccess: () -> Unit,
     onOpenNowPlaying: () -> Unit,
-    onResumeLast: () -> Unit = { media.resumeLast() },
     modifier: Modifier = Modifier,
+    onResumeLast: () -> Unit = { media.resumeLast() },
 ) {
     val palette = LocalDeckPalette.current
     val tint = rememberMediaTint(state, palette)

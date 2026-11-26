@@ -158,7 +158,7 @@ class CachedRouteUiTest {
     )
 
     private @Composable
-    fun card(
+    fun CachedRouteCard(
         ui: NavUi,
         onRefresh: () -> Unit,
         onStart: () -> Unit,
@@ -184,7 +184,7 @@ class CachedRouteUiTest {
         var starts = 0
         renderAt(600.dp, 320.dp) {
             Column(Modifier.fillMaxSize().padding(14.dp)) {
-                card(cachedUi(blocked = true, choices = listOf(route, route.copy(distanceM = 2_100.0))), { refreshes++ }, { starts++ })
+                CachedRouteCard(cachedUi(blocked = true, choices = listOf(route, route.copy(distanceM = 2_100.0))), { refreshes++ }, { starts++ })
             }
         }
         val cardBounds = compose.onNodeWithTag("map-route-card").getUnclippedBoundsInRoot()
@@ -240,7 +240,7 @@ class CachedRouteUiTest {
         val coverage = mutableStateOf(CachedRouteMapCoverage.UNKNOWN)
         renderAt(600.dp, 320.dp) {
             Column(Modifier.fillMaxSize().padding(14.dp)) {
-                card(cachedUi(blocked = true, coverage = coverage.value), {}, {})
+                CachedRouteCard(cachedUi(blocked = true, coverage = coverage.value), {}, {})
             }
         }
         val cardBounds = compose.onNodeWithTag("map-route-card").getUnclippedBoundsInRoot()
@@ -257,7 +257,7 @@ class CachedRouteUiTest {
         var refreshes = 0
         renderAt(600.dp, 320.dp) {
             Column(Modifier.fillMaxSize().padding(14.dp)) {
-                card(cachedUi(loading = true), { refreshes++ }, {})
+                CachedRouteCard(cachedUi(loading = true), { refreshes++ }, {})
             }
         }
         compose.onNodeWithTag("cached-route-refresh").assertDoesNotExist()
@@ -277,7 +277,7 @@ class CachedRouteUiTest {
         var refreshes = 0
         renderAt(600.dp, 320.dp) {
             Column(Modifier.fillMaxSize().padding(14.dp)) {
-                card(cachedUi(failed = true), { refreshes++ }, {})
+                CachedRouteCard(cachedUi(failed = true), { refreshes++ }, {})
             }
         }
         val cardBounds = compose.onNodeWithTag("map-route-card").getUnclippedBoundsInRoot()
@@ -301,7 +301,7 @@ class CachedRouteUiTest {
         var starts = 0
         renderAt(600.dp, 320.dp) {
             Column(Modifier.fillMaxSize().padding(14.dp)) {
-                card(cachedUi(blocked = false), {}, { starts++ })
+                CachedRouteCard(cachedUi(blocked = false), {}, { starts++ })
             }
         }
         val startButton = compose.onNodeWithText(string(R.string.start))
@@ -313,7 +313,7 @@ class CachedRouteUiTest {
 
     @Test fun cachedPreviewAt190KeepsPrimaryTargetsAt64() {
         renderAt(190.dp, 296.dp) {
-            card(cachedUi(blocked = true), {}, {})
+            CachedRouteCard(cachedUi(blocked = true), {}, {})
         }
         val refresh = compose.onNodeWithTag("cached-route-refresh")
         refresh.performScrollTo()
@@ -329,7 +329,7 @@ class CachedRouteUiTest {
     @Test fun cachedPreviewKeepsStopsReadableButNotEditable() {
         renderAt(600.dp, 320.dp) {
             Column(Modifier.fillMaxSize().padding(14.dp)) {
-                card(cachedUi(stops = listOf(Place("Ara Durak", "", GeoPoint(41.01, 29.01)))), {}, {})
+                CachedRouteCard(cachedUi(stops = listOf(Place("Ara Durak", "", GeoPoint(41.01, 29.01)))), {}, {})
             }
         }
         val cardBounds = compose.onNodeWithTag("map-route-card").getUnclippedBoundsInRoot()

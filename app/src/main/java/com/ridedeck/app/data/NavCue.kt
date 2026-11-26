@@ -11,6 +11,9 @@ import com.ridedeck.app.util.Prefs
 object NavCue {
     private val pattern = longArrayOf(0, 120, 90, 120)
 
+    /** Copy of the off/on waveform in milliseconds; exposed so a JVM test can pin the two-pulse shape. */
+    internal fun waveform(): LongArray = pattern.copyOf()
+
     fun pulse(context: Context) {
         if (!Prefs.hapticsEnabled(context)) return
         val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

@@ -6,7 +6,17 @@
 
 > **Güncel durum (2026-11-26):** Ürün sürümü `0.7.1` / `versionCode 9`; imzalı `v0.7.1` kararlı APK'sı `prerelease=false` olarak yayımlandı. 1.0 sürümü, etiketi veya mağaza yayını yoktur. Önceki `0.4.0–0.7.0` test sayıları tarihseldir.
 
+> **Sürüm sonrası commit'ler (2026-11-26):** `v0.7.1` (`d22cf0a`) sonrasında `7aadca8` bağımsız araç içi sürüş paneli refactor'ü `main` dalına alındı; ardından gelen lint/test düzeltmeleri yerel doğrulama turuna dahil edildi. Bu değişiklikler yeni sürüm/etiket veya release artefaktı üretmedi; release varyantı, tam instrumentation ve 1.0 saha kapıları **PENDING/UNVERIFIED**.
+
+## 26 Kasım 2026 — v0.7.1 sonrası refactor doğrulaması
+
+- **Kod:** `7aadca8` bağımsız araç içi sürüş paneli refactor'ü `main`'de; takip eden lint/test düzeltmeleri yerel çalışma ağacında uygulandı.
+- **Yerel doğrulama:** Debug JVM **851/851 PASS** (0 hata, 0 atlama), `lintDebug` **0 hata**, `assembleDebug` + `assembleDebugAndroidTest` **PASS**, fastlane metadata **PASS**, hedefli x86_64 API 35 emülatör instrumentation **26/26 PASS**.
+- **PENDING:** Release varyantı (`lintRelease`, `assembleRelease`, `bundleRelease`), 16 KB/ABI/imza paketi, tam emülatör instrumentation matrisi, fiziksel cihaz/gerçek sürüş ve diğer 1.0 saha kapıları bu refactor sonrası yeniden doğrulanmadı.
+
 ## 26 Kasım 2026 — v0.7.1 doğrulama sonuçları
+
+> Bu sonuçlar `v0.7.1` etiketi (`d22cf0a`) içindir; sonraki `7aadca8` refactor'ü sonrasında release varyantı ve tam instrumentation yeniden çalıştırılmadı.
 
 - **Debug + release JVM birim testleri:** Her varyantta **848/848 PASS** (toplam 1.696), 0 hata, 0 atlama.
 - **Lint:** **0 hata**; debug **105**, release **104** uyarı, 3'er öneri; uyarılar bastırılmadı.

@@ -7,7 +7,6 @@
     <string name="stop_confirm_cancel">Vazgeç</string>
     <string name="nav_quick_action_desc">%1$s · %2$s</string>
     <string name="speed_limit_warning_units">Hız limiti %1$d %2$s, yavaşla</string>
-    <string name="map_credit_desc">Harita verisi: OpenFreeMap, OpenMapTiles ve OpenStreetMap</string>
     <string name="map_credit_a11y">Harita verisi © OpenStreetMap ve OpenFreeMap. Telif bilgisi ve fixthemap hata bildirimi için dokunun.</string>
     <string name="map_credit_action">Harita verisi bağlantılarını aç</string>
     <string name="map_credit_copyright">OpenStreetMap telif ve atıf</string>

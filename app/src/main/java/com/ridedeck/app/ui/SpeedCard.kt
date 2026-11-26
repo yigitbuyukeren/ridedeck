@@ -58,10 +58,10 @@ import com.ridedeck.app.R
 fun SpeedCard(
     gps: GpsUi,
     limit: Int?,
+    modifier: Modifier = Modifier,
     /** Without location permission the card says so instead of waiting for a fix that cannot come. */
     locationGranted: Boolean = true,
     onGrantLocation: () -> Unit = {},
-    modifier: Modifier = Modifier,
     onSos: (() -> Unit)? = null,
     /** Full-scale of the gauge, km/h; depends on the vehicle. */
     maxKmh: Float = 240f,

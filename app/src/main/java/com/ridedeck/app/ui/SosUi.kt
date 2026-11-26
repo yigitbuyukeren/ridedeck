@@ -387,8 +387,15 @@ fun SosSettingsCard(
     val activity = remember(context) { context.findActivity() }
     val smsDeniedForGood = !smsOk && smsAsked && activity != null &&
         !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.SEND_SMS)
+    // The permission itself only exists from API 33; below it there is nothing to ask for.
+    val postNotificationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.POST_NOTIFICATIONS
+    } else {
+        null
+    }
     val notificationDeniedForGood = !postNotifications && notificationAsked && activity != null &&
-        !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.POST_NOTIFICATIONS)
+        postNotificationPermission != null &&
+        !ActivityCompat.shouldShowRequestPermissionRationale(activity, postNotificationPermission)
     val alertFacts = alertFacts ?: SosAlertPermissionFacts(
         notificationsEnabled = notificationsEnabled,
         postNotificationsGranted = postNotifications,
@@ -473,7 +480,7 @@ fun SosSettingsCard(
                         } else {
                             notificationAsked = true
                             Prefs.setSosNotificationAsked(context)
-                            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            postNotificationPermission?.let(notificationLauncher::launch)
                         }
                     },
                 )

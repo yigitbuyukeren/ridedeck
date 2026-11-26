@@ -221,6 +221,7 @@ fun MapScreen(
     speedKmh: Int,
     /** No typing while driving; decided by the motion state (hysteresis, unknown keeps the last answer), not a raw speed. */
     inputLocked: Boolean,
+    modifier: Modifier = Modifier,
     speedShown: Int? = null,
     speedLimit: Int?,
     isDay: Boolean,
@@ -231,7 +232,6 @@ fun MapScreen(
     onClose: () -> Unit,
     onStartNavigation: () -> Unit,
     onContinueNavigation: () -> Unit,
-    modifier: Modifier = Modifier,
     recents: List<Place> = emptyList(),
     onClearRecents: () -> Unit = {},
     /** Explicit user retry for a saved trip with missing geometry; null means text only, never a fake target. */
@@ -1273,7 +1273,7 @@ private fun RouteChoiceChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val state = stringResource(if (selected) R.string.state_on else R.string.state_off)
+    val state = stringResource(if (selected) R.string.map_state_on else R.string.map_state_off)
     Column(
         modifier = modifier.heightIn(min = 68.dp).clip(RoundedCornerShape(22.dp))
             .background(if (selected) DeckColors.Blue else DeckColors.PanelHigh)
@@ -1312,7 +1312,7 @@ private fun RouteChoiceChip(
 /** A toggle that reads like a button: filled blue with a check when on. At least 56dp tall. */
 @Composable
 private fun OptionChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val state = stringResource(if (selected) R.string.state_on else R.string.state_off)
+    val state = stringResource(if (selected) R.string.map_state_on else R.string.map_state_off)
     Row(
         modifier = modifier.height(68.dp).clip(RoundedCornerShape(28.dp))
             .background(if (selected) DeckColors.Blue else DeckColors.PanelHigh)

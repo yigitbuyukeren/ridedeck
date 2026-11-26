@@ -57,10 +57,10 @@ gerektiren maddeler ayrıca **ENGEL** olarak işaretlenir.
 | P2-17 | P2 | Tedarik | Bağımlılık/supply-chain doğrulaması | KISMİ | sürümler sabit; dependency verification yok |
 | P2-18 | P2 | Lisans | NOTICE/lisans eksikleri | KAPALI | NOTICE lisansları eklendi |
 | P2-19 | P2 | Asset | Gereksiz üretim asset'leri | KAPALI | probe asset debug’a taşındı |
-| P2-20 | P2 | Doküman | README/STATUS/CASE-STUDY/EKSIKLER/RELEASE_READINESS çelişkileri | KAPALI | README/STATUS/CASE-STUDY/EKSIKLER/RELEASE_READINESS güncellendi |
+| P2-20 | P2 | Doküman | STATUS/CASE-STUDY/RELEASE_READINESS çelişkileri | KAPALI | STATUS/CASE-STUDY/RELEASE_READINESS güncellendi; tanıtım dosyaları kaldırıldı |
 | P3-1 | P3 | UI | Küçük görsel/odak/klavye iyileştirmeleri | KISMİ | fırsat bulunan küçük düzeltmeler |
 | P3-2 | P3 | Test | Kapsam yüzdesi ve raporlama | KAPALI | test-report-summary.py + CI raporu |
-| P3-3 | P3 | Doküman | Denetim kanıtlarının arşivlenmesi | KAPALI | mevcut captures/ kanıtları |
+| P3-3 | P3 | Doküman | Denetim kanıtlarının arşivlenmesi | KAPALI | yerel `/tmp` kanıtları ve STATUS kayıtları; depoda kanıt dizini yok |
 
 ## Çalışma paketleri
 
@@ -76,7 +76,8 @@ gerektiren maddeler ayrıca **ENGEL** olarak işaretlenir.
 > Gerçek cihaz, gerçek SMS/arama, Bluetooth ses/eller serbest, sağlayıcı global kotası ve mağaza kararları
 > kapanmadan genel 1.0 kararı GO olamaz.
 
-> **17 Kasım 2026 doküman uzlaştırma notu:** README, STATUS, CASE-STUDY (TR/EN),
-> EKSIKLER, RELEASE_READINESS ve NOTICE güncel davranış ve kanıtlarla uzlaştırıldı.
+> **17 Kasım 2026 doküman uzlaştırma notu:** STATUS, CASE-STUDY (TR/EN),
+> RELEASE_READINESS ve NOTICE güncel davranış ve kanıtlarla uzlaştırıldı; sonraki
+> düzenlemede tanıtım amaçlı kök dosyalar ve görseller kaldırıldı.
 > Bu tablodaki durumların nihai güncellenmesi orkestratöre aittir; bu not yeni bir
 > kapanış iddiası değildir.

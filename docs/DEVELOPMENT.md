@@ -92,7 +92,7 @@ Raporlar:
 
 CI üç kademe çalışır:
 
-1. **Doküman/metadata-only** (`docs/`, `fastlane/`, `captures/`, `*.md`, lisans/topluluk dosyaları): Gradle ve emülatör başlatılmaz; ilgili metadata doğrulamaları ve `git diff --check` çalışır.
+1. **Doküman/metadata-only** (`docs/`, `fastlane/`, `*.md`, lisans/topluluk dosyaları): Gradle ve emülatör başlatılmaz; ilgili metadata doğrulamaları ve `git diff --check` çalışır.
 2. **Uygulama/kod değişikliği:** hızlı PR kapısı `testDebugUnitTest lintDebug assembleDebug` çalıştırır.
 3. **Full CI:** debug + release test/lint, APK/AAB, hizalama/ABI/imza kontrolleri ve x86_64 API 35 emülatöründe instrumentation. Full CI yalnızca `full-ci` PR etiketi, `v*` etiket push'u, haftalık zamanlanmış regresyon veya `workflow_dispatch` (`full=true`) ile başlatılır.
 
@@ -115,7 +115,7 @@ app/
   src/main/res/values-tr/       Türkçe metinler
   src/test/                     JVM birim testleri
   src/androidTest/              Compose/Android instrumentation testleri
-docs/                           Mimari, durum, sürüm kapıları, ekran görüntüleri
+docs/                           Mimari, durum, sürüm kapıları, denetim ve doğrulama belgeleri
 scripts/check-apk-alignment.py  Release APK 16 KB ELF hizalama kontrolü
 ```
 
@@ -295,7 +295,7 @@ RideDeck gönüllü bir açık kaynak projesidir; yanıt süresi garanti edilmez
 
 ## Gerçek cihaz demo kaydı
 
-Depodaki ekran görüntüleri ve `demo.gif` emülatörden alınmıştır; gerçek cihaz videosu çekilirken kişisel veriler (bildirimler, rehber, ev/iş konumu) gizlenmeli ve SOS yalnızca kişi eklemeden iptal akışıyla gösterilmelidir. Uygulama yatay kilitlidir (`sensorLandscape`).
+Depoda tanıtım ekran görüntüsü, demo GIF'i veya video tutulmaz. Gerçek cihaz videosu çekilirken kişisel veriler (bildirimler, rehber, ev/iş konumu) gizlenmeli ve SOS yalnızca kişi eklemeden iptal akışıyla gösterilmelidir. Uygulama yatay kilitlidir (`sensorLandscape`).
 
 ```bash
 # Cihaz içi kayıt (en fazla 180 sn, 1080p)

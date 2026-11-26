@@ -7,7 +7,6 @@
     <string name="stop_confirm_cancel">Cancel</string>
     <string name="nav_quick_action_desc">%1$s · %2$s</string>
     <string name="speed_limit_warning_units">Speed limit %1$d %2$s, slow down</string>
-    <string name="map_credit_desc">Map data: OpenFreeMap, OpenMapTiles and OpenStreetMap</string>
     <string name="map_credit_a11y">Map data © OpenStreetMap and OpenFreeMap. Tap for copyright information and the fixthemap error report.</string>
     <string name="map_credit_action">Open map data links</string>
     <string name="map_credit_copyright">OpenStreetMap copyright and attribution</string>

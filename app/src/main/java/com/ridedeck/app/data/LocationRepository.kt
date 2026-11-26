@@ -6,7 +6,6 @@ import android.content.Context
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
-import android.os.Build
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
@@ -122,7 +121,7 @@ class LocationRepository(private val context: Context) {
                 speedFilter.reset()
                 usingSimulatedFix = false
             }
-            val speedAcc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && location.hasSpeedAccuracy()) location.speedAccuracyMetersPerSecond.takeIf { it.isFinite() && it >= 0f } else null
+            val speedAcc = if (location.hasSpeedAccuracy()) location.speedAccuracyMetersPerSecond.takeIf { it.isFinite() && it >= 0f } else null
             val previous = _state.value
             val speedMps = if (hasSpeed) location.speed else 0f
             // The filter works on the time the chip measured at, so a late delivery does not shift the estimate.

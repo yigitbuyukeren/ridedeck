@@ -22,6 +22,6 @@ DURUM VE SINIRLAR
 - v0.7.1 kararlı bir sürümdür, ancak proje henüz 1.0 ürünü değildir. Gerçek cihaz ve gerçek sürüş doğrulaması, gerçek SMS/arama, Bluetooth eller serbest ses, kilit ekranı/üretici yazılımı davranışları ve kaza algılama eşikleri doğrulanmamıştır.
 - Canlı trafik, radar uyarısı, CarPlay veya Android Auto entegrasyonu yoktur. Android 8.0+ (API 26).
 
-Mağaza ekran görüntüleri Android emülatöründe sentetik/simüle edilmiş GPS (synthetic/simulated GPS) ile alınmıştır; gerçek sürüş değildir.
+Mağaza listelemelerinde ekran görüntüsü kullanılırsa, bunlar gerçek sürüş değil, sentetik/simüle edilmiş GPS (synthetic/simulated GPS) kullanılarak Android emülatöründe alınır.
 
 RideDeck sürüş sırasında dikkat dağıtabilir: telefonu veya tableti güvenli biçimde sabitle, ayarları park halindeyken yap ve trafik kurallarına uy. Apache 2.0 lisanslıdır.
