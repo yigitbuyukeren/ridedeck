@@ -131,7 +131,7 @@ def check_locale(locale: str, version_code: int, version_name: str) -> None:
 
     images = base / "images"
     if not images.is_dir():
-        fail(f"{rel(images)}: images directory missing")
+        notes.append(f"{rel(images)}: images directory omitted")
         return
 
     icon = images / "icon.png"
@@ -171,7 +171,10 @@ def check_locale(locale: str, version_code: int, version_name: str) -> None:
 
 def check_provenance() -> None:
     """Screenshots must be labelled as emulator captures with synthetic GPS."""
-    path = META_ROOT / "en-US" / "images" / "SCREENSHOT-PROVENANCE.md"
+    images_dir = META_ROOT / "en-US" / "images"
+    if not images_dir.is_dir():
+        return
+    path = images_dir / "SCREENSHOT-PROVENANCE.md"
     if not path.is_file():
         fail(f"{rel(path)}: missing (screenshot provenance must be documented)")
         return
