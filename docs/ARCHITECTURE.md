@@ -5,7 +5,17 @@ Bu belge RideDeck'e kod katkısı yapacaklar için paketleri, çalışma zamanı
 <details>
 <summary><b>English summary</b></summary>
 
-RideDeck is a standalone Android in-vehicle driving dashboard inspired by CarPlay and Android Auto; it does not integrate with or project to either. It is a single-module Kotlin/Jetpack Compose app (`minSdk 26`, `compileSdk`/`targetSdk 36`). `MainActivity` hosts one Compose tree; `DashboardViewModel` is the screen wiring point, while `RideDeckApplication` creates the process-owned `RideTracking` (with `LocationArbiter`), `RideNavigation` and `RideSafety` objects. Domain logic and repositories live in `data/`, Compose screens in `ui/`, Android foreground services and notifications in `service/`, and small helpers in `util/`. GPS comes from the platform `LocationManager`; display speed is filtered separately from the raw speed used by safety decisions. Public HTTP calls go through `data/Http.kt`/`ProviderHttp`, while MapLibre tile requests stay in the map engine. Data stays on the device, routing is online-only, and crash/SOS detection is an aid, not a guarantee. The app uses one general `VehicleProfile.AUTO` (Valhalla `auto` costing, 240 km/h gauge, 5.0 g crash impact, 30 km/h moving threshold, no tilt requirement, fuel stops only). The Turkish sections below map packages, data flow, the network layer, persistence, UI rules, testing and change locations.
+RideDeck is a standalone Android in-vehicle driving dashboard inspired by CarPlay and Android Auto; it does not integrate with or project to either.
+
+- **Shape:** single-module Kotlin/Jetpack Compose app (`minSdk 26`, `compileSdk`/`targetSdk 36`); one `MainActivity`, one Compose tree, no navigation library or DI framework.
+- **Owners:** `RideDeckApplication` creates the process-scoped `RideTracking` (with `LocationArbiter`), `RideNavigation` and `RideSafety`; `DashboardViewModel` only binds screen state.
+- **Layers:** domain logic and repositories in `data/`, Compose screens in `ui/`, foreground services and notifications in `service/`, small helpers in `util/`.
+- **Data:** platform `LocationManager`; display speed is filtered separately from the raw speed used by safety decisions; data stays on the device and routing is online-only.
+- **Network:** public HTTP calls go through `data/Http.kt`/`ProviderHttp`; MapLibre tile requests stay in the map engine.
+- **Safety:** crash/SOS detection is an aid, not a guarantee.
+- **Profile:** one general `VehicleProfile.AUTO` (Valhalla `auto` costing, 240 km/h gauge, 5.0 g crash impact, 30 km/h moving threshold, no tilt requirement, fuel stops only).
+
+The Turkish sections below map packages, data flow, the network layer, persistence, UI rules, testing and change locations.
 
 </details>
 
@@ -188,7 +198,7 @@ Tüm veri cihazda kalır. `android:allowBackup="false"` olduğu için Android bu
 - **Yüksek kontrast.** Gündüz ve gece paletleri ayrıdır; metin, uyarı ve harita işaretleri arka plandan net ayrılır.
 - **Sığdırma.** `isNarrowScreen()` ekran genişliği 560 dp altındaysa kompakt düzeni seçer. `cappedSp()` sistem yazı ölçeğini varsayılan olarak 1.15 ile sınırlar; kadran ve dock gibi sabit alanlarda metin taşmaz.
 - **Yatay araç içi düzen.** Manifest `sensorLandscape` kullanır; telefon 180° çevrildiğinde çentik tarafı değişse de içerik kaymasın diye simetrik güvenli boşluk uygulanır.
-- **TR/EN.** Kullanıcıya görünen her metin ilgili `values/strings*.xml` (İngilizce, varsayılan) ve `values-tr/strings*.xml` (Türkçe) dosyalarında birlikte güncellenir; `strings.xml`, `strings_data.xml`, `strings_nav.xml`, `strings_sos.xml` ve `strings_ui.xml` gibi gruplar vardır. Sesli yönlendirme telefon diline göre Türkçe veya İngilizce konuşur (`GuidanceLanguage`).
+- **TR/EN.** Kullanıcıya görünen her metin ilgili `values/strings*.xml` (İngilizce, varsayılan) ve `values-tr/strings*.xml` (Türkçe) dosyalarında birlikte güncellenir; `strings.xml`, `strings_data.xml`, `strings_nav.xml`, `strings_sos.xml` ve `strings_ui.xml` gibi gruplar vardır. Sesli yönlendirme uygulama diline göre Türkçe veya İngilizce konuşur (`GuidanceLanguage`, Android 13+ per-app locale; desteklenmeyen dillerde İngilizce).
 
 ## 8. Test edilebilirlik
 
@@ -212,7 +222,7 @@ CI şu komutu çalıştırır:
 ./gradlew test lintDebug lintRelease assembleDebug assembleRelease assembleDebugAndroidTest bundleRelease
 ```
 
-Burada `test` debug ve release JVM testlerini çalıştırır. Ayrı CI işi x86_64 API 35 emülatöründe `:app:connectedDebugAndroidTest` çalıştırır (cached-app freezer kapatılır); toplam 204 instrumentation testi vardır. Davranış değiştiren katkılarda ilgili JVM testini, arayüz değişikliklerinde ilgili Compose testini güncelleyin; doğrulanmamış cihaz davranışını doğrulanmış gibi anlatmayın.
+Burada `test` debug ve release JVM testlerini çalıştırır. Ayrı CI işi x86_64 API 35 emülatöründe `:app:connectedDebugAndroidTest` çalıştırır (cached-app freezer kapatılır); toplam 209 instrumentation testi vardır. Davranış değiştiren katkılarda ilgili JVM testini, arayüz değişikliklerinde ilgili Compose testini güncelleyin; doğrulanmamış cihaz davranışını doğrulanmış gibi anlatmayın.
 
 ## 9. Nerede ne değiştirilir?
 
@@ -235,8 +245,7 @@ Burada `test` debug ve release JVM testlerini çalıştırır. Ayrı CI işi x86
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | Katkı süreci, issue/PR beklentileri, dal ve commit kuralları | Güncel süreç |
 | [docs/DEVELOPMENT.md](DEVELOPMENT.md) | Ortam kurulumu, derleme, test, emülatör ve sorun giderme | Güncel pratik rehber |
 | [docs/TRANSLATING.md](TRANSLATING.md) | Yeni dil ekleme ve mevcut metinleri güncelleme | Güncel çeviri rehberi |
-| [docs/CASE-STUDY.md](CASE-STUDY.md) | Tasarım gerekçeleri ve teknik anlatım | Güncel teknik anlatım; saha doğrulaması STATUS/RELEASE'te |
-| [docs/CASE-STUDY.en.md](CASE-STUDY.en.md) | Vaka analizinin İngilizce özeti | Güncel özet |
+| [docs/CASE-STUDY.md](CASE-STUDY.md) | Tasarım gerekçeleri ve teknik anlatım (sonunda English summary) | Güncel teknik anlatım; saha doğrulaması STATUS/RELEASE'te |
 | [docs/STATUS.md](STATUS.md) | Tarihli doğrulama ve iş günlüğü | Güncel durum/kanıt; eski bölümler tarihsel |
 | [docs/RELEASE_READINESS.md](RELEASE_READINESS.md) | Yayın/saha kapıları | Güncel kapılar; tarihli alt bölümler tarihsel |
 | [docs/FEATURES-REFERENCE.md](FEATURES-REFERENCE.md) | Kullanıcıya dönük özellikler ve sınırlamalar | Güncel ürün özeti |

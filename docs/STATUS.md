@@ -1,33 +1,23 @@
 # Proje durumu
 
-Güncel kurallar kökteki `AGENTS.md`, saha/yayın kapıları [RELEASE_READINESS.md](RELEASE_READINESS.md) ve denetim maddeleri [AUDIT-TRACKING.md](AUDIT-TRACKING.md) içindedir. Aşağıdaki tarihli kayıtlar yeniden çalıştırılmış test sonucu değildir.
+Güncel kurallar kökteki `AGENTS.md`, saha/yayın kapıları [RELEASE_READINESS.md](RELEASE_READINESS.md) içindedir. Aşağıdaki tarihli kayıtlar yeniden çalıştırılmış test sonucu değildir.
 
-> **Kanıt yolları:** Metindeki `/tmp/...` yolları yerel kanıt dosyalarıdır; repoda yer almaz.
-
-**Son güncelleme:** 2026-11-26
+**Son güncelleme:** 2026-11-27
 
 ## Güncel özet
 
-- **Sürüm ve yayın:** `versionName 0.7.1`, `versionCode 9` (`app/build.gradle.kts`); imzalı `v0.7.1` kararlı (prerelease değil) GitHub sürümü 2026-11-26'da yayımlandı. Release imzası `0.6.x`/`0.7.0` ile aynıdır (`0.5.0`'dan geçiş için kaldırıp kurma gerekir).
-- **Sürüm sonrası commit'ler:** `v0.7.1` (`d22cf0a`) sonrasında `7aadca8` bağımsız araç içi sürüş paneli refactor'ü `main` dalına alındı; ardından gelen lint/test düzeltmeleri yerel çalışma ağacında uygulandı ve doğrulama turuna dahil edildi. Bu değişiklikler için yeni sürüm/`versionCode`, etiket, release APK/AAB veya mağaza yayını yoktur.
-- **Son doğrulama (26 Kasım 2026 — genel araç paneli geçişi):** Debug JVM **851/851 PASS** (0 hata, 0 atlama), `lintDebug` **0 hata**, `assembleDebug` + `assembleDebugAndroidTest` **PASS**, `fastlane` metadata **PASS** ve `ridedeck-verify` (API 35) emülatöründe hedefli instrumentation (**26/26 PASS**, 0 atlama: `SmokeTest`, `LocaleFallbackTest`, `IncomingCallNotificationTest`, `DashboardChromeUiTest`, `SosMessagingUiTest`, `ReadinessPanelUiTest`, `TripRideStopConfirmUiTest`). Release varyantı, 16 KB/ABI/imza paketi ve tam emülatör matrisi bu turda yeniden çalıştırılmadı (son tam release doğrulaması `v0.7.1` bölümündedir; son tam yerel instrumentation `v0.7.0`: **209 testte 208 PASS + 1 atlandı**, izin testi ayrı **1/1 PASS**).
+- **Sürüm ve yayın:** `versionName 0.7.1`, `versionCode 9` (`app/build.gradle.kts`); imzalı `v0.7.1` kararlı (prerelease değil) GitHub sürümü 2026-11-26'da yayımlandı. Release imzası `0.6.x`/`0.7.0` ile aynıdır (`0.5.0` ve öncesinden geçiş için kaldırıp kurma gerekir).
+- **Sürüm sonrası commit'ler:** `v0.7.1` (`d22cf0a`) sonrasında `7aadca8` bağımsız araç içi sürüş paneli refactor'ü `main`'e alındı; lint/test düzeltmeleri ve yeni `DrivingLogicTest` (+14 test) `3af1c18` commit'indedir. Bu değişiklikler için yeni sürüm/`versionCode`, etiket, release APK/AAB veya mağaza yayını yoktur.
+- **Son doğrulama (27 Kasım 2026 — `3af1c18`):** Debug JVM **865/865 PASS** (117 test dosyası, 0 hata, 0 atlama), `lintDebug` **0 hata**, `assembleDebug` + `assembleDebugAndroidTest` **PASS**, fastlane metadata **PASS** ve `ridedeck-verify` (API 35) emülatöründe hedefli instrumentation **26/26 PASS**. Release varyantı, 16 KB/ABI/imza paketi ve tam emülatör matrisi bu turda yeniden çalıştırılmadı; son tam release doğrulaması `v0.7.1` snapshot'ında, son tam yerel instrumentation `v0.7.0`'dadır.
 - **Ürün kapsamı:** Tek genel araç profili `VehicleProfile.AUTO` kullanılır (Valhalla `auto` costing, 240 km/sa gösterge üst sınırı, 5,0 g kaza darbesi eşiği, 30 km/sa hareket eşiği, `crashNeedsTilt = false`, yalnız benzin durağı). RideDeck, CarPlay/Android Auto'dan ilham alan bağımsız bir Android araç içi sürüş panelidir; CarPlay veya Android Auto entegrasyonu/projeksiyonu değildir. Araç seçici yoktur; eski araç/asistan/widget verisi göç kodu kaldırılmıştır. Ayarlar 6 bölüme ayrılmıştır (Genel, Görünüm, Harita, Ses ve bildirimler, Güvenlik, İzinler ve sistem).
 - **Çevrimdışı harita:** Yeni çevrimdışı indirmeler sağlayıcı uyumluluğu doğrulanana kadar durduruldu; önceden indirilmiş alanlar korunur.
-- **Açık kapılar:** Release varyantı/ABI/imza paketi, 16 KB runtime, tam instrumentation matrisi, fiziksel cihaz, gerçek sürüş/GPS, gerçek SMS/arama/Bluetooth ses (eller serbest), Doze/OEM, fiziksel kilit ekranı, mağaza/Data safety ve sağlayıcı toplam kotası **UNVERIFIED/OPEN**; kamuya açık 1.0 kararı **NO-GO**.
+- **Açık kapılar:** Release varyantı/ABI/imza paketi, 16 KB runtime, tam instrumentation matrisi, fiziksel cihaz, gerçek sürüş/GPS, gerçek SMS/arama/Bluetooth ses (eller serbest), Doze/OEM, fiziksel kilit ekranı, pil/ısı/jank, bağımlılık doğrulaması, mağaza/Data safety ve sağlayıcı toplam kotası **UNVERIFIED/OPEN**; kamuya açık 1.0 kararı **NO-GO**. Güncel tablo: [RELEASE_READINESS.md](RELEASE_READINESS.md).
 
 ## 2026-11-26 — v0.7.1 harita/navigasyon hizalama ve kontrast düzeltmeleri
 
 **Kapsam:** `v0.7.0` sonrasında yapılan harita konum oku hizalaması (`RouteSnap` 35 m ileri yol yönü, `SmoothFollow` ve `MiniMap` akıcı takip), karanlık harita kontrastı (`MapScreen`), yatay ekran kesiği (`displayCutout`) kenar boşlukları (`SymmetricInsets`) ve navigasyon kartı görünürlüğü (`NavCard`) iyileştirmeleri `0.7.1` / `versionCode 9` olarak yayımlandı.
 
-**Testler:**
-
-| Kontrol | Sonuç |
-|---|---|
-| Debug + release JVM | Her varyantta **848/848 PASS** (toplam 1.696), 0 hata, 0 atlama |
-| Lint | **0 hata**; debug **105**, release **104** uyarı, 3'er öneri |
-| 16 KB ELF / zipalign / ABI / AAB | **PASS** (release ARM-only, test probe sızıntısı yok, `app-release.aab` üretildi) |
-| Fastlane metadata | **PASS** (`en-US` ve `tr-TR`, `changelogs/9.txt`) |
-| Emülatör instrumentation | Yerelde yeniden çalıştırılmadı; `v0.7.1` etiketi GitHub Full CI emülatör koşusunu tetikler |
+**Testler:** Debug + release JVM **848/848 PASS** (toplam 1.696, 0 hata/atlama); lint **0 hata** (debug 105 / release 104 uyarı); 16 KB ELF/zipalign/ABI/AAB ve fastlane metadata (`changelogs/9.txt`) **PASS**; emülatör instrumentation yerelde yeniden çalıştırılmadı (`v0.7.1` etiketi GitHub Full CI koşusunu tetikler).
 
 **Yayın:** `RideDeck-0.7.1.apk` aynı v2 imza sertifikasıyla imzalandı; sertifika SHA-256 `9d9164ef8c679f2909e2a851d1327839c684cad238ca0932488a9f8d0f622427`, APK SHA-256 `6922b84fe938c28649d429eb2dbd8dc7ed60443c48d1ba4f64ab9afa1300c1fa`.
 
@@ -37,23 +27,9 @@ Güncel kurallar kökteki `AGENTS.md`, saha/yayın kapıları [RELEASE_READINESS
 
 **Kapsam:** Android uygulama dili (sistem veya Android 13+ uygulama dili menüsü) süreç yaşarken değiştiğinde TTS ve navigasyonun yeni dili kullanması sağlandı. Sürüm `0.7.0` / `versionCode 8`; `v0.6.0`, `v0.6.1-beta.1` ve önceki release'ler değiştirilmedi.
 
-**Düzeltme:**
+**Düzeltme:** `GuidanceLanguage` uygulamanın `Resources.configuration` yerelini okur (Android 13+ per-app locale; `tr` → `tr-TR`, diğer tüm diller → `en-US`). `Voice.applyLanguage` canlı `TextToSpeech` motorunu yeniden oluşturmadan yeni locale ve sesle hedefler; aktif `SpeechPriority.SOS` anonsu kesilmez. `RideNavigation`, `Application` yapılandırma callback'ini dinleyip TTS'i hedefler ve navigasyonu tetikler; `NavigationController.onGuidanceLanguageChanged` rota metinlerini yeni dilde yeniden ister, başarısız yenileme eski rotayı kullanılabilir bırakır. `RouteRepository` rota, Nominatim arama ve ters geocode isteklerinde uygulama dilini kullanır; konuşulan ondalık ayırıcı da uygulama diline bağlıdır.
 
-- `GuidanceLanguage` artık uygulamanın `Resources.configuration` yerelini okuyor; Android 13+ uygulama dili, sistem dilinden farklı olsa da doğru çözülüyor (`tr` → `tr-TR`, diğer tüm diller → `en-US`).
-- `Voice.applyLanguage` canlı `TextToSpeech` motorunu yeniden oluşturmadan yeni locale ve sesle hedefliyor; mevcut anonsu durduruyor. Aktif `SpeechPriority.SOS` anonsu kesilmiyor; dil değişikliği anons bitince uygulanıyor.
-- `RideNavigation`, `Application` yapılandırma callback'ini dinleyip TTS'i hedefliyor ve navigasyonu tetikliyor.
-- `NavigationController.onGuidanceLanguageChanged` rota metinlerini yeni dilde yeniden istiyor; başarısız yenileme eski rotayı kullanılabilir bırakıyor, duraklar `stopsPassed` ile yeniden hizalanıyor.
-- `RouteRepository` rota, Nominatim arama ve ters geocode isteklerinde uygulama dilini kullanıyor; TTS'te konuşulan ondalık ayırıcı uygulama diline bağlandı.
-
-**Testler:**
-
-| Kontrol | Sonuç |
-|---|---|
-| Debug + release JVM | Her varyantta **848/848 PASS**, 0 hata, 0 atlama |
-| Lint | **0 hata**; debug **105**, release **104** uyarı, 3'er öneri |
-| Instrumentation | **209 testte 208 PASS + 1 atlandı, 0 hata**; atlanan izin testi ayrı `am instrument` koşusunda **1/1 PASS** |
-| Dil fallback | TR/EN ve DE/FR → İngilizce; `GuidanceLanguage`, `TtsVoicePolicy`, rota isteği ve konuşma mesafesi testleri PASS |
-| Emülatör dil geçişi | `en-US` → `tr-TR` sırasında PID değişmedi; arayüz `Konum izni gerekli` / `km/sa` metinlerine geçti; çökme yok |
+**Testler:** Debug + release JVM **848/848 PASS**; lint **0 hata**; instrumentation **209 testte 208 PASS + 1 atlandı**, atlanan izin testi ayrı **1/1 PASS**; TR/EN ve DE/FR → İngilizce fallback testleri PASS; `en-US` → `tr-TR` geçişinde PID değişmedi ve çökme görülmedi.
 
 **Yayın:** `RideDeck-0.7.0.apk` aynı v2 imza sertifikasıyla imzalandı; sertifika SHA-256 `9d9164ef8c679f2909e2a851d1327839c684cad238ca0932488a9f8d0f622427`, APK SHA-256 `08e264b2c6a1235418aa89ed4646074dca71677a4ca01e5ea031811d084b845d`.
 
@@ -77,4 +53,4 @@ Güncel kurallar kökteki `AGENTS.md`, saha/yayın kapıları [RELEASE_READINESS
 
 ## Tarihsel kayıtlar
 
-12 Kasım 2026 ve öncesi geliştirme dalgaları (`0.4.0–0.6.0`, 29 Ekim denetimi, 11–12 Kasım yerel kabul dalgaları ve Ekim 2026 günlükleri) Git geçmişinde korunmaktadır. Güncel karar ve açık kapılar için [RELEASE_READINESS.md](RELEASE_READINESS.md) ve [AUDIT-TRACKING.md](AUDIT-TRACKING.md) dosyalarına bakın.
+12 Kasım 2026 ve öncesi geliştirme dalgaları (`0.4.0–0.6.0`, 29 Ekim denetimi, 11–12 Kasım yerel kabul dalgaları ve Ekim 2026 günlükleri) Git geçmişinde korunmaktadır. Güncel karar ve açık kapılar için [RELEASE_READINESS.md](RELEASE_READINESS.md) dosyasına bakın.

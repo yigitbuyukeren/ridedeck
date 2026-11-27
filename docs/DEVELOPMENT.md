@@ -92,7 +92,7 @@ Raporlar:
 
 CI üç kademe çalışır:
 
-1. **Doküman/metadata-only** (`docs/`, `fastlane/`, `*.md`, lisans/topluluk dosyaları): Gradle ve emülatör başlatılmaz; ilgili metadata doğrulamaları ve `git diff --check` çalışır.
+1. **Doküman/metadata-only** (`docs/`, `fastlane/`, `captures/*`, `*.md`, lisans/topluluk dosyaları, `scripts/check-fastlane-metadata.py`): Gradle ve emülatör başlatılmaz; ilgili metadata doğrulamaları ve `git diff --check` çalışır.
 2. **Uygulama/kod değişikliği:** hızlı PR kapısı `testDebugUnitTest lintDebug assembleDebug` çalıştırır.
 3. **Full CI:** debug + release test/lint, APK/AAB, hizalama/ABI/imza kontrolleri ve x86_64 API 35 emülatöründe instrumentation. Full CI yalnızca `full-ci` PR etiketi, `v*` etiket push'u, haftalık zamanlanmış regresyon veya `workflow_dispatch` (`full=true`) ile başlatılır.
 
@@ -105,7 +105,7 @@ app/
   build.gradle.kts              Uygulama modülü, SDK sürümleri, bağımlılıklar
   src/main/java/com/ridedeck/app/
     MainActivity.kt             Tek Activity, Compose girişi
-    DashboardViewModel.kt       Repository'lerin bağlandığı ViewModel
+    DashboardViewModel.kt       Ekran durumunun bağlama noktası
     RideDeckApplication.kt      Süreç ömürlü navigasyon/güvenlik nesneleri
     data/                       Saf mantık, repository'ler, HTTP, kalıcılık
     ui/                         Compose ekranları ve bileşenleri
@@ -115,7 +115,7 @@ app/
   src/main/res/values-tr/       Türkçe metinler
   src/test/                     JVM birim testleri
   src/androidTest/              Compose/Android instrumentation testleri
-docs/                           Mimari, durum, sürüm kapıları, denetim ve doğrulama belgeleri
+docs/                           Mimari, durum, sürüm kapıları ve doğrulama belgeleri
 scripts/check-apk-alignment.py  Release APK 16 KB ELF hizalama kontrolü
 ```
 
@@ -123,30 +123,11 @@ Tek modül ve tek Activity vardır. Navigasyon kütüphanesi yoktur; `DashboardS
 
 ## 5. Mimari özeti
 
-```
-LocationRepository (ham LocationManager, Play Services yok)
-  └─► LocationArbiter (ekran / açık yolculuk servisi / overlay referans sayımı)
-        ├─► SpeedFilter / PositionSmoother ─► hız göstergesi
-        ├─► NavigationController / RideNavigation ─► rota, eşleme, sesli yönlendirme
-        ├─► RideSafety (CrashDetector + SosController) ─► SOS
-        └─► TripRecorder / TripStore ─► yolculuk geçmişi
-DashboardViewModel = ekranın bağlama noktası (repository sahibi değil)
-data/Http.kt + ProviderHttp = genel HTTP geçidi (iptal + sağlayıcı sınırı)
-```
-
-Temel ilkeler:
-
-- **Saf mantık + ince Android kabuğu.** Hız filtresi, rota eşleme, SOS matematiği, ısınma koruması gibi çekirdekler Android API'sine bağımlı değildir; saat ve sensör girdisi dışarıdan verilir. Bu yüzden telefon olmadan test edilebilirler.
-- **Tek ağ geçidi.** Nominatim, Valhalla, Open-Meteo ve Overpass çağrıları `data/Http.kt`/`ProviderHttp` üzerinden gider; tek `User-Agent`, ortak hata/iptal ve sağlayıcı bazlı eşzamanlılık/aralık vardır. MapLibre'nin harita karo istekleri motorun kendi ağ katmanındadır.
-- **Ömür.** `RideSafety` ve `RideNavigation` uygulama sürecinde yaşar; ekran kapansa da başlatılmış yolculuk ve SOS devam eder. Ekran durumu `DashboardViewModel` ve Compose'dadır.
-- **Yerel veri.** Yolculuklar, kayıtlı yerler ve tercihler cihazda tutulur. Rota geometrisi süreç ölümünden sonra yalnız önizleme olarak geri gelir; çevrimdışı rota hesabı yoktur.
-- **Tek genel araç profili.** Araç seçici veya araca göre dallanan davranış yoktur; `VehicleProfile.AUTO` kullanılır ve rota Valhalla `auto` costing ile hesaplanır. Gösterge üst sınırı (240 km/sa), kaza darbesi eşiği (5,0 g), hareket eşiği (30 km/sa), `crashNeedsTilt = false` ve durak türü (yalnız benzinlik) `data/VehicleProfile.kt` içindeki `ProfileConfig` üzerinden gelir; yeni bir araç profili ekleme.
-
-Ayrıntılı paket haritası ve "nerede ne değiştirilir?" tablosu: [ARCHITECTURE.md](ARCHITECTURE.md).
+Tek modül ve tek `MainActivity` vardır; `DashboardScreen` yerel durumla ekranlar arasında geçer, navigasyon kütüphanesi ve DI framework'ü yoktur. Süreç ömründeki `RideTracking`, `RideNavigation` ve `RideSafety` GPS akışını `LocationArbiter` ile paylaşır; genel HTTP çağrıları `data/Http.kt`/`ProviderHttp` üzerinden gider (MapLibre karoları hariç) ve veri cihazda kalır. Çekirdek mantık Android'den ayrıdır; `VehicleProfile.AUTO` tek araç profilidir ve rota Valhalla `auto` costing kullanır. Paket haritası, veri akışı ve "nerede ne değiştirilir?" tablosu: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## 6. Emülatörde çalıştırma
 
-Android Studio'da bir AVD oluştur (API 35/36, **x86_64 veya ARM64 system image**). Debug APK x86_64 ve ARM yerellerini taşır; release APK/AAB yalnız ARM'dır. x86_64 AVD debug ve instrumentation için kullanılabilir. Komut satırıyla:
+Android Studio'da bir AVD oluştur (API 35/36, **x86_64 veya ARM64 system image**). Komut satırıyla:
 
 ```bash
 # Bağlı cihazları gör
@@ -249,7 +230,7 @@ Bu alanlar sürüş güvenliğini doğrudan etkiler.
 |---|---|
 | `SDK location not found` | `local.properties` içine `sdk.dir=...` yaz veya `ANDROID_HOME` ayarla. |
 | `Unsupported class file major version` / derleme JDK hatası | `JAVA_HOME` ve `./gradlew -version` çıktısının JDK 17 olduğunu doğrula. |
-| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | İmza anahtarı değişmiş olabilir; eski uygulamayı kaldırıp yeniden kur. 0.5.0 → 0.6.0 geçişi de bu nedenle kaldırma gerektirir. |
+| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | İmza anahtarı değişmiş olabilir; eski uygulamayı kaldırıp yeniden kur. `0.5.0` ve öncesinden gelen kurulumlar da bu nedenle kaldırma gerektirir. |
 | Emülatörde konum yok | `adb emu geo fix <boylam> <enlem>` gönder; uygulamanın konum izni açık mı bak. |
 | Harita boş / karo yüklenmiyor | İnternet bağlantısını ve OpenFreeMap erişimini kontrol et; ilk karo yüklemesi biraz sürebilir. |
 | `connectedDebugAndroidTest` cihaz bulamıyor | `adb devices` ile cihazı doğrula; emülatör açık ve yetkilendirilmiş olmalı. |

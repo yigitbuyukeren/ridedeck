@@ -15,7 +15,7 @@ Closes #
 - [ ] Diğer
 
 ## Test kanıtı
-<!-- Çalıştırdıklarını işaretle. Çalıştırmadıklarını ve nedenini aşağıda açıkla. -->
+<!-- Çalıştırdıklarını işaretle. Çalıştırmadıklarını ve nedenini aşağıda açıkla. Yalnız belge/metadata değişikliğinde Gradle/emülatör çalışmaz; `git diff --check` ve metadata kontrolleri yeterlidir. -->
 - [ ] `./gradlew testDebugUnitTest`
 - [ ] `./gradlew lintDebug`
 - [ ] `./gradlew assembleDebug`
@@ -34,6 +34,7 @@ Closes #
 - [ ] Sürüş güvenliği ve tek genel araç profili ilkesi korundu: sürerken yazı girişi yok, yeni dokunma hedefleri 64–84 dp (mevcut istisnalar ayrı), yüksek kontrast.
 - [ ] Yeni genel ağ çağrıları `app/src/main/java/com/ridedeck/app/data/Http.kt` üzerinden (MapLibre karo istekleri hariç); yeni dış servis varsa issue'da tartışıldı.
 - [ ] `local.properties`, `keystore.properties`, `*.jks`, `.env` veya başka gizli dosya/anahtar commit edilmedi.
-- [ ] Gerekli belgeler güncellendi (`docs/FEATURES-REFERENCE.md`, `docs/STATUS.md`, `CONTRIBUTING.md` vb.) veya belge değişikliği gerekmiyor.
+- [ ] Gerekli belgeler güncellendi ([özellik referansı](docs/FEATURES-REFERENCE.md), [durum](docs/STATUS.md), [yayın hazırlığı](docs/RELEASE_READINESS.md), [katkı](CONTRIBUTING.md) vb.) veya belge değişikliği gerekmiyor.
 - [ ] Log ve ekran görüntülerinde kişisel veri yok.
-- [ ] CI (birim testleri, lint, APK/AAB ve emülatör instrumentation testleri) geçti. (PR açtıktan sonra işaretle.)
+- [ ] Hızlı PR kapısı geçti: `./gradlew testDebugUnitTest lintDebug assembleDebug`. (Yalnız belge/metadata PR'ında Gradle çalışmaz; `git diff --check` yeterlidir. PR açtıktan sonra işaretle.)
+- [ ] Full CI instrumentation geçti — gerekiyorsa (`full-ci` etiketi, `v*` etiketi, haftalık koşu veya `workflow_dispatch`). (PR açtıktan sonra işaretle.)

@@ -27,10 +27,11 @@ Gerçek zamanlı acil durum, tıbbi yardım, kaza müdahalesi veya güvenlik gar
 
 ## Neyi nerede bulabilirim?
 
-- Kurulum, özellikler ve bilinen sınırlamalar: [docs/FEATURES-REFERENCE.md](docs/FEATURES-REFERENCE.md)
+- Kurulum ve özellikler: [docs/FEATURES-REFERENCE.md](docs/FEATURES-REFERENCE.md)
+- Bilinen sınırlamalar ve 1.0/saha kapıları: [docs/RELEASE_READINESS.md](docs/RELEASE_READINESS.md)
 - Derleme, test ve emülatör: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 - Mimari ve kod haritası: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- Güncel durum ve doğrulanmamış saha işleri: [docs/STATUS.md](docs/STATUS.md), [docs/RELEASE_READINESS.md](docs/RELEASE_READINESS.md)
+- Güncel durum ve doğrulanmamış işler: [docs/STATUS.md](docs/STATUS.md)
 - Katkı süreci: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Davranış kuralları: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 

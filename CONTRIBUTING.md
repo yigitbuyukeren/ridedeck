@@ -8,9 +8,11 @@ RideDeck, CarPlay/Android Auto'dan ilham alan bağımsız bir Android araç içi
 
 | Belge | Ne için? |
 |---|---|
+| [Özellik referansı](docs/FEATURES-REFERENCE.md) | Kullanıcıya dönük özellikler, izinler ve bilinen sınırlamalar |
 | [Geliştirme rehberi](docs/DEVELOPMENT.md) | Ortam kurulumu, derleme, test, emülatör ve sık kullanılan iş akışları |
 | [Mimari](docs/ARCHITECTURE.md) | Paketler, veri akışı, ağ katmanı ve "nerede ne değiştirilir?" |
 | [Çeviri rehberi](docs/TRANSLATING.md) | Yeni dil ekleme ve metin güncelleme kuralları |
+| [Yayın hazırlığı](docs/RELEASE_READINESS.md) | 1.0/saha kapıları ve açık engeller |
 | [Destek](SUPPORT.md) | Soru, geri bildirim ve hata bildirimi nereye? |
 | [Güvenlik](SECURITY.md) | Güvenlik açıklarını gizli biçimde bildirme |
 | [Davranış kuralları](CODE_OF_CONDUCT.md) | Topluluk beklentileri |
@@ -33,36 +35,15 @@ RideDeck, CarPlay/Android Auto'dan ilham alan bağımsız bir Android araç içi
 
 ## Geliştirme ortamı
 
-Gereksinimler:
+Gereksinimler: **JDK 17**, Android SDK Platform 36 + Build-Tools 36.0.0, `adb` ve isteğe bağlı API 35/36 emülatör (x86_64 veya ARM64). Fork'unu klonlayıp `local.properties` içine `sdk.dir=...` yaz; ayrıntılı kurulum, komutlar, emülatör ve sorun giderme [geliştirme rehberinde](docs/DEVELOPMENT.md)dir.
 
-- **JDK 17** (Temurin veya Android Studio'nun getirdiği JDK 17)
-- **Android Studio** (son kararlı sürüm) veya komut satırı araçları
-- **Android SDK Platform 36** ve **Build-Tools 36.0.0**
-- **Android SDK Platform-Tools** (`adb`) ve isteğe bağlı bir emülatör (API 35/36; x86_64 veya ARM64)
-- Git
-
-Fork'unu klonla ve upstream'i ekle:
+İlk doğrulama:
 
 ```bash
-git clone https://github.com/<kullanici-adin>/ridedeck.git
-cd ridedeck
-git remote add upstream https://github.com/yigitbuyukeren/ridedeck.git
-```
-
-`local.properties` dosyasına SDK yolunu yaz (bu dosya Git'e girmez):
-
-```properties
-sdk.dir=/yol/Android/sdk
-```
-
-İlk derleme ve test:
-
-```bash
-export JAVA_HOME=/yol/jdk-17
 ./gradlew testDebugUnitTest assembleDebug
 ```
 
-APK: `app/build/outputs/apk/debug/app-debug.apk`. Debug APK x86_64 ve ARM native kütüphaneleri taşır; release APK/AAB yalnız ARM'dır. x86_64 AVD debug ve instrumentation için çalışır. Ayrıntılı kurulum, emülatör, sahte GPS, tek test çalıştırma ve sorun giderme için [geliştirme rehberine](docs/DEVELOPMENT.md) bak.
+APK: `app/build/outputs/apk/debug/app-debug.apk`. Debug APK x86_64 ve ARM native kütüphaneleri taşır; release APK/AAB yalnız ARM'dır.
 
 ## Proje yapısı
 
@@ -71,7 +52,7 @@ Tek modüllü bir Android uygulamasıdır (`:app`). Kotlin, Jetpack Compose, `mi
 ```
 app/src/main/java/com/ridedeck/app/
   MainActivity.kt          Tek Activity, Compose girişi
-  DashboardViewModel.kt    Repository'lerin bağlandığı yer
+  DashboardViewModel.kt    Ekran durumunun bağlama noktası
   data/                    Saf mantık, repository'ler, servisler, kalıcılık
   ui/                      Compose ekranları ve bileşenleri
   service/                 Ön plan servisi, bildirimler, çağrı ekranı
@@ -164,17 +145,13 @@ Katkı yaparak kodunun ve belgenin [Apache 2.0](LICENSE) lisansı altında yayı
 
 RideDeck is a standalone Android in-vehicle driving dashboard inspired by CarPlay and Android Auto (Kotlin, Jetpack Compose, minSdk 26); it does not integrate with or project to either. Contributions are welcome.
 
-1. Fork, clone, add `upstream`, and set `sdk.dir` in `local.properties`.
-2. Use JDK 17 and Android SDK 36. Build with `./gradlew testDebugUnitTest assembleDebug`.
-3. Keep changes focused. Add a JVM test for new logic; add a Compose/instrumentation test when UI behavior changes. The fast PR gate runs debug unit tests and lint; the full gate (request it with the `full-ci` label, a `v*` tag, the weekly schedule, or `workflow_dispatch`) runs the instrumentation suite on an x86_64 API 35 emulator. A physical-device check is still separate evidence.
-4. Update the relevant `app/src/main/res/values/strings*.xml` (English, default) and `values-tr/strings*.xml` (Turkish) files (for example `strings.xml`, plus `strings_data.xml` if present) for user-facing text.
-5. Preserve the driving-safety rules: no text input while driving, 64–84 dp target touch areas (existing 56 dp exceptions need separate fixes), high contrast, landscape layout, and large-font support.
-6. Keep the single general `VehicleProfile.AUTO` (Valhalla `auto` costing) and do not add a vehicle chooser or vehicle-specific branching. Do not describe RideDeck as CarPlay or Android Auto integration.
-7. Route general network calls through `app/src/main/java/com/ridedeck/app/data/Http.kt`/`ProviderHttp` (MapLibre tile requests stay in the map engine). Do not add accounts, API keys, analytics, or a new external service without an issue.
-8. Never commit `local.properties`, `keystore.properties`, `*.jks`, or secrets. Report vulnerabilities privately via [SECURITY.md](SECURITY.md).
-9. Do not paste real locations, phone numbers, contact names or SMS content; anonymise logs and screenshots.
-10. Open a PR with the problem, the change, and test evidence. Link the issue with `Closes #123`.
+1. Fork, clone, add `upstream`, set `sdk.dir` in `local.properties`, and use JDK 17 with Android SDK 36. Details: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+2. Keep changes focused. Add a JVM test for new logic and a Compose/instrumentation test for UI behaviour. The fast PR gate is `./gradlew testDebugUnitTest lintDebug assembleDebug`; docs-only PRs skip Gradle. The full gate (`full-ci` label, `v*` tag, weekly schedule, or `workflow_dispatch`) adds release builds and the x86_64 API 35 instrumentation suite.
+3. Put user-facing text in `app/src/main/res/values/strings*.xml` (English, default) and `values-tr/strings*.xml` (Turkish). Preserve driving safety: no text input while moving, 64–84 dp targets (existing 56 dp exceptions need separate fixes), high contrast, landscape, large fonts.
+4. Keep the single general `VehicleProfile.AUTO` (Valhalla `auto` costing); do not add a vehicle chooser or describe RideDeck as CarPlay/Android Auto integration. Route network calls through `data/Http.kt`/`ProviderHttp` (MapLibre tiles stay in the map engine), and do not add accounts, keys, analytics or services without an issue.
+5. Never commit `local.properties`, `keystore.properties`, `*.jks`, secrets, or real locations/phone numbers/contact names/SMS content. Report vulnerabilities privately via [SECURITY.md](SECURITY.md).
+6. Open a PR with the problem, the change, and test evidence; link the issue with `Closes #123`.
 
-Read [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the code map, and [SUPPORT.md](SUPPORT.md) for where to ask questions. Follow the [code of conduct](CODE_OF_CONDUCT.md). By contributing, you agree that your work is licensed under Apache 2.0.
+Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the code map and [SUPPORT.md](SUPPORT.md) for questions. Follow the [code of conduct](CODE_OF_CONDUCT.md). By contributing, you agree that your work is licensed under Apache 2.0.
 
 </details>

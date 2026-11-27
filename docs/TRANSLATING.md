@@ -12,7 +12,7 @@ RideDeck'in arayüzü şu anda **İngilizce** (varsayılan) ve **Türkçe**dir. 
 | Türkçe | `app/src/main/res/values-tr/strings*.xml` |
 | Yeni dil (örnek Almanca) | `app/src/main/res/values-de/strings*.xml` |
 
-Android, desteklenmeyen telefon dilleri (ör. Almanca/Fransızca) ve eksik çeviri anahtarları için varsayılan **İngilizce** (`values/`) metne düşer. `values-tr/` Türkçe çevirileri içerir. Android 13+ sistem uygulama dili menüsünde `en` ve `tr` seçenekleri `res/xml/locales_config.xml` üzerinden bildirilir. Yeni bir dilin yine de mümkün olduğunca eksiksiz olması beklenir; yarım çeviri arayüzde karışık dil görünümüne yol açabilir.
+Android, desteklenmeyen sistem/uygulama dilleri (ör. Almanca/Fransızca; Android 13+ per-app locale dahil) ve eksik çeviri anahtarları için varsayılan **İngilizce** (`values/`) metne düşer. `values-tr/` Türkçe çevirileri içerir. Android 13+ sistem uygulama dili menüsünde `en` ve `tr` seçenekleri `res/xml/locales_config.xml` üzerinden bildirilir. Yeni bir dilin yine de mümkün olduğunca eksiksiz olması beklenir; yarım çeviri arayüzde karışık dil görünümüne yol açabilir.
 
 ## Mevcut çeviriyi düzeltme
 
@@ -36,7 +36,7 @@ Yeni dil dizini eklemek Kotlin kaynak kodunu değiştirmez; yalnızca Android ka
 
 `de` veya `fr` gibi yeni bir dil eklendiğinde `app/src/androidTest/java/com/ridedeck/app/LocaleFallbackTest.kt` içindeki “desteklenmeyen dil İngilizceye düşer” beklentisini de güncelle; test bu dilleri şu anda desteklenmiyor varsayar.
 
-Sesli yönlendirme şu anda yalnız Türkçe ve İngilizce destekler: `GuidanceLanguage.tag()` Türkçe dışındaki diller için `en-US` döner. Yeni bir arayüz dili eklendiğinde sesli yönlendirme İngilizce kalır; yeni sesli dil desteği ayrı bir kod değişikliğidir.
+Sesli yönlendirme şu anda yalnız Türkçe ve İngilizce destekler: `GuidanceLanguage.current(context)` telefon dilini değil **uygulama dilini** (`Resources.configuration`, Android 13+ per-app locale dahil) okur; Türkçe dışındaki diller için `en-US` döner. Yeni bir arayüz dili eklendiğinde sesli yönlendirme İngilizce kalır; yeni sesli dil desteği ayrı bir kod değişikliğidir.
 
 ## Kalite kuralları
 

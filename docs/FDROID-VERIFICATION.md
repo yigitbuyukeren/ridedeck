@@ -1,5 +1,7 @@
 # F-Droid / IzzyOnDroid verification — RideDeck 0.7.0 signed release APK
 
+> **Historical verification report — v0.7.0 / versionCode 8.** This document records the 2026-11-20 local check of the `v0.7.0` APK. It is not the current release state: `0.7.1` / `versionCode 9` shipped on 2026-11-26, the fastlane images/icon were removed in `d10e4cf`, and current gates live in [RELEASE_READINESS.md](RELEASE_READINESS.md).
+
 Date: 2026-11-20. Scope: **local evidence only** — the APK at
 `dist/RideDeck-0.7.0.apk`, the repo sources/docs on branch
 `chore/fdroid-izzyondroid-metadata`,
@@ -13,7 +15,7 @@ Tools: `sha256sum`, `$ANDROID_HOME/build-tools/35.0.0/{apksigner,aapt,zipalign}`
 
 | # | Check | Result | Concrete evidence |
 |---|---|---|---|
-| 1 | APK exists / non-empty / hash | **PASS** | 10,448,486 bytes; SHA-256 `08e264b2c6a1235418aa89ed4646074dca71677a4ca01e5ea031811d084b845d` = value in `RELEASE_READINESS.md` line 13 |
+| 1 | APK exists / non-empty / hash | **PASS** | 10,448,486 bytes; SHA-256 `08e264b2c6a1235418aa89ed4646074dca71677a4ca01e5ea031811d084b845d` = value in the `RELEASE_READINESS.md` v0.7.0 verification record |
 | 2 | Signature valid + cert | **PASS** | `apksigner verify`: Verifies; **v2 only** (v1/v3/v3.1/v4 = false); 1 signer; DN `CN=RideDeck Release v2, OU=Android, O=RideDeck, C=TR`; cert SHA-256 `9d9164ef8c679f2909e2a851d1327839c684cad238ca0932488a9f8d0f622427` = documented value; RSA 4096 |
 | 3 | Identity / version / manifest | **PASS** | `com.ridedeck.app`, versionCode `8`, versionName `0.7.0`, compile 36; minSdk `26`, targetSdk `36`; no `android:debuggable` (release default false), `allowBackup=false`, `fullBackupContent=0`, `dataExtractionRules` set; matches `app/build.gradle.kts` |
 | 4 | Permissions | **PASS (absences)** / **OPEN (runtime gating)** | `RECORD_AUDIO`, `ACCESS_BACKGROUND_LOCATION`, `BLUETOOTH_SCAN/CONNECT/ADVERTISE`, `READ_SMS`/`RECEIVE_SMS`, `CAMERA` all absent; 20 declared permissions listed below; dangerous ones are feature-scoped in docs but runtime behaviour is not locally verifiable |
@@ -26,8 +28,8 @@ No FAIL items were found in the locally verifiable checks.
 
 - Path: `dist/RideDeck-0.7.0.apk` — exists, regular file, **10,448,486 bytes** (non-empty).
 - `sha256sum`: `08e264b2c6a1235418aa89ed4646074dca71677a4ca01e5ea031811d084b845d`.
-- `docs/RELEASE_READINESS.md`, top (2026-11-18) section, line 13 records the identical APK SHA-256. **MATCH.**
-- The same line records the identical certificate SHA-256 used in check 2.
+- `docs/RELEASE_READINESS.md`, v0.7.0 verification record, records the identical APK SHA-256. **MATCH.**
+- The same section records the identical certificate SHA-256 used in check 2.
 
 ## 2. Signature (`apksigner verify --verbose --print-certs`)
 
@@ -86,8 +88,8 @@ Declared (20 `uses-permission` + 1 app-defined permission):
 
 **Unusual permissions confirmed ABSENT:** `RECORD_AUDIO`, `ACCESS_BACKGROUND_LOCATION`,
 `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`, `BLUETOOTH_ADVERTISE`, `READ_SMS`, `RECEIVE_SMS`,
-`CAMERA`, `READ_EXTERNAL_STORAGE` / media-store write. (Consistent with
-`RELEASE_READINESS.md` line 98 and the "no new Bluetooth scan/connect or mic permission" notes.)
+`CAMERA`, `READ_EXTERNAL_STORAGE` / media-store write. (Consistent with the
+`RELEASE_READINESS.md` 1.0 gate table and the "no new Bluetooth scan/connect or mic permission" notes.)
 
 Dangerous permissions and feature gating per docs (`FEATURES-REFERENCE.md` "Gizlilik ve izinler",
 `RELEASE_READINESS.md`): location and FGS are used for active ride tracking/navigation started by
@@ -96,9 +98,9 @@ call audio via Telecom (no app-originated dialling beyond user action); `SYSTEM_
 explicit user-enabled overlay preference; `POST_NOTIFICATIONS` is a runtime permission.
 `CarNotificationListener` is protected by `BIND_NOTIFICATION_LISTENER_SERVICE` and must be enabled
 by the user in notification-access settings — a sensitive capability worth noting in any store
-data-safety declaration. `READ_CONTACTS` is declared although docs describe SOS contacts being
-chosen with the system picker; the exact runtime use cannot be established from the APK alone
-(**OPEN** for behaviour).
+data-safety declaration. `READ_CONTACTS` gates the in-app phonebook and caller-name lookup
+(`Phone.kt`, `DeckInCallService.kt`); SOS contacts use the system contact picker, which needs no
+such permission. That split is a source-level fact, not something the APK alone proves.
 
 ## 5. Dependency licenses / F-Droid suitability
 
@@ -146,19 +148,18 @@ Blockers / unknowns:
 - **Real-device gates (OPEN/UNVERIFIED):** physical device, real GPS/driving, real SMS/SIM,
   Bluetooth hands-free audio, Doze/OEM, lock-screen and 16 KB runtime are unverified; `RELEASE_READINESS.md` keeps the
   public-release decision at **NO-GO**.
-- Version conflict risk (OPEN): versionCode 8 is already published as GitHub v0.7.0; any store build
-  must bump the version code before a new submission (this report makes no version change).
+- **Version conflict (RESOLVED 2026-11-26):** `versionCode 8` was published as GitHub `v0.7.0`; `v0.7.1` / `versionCode 9` and `changelogs/9.txt` are now published, so the next store build has a fresh code. This historical report made no version change.
 
 **Bottom line:** the signed APK itself is sound and internally consistent with the repo's release
 record (hash, cert, version, ABI, permissions, licenses, no debug/test leaks). The remaining items
 are store/policy, signing-infrastructure and real-device questions, not defects found in the APK.
 
-## Readiness summary & blockers (2026-11-20)
+## Readiness summary & blockers (2026-11-20, historical)
 
-- **Fastlane metadata:** `fastlane/metadata/android/{en-US,tr-TR}/` (`title.txt`, `short_description.txt`, `full_description.txt`, `changelogs/8.txt`, v0.7.0 emulator screenshots, 512×512 icon, `SCREENSHOT-PROVENANCE.md`) validated by `scripts/check-fastlane-metadata.py` in CI.
-- **Open blockers before submission:**
+- **Fastlane metadata at verification time:** `fastlane/metadata/android/{en-US,tr-TR}/` (`title.txt`, `short_description.txt`, `full_description.txt`, `changelogs/8.txt`, v0.7.0 emulator screenshots, 512×512 icon, `SCREENSHOT-PROVENANCE.md`) validated by `scripts/check-fastlane-metadata.py` in CI. Since `d10e4cf` the screenshots, icon and provenance file are removed; `v0.7.1` added `changelogs/9.txt` with `versionCode 9`.
+- **Blockers before submission (2026-11-20 record; status updated 2026-11-27):**
   1. **Signing & reproducibility (OPEN):** Release signing uses uncommitted `keystore.properties`; decide from-source F-Droid vs. existing certificate strategy.
-  2. **Version conflict (OPEN):** `versionCode 8` is already published as GitHub `v0.7.0`; bump `versionCode` and add matching changelog for any store build.
+  2. **Version conflict (RESOLVED):** `versionCode 8` was published as GitHub `v0.7.0`; `v0.7.1` / `versionCode 9` and `changelogs/9.txt` are now published.
   3. **Provider terms (OPEN/BLOCKED):** Global quota compliance for OpenFreeMap, Nominatim, FOSSGIS/Valhalla/Overpass and Open-Meteo is unproven; new offline downloads remain paused.
   4. **Store data-safety & legal (OPEN):** Complete privacy/data-safety declarations and `NOTICE` review.
   5. **Field gates (OPEN/NO-GO):** Real device, GPS/driving, SMS/SIM, calls, Bluetooth hands-free audio, lock-screen/Doze/OEM and 16 KB runtime remain unverified.
