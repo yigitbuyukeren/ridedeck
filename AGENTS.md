@@ -25,4 +25,5 @@ Android Kotlin/Compose araç içi sürüş paneli (CarPlay/Android Auto'dan ilha
 ## Git ve yayın
 
 - Mevcut dalı ve kullanıcı değişikliklerini koru; otomatik `switch`, `pull`, sürüm artırma, etiket veya release oluşturma.
-- Test başarısızken commit/push yapma; yalnız ilgili dosyaları stage et. Canlı dağıtım veya sürüm yayınlama açık talimat gerektirir.
+- Doğrulama (`./gradlew testDebugUnitTest lintDebug assembleDebug` veya yalnız belge değişikliğinde `git diff --check`) geçtikten sonra kullanıcıya sormadan yalnız ilgili dosyaları stage edip conventional commit oluştur ve upstream'e push yap (kullanıcı aksini istemedikçe).
+- Test başarısızken commit/push yapma; mağaza yayını veya sürüm yayınlama açık talimat gerektirir.
