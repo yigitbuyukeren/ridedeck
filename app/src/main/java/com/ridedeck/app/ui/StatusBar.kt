@@ -24,6 +24,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -33,7 +34,6 @@ import com.ridedeck.app.R
 import com.ridedeck.app.data.BatteryState
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 import kotlinx.coroutines.delay
 
 /** The current time, refreshed every [intervalMs]: for times that must keep moving while nothing else changes (an ETA while stuck in traffic). */
@@ -49,13 +49,14 @@ fun rememberNowMs(intervalMs: Long = 15_000L): androidx.compose.runtime.State<Lo
 /** CarPlay-style clock + battery readout at the bottom of the dock. */
 @Composable
 fun DockStatus(battery: BatteryState) {
+    val locale = LocalLocale.current.platformLocale
     val now by produceState(System.currentTimeMillis()) {
         while (true) {
             value = System.currentTimeMillis()
             delay(1000)
         }
     }
-    val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(now))
+    val time = SimpleDateFormat("HH:mm", locale).format(Date(now))
     val palette = LocalDeckPalette.current
     val tempColor = when {
         battery.tempC >= 45f -> dangerColor(palette)

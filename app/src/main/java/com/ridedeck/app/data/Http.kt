@@ -177,7 +177,7 @@ object Http {
                             when {
                                 emptyOn400 && it.code == 400 -> "{}"
                                 it.code !in 200..299 -> error("HTTP ${it.code}")
-                                else -> it.body?.string().orEmpty()
+                                else -> it.body.string()
                             }
                         }
                     } catch (e: Exception) {

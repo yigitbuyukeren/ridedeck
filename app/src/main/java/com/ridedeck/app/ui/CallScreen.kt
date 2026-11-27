@@ -44,12 +44,12 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import java.util.Locale
 import java.util.Date
 import java.text.SimpleDateFormat
 import com.ridedeck.app.data.NavUi
@@ -219,6 +219,7 @@ private fun TwoPane(
 /** Clock, speed and the next turn: what the dashboard shows, so a call does not blind the driver to the road. */
 @Composable
 private fun RideStrip(speedShown: Int?, nav: NavUi, call: CallState) {
+    val locale = LocalLocale.current.platformLocale
     val now by produceState(System.currentTimeMillis()) {
         while (true) {
             value = System.currentTimeMillis()
@@ -231,7 +232,7 @@ private fun RideStrip(speedShown: Int?, nav: NavUi, call: CallState) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        Text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(now)), fontSize = cappedSp(26f, maxScale = 1.15f), fontWeight = FontWeight.Bold, color = Color.White)
+        Text(SimpleDateFormat("HH:mm", locale).format(Date(now)), fontSize = cappedSp(26f, maxScale = 1.15f), fontWeight = FontWeight.Bold, color = Color.White)
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(if (speedShown != null) "${Units.speed(speedShown)}" else "--", fontSize = cappedSp(28f, maxScale = 1.15f), fontWeight = FontWeight.Bold, color = Color.White)
             Text(stringResource(if (Units.miles) R.string.speed_unit_mph else R.string.speed_unit), fontSize = cappedSp(15f, maxScale = 1.15f), color = DeckColors.Gray, modifier = Modifier.padding(bottom = 4.dp))

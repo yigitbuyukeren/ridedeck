@@ -2,7 +2,7 @@
 
 Bu belge RideDeck'i yerelde derlemek, test etmek ve değiştirmek için gereken pratik adımları anlatır. Katkı süreci, dal/commit kuralları ve PR beklentileri için [CONTRIBUTING.md](../CONTRIBUTING.md); kod haritası için [ARCHITECTURE.md](ARCHITECTURE.md) dosyasına bak.
 
-RideDeck, CarPlay/Android Auto'dan ilham alan bağımsız bir Android araç içi sürüş panelidir; CarPlay veya Android Auto ile entegre değildir. Tek modüllü bir Android uygulamasıdır: Kotlin, Jetpack Compose, `minSdk 26`, `compileSdk`/`targetSdk 36`. Hesap, API anahtarı, analitik veya RideDeck sunucusu yoktur.
+RideDeck, CarPlay/Android Auto'dan ilham alan bağımsız bir Android araç içi sürüş panelidir; CarPlay veya Android Auto ile entegre değildir. Tek modüllü bir Android uygulamasıdır: Kotlin, Jetpack Compose, `minSdk 26`, `compileSdk 37.2`, `targetSdk 36`. Hesap, API anahtarı, analitik veya RideDeck sunucusu yoktur.
 
 > **English quick start:** use JDK 17 and Android SDK 36, set `sdk.dir` in `local.properties`, then run `./gradlew testDebugUnitTest assembleDebug`. See the English quick start in [CONTRIBUTING.md](../CONTRIBUTING.md) for the PR workflow.
 

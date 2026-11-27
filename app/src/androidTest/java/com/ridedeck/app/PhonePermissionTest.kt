@@ -25,7 +25,7 @@ class PhonePermissionTest {
             override fun onCreate() = true
             override fun query(uri: Uri, projection: Array<out String>?, selection: String?, args: Array<out String>?, order: String?): Cursor {
                 queries++
-                return MatrixCursor(arrayOf("display_name", "data1", "starred")).apply { addRow(arrayOf("Fake contact", "15550000001", 0)) }
+                return MatrixCursor(arrayOf("display_name", "data1", "starred")).apply { addRow(arrayOf<Any?>("Fake contact", "15550000001", 0)) }
             }
             override fun getType(uri: Uri): String? = null
             override fun insert(uri: Uri, values: ContentValues?): Uri? = null

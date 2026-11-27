@@ -7,7 +7,7 @@ Bu belge RideDeck'e kod katkısı yapacaklar için paketleri, çalışma zamanı
 
 RideDeck is a standalone Android in-vehicle driving dashboard inspired by CarPlay and Android Auto; it does not integrate with or project to either.
 
-- **Shape:** single-module Kotlin/Jetpack Compose app (`minSdk 26`, `compileSdk`/`targetSdk 36`); one `MainActivity`, one Compose tree, no navigation library or DI framework.
+- **Shape:** single-module Kotlin/Jetpack Compose app (`minSdk 26`, `compileSdk 37.2`, `targetSdk 36`); one `MainActivity`, one Compose tree, no navigation library or DI framework.
 - **Owners:** `RideDeckApplication` creates the process-scoped `RideTracking` (with `LocationArbiter`), `RideNavigation` and `RideSafety`; `DashboardViewModel` only binds screen state.
 - **Layers:** domain logic and repositories in `data/`, Compose screens in `ui/`, foreground services and notifications in `service/`, small helpers in `util/`.
 - **Data:** platform `LocationManager`; display speed is filtered separately from the raw speed used by safety decisions; data stays on the device and routing is online-only.
@@ -25,7 +25,7 @@ The Turkish sections below map packages, data flow, the network layer, persisten
 |---|---|
 | Uygulama türü | Tek modüllü Android uygulaması (`:app`) |
 | Dil ve arayüz | Kotlin, Jetpack Compose |
-| SDK | `minSdk 26`, `compileSdk 36`, `targetSdk 36`; JDK 17 |
+| SDK | `minSdk 26`, `compileSdk 37.2`, `targetSdk 36`; JDK 17 |
 | Hesap / anahtar / sunucu | Yok. RideDeck hesabı, API anahtarı ve kendi arka ucu yoktur |
 | Ağ | Anahtarsız, ücretsiz genel servisler (Nominatim, Valhalla, Open-Meteo, Overpass); OpenFreeMap harita karoları MapLibre'nin kendi motorunda |
 | Veri | Yalnız cihazda; bulut eşitleme ve Android yedeklemesi kapalı |

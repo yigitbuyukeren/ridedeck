@@ -104,6 +104,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -989,8 +990,9 @@ internal fun RouteCard(
     }
     val debuggable = remember { (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0 }
     var menuOpen by remember { mutableStateOf(false) }
+    val locale = LocalLocale.current.platformLocale
     val now by rememberNowMs()
-    val eta = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(now + route.durationS.toLong() * 1000))
+    val eta = SimpleDateFormat("HH:mm", locale).format(Date(now + route.durationS.toLong() * 1000))
     GlassPanel(Modifier.fillMaxWidth().testTag("map-route-card")) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
           // Everything but Start / Cancel scrolls, so the primary actions stay reachable on a short screen.
@@ -1603,8 +1605,9 @@ internal fun ManeuverBanner(ui: NavUi) {
 
 @Composable
 private fun TripBar(ui: NavUi, onStop: () -> Unit) {
+    val locale = LocalLocale.current.platformLocale
     val now by rememberNowMs()
-    val eta = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(now + ui.remainingS * 1000L))
+    val eta = SimpleDateFormat("HH:mm", locale).format(Date(now + ui.remainingS * 1000L))
     GlassPanel(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {

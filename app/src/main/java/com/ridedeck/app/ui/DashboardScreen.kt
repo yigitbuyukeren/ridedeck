@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -56,6 +57,7 @@ import com.ridedeck.app.util.openSettingsAction
 @Composable
 fun DashboardScreen(vm: DashboardViewModel) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     fun callAction(action: () -> Boolean): Boolean {
         val accepted = action()
         if (!accepted) Toast.makeText(context, R.string.call_control_failed, Toast.LENGTH_SHORT).show()
@@ -66,7 +68,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
     val rideState by vm.rideTracking.session.state.collectAsStateWithLifecycle()
     val tripsRequested by vm.openTrips.collectAsStateWithLifecycle()
     LaunchedEffect(rideState.failure) {
-        rideState.failure?.let { Toast.makeText(context, context.getString(it.textId()), Toast.LENGTH_LONG).show() }
+        rideState.failure?.let { Toast.makeText(context, resources.getString(it.textId()), Toast.LENGTH_LONG).show() }
     }
     val gps by vm.gps.collectAsStateWithLifecycle()
     val locationState by vm.locationState.collectAsStateWithLifecycle()
@@ -181,7 +183,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
     LaunchedEffect(showPhone, resume, callState.phase) { if (showPhone && callState.phase == CallPhase.IDLE) vm.phone.refresh() }
 
     // Re-evaluated whenever the activity resumes (e.g. coming back from a system settings page).
-    val settingItems = remember(resume) {
+    val settingItems = remember(resume, resources) {
         val phoneAction = context.permissionDecision(
             key = "phone", permission = Manifest.permission.READ_PHONE_STATE, granted = phoneGranted(context),
         )
@@ -189,12 +191,12 @@ fun DashboardScreen(vm: DashboardViewModel) {
             key = "sms", permission = Manifest.permission.SEND_SMS, granted = context.hasPermission(Manifest.permission.SEND_SMS),
         )
         fun actionLabel(action: PermissionRequestAction, allow: Int) =
-            context.getString(if (action == PermissionRequestAction.OPEN_APP_SETTINGS) R.string.action_open_settings else allow)
+            resources.getString(if (action == PermissionRequestAction.OPEN_APP_SETTINGS) R.string.action_open_settings else allow)
         listOf(
             SettingItem(
-                context.getString(R.string.perm_location),
+                resources.getString(R.string.perm_location),
                 // Approximate location alone cannot drive a speedometer: say so instead of showing a plain "Allow".
-                context.getString(
+                resources.getString(
                     when {
                         locationGranted(context) -> R.string.perm_location_desc
                         coarseLocationOnly -> R.string.perm_location_precise
@@ -206,7 +208,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
             ) {
                 requestLocation()
             },
-            SettingItem(context.getString(R.string.perm_phone), context.getString(R.string.perm_phone_desc), phoneGranted(context), actionLabel(phoneAction, R.string.action_allow)) {
+            SettingItem(resources.getString(R.string.perm_phone), resources.getString(R.string.perm_phone_desc), phoneGranted(context), actionLabel(phoneAction, R.string.action_allow)) {
                 if (phoneAction == PermissionRequestAction.OPEN_APP_SETTINGS) {
                     openLocationSettings()
                 } else {
@@ -214,17 +216,17 @@ fun DashboardScreen(vm: DashboardViewModel) {
                     permissionLauncher.launch(phonePermissions())
                 }
             },
-            SettingItem(context.getString(R.string.perm_dialer), context.getString(R.string.perm_dialer_desc), isDefaultDialer(context), context.getString(R.string.action_set)) {
+            SettingItem(resources.getString(R.string.perm_dialer), resources.getString(R.string.perm_dialer_desc), isDefaultDialer(context), resources.getString(R.string.action_set)) {
                 dialerLauncher.launch(defaultDialerIntent(context))
             },
-            SettingItem(context.getString(R.string.perm_notif), context.getString(R.string.perm_notif_desc), notificationAccessGranted(context), context.getString(R.string.action_open)) {
+            SettingItem(resources.getString(R.string.perm_notif), resources.getString(R.string.perm_notif_desc), notificationAccessGranted(context), resources.getString(R.string.action_open)) {
                 context.openSettingsAction(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
             },
-            SettingItem(context.getString(R.string.perm_overlay), context.getString(R.string.perm_overlay_desc), overlayGranted(context), context.getString(R.string.action_open)) { context.openOverlaySettings() },
-            SettingItem(context.getString(R.string.perm_battery), context.getString(R.string.perm_battery_desc), ignoresBatteryOptimization(context), context.getString(R.string.action_open)) {
+            SettingItem(resources.getString(R.string.perm_overlay), resources.getString(R.string.perm_overlay_desc), overlayGranted(context), resources.getString(R.string.action_open)) { context.openOverlaySettings() },
+            SettingItem(resources.getString(R.string.perm_battery), resources.getString(R.string.perm_battery_desc), ignoresBatteryOptimization(context), resources.getString(R.string.action_open)) {
                 context.openSettingsAction(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
             },
-            SettingItem(context.getString(R.string.perm_sms), context.getString(R.string.perm_sms_desc), context.hasPermission(Manifest.permission.SEND_SMS), actionLabel(smsAction, R.string.action_allow)) {
+            SettingItem(resources.getString(R.string.perm_sms), resources.getString(R.string.perm_sms_desc), context.hasPermission(Manifest.permission.SEND_SMS), actionLabel(smsAction, R.string.action_allow)) {
                 if (smsAction == PermissionRequestAction.OPEN_APP_SETTINGS) {
                     openLocationSettings()
                 } else {
@@ -238,12 +240,12 @@ fun DashboardScreen(vm: DashboardViewModel) {
     // First launch asks for location only: the speedometer needs it, nothing else does. Phone, music
     // and SOS ask for their own permissions where they are switched on. If Android only allows
     // approximate location or the user denied it, the action goes straight to the app's system page.
-    val introRow = remember(resume, locationAsked, locationAction) {
+    val introRow = remember(resume, locationAsked, locationAction, resources) {
         val fine = locationGranted(context)
         val needsSettings = locationAction == PermissionRequestAction.OPEN_APP_SETTINGS
         PermissionRow(
-            title = context.getString(R.string.perm_location),
-            description = context.getString(
+            title = resources.getString(R.string.perm_location),
+            description = resources.getString(
                 when {
                     fine -> R.string.perm_location_desc
                     coarseLocationOnly -> R.string.perm_location_precise
@@ -252,7 +254,7 @@ fun DashboardScreen(vm: DashboardViewModel) {
                 }
             ),
             granted = fine,
-            actionLabel = context.getString(if (needsSettings) R.string.action_open_settings else R.string.action_allow),
+            actionLabel = resources.getString(if (needsSettings) R.string.action_open_settings else R.string.action_allow),
             onAction = requestLocation,
         )
     }
